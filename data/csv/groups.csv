@@ -1,0 +1,4 @@
+group_id,name,base_type,description,filter_definition,created_at,updated_at
+GRP-LOW-ACTIVITY-60D,Low Activity (60 Days),company,Companies with no completed activities in the last 60 days (or minimal engagement).,"{""hint"": ""GRP-LOW-ACTIVITY-60D""}",2025-08-03,2025-11-21
+GRP-RENEW-90D,Renewals Next 90 Days,company,Companies with renewal_date within the next 90 days.,"{""hint"": ""GRP-RENEW-90D""}",2025-08-03,2025-11-21
+GRP-TRIALS,Trials / New Accounts,company,Companies currently in trial or newly created accounts needing onboarding.,"{""hint"": ""GRP-TRIALS""}",2025-08-03,2025-11-21

@@ -1,0 +1,11 @@
+attachment_id,company_id,contact_id,opportunity_id,title,summary,file_type,created_at
+ATT-0001,ACME-MFG,C-ACME-ANNA,OPP-ACME-UPGRADE,Data Import Mapping Sheet,ROI assumptions and expected time savings based on current workflow.,xlsx,2025-11-10
+ATT-0002,ACME-MFG,C-ACME-JOE,OPP-ACME-RENEWAL,Proposal (PDF),Renewal terms and a summary of changes since last contract period.,xlsx,2025-11-01
+ATT-0003,BETA-TECH,C-BETA-LISA,OPP-BETA-NEW,Data Import Mapping Sheet,"Document contains the latest pricing, packaging, and implementation timeline.",xlsx,2025-11-02
+ATT-0004,CROWN-FOODS,C-CROWN-MARIA,OPP-CROWN-RENEW,Renewal Quote,CSV field mapping notes and data hygiene rules for import.,pdf,2025-10-30
+ATT-0005,CROWN-FOODS,C-CROWN-MARIA,OPP-CROWN-RENEW,Statement of Work,Renewal terms and a summary of changes since last contract period.,docx,2025-10-30
+ATT-0006,DELTA-HEALTH,C-DELTA-ERIN,OPP-DELTA-RENEW,Security Questionnaire,"Document contains the latest pricing, packaging, and implementation timeline.",xlsx,2025-08-15
+ATT-0007,EASTERN-TRAVEL,C-EAST-SANJAY,OPP-EAST-TRIAL,Data Import Mapping Sheet,Security requirements and responses covering access controls and data retention.,pdf,2025-10-05
+ATT-0008,FUSION-RETAIL,C-FUSION-EMMA,OPP-FUSION-UPSELL,Statement of Work,Renewal terms and a summary of changes since last contract period.,pdf,2025-10-25
+ATT-0009,HARBOR-LOGISTICS,C-HARBOR-JACOB,OPP-HARBOR-NEW,Executive One‑Pager,ROI assumptions and expected time savings based on current workflow.,xlsx,2025-11-10
+ATT-0010,HARBOR-LOGISTICS,C-HARBOR-JACOB,OPP-HARBOR-NEW,ROI Summary,"High-level overview for leadership including risks, benefits, and timeline.",docx,2025-11-10

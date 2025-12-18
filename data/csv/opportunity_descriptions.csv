@@ -1,0 +1,49 @@
+opportunity_id,company_id,primary_contact_id,title,text,created_at,updated_at
+OPP-ACME-UPGRADE,ACME-MFG,C-ACME-ANNA,Opportunity Notes – OPP-ACME-UPGRADE,"Acme Manufacturing opportunity context:
+- Stage: Proposal
+- Value: 15000 USD
+- Expected close: 2025-12-15
+
+Summary: Customer is exploring changes focused on automating follow-ups and reminders. Primary risk noted is duplicate contacts causing confusion. Recommended next step: build a renewal dashboard and set weekly review cadence.",2025-10-01,2025-11-10
+OPP-ACME-RENEWAL,ACME-MFG,C-ACME-JOE,Opportunity Notes – OPP-ACME-RENEWAL,"Acme Manufacturing opportunity context:
+- Stage: Qualified
+- Value: 24000 USD
+- Expected close: 2026-03-15
+
+Summary: Customer is exploring changes focused on consolidating history/notes into a single customer timeline. Primary risk noted is inconsistent activity logging across the team. Recommended next step: schedule a 30‑minute admin setup call.",2025-09-15,2025-11-01
+OPP-BETA-NEW,BETA-TECH,C-BETA-LISA,Opportunity Notes – OPP-BETA-NEW,"Beta Tech Solutions opportunity context:
+- Stage: Negotiation
+- Value: 32000 USD
+- Expected close: 2025-12-31
+
+Summary: Customer is exploring changes focused on segmenting contacts for targeted campaigns. Primary risk noted is inconsistent activity logging across the team. Recommended next step: import an updated contact list and resolve duplicates.",2025-08-20,2025-11-02
+OPP-CROWN-RENEW,CROWN-FOODS,C-CROWN-MARIA,Opportunity Notes – OPP-CROWN-RENEW,"Crown Foods opportunity context:
+- Stage: Proposal
+- Value: 18000 USD
+- Expected close: 2025-12-20
+
+Summary: Customer is exploring changes focused on segmenting contacts for targeted campaigns. Primary risk noted is inconsistent activity logging across the team. Recommended next step: create a saved group for renewals and start outreach.",2025-09-10,2025-10-30
+OPP-DELTA-RENEW,DELTA-HEALTH,C-DELTA-ERIN,Opportunity Notes – OPP-DELTA-RENEW,"Delta Health Clinics opportunity context:
+- Stage: Qualified
+- Value: 22000 USD
+- Expected close: 2025-09-01
+
+Summary: Customer is exploring changes focused on streamlining contact management and deduplication. Primary risk noted is inconsistent activity logging across the team. Recommended next step: schedule a 30‑minute admin setup call.",2025-06-01,2025-08-15
+OPP-EAST-TRIAL,EASTERN-TRAVEL,C-EAST-SANJAY,Opportunity Notes – OPP-EAST-TRIAL,"Eastern Travel Co. opportunity context:
+- Stage: New
+- Value: 8000 USD
+- Expected close: 2025-02-28
+
+Summary: Customer is exploring changes focused on cleaning up pipeline stages and forecasting accuracy. Primary risk noted is low engagement from key contacts. Recommended next step: schedule a 30‑minute admin setup call.",2025-01-10,2025-10-05
+OPP-FUSION-UPSELL,FUSION-RETAIL,C-FUSION-EMMA,Opportunity Notes – OPP-FUSION-UPSELL,"Fusion Retail Group opportunity context:
+- Stage: Qualified
+- Value: 12000 USD
+- Expected close: 2026-05-10
+
+Summary: Customer is exploring changes focused on streamlining contact management and deduplication. Primary risk noted is inconsistent activity logging across the team. Recommended next step: create a saved group for renewals and start outreach.",2025-07-01,2025-10-25
+OPP-HARBOR-NEW,HARBOR-LOGISTICS,C-HARBOR-JACOB,Opportunity Notes – OPP-HARBOR-NEW,"Harbor Logistics opportunity context:
+- Stage: Discovery
+- Value: 26000 USD
+- Expected close: 2025-08-30
+
+Summary: Customer is exploring changes focused on cleaning up pipeline stages and forecasting accuracy. Primary risk noted is inconsistent activity logging across the team. Recommended next step: create a saved group for renewals and start outreach.",2025-05-15,2025-11-10
