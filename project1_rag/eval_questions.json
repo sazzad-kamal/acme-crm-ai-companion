@@ -1,0 +1,52 @@
+[
+  {
+    "id": "q1",
+    "question": "What is an Opportunity in Acme CRM Suite and what fields does it have?",
+    "target_doc_ids": ["opportunities_pipeline_and_forecasts"]
+  },
+  {
+    "id": "q2",
+    "question": "How can I see which accounts have upcoming renewals?",
+    "target_doc_ids": ["reports_dashboards_and_analytics", "opportunities_pipeline_and_forecasts"]
+  },
+  {
+    "id": "q3",
+    "question": "What's the difference between History and Activities in Acme CRM?",
+    "target_doc_ids": ["history_activities_and_calendar"]
+  },
+  {
+    "id": "q4",
+    "question": "How do I create a contact and associate it with a company?",
+    "target_doc_ids": ["contacts_companies_and_groups"]
+  },
+  {
+    "id": "q5",
+    "question": "What are Groups and how are they used?",
+    "target_doc_ids": ["contacts_companies_and_groups"]
+  },
+  {
+    "id": "q6",
+    "question": "How do I set up an email marketing campaign?",
+    "target_doc_ids": ["email_marketing_campaigns"]
+  },
+  {
+    "id": "q7",
+    "question": "What are the system limits for Acme CRM Suite?",
+    "target_doc_ids": ["system_performance_and_limits"]
+  },
+  {
+    "id": "q8",
+    "question": "How do I create a custom dashboard?",
+    "target_doc_ids": ["reports_dashboards_and_analytics"]
+  },
+  {
+    "id": "q9",
+    "question": "What pipeline stages are available for opportunities?",
+    "target_doc_ids": ["opportunities_pipeline_and_forecasts"]
+  },
+  {
+    "id": "q10",
+    "question": "How do I import data into Acme CRM?",
+    "target_doc_ids": ["faq_data_import_export"]
+  }
+]
