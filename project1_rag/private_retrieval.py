@@ -1,7 +1,7 @@
 """
 Private retrieval backend with metadata filtering for account-scoped RAG (MVP2).
 
-Extends the base retrieval to support:
+Extends the base RetrievalBackend to support:
 - Metadata filtering by company_id in Qdrant
 - Filtered BM25 search
 - Company-scoped hybrid retrieval
@@ -15,20 +15,18 @@ Usage:
 import logging
 from pathlib import Path
 from typing import Optional
-import numpy as np
 
-from qdrant_client import QdrantClient
+import numpy as np
 from qdrant_client.models import (
     Filter,
     FieldCondition,
     MatchValue,
 )
-from sentence_transformers import SentenceTransformer, CrossEncoder
 from rank_bm25 import BM25Okapi
 
 from project1_rag.doc_models import DocumentChunk, ScoredChunk
 from project1_rag.config import get_config
-from project1_rag.utils import simple_tokenize
+from project1_rag.retrieval_backend import RetrievalBackend
 
 
 # Configure module logger
@@ -42,11 +40,14 @@ PRIVATE_COLLECTION_NAME = get_config().private_collection_name
 # Private Retrieval Backend
 # =============================================================================
 
-class PrivateRetrievalBackend:
+class PrivateRetrievalBackend(RetrievalBackend):
     """
     Hybrid retrieval backend for private CRM texts with metadata filtering.
     
-    Supports filtering by company_id for account-scoped retrieval.
+    Inherits from RetrievalBackend and adds:
+    - Company-specific filtering in Qdrant dense search
+    - Company-specific BM25 indexes (built on demand)
+    - Company-scoped hybrid retrieval
     """
     
     def __init__(
@@ -59,47 +60,19 @@ class PrivateRetrievalBackend:
         """Initialize the private retrieval backend."""
         config = get_config()
         
-        self.qdrant_path = qdrant_path or config.qdrant_path
-        self.collection_name = collection_name or config.private_collection_name
+        # Use private collection by default
+        collection_name = collection_name or config.private_collection_name
         
-        # Initialize Qdrant client
-        self.qdrant_path.mkdir(parents=True, exist_ok=True)
-        self.qdrant = QdrantClient(path=str(self.qdrant_path))
-        logger.info(f"Private retrieval backend initialized at {self.qdrant_path}")
-        
-        # Lazy load models
-        self._embedding_model_name = embedding_model or config.embedding_model
-        self._reranker_model_name = reranker_model or config.reranker_model
-        self._embedding_model: Optional[SentenceTransformer] = None
-        self._reranker: Optional[CrossEncoder] = None
-        
-        # In-memory chunk storage and BM25 index
-        self._chunks: list[DocumentChunk] = []
-        self._chunk_id_to_idx: dict[str, int] = {}
-        self._bm25: Optional[BM25Okapi] = None
+        # Initialize base class
+        super().__init__(
+            qdrant_path=qdrant_path,
+            collection_name=collection_name,
+            embedding_model=embedding_model,
+            reranker_model=reranker_model,
+        )
         
         # Company-specific BM25 indexes (built on demand)
-        self._company_bm25: dict[str, tuple[BM25Okapi, list[int]]] = {}
-    
-    @property
-    def embedding_model(self) -> SentenceTransformer:
-        """Lazy load the embedding model."""
-        if self._embedding_model is None:
-            logger.info(f"Loading embedding model: {self._embedding_model_name}")
-            self._embedding_model = SentenceTransformer(self._embedding_model_name)
-        return self._embedding_model
-    
-    @property
-    def reranker(self) -> CrossEncoder:
-        """Lazy load the reranker model."""
-        if self._reranker is None:
-            logger.info(f"Loading reranker model: {self._reranker_model_name}")
-            self._reranker = CrossEncoder(self._reranker_model_name)
-        return self._reranker
-    
-    def _tokenize(self, text: str) -> list[str]:
-        """Simple whitespace tokenizer for BM25."""
-        return simple_tokenize(text)
+        self._company_bm25: dict[str, tuple[Optional[BM25Okapi], list[int]]] = {}
     
     def load_from_qdrant(self) -> None:
         """
@@ -278,42 +251,6 @@ class PrivateRetrievalBackend:
             
             top_indices = np.argsort(scores)[::-1][:k]
             return [(int(i), float(scores[i])) for i in top_indices if scores[i] > 0]
-    
-    def _rrf_merge(
-        self,
-        dense_results: list[tuple[int, float]],
-        bm25_results: list[tuple[int, float]],
-        k: int = 60,
-    ) -> list[tuple[int, float]]:
-        """Merge results using Reciprocal Rank Fusion."""
-        scores = {}
-        
-        for rank, (idx, _) in enumerate(dense_results):
-            scores[idx] = scores.get(idx, 0) + 1 / (k + rank + 1)
-        
-        for rank, (idx, _) in enumerate(bm25_results):
-            scores[idx] = scores.get(idx, 0) + 1 / (k + rank + 1)
-        
-        merged = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        return merged
-    
-    def _rerank(
-        self,
-        query: str,
-        candidates: list[DocumentChunk],
-        top_n: int = 10,
-    ) -> list[tuple[DocumentChunk, float]]:
-        """Rerank candidates using cross-encoder."""
-        if not candidates:
-            return []
-        
-        pairs = [(query, c.text) for c in candidates]
-        scores = self.reranker.predict(pairs)
-        
-        scored = list(zip(candidates, scores))
-        scored.sort(key=lambda x: x[1], reverse=True)
-        
-        return scored[:top_n]
     
     def retrieve_candidates(
         self,

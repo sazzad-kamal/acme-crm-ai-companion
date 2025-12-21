@@ -9,10 +9,10 @@ Usage:
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Optional
 
-import pandas as pd
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     VectorParams,
@@ -23,86 +23,26 @@ from sentence_transformers import SentenceTransformer
 
 from project1_rag.private_text_builder import find_csv_dir, build_private_texts_jsonl
 from project1_rag.doc_models import DocumentChunk
+from project1_rag.config import get_config
+from project1_rag.utils import estimate_tokens, chunk_text
+
+
+# Configure module logger
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# Configuration
+# Configuration (from centralized config)
 # =============================================================================
 
-QDRANT_PATH = Path("data/qdrant")
-PRIVATE_COLLECTION_NAME = "acme_private_text_v1"
-
-# Embedding model (same as MVP1)
-EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
-EMBEDDING_DIM = 384
-
-# Chunking parameters (consistent with MVP1)
-TARGET_CHUNK_SIZE = 500  # tokens (approximate)
-MAX_CHUNK_SIZE = 700
-MIN_CHUNK_SIZE = 50
-CHUNK_OVERLAP = 50
-CHARS_PER_TOKEN = 4
-
-
-# =============================================================================
-# Chunking (simple recursive splitter for short texts)
-# =============================================================================
-
-def estimate_tokens(text: str) -> int:
-    """Estimate token count from text length."""
-    return len(text) // CHARS_PER_TOKEN
-
-
-def chunk_text(text: str, max_size: int = TARGET_CHUNK_SIZE) -> list[str]:
-    """
-    Split text into chunks of approximately max_size tokens.
-    
-    For private CRM text which is typically short, most texts
-    will remain as a single chunk.
-    """
-    estimated = estimate_tokens(text)
-    
-    if estimated <= max_size:
-        return [text]
-    
-    # Try splitting by paragraphs
-    chunks = []
-    paragraphs = text.split("\n\n")
-    current = ""
-    
-    for para in paragraphs:
-        test = current + "\n\n" + para if current else para
-        if estimate_tokens(test) <= max_size:
-            current = test
-        else:
-            if current:
-                chunks.append(current.strip())
-            current = para
-    
-    if current:
-        chunks.append(current.strip())
-    
-    # If still too large, split by sentences/lines
-    result = []
-    for chunk in chunks:
-        if estimate_tokens(chunk) > max_size:
-            # Split by newlines or sentences
-            lines = chunk.replace(". ", ".\n").split("\n")
-            sub_chunk = ""
-            for line in lines:
-                test = sub_chunk + " " + line if sub_chunk else line
-                if estimate_tokens(test) <= max_size:
-                    sub_chunk = test
-                else:
-                    if sub_chunk:
-                        result.append(sub_chunk.strip())
-                    sub_chunk = line
-            if sub_chunk:
-                result.append(sub_chunk.strip())
-        else:
-            result.append(chunk)
-    
-    return result if result else [text]
+# Backward compatibility exports
+QDRANT_PATH = get_config().qdrant_path
+PRIVATE_COLLECTION_NAME = get_config().private_collection_name
+EMBEDDING_MODEL = get_config().embedding_model
+EMBEDDING_DIM = get_config().embedding_dim
+TARGET_CHUNK_SIZE = get_config().target_chunk_size
+MAX_CHUNK_SIZE = get_config().max_chunk_size
+MIN_CHUNK_SIZE = get_config().min_chunk_size
 
 
 # =============================================================================

@@ -24,8 +24,16 @@ load_dotenv(project_root / ".env")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, Any
+
+# Import schemas from the centralized schemas module
+from project2_agentic.schemas import (
+    ChatRequest,
+    ChatResponse,
+    Source,
+    Step,
+    RawData,
+    MetaInfo,
+)
 
 # Import the agent
 from project2_agentic.agent import answer_question
@@ -45,59 +53,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# -----------------------------------------------------------------------------
-# Pydantic Models
-# -----------------------------------------------------------------------------
-
-
-class ChatRequest(BaseModel):
-    """Incoming chat request - matches frontend contract."""
-    question: str
-    mode: Optional[str] = "auto"  # "auto", "docs", "data", "data+docs"
-    session_id: Optional[str] = None
-    user_id: Optional[str] = None
-    company_id: Optional[str] = None
-
-
-class Source(BaseModel):
-    type: str
-    id: str
-    label: str
-
-
-class Step(BaseModel):
-    id: str
-    label: str
-    status: str  # "done", "error", "skipped"
-
-
-class RawData(BaseModel):
-    """Raw data payload - flexible to support various data types."""
-    companies: list[dict] = []
-    activities: list[dict] = []
-    opportunities: list[dict] = []
-    history: list[dict] = []
-    renewals: list[dict] = []
-    pipeline_summary: Optional[dict] = None
-    
-    model_config = {"extra": "allow"}  # Allow additional fields
-
-
-class MetaInfo(BaseModel):
-    mode_used: str
-    latency_ms: int
-    company_id: Optional[str] = None
-    days: Optional[int] = None
-
-
-class ChatResponse(BaseModel):
-    """Response to frontend - matches the contract."""
-    answer: str
-    sources: list[Source]
-    steps: list[Step]
-    raw_data: RawData
-    meta: MetaInfo
 
 
 # -----------------------------------------------------------------------------

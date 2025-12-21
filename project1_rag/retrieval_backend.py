@@ -13,11 +13,12 @@ Usage:
     results = backend.retrieve_candidates("my query", k=10)
 """
 
-import json
+import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
-import numpy as np
 
+import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     VectorParams,
@@ -31,22 +32,61 @@ from sentence_transformers import SentenceTransformer, CrossEncoder
 from rank_bm25 import BM25Okapi
 
 from project1_rag.doc_models import DocumentChunk, ScoredChunk
-from project1_rag.ingest_docs import load_chunks, OUTPUT_FILE
+from project1_rag.ingest_docs import load_chunks
+from project1_rag.config import get_config
+from project1_rag.utils import simple_tokenize
+
+
+# Configure module logger
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# Configuration
+# Embedding Cache
 # =============================================================================
 
-QDRANT_PATH = Path("data/qdrant")
-COLLECTION_NAME = "acme_crm_docs"
+# Simple in-memory cache for embeddings
+_embedding_cache: dict[str, np.ndarray] = {}
 
-# Model names
-EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
-RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
-# Embedding dimension for bge-small-en-v1.5
-EMBEDDING_DIM = 384
+def _get_cached_embedding(query: str) -> Optional[np.ndarray]:
+    """Get cached embedding for a query if it exists."""
+    config = get_config()
+    if not config.enable_embedding_cache:
+        return None
+    return _embedding_cache.get(query)
+
+
+def _cache_embedding(query: str, embedding: np.ndarray) -> None:
+    """Cache an embedding for a query."""
+    config = get_config()
+    if not config.enable_embedding_cache:
+        return
+    
+    # Limit cache size
+    if len(_embedding_cache) >= config.embedding_cache_size:
+        # Remove oldest entry (simple FIFO)
+        oldest_key = next(iter(_embedding_cache))
+        del _embedding_cache[oldest_key]
+    
+    _embedding_cache[query] = embedding
+
+
+def clear_embedding_cache() -> None:
+    """Clear the embedding cache."""
+    _embedding_cache.clear()
+
+
+# =============================================================================
+# Backward Compatibility Exports
+# =============================================================================
+
+# Export constants for backward compatibility (use config instead)
+QDRANT_PATH = get_config().qdrant_path
+COLLECTION_NAME = get_config().docs_collection_name
+EMBEDDING_MODEL = get_config().embedding_model
+RERANKER_MODEL = get_config().reranker_model
+EMBEDDING_DIM = get_config().embedding_dim
 
 
 # =============================================================================
