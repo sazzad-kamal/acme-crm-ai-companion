@@ -5,12 +5,17 @@ All constants, model names, paths, and tunable parameters are defined here.
 Import from this module instead of defining constants in individual files.
 """
 
+import logging
 import os
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Configure module logger
+logger = logging.getLogger(__name__)
 
 
 class RAGConfig(BaseSettings):
@@ -180,10 +185,58 @@ class RAGConfig(BaseSettings):
     cost_per_input_token: float = 0.40 / 1_000_000
     cost_per_output_token: float = 1.60 / 1_000_000
     
-    class Config:
-        env_prefix = "RAG_"
-        env_file = ".env"
-        extra = "ignore"
+    # -------------------------------------------------------------------------
+    # Feature Flags
+    # -------------------------------------------------------------------------
+    enable_query_rewriting: bool = Field(
+        default=True,
+        description="Enable LLM query rewriting for vague queries"
+    )
+    enable_audit_logging: bool = Field(
+        default=True,
+        description="Enable audit logging for all queries"
+    )
+    audit_log_file: Path = Field(
+        default=Path("data/logs/audit.jsonl"),
+        description="Path to audit log file"
+    )
+    
+    # Pydantic v2 configuration (replaces class Config)
+    model_config = SettingsConfigDict(
+        env_prefix="RAG_",
+        env_file=".env",
+        extra="ignore",
+    )
+    
+    @field_validator('embedding_dim')
+    @classmethod
+    def validate_embedding_dim(cls, v: int) -> int:
+        """Validate embedding dimension matches known models."""
+        valid_dims = {384, 768, 1024, 1536}  # Common embedding dimensions
+        if v not in valid_dims:
+            logger.warning(f"Unusual embedding_dim={v}. Expected one of {valid_dims}")
+        return v
+    
+    @field_validator('target_chunk_size')
+    @classmethod
+    def validate_chunk_size(cls, v: int) -> int:
+        """Validate chunk size is reasonable."""
+        if v < 50:
+            raise ValueError("target_chunk_size must be >= 50")
+        if v > 2000:
+            raise ValueError("target_chunk_size must be <= 2000")
+        return v
+    
+    @model_validator(mode='after')
+    def validate_config(self) -> 'RAGConfig':
+        """Cross-field validation."""
+        if self.max_chunk_size < self.target_chunk_size:
+            raise ValueError("max_chunk_size must be >= target_chunk_size")
+        if self.min_chunk_size > self.target_chunk_size:
+            raise ValueError("min_chunk_size must be <= target_chunk_size")
+        if self.chunk_overlap >= self.target_chunk_size:
+            raise ValueError("chunk_overlap must be < target_chunk_size")
+        return self
     
     @property
     def doc_chunks_path(self) -> Path:
@@ -201,11 +254,44 @@ _config: Optional[RAGConfig] = None
 
 
 def get_config() -> RAGConfig:
-    """Get the global RAG configuration instance."""
+    """Get the global RAG configuration instance with validation."""
     global _config
     if _config is None:
         _config = RAGConfig()
+        _validate_startup_config(_config)
     return _config
+
+
+def _validate_startup_config(config: RAGConfig) -> None:
+    """Validate configuration at startup and log warnings."""
+    issues = []
+    
+    # Check required directories exist (or can be created)
+    for path_name in ['docs_dir', 'csv_dir', 'processed_dir', 'qdrant_path']:
+        path = getattr(config, path_name)
+        if not path.exists():
+            logger.info(f"Directory {path_name}={path} does not exist (will be created on first use)")
+    
+    # Check if audit log directory exists
+    if config.enable_audit_logging:
+        audit_dir = config.audit_log_file.parent
+        if not audit_dir.exists():
+            logger.info(f"Creating audit log directory: {audit_dir}")
+            audit_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Validate OpenAI API key is set (for LLM calls)
+    if not os.environ.get('OPENAI_API_KEY'):
+        logger.warning("OPENAI_API_KEY not set - LLM calls will fail")
+        issues.append("OPENAI_API_KEY not set")
+    
+    # Log configuration summary
+    logger.info(f"RAG Config loaded: embedding_model={config.embedding_model}, "
+                f"llm_model={config.llm_model}, "
+                f"query_rewriting={config.enable_query_rewriting}, "
+                f"audit_logging={config.enable_audit_logging}")
+    
+    if issues:
+        logger.warning(f"Configuration issues: {issues}")
 
 
 def reset_config() -> None:
