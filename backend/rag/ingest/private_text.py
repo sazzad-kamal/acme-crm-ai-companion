@@ -29,15 +29,13 @@ from sentence_transformers import SentenceTransformer
 
 from backend.rag.ingest.text_builder import find_csv_dir, build_private_texts_jsonl
 from backend.rag.models import DocumentChunk
-from backend.rag.config import (
-    get_config,
-    EMBEDDING_MODEL,
-    EMBEDDING_DIM,
-    PRIVATE_COLLECTION,
+from backend.rag.config import get_config, PRIVATE_COLLECTION
+from backend.rag.ingest.constants import (
     TARGET_CHUNK_SIZE,
     MAX_CHUNK_SIZE,
     MIN_CHUNK_SIZE,
 )
+from backend.rag.retrieval.constants import EMBEDDING_MODEL, EMBEDDING_DIM
 from backend.rag.utils import estimate_tokens, chunk_text
 
 

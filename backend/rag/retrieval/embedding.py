@@ -8,7 +8,8 @@ import logging
 
 import numpy as np
 
-from backend.rag.config import get_config, EMBEDDING_CACHE_SIZE
+from backend.rag.config import get_config
+from backend.rag.retrieval.constants import EMBEDDING_CACHE_SIZE
 
 
 logger = logging.getLogger(__name__)

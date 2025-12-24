@@ -22,8 +22,8 @@ from rich.table import Table
 import pandas as pd
 
 from backend.rag.models import DocumentChunk
-from backend.rag.config import (
-    get_config,
+from backend.rag.config import get_config
+from backend.rag.ingest.constants import (
     MAX_CHUNK_SIZE,
     TARGET_CHUNK_SIZE,
     CHUNK_OVERLAP,

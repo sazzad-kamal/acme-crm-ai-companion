@@ -11,7 +11,7 @@ Contains common functions used across multiple modules to avoid duplication:
 import re
 import logging
 
-from backend.rag.config import (
+from backend.rag.ingest.constants import (
     CHARS_PER_TOKEN,
     TARGET_CHUNK_SIZE,
     MIN_CHUNK_SIZE,

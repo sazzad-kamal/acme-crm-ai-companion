@@ -25,7 +25,8 @@ from typing import Optional, Callable
 
 from backend.rag.models import DocumentChunk, ScoredChunk
 from backend.rag.retrieval.base import RetrievalBackend
-from backend.rag.config import get_config, LLM_MODEL, ANSWER_MAX_TOKENS, MAX_CONTEXT_TOKENS
+from backend.rag.config import get_config
+from backend.rag.pipeline.constants import LLM_MODEL, ANSWER_MAX_TOKENS, MAX_CONTEXT_TOKENS
 from backend.rag.utils import estimate_tokens, preprocess_query, extract_citations
 from backend.rag.audit import AuditEntry, log_audit_entry
 from backend.rag.prompts import (

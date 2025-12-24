@@ -34,7 +34,7 @@ from backend.rag.models import DocumentChunk, ScoredChunk
 from backend.rag.retrieval.private import PrivateRetrievalBackend, create_private_backend
 from backend.rag.retrieval.base import create_backend as create_docs_backend
 from backend.rag.ingest.text_builder import find_csv_dir
-from backend.rag.config import MAX_CONTEXT_TOKENS
+from backend.rag.pipeline.constants import MAX_CONTEXT_TOKENS
 from backend.rag.utils import estimate_tokens, preprocess_query, extract_citations
 from backend.rag.prompts import (
     ACCOUNT_QUERY_REWRITE_SYSTEM,

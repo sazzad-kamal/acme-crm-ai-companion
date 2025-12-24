@@ -27,12 +27,11 @@ from sentence_transformers import SentenceTransformer, CrossEncoder
 from rank_bm25 import BM25Okapi
 
 from backend.rag.models import DocumentChunk, ScoredChunk
-from backend.rag.config import (
-    get_config,
+from backend.rag.config import get_config, DOCS_COLLECTION
+from backend.rag.retrieval.constants import (
     EMBEDDING_MODEL,
     RERANKER_MODEL,
     EMBEDDING_DIM,
-    DOCS_COLLECTION,
     RRF_K,
 )
 from backend.rag.utils import simple_tokenize

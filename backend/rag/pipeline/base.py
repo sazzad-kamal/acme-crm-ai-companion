@@ -14,7 +14,7 @@ from typing import Optional, Callable
 from collections import defaultdict
 
 from backend.rag.models import DocumentChunk, ScoredChunk
-from backend.rag.config import (
+from backend.rag.pipeline.constants import (
     MIN_BM25_SCORE_RATIO,
     MAX_CHUNKS_PER_DOC,
     MAX_CHUNKS_PER_TYPE,
