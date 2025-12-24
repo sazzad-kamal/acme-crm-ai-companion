@@ -57,12 +57,12 @@ def format_answer(result: dict) -> None:
     )
 
 
-def get_backend(rebuild: bool = False) -> RetrievalBackend:
+def get_backend() -> RetrievalBackend:
     """Initialize and return the RAG backend."""
     with console.status("[bold green]Initializing RAG backend..."):
         try:
-            backend = create_backend(rebuild=rebuild)
-        except FileNotFoundError as e:
+            backend = create_backend()
+        except (FileNotFoundError, ValueError) as e:
             console.print(f"[red]Error:[/red] {e}")
             console.print("[yellow]Run 'python -m backend.rag.ingest.docs' first.[/yellow]")
             raise typer.Exit(1)
@@ -75,10 +75,9 @@ def get_backend(rebuild: bool = False) -> RetrievalBackend:
 def ask(
     question: str = typer.Argument(..., help="Question to ask about CRM"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show retrieval details"),
-    rebuild: bool = typer.Option(False, "--rebuild", help="Force rebuild indexes"),
 ):
     """Ask a single question and get an answer."""
-    backend = get_backend(rebuild=rebuild)
+    backend = get_backend()
     
     console.print(f"[bold]Question:[/bold] {question}\n")
     
@@ -89,11 +88,9 @@ def ask(
 
 
 @app.command()
-def chat(
-    rebuild: bool = typer.Option(False, "--rebuild", help="Force rebuild indexes"),
-):
+def chat():
     """Start interactive chat mode."""
-    backend = get_backend(rebuild=rebuild)
+    backend = get_backend()
     
     console.print(Panel(
         "Ask questions about Acme CRM Suite.\n"

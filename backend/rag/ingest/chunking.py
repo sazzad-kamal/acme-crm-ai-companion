@@ -1,15 +1,6 @@
 """
-Shared utilities for the RAG pipeline.
-
-Contains common functions used across multiple modules to avoid duplication:
-- Token estimation
-- Text chunking (recursive splitting)
-- Query preprocessing
-- Text normalization
+Text chunking utilities for document ingestion.
 """
-
-import re
-import logging
 
 from backend.rag.ingest.constants import (
     CHARS_PER_TOKEN,
@@ -19,20 +10,11 @@ from backend.rag.ingest.constants import (
 )
 
 
-# Configure module logger
-logger = logging.getLogger(__name__)
-
-
-# =============================================================================
-# Token Estimation
-# =============================================================================
-
 def estimate_tokens(text: str) -> int:
     """
     Estimate token count from text length.
     
-    Uses a simple character-based heuristic. For more accurate counts,
-    use tiktoken with the specific model's tokenizer.
+    Uses a simple character-based heuristic.
     
     Args:
         text: The text to estimate tokens for
@@ -43,63 +25,10 @@ def estimate_tokens(text: str) -> int:
     return len(text) // CHARS_PER_TOKEN
 
 
-def tokens_to_chars(tokens: int) -> int:
+def _tokens_to_chars(tokens: int) -> int:
     """Convert token count to approximate character count."""
     return tokens * CHARS_PER_TOKEN
 
-
-# =============================================================================
-# Query Preprocessing
-# =============================================================================
-
-def preprocess_query(query: str) -> str:
-    """
-    Light preprocessing of user queries.
-    
-    - Strip whitespace
-    - Collapse multiple spaces
-    - Remove excessive punctuation
-    
-    Args:
-        query: Raw user query
-        
-    Returns:
-        Cleaned query string
-    """
-    query = query.strip()
-    query = re.sub(r'\s+', ' ', query)
-    return query
-
-
-def normalize_text(text: str) -> str:
-    """
-    Normalize text for consistent processing.
-    
-    - Strip whitespace
-    - Normalize unicode
-    - Collapse multiple whitespace
-    
-    Args:
-        text: Raw text
-        
-    Returns:
-        Normalized text
-    """
-    import unicodedata
-    
-    # Normalize unicode
-    text = unicodedata.normalize('NFKC', text)
-    
-    # Strip and collapse whitespace
-    text = text.strip()
-    text = re.sub(r'\s+', ' ', text)
-    
-    return text
-
-
-# =============================================================================
-# Text Chunking
-# =============================================================================
 
 def recursive_split(
     text: str,
@@ -164,8 +93,8 @@ def recursive_split(
                 return result
     
     # If nothing worked, just split by character count
-    char_limit = tokens_to_chars(max_size)
-    overlap_chars = tokens_to_chars(overlap)
+    char_limit = _tokens_to_chars(max_size)
+    overlap_chars = _tokens_to_chars(overlap)
     chunks = []
     for i in range(0, len(text), char_limit - overlap_chars):
         chunks.append(text[i:i + char_limit])
@@ -242,74 +171,3 @@ def chunk_text(
     result = [c for c in result if estimate_tokens(c) >= min_size // 2]
     
     return result if result else [text]
-
-
-# =============================================================================
-# Citation Extraction
-# =============================================================================
-
-def extract_citations(text: str) -> list[str]:
-    """
-    Extract citation references from generated text.
-    
-    Looks for [doc_id] or [source_id] patterns.
-    
-    Args:
-        text: Text potentially containing citations
-        
-    Returns:
-        List of unique cited document/source IDs
-    """
-    pattern = r'\[([a-zA-Z0-9_::\-]+)\]'
-    citations = re.findall(pattern, text)
-    
-    # Remove duplicates while preserving order
-    seen = set()
-    unique = []
-    for c in citations:
-        c_lower = c.lower()
-        if c_lower not in seen:
-            seen.add(c_lower)
-            unique.append(c)
-    
-    return unique
-
-
-# =============================================================================
-# Text Similarity Helpers
-# =============================================================================
-
-def simple_tokenize(text: str) -> list[str]:
-    """
-    Simple whitespace tokenizer for BM25.
-    
-    Args:
-        text: Text to tokenize
-        
-    Returns:
-        List of lowercase tokens
-    """
-    return text.lower().split()
-
-
-def compute_overlap(text1: str, text2: str) -> float:
-    """
-    Compute word overlap ratio between two texts.
-    
-    Args:
-        text1: First text
-        text2: Second text
-        
-    Returns:
-        Jaccard similarity (0.0 to 1.0)
-    """
-    words1 = set(simple_tokenize(text1))
-    words2 = set(simple_tokenize(text2))
-    
-    if not words1 or not words2:
-        return 0.0
-    
-    intersection = len(words1 & words2)
-    union = len(words1 | words2)
-    
-    return intersection / union if union > 0 else 0.0

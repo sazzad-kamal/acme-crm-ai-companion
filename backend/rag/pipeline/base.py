@@ -20,7 +20,7 @@ from backend.rag.pipeline.constants import (
     MAX_CHUNKS_PER_TYPE,
     MAX_CONTEXT_TOKENS,
 )
-from backend.rag.utils import estimate_tokens, tokens_to_chars
+from backend.rag.pipeline.utils import estimate_tokens, tokens_to_chars
 
 
 logger = logging.getLogger(__name__)

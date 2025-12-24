@@ -27,15 +27,14 @@ from sentence_transformers import SentenceTransformer, CrossEncoder
 from rank_bm25 import BM25Okapi
 
 from backend.rag.models import DocumentChunk, ScoredChunk
-from backend.rag.config import QDRANT_PATH, DOC_CHUNKS_PATH
 from backend.rag.retrieval.constants import (
     EMBEDDING_MODEL,
     RERANKER_MODEL,
     EMBEDDING_DIM,
     RRF_K,
     DOCS_COLLECTION,
+    QDRANT_PATH,
 )
-from backend.rag.utils import simple_tokenize
 from backend.rag.retrieval.embedding import get_cached_embedding, cache_embedding
 
 
@@ -112,7 +111,7 @@ class RetrievalBackend:
     
     def _tokenize(self, text: str) -> list[str]:
         """Simple whitespace tokenizer for BM25."""
-        return simple_tokenize(text)
+        return text.lower().split()
     
     def build_indexes(self, chunks: list[DocumentChunk]) -> None:
         """
@@ -173,7 +172,7 @@ class RetrievalBackend:
                     "chunk_id": chunk.chunk_id,
                     "doc_id": chunk.doc_id,
                     "title": chunk.title,
-                    "text": chunk.text[:500],  # Store truncated text for debugging
+                    "text": chunk.text,  # Full text for BM25 retrieval
                     "metadata": chunk.metadata,
                 }
             )
@@ -220,13 +219,13 @@ class RetrievalBackend:
             if qdrant_filter is None:
                 cache_embedding(query, query_embedding)
         
-        # Use search method
-        results = self.qdrant.search(
+        # Use query_points (new Qdrant API)
+        results = self.qdrant.query_points(
             collection_name=self.collection_name,
-            query_vector=query_embedding.tolist() if isinstance(query_embedding, np.ndarray) else query_embedding,
+            query=query_embedding.tolist() if isinstance(query_embedding, np.ndarray) else query_embedding,
             query_filter=qdrant_filter,
             limit=k,
-        )
+        ).points
         
         logger.debug(f"Dense search returned {len(results)} results")
         return [(hit.id, hit.score) for hit in results]
@@ -378,26 +377,50 @@ class RetrievalBackend:
         
         return results
     
-    def load_and_build(self, chunks_path: Path | None = None) -> None:
+    def load_chunks_from_qdrant(self) -> list[DocumentChunk]:
         """
-        Load chunks from disk and build indexes.
+        Load chunks from Qdrant payloads.
         
-        Args:
-            chunks_path: Path to the chunks Parquet file (default from config)
+        Returns:
+            List of DocumentChunk objects reconstructed from Qdrant payloads
         """
-        from backend.rag.ingest.docs import load_chunks
+        if not self.qdrant.collection_exists(self.collection_name):
+            return []
         
-        chunks_path = chunks_path or DOC_CHUNKS_PATH
+        collection_info = self.qdrant.get_collection(self.collection_name)
+        if collection_info.points_count == 0:
+            return []
         
-        if not chunks_path.exists():
-            raise FileNotFoundError(
-                f"Chunks file not found: {chunks_path}. "
-                "Run 'python -m backend.rag.ingest.docs' first."
+        # Scroll through all points
+        chunks = []
+        offset = None
+        
+        while True:
+            results, offset = self.qdrant.scroll(
+                collection_name=self.collection_name,
+                limit=100,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
             )
+            
+            for point in results:
+                payload = point.payload
+                chunk = DocumentChunk(
+                    chunk_id=payload["chunk_id"],
+                    doc_id=payload["doc_id"],
+                    title=payload["title"],
+                    text=payload["text"],
+                    metadata=payload.get("metadata", {}),
+                )
+                chunks.append(chunk)
+            
+            if offset is None:
+                break
         
-        logger.info(f"Loading chunks from {chunks_path}...")
-        chunks = load_chunks(chunks_path)
-        self.build_indexes(chunks)
+        # Sort by point ID to maintain original order
+        chunks_by_id = {c.chunk_id: c for c in chunks}
+        return list(chunks_by_id.values())
     
     def get_chunk_by_id(self, chunk_id: str) -> DocumentChunk | None:
         """Get a chunk by its ID."""
@@ -411,27 +434,26 @@ class RetrievalBackend:
 # Convenience Functions
 # =============================================================================
 
-def create_backend(rebuild: bool = False) -> RetrievalBackend:
+def create_backend() -> RetrievalBackend:
     """
     Create and initialize a retrieval backend.
     
-    Args:
-        rebuild: If True, always rebuild indexes even if they exist
-        
     Returns:
         Initialized RetrievalBackend
+        
+    Raises:
+        ValueError: If no Qdrant collection exists
     """
-    from backend.rag.ingest.docs import load_chunks
-    
     backend = RetrievalBackend()
     
     # Check if collection exists and has vectors
-    if not rebuild and backend.qdrant.collection_exists(DOCS_COLLECTION):
+    if backend.qdrant.collection_exists(DOCS_COLLECTION):
         collection_info = backend.qdrant.get_collection(DOCS_COLLECTION)
         if collection_info.points_count > 0:
             logger.info(f"Using existing Qdrant collection with {collection_info.points_count} vectors")
-            # Still need to load chunks for BM25
-            chunks = load_chunks()
+            
+            # Load chunks from Qdrant payloads
+            chunks = backend.load_chunks_from_qdrant()
             backend._chunks = chunks
             backend._chunk_id_to_idx = {c.chunk_id: i for i, c in enumerate(chunks)}
             
@@ -441,9 +463,9 @@ def create_backend(rebuild: bool = False) -> RetrievalBackend:
             backend._bm25 = BM25Okapi(tokenized_corpus)
             return backend
     
-    # Build from scratch
-    backend.load_and_build()
-    return backend
+    raise ValueError(
+        "No Qdrant collection found. Run 'python -m backend.rag.ingest.docs' first."
+    )
 
 
 # =============================================================================

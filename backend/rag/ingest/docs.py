@@ -5,31 +5,29 @@ Responsibilities:
 - Walk data/docs/ and load all *.md files
 - Use heading-aware chunking (split by ## / ### then recursive character split)
 - Target chunk size: 400-700 tokens with small overlap
-- Save chunks to data/processed/doc_chunks.parquet
+- Upload chunks to Qdrant vector database
 
 Usage:
     python -m backend.rag.ingest.docs
 """
 
 import re
-import json
 import logging
 from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.table import Table
-import pandas as pd
 
 from backend.rag.models import DocumentChunk
-from backend.rag.config import DOCS_DIR, DOC_CHUNKS_PATH
 from backend.rag.ingest.constants import (
     MAX_CHUNK_SIZE,
     TARGET_CHUNK_SIZE,
     CHUNK_OVERLAP,
     MIN_CHUNK_SIZE,
+    DOCS_DIR,
 )
-from backend.rag.utils import estimate_tokens, recursive_split
+from backend.rag.ingest.chunking import estimate_tokens, recursive_split
 
 
 # Configure module logger
@@ -215,64 +213,6 @@ def ingest_all_docs(docs_dir: Path | None = None) -> list[DocumentChunk]:
     return all_chunks
 
 
-def save_chunks(chunks: list[DocumentChunk], output_path: Path | None = None) -> None:
-    """
-    Save chunks to a Parquet file.
-    
-    Args:
-        chunks: List of DocumentChunk objects
-        output_path: Path to the output Parquet file (default from config)
-    """
-    output_path = output_path or DOC_CHUNKS_PATH
-    
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Convert to DataFrame
-    records = []
-    for chunk in chunks:
-        record = {
-            "chunk_id": chunk.chunk_id,
-            "doc_id": chunk.doc_id,
-            "title": chunk.title,
-            "text": chunk.text,
-            "metadata": json.dumps(chunk.metadata),
-        }
-        records.append(record)
-    
-    df = pd.DataFrame(records)
-    df.to_parquet(output_path, index=False)
-    logger.info(f"Saved {len(chunks)} chunks to {output_path}")
-
-
-def load_chunks(input_path: Path | None = None) -> list[DocumentChunk]:
-    """
-    Load chunks from a Parquet file.
-    
-    Args:
-        input_path: Path to the Parquet file (default from config)
-        
-    Returns:
-        List of DocumentChunk objects
-    """
-    input_path = input_path or DOC_CHUNKS_PATH
-    
-    df = pd.read_parquet(input_path)
-    
-    chunks = []
-    for _, row in df.iterrows():
-        chunk = DocumentChunk(
-            chunk_id=row["chunk_id"],
-            doc_id=row["doc_id"],
-            title=row["title"],
-            text=row["text"],
-            metadata=json.loads(row["metadata"]),
-        )
-        chunks.append(chunk)
-    
-    logger.debug(f"Loaded {len(chunks)} chunks from {input_path}")
-    return chunks
-
-
 # =============================================================================
 # CLI Entrypoint
 # =============================================================================
@@ -313,11 +253,13 @@ def ingest():
     
     console.print(table)
     
-    # Save chunks
-    save_chunks(chunks)
-    console.print(f"\n[green]✓[/green] Written to {OUTPUT_FILE}")
-
-
+    # Build indexes (uploads to Qdrant + builds BM25)
+    with console.status("[bold green]Building indexes..."):
+        from backend.rag.retrieval.base import RetrievalBackend
+        backend = RetrievalBackend()
+        backend.build_indexes(chunks)
+    
+    console.print(f"\n[green]✓[/green] Indexed {len(chunks)} chunks in Qdrant")
 def main():
     """Main entrypoint for document ingestion."""
     app()
