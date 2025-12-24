@@ -20,11 +20,17 @@ import random
 from pathlib import Path
 from typing import Optional
 import pandas as pd
+import typer
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
 
 
 # =============================================================================
 # Configuration
 # =============================================================================
+
+console = Console()
 
 # Get backend root directory
 _BACKEND_ROOT = Path(__file__).parent.parent.parent
@@ -88,7 +94,7 @@ def synthesize_opportunity_descriptions(csv_dir: Path) -> pd.DataFrame:
     """
     opp_path = csv_dir / "opportunities.csv"
     if not opp_path.exists():
-        print("  Warning: opportunities.csv not found, skipping opportunity descriptions")
+        console.print("  [yellow]Warning:[/yellow] opportunities.csv not found, skipping opportunity descriptions")
         return pd.DataFrame()
     
     opps = pd.read_csv(opp_path)
@@ -169,16 +175,17 @@ def build_private_texts_jsonl(csv_dir: Path, out_path: Path) -> None:
         
     This file is used for private account-scoped RAG ingestion.
     """
-    print(f"Building private texts from {csv_dir}...")
+    console.print(f"Building private texts from [cyan]{csv_dir}[/cyan]...")
     
     all_docs = []
+    stats = []  # Track stats for summary table
     
     # ---------------------------------------------------------------------------
     # 1. Process history.csv
     # ---------------------------------------------------------------------------
     history_path = csv_dir / "history.csv"
     if history_path.exists():
-        print("  Processing history.csv...")
+        console.print("  Processing [bold]history.csv[/bold]...")
         history_df = pd.read_csv(history_path)
         
         for _, row in history_df.iterrows():
@@ -200,19 +207,19 @@ def build_private_texts_jsonl(csv_dir: Path, out_path: Path) -> None:
             }
             all_docs.append(doc)
         
-        print(f"    -> {len(history_df)} history records")
+        stats.append(("history.csv", len(history_df)))
     else:
-        print("  Warning: history.csv not found")
+        console.print("  [yellow]Warning:[/yellow] history.csv not found")
     
     # ---------------------------------------------------------------------------
     # 2. Process opportunity_descriptions.csv (or synthesize)
     # ---------------------------------------------------------------------------
     opp_desc_path = csv_dir / "opportunity_descriptions.csv"
     if opp_desc_path.exists():
-        print("  Processing opportunity_descriptions.csv...")
+        console.print("  Processing [bold]opportunity_descriptions.csv[/bold]...")
         opp_desc_df = pd.read_csv(opp_desc_path)
     else:
-        print("  Synthesizing opportunity descriptions from opportunities.csv...")
+        console.print("  Synthesizing opportunity descriptions from [bold]opportunities.csv[/bold]...")
         opp_desc_df = synthesize_opportunity_descriptions(csv_dir)
     
     if not opp_desc_df.empty:
@@ -232,14 +239,14 @@ def build_private_texts_jsonl(csv_dir: Path, out_path: Path) -> None:
             }
             all_docs.append(doc)
         
-        print(f"    -> {len(opp_desc_df)} opportunity notes")
+        stats.append(("opportunity_descriptions", len(opp_desc_df)))
     
     # ---------------------------------------------------------------------------
     # 3. Process attachments.csv
     # ---------------------------------------------------------------------------
     attachments_path = csv_dir / "attachments.csv"
     if attachments_path.exists():
-        print("  Processing attachments.csv...")
+        console.print("  Processing [bold]attachments.csv[/bold]...")
         attachments_df = pd.read_csv(attachments_path)
         
         for _, row in attachments_df.iterrows():
@@ -259,9 +266,9 @@ def build_private_texts_jsonl(csv_dir: Path, out_path: Path) -> None:
             }
             all_docs.append(doc)
         
-        print(f"    -> {len(attachments_df)} attachments")
+        stats.append(("attachments.csv", len(attachments_df)))
     else:
-        print("  Warning: attachments.csv not found")
+        console.print("  [yellow]Warning:[/yellow] attachments.csv not found")
     
     # ---------------------------------------------------------------------------
     # 4. Write JSONL output (stable, deterministic order)
@@ -274,31 +281,59 @@ def build_private_texts_jsonl(csv_dir: Path, out_path: Path) -> None:
         for doc in all_docs:
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
     
-    print(f"\nWrote {len(all_docs)} documents to {out_path}")
+    # Print summary table
+    table = Table(title="Build Summary", show_header=True)
+    table.add_column("Source", style="cyan")
+    table.add_column("Records", justify="right", style="green")
+    for source, count in stats:
+        table.add_row(source, str(count))
+    table.add_section()
+    table.add_row("[bold]Total[/bold]", f"[bold]{len(all_docs)}[/bold]")
+    
+    console.print()
+    console.print(table)
+    console.print(f"\n[green]✓[/green] Wrote to [cyan]{out_path}[/cyan]")
 
 
 # =============================================================================
 # CLI Entrypoint
 # =============================================================================
 
-def main():
-    """Main entrypoint for private text building."""
-    print("=" * 60)
-    print("Private Text Builder (MVP2)")
-    print("=" * 60)
+app = typer.Typer(help="Build private_texts.jsonl from CRM CSV files")
+
+
+@app.command()
+def main(
+    csv_dir: Optional[Path] = typer.Option(
+        None,
+        "--csv-dir", "-c",
+        help="Directory containing CSV files (auto-detected if not provided)",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output", "-o",
+        help="Output JSONL file path (defaults to csv_dir/private_texts.jsonl)",
+    ),
+):
+    """Build private_texts.jsonl from CRM CSV files."""
+    console.print(Panel.fit(
+        "[bold blue]Private Text Builder[/bold blue] (MVP2)",
+        border_style="blue",
+    ))
     
     # Find CSV directory
-    csv_dir = find_csv_dir()
-    print(f"Using CSV directory: {csv_dir}")
+    if csv_dir is None:
+        csv_dir = find_csv_dir()
+    console.print(f"Using CSV directory: [cyan]{csv_dir}[/cyan]")
     
     # Output path
-    out_path = csv_dir / "private_texts.jsonl"
+    out_path = output if output else csv_dir / "private_texts.jsonl"
     
     # Build JSONL
     build_private_texts_jsonl(csv_dir, out_path)
     
-    print("\nDone!")
+    console.print("\n[bold green]Done![/bold green]")
 
 
 if __name__ == "__main__":
-    main()
+    app()

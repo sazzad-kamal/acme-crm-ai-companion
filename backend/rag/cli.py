@@ -3,127 +3,131 @@ CLI entrypoint for the Acme CRM RAG system.
 
 Usage:
     # Ask a single question
-    python -m backend.rag.cli "What is an Opportunity?"
+    python -m backend.rag.cli ask "What is an Opportunity?"
     
     # Interactive mode
-    python -m backend.rag.cli
+    python -m backend.rag.cli chat
+    
+    # Rebuild indexes
+    python -m backend.rag.cli ask "What is an Opportunity?" --rebuild
 """
 
-import sys
-import argparse
+import typer
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.prompt import Prompt
 
 from backend.rag.retrieval import create_backend, RetrievalBackend
 from backend.rag.pipeline import answer_question
 
 
-def format_answer(result: dict) -> str:
-    """Format the RAG result for display."""
-    output = []
+# Initialize Typer app and Rich console
+app = typer.Typer(
+    name="rag",
+    help="Acme CRM AI Companion - Ask questions about CRM documentation",
+    add_completion=False,
+)
+console = Console()
+
+
+def format_answer(result: dict) -> None:
+    """Format and display the RAG result using Rich."""
+    # Answer panel
+    console.print(Panel(result["answer"], title="Answer", border_style="green"))
     
-    output.append("\n" + "=" * 60)
-    output.append("ANSWER")
-    output.append("=" * 60)
-    output.append(result["answer"])
+    # Sources table
+    table = Table(title="Sources", show_header=True, header_style="bold cyan")
+    table.add_column("Document", style="dim")
+    table.add_column("Cited", justify="center")
     
-    output.append("\n" + "-" * 60)
-    output.append("Sources:")
+    cited_docs = set(result.get("cited_docs", []))
     for doc_id in result["doc_ids_used"]:
-        output.append(f"  • {doc_id}")
+        cited = "✓" if doc_id in cited_docs else ""
+        table.add_row(doc_id, cited)
     
-    if result.get("cited_docs"):
-        output.append(f"\nCited in answer: {', '.join(result['cited_docs'])}")
+    console.print(table)
     
-    output.append(f"\nChunks used: {result['num_chunks_used']}")
-    output.append(f"Context tokens: ~{result['context_tokens']}")
-    
+    # Metrics
     metrics = result.get("metrics", {})
-    if metrics:
-        output.append(f"Answer latency: {metrics.get('answer_latency_ms', 0):.0f}ms")
-        output.append(f"Total tokens: {metrics.get('total_tokens', 0)}")
+    console.print(
+        f"\n[dim]Chunks: {result['num_chunks_used']} | "
+        f"Tokens: ~{result['context_tokens']} | "
+        f"Latency: {metrics.get('answer_latency_ms', 0):.0f}ms[/dim]"
+    )
+
+
+def get_backend(rebuild: bool = False) -> RetrievalBackend:
+    """Initialize and return the RAG backend."""
+    with console.status("[bold green]Initializing RAG backend..."):
+        try:
+            backend = create_backend(rebuild=rebuild)
+        except FileNotFoundError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            console.print("[yellow]Run 'python -m backend.rag.ingest.docs' first.[/yellow]")
+            raise typer.Exit(1)
     
-    return "\n".join(output)
+    console.print("[green]✓[/green] Backend ready\n")
+    return backend
 
 
-def run_interactive(backend: RetrievalBackend) -> None:
-    """Run interactive REPL mode."""
-    print("\n" + "=" * 60)
-    print("Acme CRM AI Companion - Interactive Mode")
-    print("=" * 60)
-    print("Ask questions about Acme CRM Suite.")
-    print("Type 'quit' or 'exit' to stop.\n")
+@app.command()
+def ask(
+    question: str = typer.Argument(..., help="Question to ask about CRM"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show retrieval details"),
+    rebuild: bool = typer.Option(False, "--rebuild", help="Force rebuild indexes"),
+):
+    """Ask a single question and get an answer."""
+    backend = get_backend(rebuild=rebuild)
+    
+    console.print(f"[bold]Question:[/bold] {question}\n")
+    
+    with console.status("[bold green]Searching..."):
+        result = answer_question(question, backend, verbose=verbose)
+    
+    format_answer(result)
+
+
+@app.command()
+def chat(
+    rebuild: bool = typer.Option(False, "--rebuild", help="Force rebuild indexes"),
+):
+    """Start interactive chat mode."""
+    backend = get_backend(rebuild=rebuild)
+    
+    console.print(Panel(
+        "Ask questions about Acme CRM Suite.\n"
+        "Type [bold]quit[/bold] or [bold]exit[/bold] to stop.",
+        title="Acme CRM AI Companion",
+        border_style="blue",
+    ))
     
     while True:
         try:
-            question = input("\nYou: ").strip()
+            question = Prompt.ask("\n[bold cyan]You[/bold cyan]")
         except (EOFError, KeyboardInterrupt):
-            print("\nGoodbye!")
+            console.print("\n[dim]Goodbye![/dim]")
             break
         
-        if not question:
+        if not question.strip():
             continue
         
-        if question.lower() in ("quit", "exit", "q"):
-            print("Goodbye!")
+        if question.strip().lower() in ("quit", "exit", "q"):
+            console.print("[dim]Goodbye![/dim]")
             break
         
         try:
-            result = answer_question(question, backend, verbose=False)
-            print(format_answer(result))
+            with console.status("[bold green]Thinking..."):
+                result = answer_question(question, backend, verbose=False)
+            format_answer(result)
         except Exception as e:
-            print(f"\nError: {e}")
+            console.print(f"[red]Error:[/red] {e}")
 
 
-def run_single_question(question: str, backend: RetrievalBackend, verbose: bool = False) -> None:
-    """Run a single question and print the result."""
-    print(f"\nQuestion: {question}")
-    
-    try:
-        result = answer_question(question, backend, verbose=verbose)
-        print(format_answer(result))
-    except Exception as e:
-        print(f"\nError: {e}")
-        sys.exit(1)
-
-
+# Keep backward compatibility with old CLI interface
 def main():
-    """Main CLI entrypoint."""
-    parser = argparse.ArgumentParser(
-        description="Acme CRM AI Companion - Ask questions about CRM documentation"
-    )
-    parser.add_argument(
-        "question",
-        nargs="?",
-        help="Question to ask (if not provided, enters interactive mode)"
-    )
-    parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Show verbose output (retrieval details)"
-    )
-    parser.add_argument(
-        "--rebuild",
-        action="store_true",
-        help="Force rebuild of indexes"
-    )
-    
-    args = parser.parse_args()
-    
-    # Initialize backend
-    print("Initializing RAG backend...")
-    try:
-        backend = create_backend(rebuild=args.rebuild)
-    except FileNotFoundError as e:
-        print(f"\nError: {e}")
-        print("Run 'python -m backend.rag.ingest.docs' first to ingest the documents.")
-        sys.exit(1)
-    
-    print("Backend ready.\n")
-    
-    # Run appropriate mode
-    if args.question:
-        run_single_question(args.question, backend, verbose=args.verbose)
-    else:
-        run_interactive(backend)
+    """Main CLI entrypoint (backward compatible)."""
+    app()
 
 
 if __name__ == "__main__":

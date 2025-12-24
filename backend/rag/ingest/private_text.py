@@ -6,6 +6,7 @@ separate Qdrant collection for account-scoped RAG.
 
 Usage:
     python -m backend.rag.ingest.private_text
+    python -m backend.rag.ingest.private_text --recreate
 """
 
 import json
@@ -14,6 +15,10 @@ import math
 from pathlib import Path
 from typing import Any, Optional
 
+import typer
+from rich.console import Console
+from rich.table import Table
+from rich.progress import track
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     VectorParams,
@@ -281,48 +286,60 @@ def ingest_private_texts(
     # ---------------------------------------------------------------------------
     # 7. Summary
     # ---------------------------------------------------------------------------
-    print("\n" + "=" * 60)
-    print("INGESTION SUMMARY")
-    print("=" * 60)
-    print(f"Collection: {collection_name}")
-    print(f"Documents: {len(docs)}")
-    print(f"Chunks: {len(all_chunks)}")
-    print(f"Qdrant path: {QDRANT_PATH}")
+    console = Console()
     
     # Count companies
-    companies = set(c.metadata.get("company_id", "") for c in all_chunks)
-    print(f"Companies: {len(companies)}")
+    companies = {}
+    for c in all_chunks:
+        cid = c.metadata.get("company_id", "")
+        companies[cid] = companies.get(cid, 0) + 1
+    
+    # Summary table
+    table = Table(title="Ingestion Summary", show_header=True, header_style="bold cyan")
+    table.add_column("Metric", style="dim")
+    table.add_column("Value", justify="right")
+    
+    table.add_row("Collection", collection_name)
+    table.add_row("Documents", str(len(docs)))
+    table.add_row("Chunks", str(len(all_chunks)))
+    table.add_row("Companies", str(len(companies)))
+    table.add_row("Qdrant path", str(QDRANT_PATH))
+    
+    console.print(table)
+    
+    # Per-company table
+    company_table = Table(title="Chunks by Company", show_header=True)
+    company_table.add_column("Company", style="cyan")
+    company_table.add_column("Chunks", justify="right")
+    
     for company in sorted(companies):
-        count = sum(1 for c in all_chunks if c.metadata.get("company_id") == company)
-        print(f"  - {company}: {count} chunks")
+        company_table.add_row(company, str(companies[company]))
+    
+    console.print(company_table)
 
 
 # =============================================================================
 # CLI Entrypoint
 # =============================================================================
 
+app = typer.Typer(help="Private text ingestion into Qdrant")
+
+
+@app.command()
+def ingest(
+    recreate: bool = typer.Option(False, "--recreate", help="Recreate collection even if it exists"),
+    collection: str = typer.Option(PRIVATE_COLLECTION_NAME, "--collection", help="Collection name"),
+):
+    """Ingest private CRM texts into Qdrant."""
+    ingest_private_texts(
+        collection_name=collection,
+        recreate=recreate,
+    )
+
+
 def main():
     """Main entrypoint."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Ingest private CRM texts into Qdrant")
-    parser.add_argument(
-        "--recreate",
-        action="store_true",
-        help="Recreate collection even if it exists",
-    )
-    parser.add_argument(
-        "--collection",
-        default=PRIVATE_COLLECTION_NAME,
-        help=f"Collection name (default: {PRIVATE_COLLECTION_NAME})",
-    )
-    
-    args = parser.parse_args()
-    
-    ingest_private_texts(
-        collection_name=args.collection,
-        recreate=args.recreate,
-    )
+    app()
 
 
 if __name__ == "__main__":

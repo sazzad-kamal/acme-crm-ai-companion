@@ -8,6 +8,7 @@ Evaluates account-scoped RAG using:
 
 Usage:
     python -m backend.rag.eval.account_eval
+    python -m backend.rag.eval.account_eval --verbose
 """
 
 import json
@@ -15,6 +16,9 @@ import random
 from pathlib import Path
 from typing import Optional
 
+import typer
+from rich.progress import track
+from rich.table import Table
 import pandas as pd
 from qdrant_client import QdrantClient
 
@@ -24,6 +28,14 @@ from backend.rag.ingest.private_text import ingest_private_texts
 from backend.rag.pipeline.account import answer_account_question, load_companies_df
 from backend.rag.eval.models import AccountEvalResult
 from backend.rag.eval.judge import judge_account_response, check_privacy_leakage
+from backend.rag.eval.base import (
+    console,
+    create_summary_table,
+    create_detail_table,
+    print_eval_header,
+    print_issues_panel,
+    add_separator_row,
+)
 
 
 # =============================================================================
@@ -193,20 +205,21 @@ def evaluate_question(
 
 def run_evaluation(verbose: bool = True) -> list[AccountEvalResult]:
     """Run full evaluation."""
-    print("=" * 60)
-    print("Account RAG Evaluation (MVP2)")
-    print("=" * 60)
-    
     # Ensure collection exists
     ensure_private_collection_exists()
     
     # Generate questions
     questions = generate_eval_questions()
-    print(f"\nEvaluating {len(questions)} questions across "
-          f"{len(set(q['company_id'] for q in questions))} companies")
+    num_companies = len(set(q['company_id'] for q in questions))
+    
+    print_eval_header(
+        "Account RAG Evaluation (MVP2)",
+        f"Evaluating [bold]{len(questions)}[/bold] questions across "
+        f"[bold]{num_companies}[/bold] companies",
+    )
     
     results = []
-    for q in questions:
+    for q in track(questions, description="Evaluating..."):
         result = evaluate_question(q, verbose=verbose)
         results.append(result)
     
@@ -214,10 +227,10 @@ def run_evaluation(verbose: bool = True) -> list[AccountEvalResult]:
 
 
 def print_summary(results: list[AccountEvalResult]) -> None:
-    """Print evaluation summary."""
+    """Print evaluation summary using Rich."""
     n = len(results)
     if n == 0:
-        print("No results")
+        console.print("[yellow]No results[/yellow]")
         return
     
     # Triad metrics
@@ -241,30 +254,26 @@ def print_summary(results: list[AccountEvalResult]) -> None:
     total_tokens = sum(r.total_tokens for r in results)
     total_cost = sum(r.estimated_cost for r in results)
     
-    print("\n" + "=" * 60)
-    print("EVALUATION SUMMARY")
-    print("=" * 60)
+    # Summary table using shared helper
+    summary_table = create_summary_table()
     
-    print(f"\n{'Metric':<25} {'Value':>10}")
-    print("-" * 40)
-    print(f"{'Questions evaluated':<25} {n:>10}")
-    print(f"{'Context Relevance':<25} {ctx_rel:>10.1%}")
-    print(f"{'Answer Relevance':<25} {ans_rel:>10.1%}")
-    print(f"{'Groundedness':<25} {grounded:>10.1%}")
-    print(f"{'RAG Triad Success':<25} {triad_success:>10.1%}")
-    print("-" * 40)
-    print(f"{'Privacy Leakage Rate':<25} {leakage_rate:>10.1%}")
-    print(f"{'Leaked Questions':<25} {leakage_count:>10}")
-    print("-" * 40)
-    print(f"{'Avg Latency (ms)':<25} {avg_latency:>10.0f}")
-    print(f"{'Total Tokens':<25} {total_tokens:>10,}")
-    print(f"{'Total Cost ($)':<25} {total_cost:>10.4f}")
+    summary_table.add_row("Questions evaluated", str(n))
+    summary_table.add_row("Context Relevance", f"{ctx_rel:.1%}")
+    summary_table.add_row("Answer Relevance", f"{ans_rel:.1%}")
+    summary_table.add_row("Groundedness", f"{grounded:.1%}")
+    summary_table.add_row("RAG Triad Success", f"[bold green]{triad_success:.1%}[/bold green]")
+    add_separator_row(summary_table)
+    leak_style = "[red]" if leakage_rate > 0 else "[green]"
+    summary_table.add_row("Privacy Leakage Rate", f"{leak_style}{leakage_rate:.1%}[/]")
+    summary_table.add_row("Leaked Questions", f"{leak_style}{leakage_count}[/]")
+    add_separator_row(summary_table)
+    summary_table.add_row("Avg Latency", f"{avg_latency:.0f}ms")
+    summary_table.add_row("Total Tokens", f"{total_tokens:,}")
+    summary_table.add_row("Total Cost", f"${total_cost:.4f}")
     
-    # Per-company breakdown
-    print("\n" + "-" * 60)
-    print("PER-COMPANY RESULTS")
-    print("-" * 60)
+    console.print(summary_table)
     
+    # Per-company breakdown using shared helper
     by_company = {}
     for r in results:
         cid = r.company_id
@@ -272,8 +281,12 @@ def print_summary(results: list[AccountEvalResult]) -> None:
             by_company[cid] = {"results": [], "name": r.company_name}
         by_company[cid]["results"].append(r)
     
-    print(f"{'Company':<25} {'Triad':<8} {'Leak':<8} {'Latency':<10}")
-    print("-" * 60)
+    company_table = create_detail_table("Per-Company Results", [
+        ("Company", "left"),
+        ("Triad", "right"),
+        ("Leak", "right"),
+        ("Latency", "right"),
+    ])
     
     for cid, data in sorted(by_company.items()):
         company_results = data["results"]
@@ -289,55 +302,69 @@ def print_summary(results: list[AccountEvalResult]) -> None:
         company_leak = sum(r.privacy_leakage for r in company_results) / cn
         company_latency = sum(r.latency_ms for r in company_results) / cn
         
-        print(f"{data['name'][:24]:<25} {company_triad:<8.0%} {company_leak:<8.0%} {company_latency:<10.0f}ms")
+        leak_style = "[red]" if company_leak > 0 else "[green]"
+        company_table.add_row(
+            data["name"][:24],
+            f"{company_triad:.0%}",
+            f"{leak_style}{company_leak:.0%}[/]",
+            f"{company_latency:.0f}ms",
+        )
     
-    # Questions with issues
+    console.print(company_table)
+    
+    # Questions with issues using shared helper
     issues = [r for r in results if r.judge_result.groundedness == 0 or r.privacy_leakage == 1]
-    if issues:
-        print("\n" + "-" * 60)
-        print("QUESTIONS WITH ISSUES")
-        print("-" * 60)
-        for r in issues:
-            flags = []
-            if r.judge_result.groundedness == 0:
-                flags.append("NOT_GROUNDED")
-            if r.privacy_leakage == 1:
-                flags.append(f"LEAKED:{r.leaked_company_ids}")
-            print(f"\n{r.question_id} [{', '.join(flags)}]")
-            print(f"  Company: {r.company_name}")
-            print(f"  Question: {r.question[:60]}...")
-            print(f"  Judge: {r.judge_result.explanation[:80]}...")
+    issue_lines = []
+    for r in issues:
+        flags = []
+        if r.judge_result.groundedness == 0:
+            flags.append("[red]NOT_GROUNDED[/red]")
+        if r.privacy_leakage == 1:
+            flags.append(f"[red]LEAKED:{r.leaked_company_ids}[/red]")
+        issue_lines.append(
+            f"[bold]{r.question_id}[/bold] [{', '.join(flags)}]\n"
+            f"  Company: {r.company_name}\n"
+            f"  Question: {r.question[:60]}..."
+        )
+    
+    print_issues_panel("Questions With Issues", issue_lines)
 
 
 # =============================================================================
 # Main
 # =============================================================================
 
-def main():
-    """Main entrypoint."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Evaluate Account RAG (MVP2)")
-    parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("--output", default=str(OUTPUT_PATH))
-    
-    args = parser.parse_args()
-    
+app = typer.Typer(help="Account RAG Evaluation Harness (MVP2)")
+
+
+@app.command()
+def run(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
+    output: Path = typer.Option(
+        OUTPUT_PATH,
+        "--output", "-o",
+        help="Output file for results",
+    ),
+):
+    """Run evaluation on generated account questions."""
     # Run evaluation
-    results = run_evaluation(verbose=args.verbose)
+    results = run_evaluation(verbose=verbose)
     
     # Print summary
     print_summary(results)
     
     # Save results
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+    output.parent.mkdir(parents=True, exist_ok=True)
     results_data = [r.model_dump() for r in results]
-    with open(output_path, "w") as f:
+    with open(output, "w") as f:
         json.dump(results_data, f, indent=2)
     
-    print(f"\nResults saved to {output_path}")
+    console.print(f"\n[dim]Results saved to {output}[/dim]")
+
+
+def main():
+    """Main entrypoint."""
+    app()
 
 
 if __name__ == "__main__":

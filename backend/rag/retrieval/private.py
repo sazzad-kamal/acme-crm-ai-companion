@@ -162,52 +162,58 @@ class PrivateRetrievalBackend(RetrievalBackend):
         self._company_bm25[company_id] = (bm25, indices)
         return bm25, indices
     
+    def _build_company_filter(self, company_id: str) -> Filter:
+        """Build a Qdrant filter for a specific company."""
+        return Filter(
+            must=[
+                FieldCondition(
+                    key="company_id",
+                    match=MatchValue(value=company_id),
+                )
+            ]
+        )
+    
     def _dense_search(
         self,
         query: str,
         k: int = 20,
         company_filter: Optional[str] = None,
+        qdrant_filter: Optional[object] = None,
     ) -> list[tuple[int, float]]:
         """
         Perform dense search using Qdrant with optional company filter.
         
+        Extends base class to support company_filter parameter.
+        
         Returns list of (chunk_index, score) tuples.
         """
-        query_embedding = self.embedding_model.encode(
-            query,
-            normalize_embeddings=True,
-        )
-        
         # Build filter if company specified
-        qdrant_filter = None
         if company_filter:
-            qdrant_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="company_id",
-                        match=MatchValue(value=company_filter),
-                    )
-                ]
+            qdrant_filter = self._build_company_filter(company_filter)
+        
+        # Delegate to base class
+        results = super()._dense_search(query, k=k, qdrant_filter=qdrant_filter)
+        
+        # Map Qdrant point IDs back to chunk indices using chunk_id
+        # (Base class returns point IDs, but we need indices mapped through chunk_id)
+        if company_filter:
+            # For filtered queries, we need to map via payload
+            query_embedding = self.embedding_model.encode(query, normalize_embeddings=True)
+            qdrant_results = self.qdrant.search(
+                collection_name=self.collection_name,
+                query_vector=query_embedding.tolist(),
+                query_filter=qdrant_filter,
+                limit=k,
             )
+            output = []
+            for hit in qdrant_results:
+                chunk_id = hit.payload.get("chunk_id")
+                if chunk_id in self._chunk_id_to_idx:
+                    idx = self._chunk_id_to_idx[chunk_id]
+                    output.append((idx, hit.score))
+            return output
         
-        # Use search method
-        results = self.qdrant.search(
-            collection_name=self.collection_name,
-            query_vector=query_embedding.tolist(),
-            query_filter=qdrant_filter,
-            limit=k,
-        )
-        
-        # Map Qdrant IDs back to chunk indices
-        output = []
-        for hit in results:
-            # Find chunk by qdrant_id or chunk_id from payload
-            chunk_id = hit.payload.get("chunk_id")
-            if chunk_id in self._chunk_id_to_idx:
-                idx = self._chunk_id_to_idx[chunk_id]
-                output.append((idx, hit.score))
-        
-        return output
+        return results
     
     def _bm25_search(
         self,
@@ -218,10 +224,12 @@ class PrivateRetrievalBackend(RetrievalBackend):
         """
         Perform BM25 search with optional company filter.
         
+        Extends base class to support company-specific BM25 indexes.
+        
         Returns list of (chunk_index, score) tuples.
         """
         if company_filter:
-            # Use company-specific BM25
+            # Use company-specific BM25 index
             bm25, indices = self._get_company_bm25(company_filter)
             if bm25 is None:
                 return []
@@ -233,16 +241,8 @@ class PrivateRetrievalBackend(RetrievalBackend):
             top_local = np.argsort(scores)[::-1][:k]
             return [(indices[i], float(scores[i])) for i in top_local if scores[i] > 0]
         
-        else:
-            # Use global BM25
-            if self._bm25 is None:
-                return []
-            
-            tokenized_query = self._tokenize(query)
-            scores = self._bm25.get_scores(tokenized_query)
-            
-            top_indices = np.argsort(scores)[::-1][:k]
-            return [(int(i), float(scores[i])) for i in top_indices if scores[i] > 0]
+        # No filter - delegate to base class
+        return super()._bm25_search(query, k=k)
     
     def retrieve_candidates(
         self,

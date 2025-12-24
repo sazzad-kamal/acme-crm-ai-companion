@@ -185,15 +185,27 @@ class RetrievalBackend:
         
         logger.info(f"Indexes built: {len(chunks)} vectors in Qdrant, BM25 ready")
     
-    def _dense_search(self, query: str, k: int = 20) -> list[tuple[int, float]]:
+    def _dense_search(
+        self,
+        query: str,
+        k: int = 20,
+        qdrant_filter: Optional[object] = None,
+    ) -> list[tuple[int, float]]:
         """
         Perform dense search using Qdrant.
         
-        Returns list of (chunk_index, score) tuples.
-        Uses embedding cache for repeated queries.
+        Args:
+            query: Search query
+            k: Number of results to return
+            qdrant_filter: Optional Qdrant filter object
+        
+        Returns:
+            List of (chunk_index, score) tuples.
         """
-        # Check cache first
-        cached_embedding = get_cached_embedding(query)
+        # Check cache first (only for unfiltered queries)
+        cached_embedding = None
+        if qdrant_filter is None:
+            cached_embedding = get_cached_embedding(query)
         
         if cached_embedding is not None:
             query_embedding = cached_embedding
@@ -202,13 +214,15 @@ class RetrievalBackend:
                 query,
                 normalize_embeddings=True,
             )
-            # Cache the embedding
-            cache_embedding(query, query_embedding)
+            # Cache the embedding (only for unfiltered queries)
+            if qdrant_filter is None:
+                cache_embedding(query, query_embedding)
         
         # Use search method
         results = self.qdrant.search(
             collection_name=self.collection_name,
             query_vector=query_embedding.tolist() if isinstance(query_embedding, np.ndarray) else query_embedding,
+            query_filter=qdrant_filter,
             limit=k,
         )
         

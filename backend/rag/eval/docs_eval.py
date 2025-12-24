@@ -10,6 +10,7 @@ Uses LLM-as-judge for relevance and groundedness scoring.
 
 Usage:
     python -m backend.rag.eval.docs_eval
+    python -m backend.rag.eval.docs_eval --verbose
 """
 
 import json
@@ -17,10 +18,22 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import typer
+from rich.progress import track
+
 from backend.rag.retrieval.base import create_backend
 from backend.rag.pipeline.docs import answer_question
 from backend.rag.eval.models import EvalResult
 from backend.rag.eval.judge import judge_response, compute_doc_recall
+from backend.rag.eval.base import (
+    console,
+    create_summary_table,
+    create_detail_table,
+    print_eval_header,
+    print_issues_panel,
+    format_check_mark,
+    add_separator_row,
+)
 
 
 # =============================================================================
@@ -125,16 +138,17 @@ def run_evaluation(
     if questions is None:
         questions = load_eval_questions()
     
-    print("=" * 60)
-    print("RAG Evaluation Harness")
-    print("=" * 60)
-    print(f"Evaluating {len(questions)} questions\n")
+    print_eval_header(
+        "RAG Evaluation Harness",
+        f"Evaluating [bold]{len(questions)}[/bold] questions",
+    )
     
     # Initialize backend
-    backend = create_backend()
+    with console.status("[bold green]Loading backend..."):
+        backend = create_backend()
     
     results = []
-    for q in questions:
+    for q in track(questions, description="Evaluating..."):
         result = evaluate_question(q, backend, verbose=verbose)
         results.append(result)
     
@@ -142,11 +156,11 @@ def run_evaluation(
 
 
 def print_summary(results: list[EvalResult]) -> None:
-    """Print summary statistics from evaluation results."""
+    """Print summary statistics from evaluation results using Rich."""
     n = len(results)
     
     if n == 0:
-        print("No results to summarize")
+        console.print("[yellow]No results to summarize[/yellow]")
         return
     
     # Compute aggregates
@@ -170,68 +184,85 @@ def print_summary(results: list[EvalResult]) -> None:
     # Approximate cost (GPT-4.1-mini pricing)
     estimated_cost = (total_tokens * 0.8 * 0.40 + total_tokens * 0.2 * 1.60) / 1_000_000
     
-    print("\n" + "=" * 60)
-    print("EVALUATION SUMMARY")
-    print("=" * 60)
+    # Summary table using shared helper
+    summary_table = create_summary_table()
     
-    print(f"\n{'Metric':<25} {'Value':>10}")
-    print("-" * 40)
-    print(f"{'Questions evaluated':<25} {n:>10}")
-    print(f"{'Context Relevance':<25} {context_relevance:>10.1%}")
-    print(f"{'Answer Relevance':<25} {answer_relevance:>10.1%}")
-    print(f"{'Groundedness':<25} {groundedness:>10.1%}")
-    print(f"{'RAG Triad Success':<25} {triad_success:>10.1%}")
-    print(f"{'Needs Human Review':<25} {needs_review:>10.1%}")
-    print(f"{'Avg Doc Recall':<25} {avg_doc_recall:>10.1%}")
-    print("-" * 40)
-    print(f"{'Avg Latency (ms)':<25} {avg_latency:>10.0f}")
-    print(f"{'Total Tokens':<25} {total_tokens:>10,}")
-    print(f"{'Est. Cost ($)':<25} {estimated_cost:>10.4f}")
+    summary_table.add_row("Questions evaluated", str(n))
+    summary_table.add_row("Context Relevance", f"{context_relevance:.1%}")
+    summary_table.add_row("Answer Relevance", f"{answer_relevance:.1%}")
+    summary_table.add_row("Groundedness", f"{groundedness:.1%}")
+    summary_table.add_row("RAG Triad Success", f"[bold green]{triad_success:.1%}[/bold green]")
+    summary_table.add_row("Needs Human Review", f"{needs_review:.1%}")
+    summary_table.add_row("Avg Doc Recall", f"{avg_doc_recall:.1%}")
+    add_separator_row(summary_table)
+    summary_table.add_row("Avg Latency", f"{avg_latency:.0f}ms")
+    summary_table.add_row("Total Tokens", f"{total_tokens:,}")
+    summary_table.add_row("Est. Cost", f"${estimated_cost:.4f}")
     
-    # Per-question details
-    print("\n" + "-" * 60)
-    print("PER-QUESTION RESULTS")
-    print("-" * 60)
-    print(f"{'ID':<6} {'Ctx':<4} {'Ans':<4} {'Gnd':<4} {'Recall':<8} {'Latency':<10}")
-    print("-" * 60)
+    console.print(summary_table)
+    
+    # Per-question results using shared helper
+    detail_table = create_detail_table("Per-Question Results", [
+        ("ID", "left"),
+        ("Ctx", "center"),
+        ("Ans", "center"),
+        ("Gnd", "center"),
+        ("Recall", "right"),
+        ("Latency", "right"),
+    ])
     
     for r in results:
-        print(f"{r.question_id:<6} "
-              f"{r.judge_result.context_relevance:<4} "
-              f"{r.judge_result.answer_relevance:<4} "
-              f"{r.judge_result.groundedness:<4} "
-              f"{r.doc_recall:<8.1%} "
-              f"{r.latency_ms:<10.0f}ms")
+        detail_table.add_row(
+            r.question_id,
+            format_check_mark(r.judge_result.context_relevance == 1),
+            format_check_mark(r.judge_result.answer_relevance == 1),
+            format_check_mark(r.judge_result.groundedness == 1),
+            f"{r.doc_recall:.1%}",
+            f"{r.latency_ms:.0f}ms",
+        )
     
-    # Failed questions
+    console.print(detail_table)
+    
+    # Failed questions using shared helper
     failed = [r for r in results if r.judge_result.groundedness == 0 or r.judge_result.answer_relevance == 0]
-    if failed:
-        print("\n" + "-" * 60)
-        print("QUESTIONS NEEDING ATTENTION")
-        print("-" * 60)
-        for r in failed:
-            print(f"\n{r.question_id}: {r.question}")
-            print(f"  Judge: {r.judge_result.explanation}")
+    print_issues_panel(
+        "Questions Needing Attention",
+        [f"[bold]{r.question_id}[/bold]: {r.question}\n  [dim]{r.judge_result.explanation}[/dim]" for r in failed],
+    )
 
 
 # =============================================================================
 # CLI Entrypoint
 # =============================================================================
 
-def main():
-    """Main entrypoint for evaluation."""
-    results = run_evaluation(verbose=True)
+app = typer.Typer(help="RAG Evaluation Harness")
+
+
+@app.command()
+def run(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
+    output: Path = typer.Option(
+        Path("data/processed/eval_results.json"),
+        "--output", "-o",
+        help="Output file for results",
+    ),
+):
+    """Run evaluation on all test questions."""
+    results = run_evaluation(verbose=verbose)
     print_summary(results)
     
     # Save results to file
-    output_path = Path("data/processed/eval_results.json")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+    output.parent.mkdir(parents=True, exist_ok=True)
     results_data = [r.model_dump() for r in results]
-    with open(output_path, "w") as f:
+    with open(output, "w") as f:
         json.dump(results_data, f, indent=2)
     
-    print(f"\nResults saved to {output_path}")
+    console.print(f"\n[dim]Results saved to {output}[/dim]")
+
+
+def main():
+    """Main entrypoint for evaluation."""
+    app()
 
 
 if __name__ == "__main__":

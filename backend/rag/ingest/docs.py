@@ -17,6 +17,9 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+import typer
+from rich.console import Console
+from rich.table import Table
 import pandas as pd
 
 from backend.rag.models import DocumentChunk
@@ -274,36 +277,50 @@ def load_chunks(input_path: Optional[Path] = None) -> list[DocumentChunk]:
 # CLI Entrypoint
 # =============================================================================
 
-def main():
-    """Main entrypoint for document ingestion."""
+app = typer.Typer(help="Document ingestion for Acme CRM docs")
+console = Console()
+
+
+@app.command()
+def ingest():
+    """Ingest all markdown documents and create chunks."""
     # Configure logging for CLI
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     
-    logger.info("=" * 60)
-    logger.info("Acme CRM Docs Ingestion")
-    logger.info("=" * 60)
+    console.print("[bold blue]Acme CRM Docs Ingestion[/bold blue]\n")
     
     # Ingest all docs
-    chunks = ingest_all_docs()
+    with console.status("[bold green]Processing documents..."):
+        chunks = ingest_all_docs()
     
     # Calculate stats
     total_tokens = sum(c.metadata.get("estimated_tokens", 0) for c in chunks)
     unique_docs = len(set(c.doc_id for c in chunks))
+    avg_tokens = total_tokens // len(chunks) if chunks else 0
     
-    logger.info("")
-    logger.info("Summary:")
-    logger.info(f"  - Loaded {unique_docs} docs")
-    logger.info(f"  - Produced {len(chunks)} chunks")
-    logger.info(f"  - Total estimated tokens: {total_tokens:,}")
-    logger.info(f"  - Avg tokens per chunk: {total_tokens // len(chunks) if chunks else 0}")
+    # Summary table
+    table = Table(title="Ingestion Summary", show_header=True, header_style="bold cyan")
+    table.add_column("Metric", style="dim")
+    table.add_column("Value", justify="right")
+    
+    table.add_row("Documents", str(unique_docs))
+    table.add_row("Chunks", str(len(chunks)))
+    table.add_row("Total tokens", f"{total_tokens:,}")
+    table.add_row("Avg tokens/chunk", str(avg_tokens))
+    
+    console.print(table)
     
     # Save chunks
     save_chunks(chunks)
-    logger.info("")
-    print(f"Written to {OUTPUT_FILE}")
+    console.print(f"\n[green]✓[/green] Written to {OUTPUT_FILE}")
+
+
+def main():
+    """Main entrypoint for document ingestion."""
+    app()
 
 
 if __name__ == "__main__":
