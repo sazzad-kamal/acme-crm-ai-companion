@@ -100,7 +100,7 @@ jobs:
       - name: Check for eval questions
         id: check_eval
         run: |
-          if [ -f "backend/rag/eval_questions.json" ]; then
+          if [ -f "backend/rag/eval/eval_questions.json" ]; then
             echo "eval_exists=true" >> $GITHUB_OUTPUT
           else
             echo "eval_exists=false" >> $GITHUB_OUTPUT
@@ -117,7 +117,7 @@ jobs:
           from pathlib import Path
           
           # Load eval questions
-          with open('backend/rag/eval_questions.json') as f:
+          with open('backend/rag/eval/eval_questions.json') as f:
               questions = json.load(f)
           
           print(f'Loaded {len(questions)} evaluation questions')

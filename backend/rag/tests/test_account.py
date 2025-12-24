@@ -43,7 +43,7 @@ class TestCompanyResolver:
     
     def test_resolve_by_company_id(self, companies_df):
         """Test resolving by direct company_id."""
-        from backend.rag.account import resolve_company_id
+        from backend.rag.pipeline.account import resolve_company_id
         
         # Get a real company_id from the data
         company_id = companies_df.iloc[0]["company_id"]
@@ -56,7 +56,7 @@ class TestCompanyResolver:
     
     def test_resolve_by_company_name_exact(self, companies_df):
         """Test resolving by exact company name."""
-        from backend.rag.account import resolve_company_id
+        from backend.rag.pipeline.account import resolve_company_id
         
         expected_id = companies_df.iloc[0]["company_id"]
         company_name = companies_df.iloc[0]["name"]
@@ -68,7 +68,7 @@ class TestCompanyResolver:
     
     def test_resolve_by_company_name_partial(self, companies_df):
         """Test resolving by partial company name (case-insensitive contains)."""
-        from backend.rag.account import resolve_company_id
+        from backend.rag.pipeline.account import resolve_company_id
         
         # Use partial name
         full_name = companies_df.iloc[0]["name"]
@@ -82,21 +82,21 @@ class TestCompanyResolver:
     
     def test_resolve_invalid_company_id_raises(self):
         """Test that invalid company_id raises ValueError."""
-        from backend.rag.account import resolve_company_id
+        from backend.rag.pipeline.account import resolve_company_id
         
         with pytest.raises(ValueError, match="not found"):
             resolve_company_id(company_id="INVALID-COMPANY-XYZ")
     
     def test_resolve_invalid_company_name_raises(self):
         """Test that invalid company_name raises ValueError."""
-        from backend.rag.account import resolve_company_id
+        from backend.rag.pipeline.account import resolve_company_id
         
         with pytest.raises(ValueError, match="No company found"):
             resolve_company_id(company_name="NonexistentCompanyXYZ123")
     
     def test_resolve_requires_id_or_name(self):
         """Test that either company_id or company_name is required."""
-        from backend.rag.account import resolve_company_id
+        from backend.rag.pipeline.account import resolve_company_id
         
         with pytest.raises(ValueError, match="Must provide either"):
             resolve_company_id()
@@ -183,7 +183,7 @@ class TestPrivateRetrievalFilter:
         - OPENAI_API_KEY for embedding model (actually uses sentence-transformers, so not needed)
         """
         try:
-            from backend.rag.private import create_private_backend
+            from backend.rag.retrieval.private import create_private_backend
         except Exception as e:
             pytest.skip(f"Could not import private backend: {e}")
         
@@ -223,7 +223,7 @@ class TestPrivacyLeakage:
     
     def test_no_leakage_when_all_match(self):
         """Test that no leakage is detected when all hits match target."""
-        from backend.rag.eval_account import check_privacy_leakage
+        from backend.rag.eval.judge import check_privacy_leakage
         
         target = "ACME-MFG"
         hits = [
@@ -238,7 +238,7 @@ class TestPrivacyLeakage:
     
     def test_leakage_detected_when_mismatch(self):
         """Test that leakage is detected when hits from other company."""
-        from backend.rag.eval_account import check_privacy_leakage
+        from backend.rag.eval.judge import check_privacy_leakage
         
         target = "ACME-MFG"
         hits = [
@@ -253,7 +253,7 @@ class TestPrivacyLeakage:
     
     def test_empty_hits_no_leakage(self):
         """Test that empty hits result in no leakage."""
-        from backend.rag.eval_account import check_privacy_leakage
+        from backend.rag.eval.judge import check_privacy_leakage
         
         leakage, leaked = check_privacy_leakage("ACME-MFG", [])
         
@@ -301,7 +301,7 @@ class TestQuestionGeneration:
     
     def test_generates_expected_number_of_questions(self):
         """Test that question generation produces expected count."""
-        from backend.rag.eval_account import (
+        from backend.rag.eval.account_eval import (
             generate_eval_questions,
             NUM_COMPANIES,
             NUM_QUESTIONS_PER_COMPANY,
@@ -314,7 +314,7 @@ class TestQuestionGeneration:
     
     def test_questions_have_required_fields(self):
         """Test that generated questions have all required fields."""
-        from backend.rag.eval_account import generate_eval_questions
+        from backend.rag.eval.account_eval import generate_eval_questions
         
         questions = generate_eval_questions()
         
@@ -327,7 +327,7 @@ class TestQuestionGeneration:
     
     def test_questions_are_deterministic(self):
         """Test that question generation is deterministic."""
-        from backend.rag.eval_account import generate_eval_questions
+        from backend.rag.eval.account_eval import generate_eval_questions
         
         q1 = generate_eval_questions(seed=42)
         q2 = generate_eval_questions(seed=42)
@@ -351,8 +351,8 @@ class TestIntegration:
     def test_end_to_end_account_question(self):
         """Test full end-to-end account question flow."""
         try:
-            from backend.rag.account import answer_account_question
-            from backend.rag.private import create_private_backend
+            from backend.rag.pipeline.account import answer_account_question
+            from backend.rag.retrieval.private import create_private_backend
         except Exception as e:
             pytest.skip(f"Import failed: {e}")
         

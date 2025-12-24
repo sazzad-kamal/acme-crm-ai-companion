@@ -40,7 +40,7 @@ from backend.rag.eval.base import (
 # Configuration
 # =============================================================================
 
-EVAL_QUESTIONS_PATH = Path(__file__).parent.parent / "eval_questions.json"
+EVAL_QUESTIONS_PATH = Path(__file__).parent / "eval_questions.json"
 
 
 # =============================================================================
