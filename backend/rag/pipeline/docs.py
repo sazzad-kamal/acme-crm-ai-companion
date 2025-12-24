@@ -9,7 +9,6 @@ Implements:
 - Context building
 - Answer generation with citations
 - Progress step logging
-- Audit logging for compliance
 
 Usage:
     from backend.rag.pipeline import answer_question
@@ -27,7 +26,6 @@ from backend.rag.models import DocumentChunk, ScoredChunk
 from backend.rag.retrieval.base import RetrievalBackend
 from backend.rag.pipeline.constants import LLM_MODEL, ANSWER_MAX_TOKENS, MAX_CONTEXT_TOKENS
 from backend.rag.pipeline.utils import estimate_tokens, preprocess_query, extract_citations
-from backend.rag.audit import AuditEntry, log_audit_entry
 from backend.rag.pipeline.base import (
     PipelineProgress,
     apply_lexical_gate,
@@ -174,9 +172,6 @@ def answer_question(
     use_hyde: bool = True,
     use_rewrite: bool = None,  # None = use config
     verbose: bool = False,
-    company_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    session_id: Optional[str] = None,
     progress_callback: Optional[Callable[[str, str, float], None]] = None,
 ) -> dict:
     """
@@ -189,9 +184,6 @@ def answer_question(
         use_hyde: Whether to use HyDE for retrieval
         use_rewrite: Whether to rewrite the query (None = use config)
         verbose: Print debug information
-        company_id: Company ID for audit logging
-        user_id: User ID for audit logging
-        session_id: Session ID for audit logging
         progress_callback: Optional callback for step progress (step_id, label, elapsed_ms)
         
     Returns:
@@ -205,14 +197,6 @@ def answer_question(
         - steps: List of processing steps with timing
     """
     progress = PipelineProgress(callback=progress_callback)
-    
-    # Initialize audit entry
-    audit = AuditEntry(
-        query=question,
-        company_id=company_id,
-        user_id=user_id,
-        session_id=session_id,
-    )
     
     # Default to True for rewrite
     if use_rewrite is None:
@@ -241,7 +225,6 @@ def answer_question(
         if use_rewrite:
             rewritten_question = rewrite_query(question)
             metrics["llm_calls"] += 1
-            audit.rewritten_query = rewritten_question
             if verbose:
                 print(f"Rewritten question: {rewritten_question}")
         progress.complete_step("rewrite", "Query analyzed")
@@ -268,7 +251,6 @@ def answer_question(
             top_n=k * 2,
             use_reranker=True,
         )
-        audit.num_chunks_retrieved = len(scored_chunks)
         progress.complete_step("retrieval", f"Found {len(scored_chunks)} relevant sections")
         
         logger.debug(f"Retrieved {len(scored_chunks)} candidates after reranking")
@@ -317,13 +299,6 @@ def answer_question(
         
         logger.info(f"Question answered: {len(final_chunks)} chunks used, {len(cited_docs)} citations")
         
-        # Update audit entry with success
-        audit.num_chunks_used = len(final_chunks)
-        audit.answer_length = len(answer_result["answer"])
-        audit.latency_ms = int(progress.total_elapsed_ms())
-        audit.status = "success"
-        audit.sources = used_doc_ids
-        
         result = {
             "answer": answer_result["answer"],
             "used_chunks": final_chunks,
@@ -345,18 +320,9 @@ def answer_question(
             },
         }
         
-        # Log audit entry
-        log_audit_entry(audit)
-        
         return result
         
     except Exception as e:
-        # Log error to audit
-        audit.status = "error"
-        audit.error_message = str(e)
-        audit.latency_ms = int(progress.total_elapsed_ms())
-        log_audit_entry(audit)
-        
         logger.error(f"Pipeline error: {e}")
         raise
 
@@ -377,7 +343,7 @@ if __name__ == "__main__":
     print(f"\nQuestion: {question}")
     print("-" * 60)
     
-    result = answer_question(question, backend, verbose=True, company_id="TEST")
+    result = answer_question(question, backend, verbose=True)
     
     print("\n" + "=" * 60)
     print("ANSWER:")
