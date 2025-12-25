@@ -41,9 +41,39 @@ OPP-FUSION-UPSELL,FUSION-RETAIL,C-FUSION-EMMA,Opportunity Notes – OPP-FUSION-U
 - Expected close: 2026-05-10
 
 Summary: Customer is exploring changes focused on streamlining contact management and deduplication. Primary risk noted is inconsistent activity logging across the team. Recommended next step: create a saved group for renewals and start outreach.",2025-07-01,2025-10-25
+OPP-FUSION-RENEW,FUSION-RETAIL,C-FUSION-LARS,Opportunity Notes – OPP-FUSION-RENEW,"Fusion Retail Group opportunity context:
+- Stage: Closed Won
+- Value: 28000 USD
+- Closed: 2025-09-30
+
+Summary: Successfully renewed annual subscription. Customer expanded from 15 to 25 seats. Strong champion support from Emma Khan drove internal adoption. Contract signed 2 weeks ahead of deadline.",2025-07-15,2025-09-30
 OPP-HARBOR-NEW,HARBOR-LOGISTICS,C-HARBOR-JACOB,Opportunity Notes – OPP-HARBOR-NEW,"Harbor Logistics opportunity context:
 - Stage: Discovery
 - Value: 26000 USD
 - Expected close: 2025-08-30
 
 Summary: Customer is exploring changes focused on cleaning up pipeline stages and forecasting accuracy. Primary risk noted is inconsistent activity logging across the team. Recommended next step: create a saved group for renewals and start outreach.",2025-05-15,2025-11-10
+OPP-BETA-ADDON,BETA-TECH,C-BETA-SAM,Opportunity Notes – OPP-BETA-ADDON,"Beta Tech Solutions opportunity context:
+- Stage: Discovery
+- Value: 8000 USD
+- Expected close: 2026-02-15
+
+Summary: Technical team expressed interest in analytics add-on module. Sam Clarke is evaluating requirements. Depends on successful completion of main rollout (OPP-BETA-NEW). Low-touch opportunity that can be bundled with initial contract.",2025-11-01,2025-11-15
+OPP-DELTA-EXPAND,DELTA-HEALTH,C-DELTA-ERIN,Opportunity Notes – OPP-DELTA-EXPAND,"Delta Health Clinics opportunity context:
+- Stage: Discovery
+- Value: 15000 USD
+- Expected close: 2026-03-01
+
+Summary: Following successful renewal, Erin Cho mentioned plans to expand to 3 additional clinic locations in Q1 2026. Need to present multi-location pricing and training package. Key risk: budget approval from corporate.",2025-10-01,2025-11-10
+OPP-GREEN-RENEW,GREEN-ENERGY,C-GREEN-CARLOS,Opportunity Notes – OPP-GREEN-RENEW,"Green Energy Partners opportunity context:
+- Stage: Closed Lost
+- Value: 20000 USD
+- Lost: 2025-06-15
+
+Summary: CHURNED ACCOUNT. Customer did not renew due to budget cuts following restructuring. Carlos Mendez cited lack of clear ROI demonstration and infrequent account engagement. Post-mortem: should have implemented QBRs and usage reporting earlier. Win-back potential in 2026 after budget cycle.",2025-03-01,2025-06-15
+OPP-GREEN-EXPAND,GREEN-ENERGY,C-GREEN-LINDA,Opportunity Notes – OPP-GREEN-EXPAND,"Green Energy Partners opportunity context:
+- Stage: Closed Lost
+- Value: 35000 USD
+- Lost: 2025-05-10
+
+Summary: LOST OPPORTUNITY. Expansion to solar division was cancelled when main account signaled intent to churn. Linda Park was championing internally but lost executive support. This deal collapse was early indicator of churn risk that we missed.",2024-11-01,2025-05-10
