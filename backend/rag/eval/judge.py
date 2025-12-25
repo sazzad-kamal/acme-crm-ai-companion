@@ -116,7 +116,7 @@ def judge_response(
     prompt = _JUDGE_PROMPT.format(
         question=question,
         doc_ids=", ".join(doc_ids),
-        context=context[:2000],  # Truncate for judge
+        context=context,
         answer=answer,
     )
     
@@ -182,7 +182,7 @@ def judge_account_response(
         company_id=company_id,
         company_name=company_name,
         question=question,
-        context=context[:2500],  # Truncate
+        context=context,
         answer=answer,
     )
     
