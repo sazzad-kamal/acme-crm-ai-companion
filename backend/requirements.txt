@@ -27,7 +27,6 @@ tenacity>=8.2.0
 
 # Agent Framework
 langgraph>=0.2.0
-langchain-core>=0.3.0
 
 # Vector Store & Retrieval
 qdrant-client>=1.7.0
