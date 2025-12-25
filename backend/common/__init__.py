@@ -3,6 +3,7 @@
 Shared utilities for the backend.
 
 Modules:
+- models: Shared data models (DocumentChunk, ScoredChunk)
 - llm_client: OpenAI LLM client with retry logic
 - company_resolver: Unified company name/ID resolution
 - context_builder: RAG context building utilities
@@ -11,6 +12,7 @@ Modules:
 - error_handling: Pipeline error handling decorators
 """
 
+from backend.common.models import DocumentChunk, ScoredChunk
 from backend.common.llm_client import call_llm, call_llm_safe, call_llm_with_metrics
 from backend.common.company_resolver import (
     resolve_company_id,
@@ -28,10 +30,10 @@ from backend.common.formatters import (
 )
 from backend.common.error_handling import pipeline_node, safe_operation
 
-# Context builder is imported lazily to avoid circular imports
-# Import directly: from backend.common.context_builder import ContextBuilder
-
 __all__ = [
+    # Models
+    "DocumentChunk",
+    "ScoredChunk",
     # LLM client
     "call_llm",
     "call_llm_safe",

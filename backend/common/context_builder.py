@@ -11,10 +11,9 @@ Provides a single, flexible context builder that handles all chunk types.
 from __future__ import annotations
 
 import logging
-from typing import Optional, Callable, Any, TYPE_CHECKING
+from typing import Optional, Callable
 
-if TYPE_CHECKING:
-    from backend.rag.models import DocumentChunk, ScoredChunk
+from backend.common.models import DocumentChunk, ScoredChunk
 
 
 logger = logging.getLogger(__name__)
