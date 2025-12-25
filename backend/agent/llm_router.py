@@ -10,10 +10,11 @@ Uses an LLM to:
 Falls back to heuristic router on LLM failures.
 """
 
-import json
 import logging
-from typing import Optional
+import re
+from typing import Optional, Literal
 
+from pydantic import BaseModel, Field, field_validator
 from tenacity import (
     retry, 
     stop_after_attempt, 
@@ -147,45 +148,36 @@ class LLMRouterError(Exception):
     pass
 
 
-def _parse_router_response(response_text: str) -> dict:
-    """Parse and validate LLM router response."""
-    try:
-        # Try to extract JSON from the response
-        text = response_text.strip()
-        
-        # Handle markdown code blocks
+class LLMRouterResponse(BaseModel):
+    """Pydantic model for parsing LLM router JSON responses."""
+    mode: Literal["docs", "data", "data+docs"] = "data+docs"
+    intent: Literal["company_status", "renewals", "pipeline", "activities", "history", "general"] = "general"
+    company_name: str | None = None
+    days: int = Field(default=30, ge=1, le=365)
+    query_expansion: str | None = None
+    key_entities: list[str] = Field(default_factory=list)
+    action_type: Literal["retrieve", "summarize", "compare", "analyze"] = "retrieve"
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    
+    @classmethod
+    def from_llm_text(cls, text: str) -> "LLMRouterResponse":
+        """Parse LLM response text, extracting JSON from markdown if needed."""
+        text = text.strip()
+        # Extract JSON from markdown code blocks
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
         elif "```" in text:
             text = text.split("```")[1].split("```")[0].strip()
-        
-        result = json.loads(text)
-        
-        # Validate required fields
-        required_fields = ["mode", "intent"]
-        for field in required_fields:
-            if field not in result:
-                raise ValueError(f"Missing required field: {field}")
-        
-        # Validate mode
-        valid_modes = ["docs", "data", "data+docs"]
-        if result.get("mode") not in valid_modes:
-            result["mode"] = "data+docs"  # Safe default
-        
-        # Set defaults for optional fields
-        result.setdefault("company_name", None)
-        result.setdefault("days", 30)
-        result.setdefault("query_expansion", None)
-        result.setdefault("confidence", 0.5)
-        result.setdefault("key_entities", [])
-        result.setdefault("action_type", "retrieve")
-        
-        return result
-        
-    except json.JSONDecodeError as e:
-        raise LLMRouterError(f"Failed to parse JSON: {e}")
+        return cls.model_validate_json(text)
+
+
+def _parse_router_response(response_text: str) -> dict:
+    """Parse and validate LLM router response using Pydantic."""
+    try:
+        parsed = LLMRouterResponse.from_llm_text(response_text)
+        return parsed.model_dump()
     except Exception as e:
-        raise LLMRouterError(f"Response validation failed: {e}")
+        raise LLMRouterError(f"Failed to parse router response: {e}")
 
 
 @retry(

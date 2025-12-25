@@ -5,12 +5,11 @@
 API route definitions for the CRM AI Companion.
 """
 
-import csv
-import json
 import logging
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Callable
 
+import pandas as pd
 from fastapi import APIRouter, Request, Depends
 from pydantic import BaseModel, Field
 
@@ -248,41 +247,48 @@ class DataResponse(BaseModel):
 
 
 def load_csv_data(csv_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
-    """Load data from a CSV file."""
+    """Load data from a CSV file using pandas."""
     if not csv_path.exists():
         return [], []
-    
-    with open(csv_path, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        data = list(reader)
-        columns = reader.fieldnames or []
-    
-    return data, columns
+    df = pd.read_csv(csv_path)
+    return df.to_dict("records"), df.columns.tolist()
 
 
 def load_jsonl_data(jsonl_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
-    """Load data from a JSONL file."""
+    """Load data from a JSONL file using pandas."""
     if not jsonl_path.exists():
         return [], []
-    
-    data = []
-    with open(jsonl_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                record = json.loads(line)
-                # Flatten metadata for display
-                if "metadata" in record and isinstance(record["metadata"], dict):
-                    for key, value in record["metadata"].items():
-                        record[f"metadata_{key}"] = value
-                    del record["metadata"]
-                data.append(record)
-    
-    if data:
-        columns = list(data[0].keys())
-    else:
-        columns = []
-    
-    return data, columns
+    df = pd.read_json(jsonl_path, lines=True)
+    # Flatten metadata column if present
+    if "metadata" in df.columns:
+        meta_df = pd.json_normalize(df["metadata"]).add_prefix("metadata_")
+        df = pd.concat([df.drop(columns=["metadata"]), meta_df], axis=1)
+    return df.to_dict("records"), df.columns.tolist()
+
+
+def _group_by_key(
+    data: list[dict], key_field: str, extract_field: str | None = None
+) -> dict[str, list[dict]]:
+    """Group records by a key field. Helper for enrichment."""
+    result: dict[str, list[dict]] = {}
+    for record in data:
+        key = record.get(extract_field or key_field) or record.get(key_field, "")
+        if key:
+            result.setdefault(key, []).append(record)
+    return result
+
+
+def _create_simple_data_endpoint(
+    file_name: str,
+    is_jsonl: bool = False,
+):
+    """Factory for simple data endpoints without enrichment."""
+    async def endpoint(settings: Settings = Depends(get_settings)) -> DataResponse:
+        path = settings.data_dir / "csv" / file_name
+        loader = load_jsonl_data if is_jsonl else load_csv_data
+        data, columns = loader(path)
+        return DataResponse(data=data, total=len(data), columns=columns)
+    return endpoint
 
 
 @router.get(
@@ -295,22 +301,12 @@ async def get_companies(
     settings: Settings = Depends(get_settings),
 ) -> DataResponse:
     """Get all company data with nested private texts."""
-    csv_path = settings.data_dir / "csv" / "companies.csv"
-    data, columns = load_csv_data(csv_path)
+    data, columns = load_csv_data(settings.data_dir / "csv" / "companies.csv")
+    private_texts, _ = load_jsonl_data(settings.data_dir / "csv" / "private_texts.jsonl")
+    texts_by_company = _group_by_key(private_texts, "company_id", "metadata_company_id")
     
-    # Load private texts and group by company_id
-    jsonl_path = settings.data_dir / "csv" / "private_texts.jsonl"
-    private_texts, _ = load_jsonl_data(jsonl_path)
-    texts_by_company: dict[str, list[dict[str, Any]]] = {}
-    for pt in private_texts:
-        cid = pt.get("metadata_company_id") or pt.get("company_id", "")
-        if cid:
-            texts_by_company.setdefault(cid, []).append(pt)
-    
-    # Enrich companies with their private texts
     for company in data:
-        company_id = company.get("company_id", "")
-        company["_private_texts"] = texts_by_company.get(company_id, [])
+        company["_private_texts"] = texts_by_company.get(company.get("company_id", ""), [])
     
     return DataResponse(data=data, total=len(data), columns=columns)
 
@@ -325,22 +321,12 @@ async def get_contacts(
     settings: Settings = Depends(get_settings),
 ) -> DataResponse:
     """Get all contact data with nested private texts."""
-    csv_path = settings.data_dir / "csv" / "contacts.csv"
-    data, columns = load_csv_data(csv_path)
+    data, columns = load_csv_data(settings.data_dir / "csv" / "contacts.csv")
+    private_texts, _ = load_jsonl_data(settings.data_dir / "csv" / "private_texts.jsonl")
+    texts_by_contact = _group_by_key(private_texts, "contact_id", "metadata_contact_id")
     
-    # Load private texts and group by contact_id
-    jsonl_path = settings.data_dir / "csv" / "private_texts.jsonl"
-    private_texts, _ = load_jsonl_data(jsonl_path)
-    texts_by_contact: dict[str, list[dict[str, Any]]] = {}
-    for pt in private_texts:
-        cid = pt.get("metadata_contact_id") or pt.get("contact_id", "")
-        if cid:
-            texts_by_contact.setdefault(cid, []).append(pt)
-    
-    # Enrich contacts with their private texts
     for contact in data:
-        contact_id = contact.get("contact_id", "")
-        contact["_private_texts"] = texts_by_contact.get(contact_id, [])
+        contact["_private_texts"] = texts_by_contact.get(contact.get("contact_id", ""), [])
     
     return DataResponse(data=data, total=len(data), columns=columns)
 
@@ -355,28 +341,13 @@ async def get_opportunities(
     settings: Settings = Depends(get_settings),
 ) -> DataResponse:
     """Get all opportunity data with descriptions and attachments."""
-    csv_path = settings.data_dir / "csv" / "opportunities.csv"
-    data, columns = load_csv_data(csv_path)
+    data, columns = load_csv_data(settings.data_dir / "csv" / "opportunities.csv")
+    descriptions, _ = load_csv_data(settings.data_dir / "csv" / "opportunity_descriptions.csv")
+    attachments, _ = load_csv_data(settings.data_dir / "csv" / "attachments.csv")
     
-    # Load opportunity descriptions
-    desc_path = settings.data_dir / "csv" / "opportunity_descriptions.csv"
-    descriptions, _ = load_csv_data(desc_path)
-    desc_by_opp: dict[str, list[dict[str, Any]]] = {}
-    for desc in descriptions:
-        oid = desc.get("opportunity_id", "")
-        if oid:
-            desc_by_opp.setdefault(oid, []).append(desc)
+    desc_by_opp = _group_by_key(descriptions, "opportunity_id")
+    attach_by_opp = _group_by_key(attachments, "opportunity_id")
     
-    # Load attachments related to opportunities
-    attach_path = settings.data_dir / "csv" / "attachments.csv"
-    attachments, _ = load_csv_data(attach_path)
-    attach_by_opp: dict[str, list[dict[str, Any]]] = {}
-    for att in attachments:
-        oid = att.get("opportunity_id", "")
-        if oid:
-            attach_by_opp.setdefault(oid, []).append(att)
-    
-    # Enrich opportunities with descriptions and attachments
     for opp in data:
         opp_id = opp.get("opportunity_id", "")
         opp["_descriptions"] = desc_by_opp.get(opp_id, [])
@@ -385,49 +356,51 @@ async def get_opportunities(
     return DataResponse(data=data, total=len(data), columns=columns)
 
 
-@router.get(
+# =============================================================================
+# Simple Data Endpoints (factory-generated)
+# =============================================================================
+
+router.get(
     "/data/activities",
     response_model=DataResponse,
     summary="Get all activities",
     description="Returns all activity records from the CRM.",
-)
-async def get_activities(
-    settings: Settings = Depends(get_settings),
-) -> DataResponse:
-    """Get all activity data."""
-    csv_path = settings.data_dir / "csv" / "activities.csv"
-    data, columns = load_csv_data(csv_path)
-    return DataResponse(data=data, total=len(data), columns=columns)
+)(endpoint := _create_simple_data_endpoint("activities.csv"))
 
-
-@router.get(
+router.get(
     "/data/private-texts",
     response_model=DataResponse,
     summary="Get all private texts",
     description="Returns all private text records (attachments, notes, etc.).",
-)
-async def get_private_texts(
-    settings: Settings = Depends(get_settings),
-) -> DataResponse:
-    """Get all private text data (attachments, notes, emails)."""
-    jsonl_path = settings.data_dir / "csv" / "private_texts.jsonl"
-    data, columns = load_jsonl_data(jsonl_path)
-    return DataResponse(data=data, total=len(data), columns=columns)
+)(_create_simple_data_endpoint("private_texts.jsonl", is_jsonl=True))
 
-
-@router.get(
+router.get(
     "/data/history",
     response_model=DataResponse,
     summary="Get all history",
     description="Returns all history/timeline records from the CRM.",
-)
-async def get_history(
-    settings: Settings = Depends(get_settings),
-) -> DataResponse:
-    """Get all history data."""
-    csv_path = settings.data_dir / "csv" / "history.csv"
-    data, columns = load_csv_data(csv_path)
-    return DataResponse(data=data, total=len(data), columns=columns)
+)(_create_simple_data_endpoint("history.csv"))
+
+router.get(
+    "/data/group-members",
+    response_model=DataResponse,
+    summary="Get all group members",
+    description="Returns all group membership records from the CRM.",
+)(_create_simple_data_endpoint("group_members.csv"))
+
+router.get(
+    "/data/attachments",
+    response_model=DataResponse,
+    summary="Get all attachments",
+    description="Returns all attachment records from the CRM.",
+)(_create_simple_data_endpoint("attachments.csv"))
+
+router.get(
+    "/data/opportunity-descriptions",
+    response_model=DataResponse,
+    summary="Get all opportunity descriptions",
+    description="Returns all opportunity description records from the CRM.",
+)(_create_simple_data_endpoint("opportunity_descriptions.csv"))
 
 
 @router.get(
@@ -440,66 +413,11 @@ async def get_groups(
     settings: Settings = Depends(get_settings),
 ) -> DataResponse:
     """Get all group data with nested members."""
-    csv_path = settings.data_dir / "csv" / "groups.csv"
-    data, columns = load_csv_data(csv_path)
+    data, columns = load_csv_data(settings.data_dir / "csv" / "groups.csv")
+    members, _ = load_csv_data(settings.data_dir / "csv" / "group_members.csv")
+    members_by_group = _group_by_key(members, "group_id")
     
-    # Load group members
-    members_path = settings.data_dir / "csv" / "group_members.csv"
-    members, _ = load_csv_data(members_path)
-    members_by_group: dict[str, list[dict[str, Any]]] = {}
-    for member in members:
-        gid = member.get("group_id", "")
-        if gid:
-            members_by_group.setdefault(gid, []).append(member)
-    
-    # Enrich groups with their members
     for group in data:
-        group_id = group.get("group_id", "")
-        group["_members"] = members_by_group.get(group_id, [])
+        group["_members"] = members_by_group.get(group.get("group_id", ""), [])
     
-    return DataResponse(data=data, total=len(data), columns=columns)
-
-
-@router.get(
-    "/data/group-members",
-    response_model=DataResponse,
-    summary="Get all group members",
-    description="Returns all group membership records from the CRM.",
-)
-async def get_group_members(
-    settings: Settings = Depends(get_settings),
-) -> DataResponse:
-    """Get all group member data."""
-    csv_path = settings.data_dir / "csv" / "group_members.csv"
-    data, columns = load_csv_data(csv_path)
-    return DataResponse(data=data, total=len(data), columns=columns)
-
-
-@router.get(
-    "/data/attachments",
-    response_model=DataResponse,
-    summary="Get all attachments",
-    description="Returns all attachment records from the CRM.",
-)
-async def get_attachments(
-    settings: Settings = Depends(get_settings),
-) -> DataResponse:
-    """Get all attachment data."""
-    csv_path = settings.data_dir / "csv" / "attachments.csv"
-    data, columns = load_csv_data(csv_path)
-    return DataResponse(data=data, total=len(data), columns=columns)
-
-
-@router.get(
-    "/data/opportunity-descriptions",
-    response_model=DataResponse,
-    summary="Get all opportunity descriptions",
-    description="Returns all opportunity description records from the CRM.",
-)
-async def get_opportunity_descriptions(
-    settings: Settings = Depends(get_settings),
-) -> DataResponse:
-    """Get all opportunity description data."""
-    csv_path = settings.data_dir / "csv" / "opportunity_descriptions.csv"
-    data, columns = load_csv_data(csv_path)
     return DataResponse(data=data, total=len(data), columns=columns)

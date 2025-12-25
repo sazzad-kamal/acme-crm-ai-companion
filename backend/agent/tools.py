@@ -10,6 +10,18 @@ from backend.agent.datastore import get_datastore, CRMDataStore
 from backend.agent.schemas import Source, ToolResult
 
 
+def _make_sources(
+    data: list | dict | None,
+    source_type: str,
+    source_id: str,
+    label: str,
+) -> list[Source]:
+    """Create a source list if data is non-empty. Reduces repetitive conditional blocks."""
+    if data:  # Works for non-empty list, dict with items, or truthy value
+        return [Source(type=source_type, id=source_id, label=label)]
+    return []
+
+
 # =============================================================================
 # Tool: Company Lookup
 # =============================================================================
@@ -106,17 +118,6 @@ def tool_recent_activity(
     company = ds.get_company(company_id)
     company_name = company.get("name", company_id) if company else company_id
     
-    # Create sources for activities
-    sources = []
-    if activities:
-        sources.append(
-            Source(
-                type="activities",
-                id=company_id,
-                label=f"Activities for {company_name} (last {days} days)"
-            )
-        )
-    
     return ToolResult(
         data={
             "company_id": company_id,
@@ -125,7 +126,10 @@ def tool_recent_activity(
             "count": len(activities),
             "activities": activities,
         },
-        sources=sources
+        sources=_make_sources(
+            activities, "activities", company_id,
+            f"Activities for {company_name} (last {days} days)"
+        )
     )
 
 
@@ -159,16 +163,6 @@ def tool_recent_history(
     company = ds.get_company(company_id)
     company_name = company.get("name", company_id) if company else company_id
     
-    sources = []
-    if history:
-        sources.append(
-            Source(
-                type="history",
-                id=company_id,
-                label=f"History for {company_name} (last {days} days)"
-            )
-        )
-    
     return ToolResult(
         data={
             "company_id": company_id,
@@ -177,7 +171,10 @@ def tool_recent_history(
             "count": len(history),
             "history": history,
         },
-        sources=sources
+        sources=_make_sources(
+            history, "history", company_id,
+            f"History for {company_name} (last {days} days)"
+        )
     )
 
 
@@ -211,15 +208,7 @@ def tool_pipeline(
     company = ds.get_company(company_id)
     company_name = company.get("name", company_id) if company else company_id
     
-    sources = []
-    if opportunities or summary.get("total_count", 0) > 0:
-        sources.append(
-            Source(
-                type="opportunities",
-                id=company_id,
-                label=f"Pipeline for {company_name}"
-            )
-        )
+    has_pipeline = opportunities or summary.get("total_count", 0) > 0
     
     return ToolResult(
         data={
@@ -228,7 +217,10 @@ def tool_pipeline(
             "summary": summary,
             "opportunities": opportunities,
         },
-        sources=sources
+        sources=_make_sources(
+            has_pipeline, "opportunities", company_id,
+            f"Pipeline for {company_name}"
+        )
     )
 
 
@@ -256,23 +248,16 @@ def tool_upcoming_renewals(
     
     renewals = ds.get_upcoming_renewals(days=days, limit=limit)
     
-    sources = []
-    if renewals:
-        sources.append(
-            Source(
-                type="renewals",
-                id="upcoming",
-                label=f"Upcoming renewals (next {days} days)"
-            )
-        )
-    
     return ToolResult(
         data={
             "days": days,
             "count": len(renewals),
             "renewals": renewals,
         },
-        sources=sources
+        sources=_make_sources(
+            renewals, "renewals", "upcoming",
+            f"Upcoming renewals (next {days} days)"
+        )
     )
 
 

@@ -133,6 +133,21 @@ class CRMDataStore:
             print(f"Warning: Failed to load {table_name}: {e}")
             return False
     
+    def _fetch_one_dict(self, query: str, params: list = None) -> dict | None:
+        """Execute query and return first row as dict, or None."""
+        result = self.conn.execute(query, params or []).fetchone()
+        if not result:
+            return None
+        return dict(zip([d[0] for d in self.conn.description], result))
+    
+    def _fetch_all_dicts(self, query: str, params: list = None) -> list[dict]:
+        """Execute query and return all rows as list of dicts."""
+        result = self.conn.execute(query, params or []).fetchall()
+        if not result:
+            return []
+        columns = [d[0] for d in self.conn.description]
+        return [dict(zip(columns, row)) for row in result]
+    
     def _ensure_core_tables(self):
         """Load all required core tables."""
         for table in REQUIRED_TABLES:
@@ -244,27 +259,15 @@ class CRMDataStore:
         Returns dict with company fields, or None if not found.
         """
         self._ensure_table("companies")
-        
-        result = self.conn.execute(
+        return self._fetch_one_dict(
             "SELECT * FROM companies WHERE company_id = ?",
             [company_id]
-        ).fetchone()
-        
-        if not result:
-            return None
-        
-        # Get column names
-        columns = [desc[0] for desc in self.conn.description]
-        return dict(zip(columns, result))
+        )
     
     def get_all_companies(self) -> list[dict]:
         """Get all companies."""
         self._ensure_table("companies")
-        
-        result = self.conn.execute("SELECT * FROM companies").fetchall()
-        columns = [desc[0] for desc in self.conn.description]
-        
-        return [dict(zip(columns, row)) for row in result]
+        return self._fetch_all_dicts("SELECT * FROM companies")
     
     def get_recent_activities(
         self,
@@ -464,15 +467,10 @@ class CRMDataStore:
     ) -> list[dict]:
         """Get contacts for a company."""
         self._ensure_table("contacts")
-        
-        result = self.conn.execute(f"""
-            SELECT * FROM contacts 
-            WHERE company_id = ?
-            LIMIT {limit}
-        """, [company_id]).fetchall()
-        
-        columns = [desc[0] for desc in self.conn.description]
-        return [dict(zip(columns, row)) for row in result]
+        return self._fetch_all_dicts(
+            f"SELECT * FROM contacts WHERE company_id = ? LIMIT {limit}",
+            [company_id]
+        )
     
     def execute_query(self, query: str, params: list = None) -> list[dict]:
         """
@@ -481,17 +479,7 @@ class CRMDataStore:
         Returns list of dicts.
         """
         self._ensure_core_tables()
-        
-        if params:
-            result = self.conn.execute(query, params).fetchall()
-        else:
-            result = self.conn.execute(query).fetchall()
-        
-        if not result:
-            return []
-        
-        columns = [desc[0] for desc in self.conn.description]
-        return [dict(zip(columns, row)) for row in result]
+        return self._fetch_all_dicts(query, params)
 
 
 # =============================================================================
