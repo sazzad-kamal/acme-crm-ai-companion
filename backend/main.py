@@ -51,12 +51,12 @@ load_dotenv(project_root / ".env")
 # Try absolute imports first, fall back to relative for direct execution
 try:
     from backend.config import get_settings
-    from backend.routes import router
+    from backend.api import router
     from backend.middleware import RequestLoggingMiddleware, CacheControlMiddleware, RateLimitMiddleware
     from backend.exceptions import APIError, ErrorResponse
 except ImportError:
     from config import get_settings
-    from routes import router
+    from api import router
     from middleware import RequestLoggingMiddleware, CacheControlMiddleware, RateLimitMiddleware
     from exceptions import APIError, ErrorResponse
 
