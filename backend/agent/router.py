@@ -135,12 +135,8 @@ INTENT_PATTERNS = {
 
 def _count_pattern_matches(text: str, patterns: list[str]) -> int:
     """Count how many patterns match in the text."""
-    count = 0
     text_lower = text.lower()
-    for pattern in patterns:
-        if re.search(pattern, text_lower):
-            count += 1
-    return count
+    return sum(1 for p in patterns if re.search(p, text_lower))
 
 
 def _extract_timeframe(question: str) -> int:
@@ -148,8 +144,7 @@ def _extract_timeframe(question: str) -> int:
     question_lower = question.lower()
     
     for pattern, extractor in TIMEFRAME_PATTERNS:
-        match = re.search(pattern, question_lower)
-        if match:
+        if match := re.search(pattern, question_lower):
             return extractor(match)
     
     # Default: 90 for "what's going on" type questions
@@ -212,18 +207,10 @@ def _extract_company_reference(
 def _detect_intent(question: str) -> str:
     """Detect the primary intent of the question."""
     question_lower = question.lower()
-    
-    scores = {}
-    for intent, patterns in INTENT_PATTERNS.items():
-        scores[intent] = _count_pattern_matches(question_lower, patterns)
-    
-    # Get highest scoring intent
-    if scores:
-        max_intent = max(scores, key=scores.get)
-        if scores[max_intent] > 0:
-            return max_intent
-    
-    return "general"
+    scores = {intent: _count_pattern_matches(question_lower, patterns) 
+              for intent, patterns in INTENT_PATTERNS.items()}
+    max_intent = max(scores, key=scores.get, default="general")
+    return max_intent if scores.get(max_intent, 0) > 0 else "general"
 
 
 def route_question(

@@ -104,11 +104,7 @@ class AgentError(APIError):
     """Error from the agent pipeline."""
 
     def __init__(self, message: str, details: Optional[dict] = None):
-        error_details = None
-        if details:
-            error_details = [
-                ErrorDetail(code="AGENT_ERROR", message=message, details=details)
-            ]
+        error_details = [ErrorDetail(code="AGENT_ERROR", message=message, details=details)] if details else None
         super().__init__(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=message,

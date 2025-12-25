@@ -149,19 +149,10 @@ class AgentAuditLogger:
         if not entries:
             return {"total_queries": 0}
         
-        modes = {}
-        latencies = []
-        errors = 0
-        
-        for entry in entries:
-            mode = entry.get("mode_used", "unknown")
-            modes[mode] = modes.get(mode, 0) + 1
-            
-            if entry.get("latency_ms"):
-                latencies.append(entry["latency_ms"])
-            
-            if entry.get("error"):
-                errors += 1
+        from collections import Counter
+        modes = Counter(e.get("mode_used", "unknown") for e in entries)
+        latencies = [e["latency_ms"] for e in entries if e.get("latency_ms")]
+        errors = sum(1 for e in entries if e.get("error"))
         
         return {
             "total_queries": len(entries),

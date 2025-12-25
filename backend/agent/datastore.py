@@ -164,13 +164,8 @@ class CRMDataStore:
             "SELECT company_id, name FROM companies"
         ).fetchall()
         
-        self._company_names_cache = {}
-        self._company_ids_cache = set()
-        
-        for company_id, name in result:
-            self._company_ids_cache.add(company_id)
-            # Store lowercase name for matching
-            self._company_names_cache[name.lower()] = company_id
+        self._company_names_cache = {name.lower(): cid for cid, name in result}
+        self._company_ids_cache = {cid for cid, _ in result}
     
     def _safe_parse_date(self, value) -> datetime | None:
         """Safely parse a date/datetime value."""
@@ -403,19 +398,12 @@ class CRMDataStore:
             GROUP BY stage
         """, [company_id]).fetchall()
         
-        stages = {}
-        total_count = 0
-        total_value = 0.0
-        
-        for stage, count, value in result:
-            stages[stage] = {"count": count, "total_value": float(value or 0)}
-            total_count += count
-            total_value += float(value or 0)
-        
+        stages = {stage: {"count": count, "total_value": float(value or 0)}
+                  for stage, count, value in result}
         return {
             "stages": stages,
-            "total_count": total_count,
-            "total_value": total_value,
+            "total_count": sum(s["count"] for s in stages.values()),
+            "total_value": sum(s["total_value"] for s in stages.values()),
         }
     
     def get_upcoming_renewals(

@@ -84,10 +84,8 @@ def _cache_response(cache_key: str, response: str) -> None:
     
     # Simple LRU-style eviction if cache is full
     if len(_llm_cache) >= _LLM_CACHE_MAX_SIZE:
-        # Remove oldest entry (first key)
-        oldest_key = next(iter(_llm_cache))
-        del _llm_cache[oldest_key]
-        logger.debug(f"LLM cache evicted key {oldest_key[:8]}...")
+        _llm_cache.pop(oldest := next(iter(_llm_cache)))
+        logger.debug(f"LLM cache evicted key {oldest[:8]}...")
     
     _llm_cache[cache_key] = response
     logger.debug(f"LLM response cached with key {cache_key[:8]}...")
@@ -166,10 +164,10 @@ def call_llm(
     
     client = _get_client()
     
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": prompt})
+    messages = [
+        *([{"role": "system", "content": system_prompt}] if system_prompt else []),
+        {"role": "user", "content": prompt},
+    ]
     
     logger.debug(f"Calling LLM model={model}, prompt_len={len(prompt)}")
     
