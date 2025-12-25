@@ -173,6 +173,7 @@ def _extract_company_reference(
         r"^([A-Z][A-Za-z0-9\s\-&]+?)(?:\s+-|\s+–|\s*:)",  # Company at start
     ]
     
+    candidates = []
     for pattern in patterns:
         match = re.search(pattern, question)
         if match:
@@ -184,6 +185,7 @@ def _extract_company_reference(
                 company_id = ds.resolve_company_id(candidate)
                 if company_id:
                     return company_id
+                candidates.append(candidate)
     
     # Try to find any company name mentioned in the question
     # Get all company names and check if any appear in the question
@@ -200,6 +202,22 @@ def _extract_company_reference(
     for name in sorted_names:
         if name in question_lower:
             return ds._company_names_cache[name]
+    
+    # If no exact match, try partial name matching
+    # Look for company name parts mentioned in question
+    for name, cid in ds._company_names_cache.items():
+        # Check if first word of company name is in question
+        first_word = name.split()[0] if name else ""
+        if first_word and len(first_word) >= 4 and first_word in question_lower:
+            # Verify it's not a common word
+            if first_word not in ["green", "delta", "crown", "harbor"]:
+                return cid
+            # For common words, check for two-word match
+            name_parts = name.split()
+            if len(name_parts) >= 2:
+                two_words = f"{name_parts[0]} {name_parts[1]}"
+                if two_words in question_lower:
+                    return cid
     
     return None
 
