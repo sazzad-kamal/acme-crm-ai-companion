@@ -30,11 +30,11 @@ class AgentConfig(BaseSettings):
     # LLM Configuration
     # -------------------------------------------------------------------------
     llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default="gpt-5.2",
         description="LLM model for agent responses"
     )
     router_model: str = Field(
-        default="gpt-4.1-mini",
+        default="gpt-5-nano",
         description="LLM model for routing decisions"
     )
     llm_temperature: float = Field(

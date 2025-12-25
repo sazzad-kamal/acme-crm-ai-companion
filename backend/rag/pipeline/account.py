@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 # Cost Configuration
 # =============================================================================
 
-# GPT-4.1-mini pricing (per token)
+# GPT-5.2 pricing (per token) - update as needed
 COST_PER_INPUT_TOKEN = 0.40 / 1_000_000
 COST_PER_OUTPUT_TOKEN = 1.60 / 1_000_000
 
@@ -146,7 +146,7 @@ def generate_answer(question: str, context: str) -> dict:
     
     result = call_llm_with_metrics(
         prompt=prompt,
-        model="gpt-4.1-mini",
+        model="gpt-5.2",
         max_tokens=800,
     )
     
@@ -339,7 +339,7 @@ def answer_account_question(
             "completion_tokens": completion_tokens,
             "total_tokens": answer_result["total_tokens"],
             "estimated_cost": estimated_cost,
-            "model_used": "gpt-4.1-mini",
+            "model_used": "gpt-5.2",
             "private_chunks_used": len(private_hits),
             "doc_chunks_used": len(doc_hits),
         },

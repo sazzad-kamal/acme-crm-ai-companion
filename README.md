@@ -67,7 +67,7 @@ acme-crm-ai-companion/
 - **Vector Store**: Qdrant
 - **Embeddings**: sentence-transformers (BAAI/bge-small-en-v1.5)
 - **Reranking**: Cross-encoder (BAAI/bge-reranker-base)
-- **LLM**: OpenAI GPT-4.1
+- **LLM**: OpenAI GPT-5.2 (answers), GPT-5-nano (routing/HyDE)
 - **Retry Logic**: Tenacity
 
 ### Frontend
@@ -171,7 +171,7 @@ Content-Type: application/json
   "meta": {
     "mode_used": "data+docs",
     "latency_ms": 1234,
-    "model": "gpt-4.1-mini"
+    "model": "gpt-5.2"
   },
   "follow_ups": ["What opportunities are open?", "Any upcoming renewals?"]
 }

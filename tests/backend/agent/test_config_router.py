@@ -41,8 +41,8 @@ class TestAgentConfig:
     def test_default_config_loads(self):
         """Test that default config loads without errors."""
         config = AgentConfig()
-        assert config.llm_model == "gpt-4.1-mini"
-        assert config.router_model == "gpt-4.1-mini"
+        assert config.llm_model == "gpt-5.2"
+        assert config.router_model == "gpt-5-nano"
         assert config.use_llm_router is True
     
     def test_config_environment_override(self, monkeypatch):
