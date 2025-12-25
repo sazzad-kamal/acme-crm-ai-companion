@@ -1,11 +1,25 @@
 contact_id,company_id,first_name,last_name,email,phone,job_title,role,lifecycle_stage,created_at,updated_at
 C-ACME-ANNA,ACME-MFG,Anna,Lopez,anna.lopez@acmemfg.com,+1-555-0101,Operations Manager,Decision Maker,Customer,2024-01-20,2025-10-20
 C-ACME-JOE,ACME-MFG,Joe,Smith,joe.smith@acmemfg.com,+1-555-0102,IT Manager,Technical Contact,Customer,2024-02-10,2025-10-28
+C-ACME-BETH,ACME-MFG,Beth,Turner,beth.turner@acmemfg.com,+1-555-0103,CFO,Executive,Customer,2024-03-01,2025-09-15
 C-BETA-LISA,BETA-TECH,Lisa,Ng,lisa.ng@betatech.io,+44-20-5550,Head of Sales,Champion,Customer,2024-03-25,2025-10-05
 C-BETA-OMAR,BETA-TECH,Omar,Haddad,omar.haddad@betatech.io,+44-20-5551,CEO,Executive,Customer,2024-03-30,2025-09-15
+C-BETA-SAM,BETA-TECH,Sam,Clarke,sam.clarke@betatech.io,+44-20-5552,Sales Ops,Technical Contact,Customer,2024-04-15,2025-10-20
 C-CROWN-MARIA,CROWN-FOODS,Maria,Silva,maria.silva@crownfoods.ca,+1-555-0201,VP Operations,Decision Maker,Customer,2023-11-15,2025-10-12
+C-CROWN-ALEX,CROWN-FOODS,Alex,Dupont,alex.dupont@crownfoods.ca,+1-555-0202,IT Director,Technical Contact,Customer,2023-12-01,2025-09-28
+C-CROWN-NINA,CROWN-FOODS,Nina,Foster,nina.foster@crownfoods.ca,+1-555-0203,Operations Analyst,User,Customer,2024-01-10,2025-10-05
 C-DELTA-ERIN,DELTA-HEALTH,Erin,Cho,erin.cho@deltahealth.org,+1-555-0301,Clinic Director,Decision Maker,Customer,2023-09-05,2025-08-20
 C-DELTA-MIKE,DELTA-HEALTH,Mike,Rivera,mike.rivera@deltahealth.org,+1-555-0302,IT Coordinator,Technical Contact,Customer,2023-10-01,2025-09-01
+C-DELTA-PRIYA,DELTA-HEALTH,Priya,Sharma,priya.sharma@deltahealth.org,+1-555-0303,Office Manager,User,Customer,2023-11-15,2025-08-10
 C-EAST-SANJAY,EASTERN-TRAVEL,Sanjay,Patel,sanjay.patel@easterntravel.co,+91-22-5550,Owner,Decision Maker,Lead,2025-01-05,2025-10-10
+C-EAST-RAVI,EASTERN-TRAVEL,Ravi,Kumar,ravi.kumar@easterntravel.co,+91-22-5551,Operations Manager,Champion,Lead,2025-01-10,2025-10-15
+C-EAST-ANITA,EASTERN-TRAVEL,Anita,Desai,anita.desai@easterntravel.co,+91-22-5552,Marketing Lead,User,Lead,2025-01-12,2025-10-08
 C-FUSION-EMMA,FUSION-RETAIL,Emma,Khan,emma.khan@fusionretail.com,+49-30-5550,Head of CX,Champion,Customer,2023-08-20,2025-10-18
+C-FUSION-LARS,FUSION-RETAIL,Lars,Müller,lars.mueller@fusionretail.com,+49-30-5551,CTO,Executive,Customer,2023-08-25,2025-09-30
+C-FUSION-INES,FUSION-RETAIL,Ines,Weber,ines.weber@fusionretail.com,+49-30-5552,Sales Manager,User,Customer,2023-09-10,2025-10-10
+C-GREEN-CARLOS,GREEN-ENERGY,Carlos,Mendez,carlos.mendez@greenenergy.co,+1-555-0401,Director of Ops,Decision Maker,Former,2022-06-15,2025-06-30
+C-GREEN-LINDA,GREEN-ENERGY,Linda,Park,linda.park@greenenergy.co,+1-555-0402,Project Manager,Champion,Former,2022-07-01,2025-05-15
+C-GREEN-TOM,GREEN-ENERGY,Tom,Baker,tom.baker@greenenergy.co,+1-555-0403,IT Admin,Technical Contact,Former,2022-08-10,2025-06-01
 C-HARBOR-JACOB,HARBOR-LOGISTICS,Jacob,Wu,jacob.wu@harborlogistics.com,+1-555-0601,Operations Lead,Decision Maker,Customer,2023-12-05,2025-11-05
+C-HARBOR-MEI,HARBOR-LOGISTICS,Mei,Chen,mei.chen@harborlogistics.com,+1-555-0602,Logistics Coordinator,User,Customer,2024-01-15,2025-10-20
+C-HARBOR-DAN,HARBOR-LOGISTICS,Dan,O'Brien,dan.obrien@harborlogistics.com,+1-555-0603,Finance Director,Executive,Customer,2024-02-01,2025-09-25
