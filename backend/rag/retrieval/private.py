@@ -83,27 +83,10 @@ class PrivateRetrievalBackend(RetrievalBackend):
         
         logger.info(f"Loading {num_points} points from '{self.collection_name}'...")
         
-        # Scroll through all points
-        all_points = []
-        offset = None
-        batch_size = 100
+        # Use shared scroll method
+        all_points = self._scroll_all_points()
         
-        while True:
-            result = self.qdrant.scroll(
-                collection_name=self.collection_name,
-                limit=batch_size,
-                offset=offset,
-                with_payload=True,
-                with_vectors=False,
-            )
-            points, next_offset = result
-            all_points.extend(points)
-            
-            if next_offset is None or len(points) == 0:
-                break
-            offset = next_offset
-        
-        # Convert to DocumentChunks
+        # Convert to DocumentChunks with private metadata
         self._chunks = []
         for point in all_points:
             payload = point.payload
@@ -176,6 +159,7 @@ class PrivateRetrievalBackend(RetrievalBackend):
         k: int = 20,
         company_filter: str | None = None,
         qdrant_filter: object | None = None,
+        **kwargs,
     ) -> list[tuple[int, float]]:
         """
         Perform dense search using Qdrant with optional company filter.
@@ -187,14 +171,7 @@ class PrivateRetrievalBackend(RetrievalBackend):
         # Build filter if company specified
         if company_filter:
             qdrant_filter = self._build_company_filter(company_filter)
-        
-        # Delegate to base class
-        results = super()._dense_search(query, k=k, qdrant_filter=qdrant_filter)
-        
-        # Map Qdrant point IDs back to chunk indices using chunk_id
-        # (Base class returns point IDs, but we need indices mapped through chunk_id)
-        if company_filter:
-            # For filtered queries, we need to map via payload
+            # For company-filtered queries, query directly and map via chunk_id
             query_embedding = self.embedding_model.encode(query, normalize_embeddings=True)
             qdrant_results = self.qdrant.query_points(
                 collection_name=self.collection_name,
@@ -210,13 +187,15 @@ class PrivateRetrievalBackend(RetrievalBackend):
                     output.append((idx, hit.score))
             return output
         
-        return results
+        # No filter - delegate to base class
+        return super()._dense_search(query, k=k, qdrant_filter=qdrant_filter)
     
     def _bm25_search(
         self,
         query: str,
         k: int = 20,
         company_filter: str | None = None,
+        **kwargs,
     ) -> list[tuple[int, float]]:
         """
         Perform BM25 search with optional company filter.
@@ -267,54 +246,15 @@ class PrivateRetrievalBackend(RetrievalBackend):
         if not self._chunks:
             raise ValueError("No chunks loaded. Call load_from_qdrant() first.")
         
-        # Run searches with filter
-        dense_results = self._dense_search(query, k=k_dense, company_filter=company_filter)
-        bm25_results = self._bm25_search(query, k=k_bm25, company_filter=company_filter)
-        
-        # Score lookups
-        dense_scores = {idx: score for idx, score in dense_results}
-        bm25_scores = {idx: score for idx, score in bm25_results}
-        
-        # Merge with RRF
-        merged = self._rrf_merge(dense_results, bm25_results)
-        
-        # Get candidates
-        candidates = []
-        rrf_scores = {}
-        for idx, rrf_score in merged[:k_dense + k_bm25]:
-            chunk = self._chunks[idx]
-            candidates.append(chunk)
-            rrf_scores[chunk.chunk_id] = rrf_score
-        
-        # Rerank
-        if use_reranker and candidates:
-            reranked = self._rerank(query, candidates, top_n=top_n)
-            
-            results = []
-            for chunk, rerank_score in reranked:
-                idx = self._chunk_id_to_idx[chunk.chunk_id]
-                scored = ScoredChunk(
-                    chunk=chunk,
-                    dense_score=dense_scores.get(idx, 0.0),
-                    bm25_score=bm25_scores.get(idx, 0.0),
-                    rrf_score=rrf_scores.get(chunk.chunk_id, 0.0),
-                    rerank_score=float(rerank_score),
-                )
-                results.append(scored)
-        else:
-            results = []
-            for idx, rrf_score in merged[:top_n]:
-                chunk = self._chunks[idx]
-                scored = ScoredChunk(
-                    chunk=chunk,
-                    dense_score=dense_scores.get(idx, 0.0),
-                    bm25_score=bm25_scores.get(idx, 0.0),
-                    rrf_score=rrf_score,
-                    rerank_score=0.0,
-                )
-                results.append(scored)
-        
-        return results
+        # Delegate to base class with company_filter passed through
+        return super().retrieve_candidates(
+            query=query,
+            k_dense=k_dense,
+            k_bm25=k_bm25,
+            top_n=top_n,
+            use_reranker=use_reranker,
+            company_filter=company_filter,
+        )
     
     def get_chunks_for_company(self, company_id: str) -> list[DocumentChunk]:
         """Get all chunks for a specific company."""

@@ -191,6 +191,7 @@ class RetrievalBackend:
         query: str,
         k: int = 20,
         qdrant_filter: object | None = None,
+        **kwargs,
     ) -> list[tuple[int, float]]:
         """
         Perform dense search using Qdrant.
@@ -199,6 +200,7 @@ class RetrievalBackend:
             query: Search query
             k: Number of results to return
             qdrant_filter: Optional Qdrant filter object
+            **kwargs: Additional arguments (ignored in base class)
         
         Returns:
             List of (chunk_index, score) tuples.
@@ -230,7 +232,7 @@ class RetrievalBackend:
         logger.debug(f"Dense search returned {len(results)} results")
         return [(hit.id, hit.score) for hit in results]
     
-    def _bm25_search(self, query: str, k: int = 20) -> list[tuple[int, float]]:
+    def _bm25_search(self, query: str, k: int = 20, **kwargs) -> list[tuple[int, float]]:
         """
         Perform BM25 search.
         
@@ -310,6 +312,7 @@ class RetrievalBackend:
         k_bm25: int = 20,
         top_n: int = 10,
         use_reranker: bool = True,
+        **kwargs,
     ) -> list[ScoredChunk]:
         """
         Retrieve candidate chunks using hybrid search + reranking.
@@ -320,6 +323,7 @@ class RetrievalBackend:
             k_bm25: Number of results from BM25 search
             top_n: Number of final results to return
             use_reranker: Whether to apply cross-encoder reranking
+            **kwargs: Additional arguments for subclass search methods
             
         Returns:
             List of ScoredChunk objects with scores
@@ -327,10 +331,36 @@ class RetrievalBackend:
         if not self._chunks:
             raise ValueError("No chunks loaded. Call build_indexes() first.")
         
-        # Run both searches
-        dense_results = self._dense_search(query, k=k_dense)
-        bm25_results = self._bm25_search(query, k=k_bm25)
+        # Run both searches (subclasses can override _dense_search/_bm25_search)
+        dense_results = self._dense_search(query, k=k_dense, **kwargs)
+        bm25_results = self._bm25_search(query, k=k_bm25, **kwargs)
         
+        # Build scored results from search outputs
+        return self._build_scored_results(
+            query=query,
+            dense_results=dense_results,
+            bm25_results=bm25_results,
+            k_dense=k_dense,
+            k_bm25=k_bm25,
+            top_n=top_n,
+            use_reranker=use_reranker,
+        )
+    
+    def _build_scored_results(
+        self,
+        query: str,
+        dense_results: list[tuple[int, float]],
+        bm25_results: list[tuple[int, float]],
+        k_dense: int,
+        k_bm25: int,
+        top_n: int,
+        use_reranker: bool,
+    ) -> list[ScoredChunk]:
+        """
+        Build scored results from search outputs.
+        
+        Shared logic extracted from retrieve_candidates to avoid duplication.
+        """
         # Create score lookup
         dense_scores = {idx: score for idx, score in dense_results}
         bm25_scores = {idx: score for idx, score in bm25_results}
@@ -377,6 +407,37 @@ class RetrievalBackend:
         
         return results
     
+    def _scroll_all_points(self, batch_size: int = 100) -> list:
+        """
+        Scroll through all points in Qdrant collection.
+        
+        Args:
+            batch_size: Number of points per scroll request
+            
+        Returns:
+            List of Qdrant point objects with payloads
+        """
+        if not self.qdrant.collection_exists(self.collection_name):
+            return []
+        
+        all_points = []
+        offset = None
+        
+        while True:
+            results, offset = self.qdrant.scroll(
+                collection_name=self.collection_name,
+                limit=batch_size,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            all_points.extend(results)
+            
+            if offset is None:
+                break
+        
+        return all_points
+    
     def load_chunks_from_qdrant(self) -> list[DocumentChunk]:
         """
         Load chunks from Qdrant payloads.
@@ -384,39 +445,24 @@ class RetrievalBackend:
         Returns:
             List of DocumentChunk objects reconstructed from Qdrant payloads
         """
-        if not self.qdrant.collection_exists(self.collection_name):
+        collection_info = self.qdrant.get_collection(self.collection_name) if self.qdrant.collection_exists(self.collection_name) else None
+        if collection_info is None or collection_info.points_count == 0:
             return []
         
-        collection_info = self.qdrant.get_collection(self.collection_name)
-        if collection_info.points_count == 0:
-            return []
+        # Use shared scroll method
+        all_points = self._scroll_all_points()
         
-        # Scroll through all points
         chunks = []
-        offset = None
-        
-        while True:
-            results, offset = self.qdrant.scroll(
-                collection_name=self.collection_name,
-                limit=100,
-                offset=offset,
-                with_payload=True,
-                with_vectors=False,
+        for point in all_points:
+            payload = point.payload
+            chunk = DocumentChunk(
+                chunk_id=payload["chunk_id"],
+                doc_id=payload["doc_id"],
+                title=payload["title"],
+                text=payload["text"],
+                metadata=payload.get("metadata", {}),
             )
-            
-            for point in results:
-                payload = point.payload
-                chunk = DocumentChunk(
-                    chunk_id=payload["chunk_id"],
-                    doc_id=payload["doc_id"],
-                    title=payload["title"],
-                    text=payload["text"],
-                    metadata=payload.get("metadata", {}),
-                )
-                chunks.append(chunk)
-            
-            if offset is None:
-                break
+            chunks.append(chunk)
         
         # Sort by point ID to maintain original order
         chunks_by_id = {c.chunk_id: c for c in chunks}

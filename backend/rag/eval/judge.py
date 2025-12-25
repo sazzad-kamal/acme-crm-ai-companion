@@ -92,40 +92,31 @@ Evaluate:"""
 
 
 # =============================================================================
-# Functions
+# Helper Functions
 # =============================================================================
 
-def judge_response(
-    question: str,
-    context: str,
-    answer: str,
-    doc_ids: list[str],
+def _call_judge_llm(
+    prompt: str,
+    system_prompt: str,
+    max_tokens: int = 500,
 ) -> JudgeResult:
     """
-    Use LLM to judge the quality of a documentation RAG response.
+    Generic helper to call LLM and parse judge response.
     
     Args:
-        question: The original question
-        context: The retrieved context
-        answer: The generated answer
-        doc_ids: List of doc_ids in the context
+        prompt: Formatted prompt for the judge
+        system_prompt: System prompt defining evaluation criteria
+        max_tokens: Max tokens for response
         
     Returns:
         JudgeResult with scores and explanation
     """
-    prompt = _JUDGE_PROMPT.format(
-        question=question,
-        doc_ids=", ".join(doc_ids),
-        context=context,
-        answer=answer,
-    )
-    
     try:
         response = call_llm(
             prompt=prompt,
-            system_prompt=_JUDGE_SYSTEM,
+            system_prompt=system_prompt,
             model="gpt-4.1-mini",
-            max_tokens=500,
+            max_tokens=max_tokens,
         )
         
         # Parse JSON response
@@ -154,6 +145,37 @@ def judge_response(
             confidence=0.0,
             explanation=f"Judge error: {str(e)}",
         )
+
+
+# =============================================================================
+# Public Functions
+# =============================================================================
+
+def judge_response(
+    question: str,
+    context: str,
+    answer: str,
+    doc_ids: list[str],
+) -> JudgeResult:
+    """
+    Use LLM to judge the quality of a documentation RAG response.
+    
+    Args:
+        question: The original question
+        context: The retrieved context
+        answer: The generated answer
+        doc_ids: List of doc_ids in the context
+        
+    Returns:
+        JudgeResult with scores and explanation
+    """
+    prompt = _JUDGE_PROMPT.format(
+        question=question,
+        doc_ids=", ".join(doc_ids),
+        context=context,
+        answer=answer,
+    )
+    return _call_judge_llm(prompt, _JUDGE_SYSTEM, max_tokens=500)
 
 
 def judge_account_response(
@@ -185,39 +207,7 @@ def judge_account_response(
         context=context,
         answer=answer,
     )
-    
-    try:
-        response = call_llm(
-            prompt=prompt,
-            system_prompt=_ACCOUNT_JUDGE_SYSTEM,
-            model="gpt-4.1-mini",
-            max_tokens=300,
-        )
-        
-        # Parse JSON
-        json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
-        if json_match:
-            result = json.loads(json_match.group())
-        else:
-            result = json.loads(response)
-        
-        return JudgeResult(
-            context_relevance=int(result.get("context_relevance", 0)),
-            answer_relevance=int(result.get("answer_relevance", 0)),
-            groundedness=int(result.get("groundedness", 0)),
-            needs_human_review=int(result.get("needs_human_review", 1)),
-            explanation=str(result.get("explanation", "")),
-        )
-    
-    except Exception as e:
-        logger.warning(f"Judge failed: {e}")
-        return JudgeResult(
-            context_relevance=0,
-            answer_relevance=0,
-            groundedness=0,
-            needs_human_review=1,
-            explanation=f"Judge error: {e}",
-        )
+    return _call_judge_llm(prompt, _ACCOUNT_JUDGE_SYSTEM, max_tokens=300)
 
 
 def check_privacy_leakage(
