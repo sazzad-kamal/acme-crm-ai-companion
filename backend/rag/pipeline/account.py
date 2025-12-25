@@ -26,13 +26,13 @@ from backend.rag.retrieval.private import PrivateRetrievalBackend, create_privat
 from backend.rag.retrieval.base import create_backend as create_docs_backend
 from backend.rag.pipeline.constants import MAX_CONTEXT_TOKENS
 from backend.rag.pipeline.utils import estimate_tokens, preprocess_query, extract_citations
-from backend.rag.pipeline.base import build_private_context, build_docs_context
-from backend.rag.pipeline.prompts import (
+from backend.common.context_builder import build_private_context, build_docs_context
+from backend.common.prompts import (
     QUERY_REWRITE_SYSTEM,
     HYDE_SYSTEM,
     format_account_answer_prompt,
 )
-from backend.rag.pipeline.company import load_companies_df
+from backend.common.company_resolver import load_companies_df
 from backend.common.llm_client import call_llm_safe, call_llm_with_metrics
 
 

@@ -58,7 +58,7 @@ from backend.agent.prompts import (
     COMPANY_NOT_FOUND_PROMPT,
     DATA_ANSWER_PROMPT,
 )
-from backend.agent.formatters import (
+from backend.common.formatters import (
     format_company_section,
     format_activities_section,
     format_history_section,

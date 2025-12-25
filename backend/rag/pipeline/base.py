@@ -1,45 +1,17 @@
 """
 Shared pipeline utilities and base classes.
 
-Contains common functionality used across different RAG pipelines:
-- Progress tracking
-- Context building
-- Query preprocessing
+Contains:
+- PipelineProgress: Progress tracking for RAG pipelines
 
-NOTE: Context building has been consolidated into backend.common.context_builder.
-This module re-exports those functions for backwards compatibility.
+For other utilities, import from:
+- backend.common.context_builder: Context building (build_context, ContextBuilder)
+- backend.rag.pipeline.gating: Chunk filtering (apply_lexical_gate, etc.)
 """
 
 import logging
 import time
 from typing import Optional, Callable
-from collections import defaultdict
-
-from backend.rag.models import DocumentChunk, ScoredChunk
-from backend.rag.pipeline.constants import (
-    MAX_CONTEXT_TOKENS,
-    MIN_BM25_SCORE_RATIO,
-    MAX_CHUNKS_PER_DOC,
-    MAX_CHUNKS_PER_TYPE,
-)
-from backend.rag.pipeline.utils import estimate_tokens, tokens_to_chars
-
-# Re-export gating functions for backwards compatibility
-from backend.rag.pipeline.gating import (
-    apply_lexical_gate,
-    apply_per_doc_cap,
-    apply_per_type_cap,
-    apply_all_gates,
-)
-
-# Re-export context builders from common module
-from backend.common.context_builder import (
-    build_context,
-    build_context_with_sources,
-    build_private_context,
-    build_docs_context,
-    ContextBuilder,
-)
 
 
 logger = logging.getLogger(__name__)

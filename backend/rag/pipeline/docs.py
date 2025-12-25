@@ -26,12 +26,9 @@ from backend.rag.models import DocumentChunk, ScoredChunk
 from backend.rag.retrieval.base import RetrievalBackend
 from backend.rag.pipeline.constants import LLM_MODEL, ANSWER_MODEL, ANSWER_MAX_TOKENS, MAX_CONTEXT_TOKENS
 from backend.rag.pipeline.utils import estimate_tokens, preprocess_query, extract_citations
-from backend.rag.pipeline.base import (
-    PipelineProgress,
-    apply_lexical_gate,
-    apply_per_doc_cap,
-    build_context,
-)
+from backend.rag.pipeline.base import PipelineProgress
+from backend.rag.pipeline.gating import apply_lexical_gate, apply_per_doc_cap
+from backend.common.context_builder import build_context
 from backend.common.llm_client import call_llm_safe, call_llm_with_metrics
 
 

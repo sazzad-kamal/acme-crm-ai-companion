@@ -7,9 +7,6 @@ import re
 from backend.rag.ingest.chunking import estimate_tokens
 from backend.rag.ingest.constants import CHARS_PER_TOKEN
 
-# Re-export for backward compatibility
-__all__ = ["estimate_tokens", "tokens_to_chars", "preprocess_query", "extract_citations"]
-
 
 def tokens_to_chars(tokens: int) -> int:
     """Convert token count to approximate character count."""

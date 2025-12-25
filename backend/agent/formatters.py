@@ -1,20 +1,11 @@
 """
-Context formatting functions for agent prompts.
+DEPRECATED: This module has been moved to backend.common.formatters.
 
-These functions format CRM data into text sections
-for inclusion in LLM prompts.
-
-NOTE: This module re-exports functions from backend.common.formatters
-for backwards compatibility. New code should import directly from there.
+Import directly from backend.common.formatters instead.
+This file is kept only for reference during migration.
 """
 
-# Re-export all formatters from the common module
-from backend.common.formatters import (
-    format_company_section,
-    format_activities_section,
-    format_history_section,
-    format_pipeline_section,
-    format_renewals_section,
-    format_docs_section,
-    SectionFormatter,
+raise ImportError(
+    "backend.agent.formatters has been moved to backend.common.formatters. "
+    "Please update your imports."
 )
