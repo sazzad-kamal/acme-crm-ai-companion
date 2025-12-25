@@ -11,8 +11,13 @@ Modules:
 - tools: Tool functions for data retrieval
 - orchestrator: Main agent orchestration
 - audit: Agent audit logging
+- prompts: LLM prompt templates
+- formatters: Context formatting functions
+- llm_helpers: LLM call utilities with retry
+- progress: Pipeline progress tracking
 """
 
 from backend.agent.orchestrator import answer_question
+from backend.agent.progress import AgentProgress
 
-__all__ = ["answer_question"]
+__all__ = ["answer_question", "AgentProgress"]
