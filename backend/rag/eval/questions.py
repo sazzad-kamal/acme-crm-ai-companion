@@ -15,11 +15,11 @@ from backend.rag.pipeline.account import load_companies_df
 # Configuration
 # =============================================================================
 
-NUM_QUESTIONS_PER_COMPANY = 6
+NUM_QUESTIONS_PER_COMPANY = 9
 NUM_COMPANIES = 8  # All 8 companies
 RANDOM_SEED = 42
 
-# Question templates for different question types - expanded from 3 to 6
+# Question templates for different question types - expanded to 9 (covering all CSV data)
 QUESTION_TEMPLATES = [
     {
         "type": "history_summary",
@@ -44,6 +44,18 @@ QUESTION_TEMPLATES = [
     {
         "type": "renewal_risk",
         "template": "Is {company_name} at risk for churn? When is their renewal and what actions should we take?",
+    },
+    {
+        "type": "pending_activities",
+        "template": "What open tasks and scheduled activities are pending for {company_name}? What needs to be done and by when?",
+    },
+    {
+        "type": "segment_membership",
+        "template": "What groups or segments does {company_name} belong to? Are they flagged in any watch lists or campaigns?",
+    },
+    {
+        "type": "deal_details",
+        "template": "Give me the full details on the deals with {company_name} - expected value, close dates, and opportunity notes.",
     },
 ]
 
