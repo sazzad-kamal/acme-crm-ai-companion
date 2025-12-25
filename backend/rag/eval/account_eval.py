@@ -286,12 +286,9 @@ def print_summary(results: list[AccountEvalResult]) -> None:
     console.print(summary_table)
     
     # Per-company breakdown using shared helper
-    by_company = {}
+    by_company: dict = {}
     for r in results:
-        cid = r.company_id
-        if cid not in by_company:
-            by_company[cid] = {"results": [], "name": r.company_name}
-        by_company[cid]["results"].append(r)
+        by_company.setdefault(r.company_id, {"results": [], "name": r.company_name})["results"].append(r)
     
     company_table = create_detail_table("Per-Company Results", [
         ("Company", "left"),

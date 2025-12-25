@@ -200,9 +200,7 @@ def build_context(
     for chunk in chunks:
         # Format: [doc_id] Section: text
         section = chunk.metadata.get("section_heading", "")
-        header = f"[{chunk.doc_id}]"
-        if section:
-            header += f" {section}"
+        header = f"[{chunk.doc_id}] {section}" if section else f"[{chunk.doc_id}]"
         
         chunk_text = f"{header}\n{chunk.text}\n"
         chunk_tokens = estimate_tokens(chunk_text)

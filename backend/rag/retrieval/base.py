@@ -362,8 +362,8 @@ class RetrievalBackend:
         Shared logic extracted from retrieve_candidates to avoid duplication.
         """
         # Create score lookup
-        dense_scores = {idx: score for idx, score in dense_results}
-        bm25_scores = {idx: score for idx, score in bm25_results}
+        dense_scores = dict(dense_results)
+        bm25_scores = dict(bm25_results)
         
         # Merge with RRF
         merged = self._rrf_merge(dense_results, bm25_results)

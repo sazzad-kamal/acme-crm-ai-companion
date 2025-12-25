@@ -49,14 +49,5 @@ def extract_citations(text: str) -> list[str]:
     """
     pattern = r'\[([a-zA-Z0-9_::\-]+)\]'
     citations = re.findall(pattern, text)
-    
-    # Remove duplicates while preserving order
-    seen = set()
-    unique = []
-    for c in citations:
-        c_lower = c.lower()
-        if c_lower not in seen:
-            seen.add(c_lower)
-            unique.append(c)
-    
-    return unique
+    # Remove duplicates preserving order (case-insensitive)
+    return list({c.lower(): c for c in citations}.values())

@@ -87,13 +87,8 @@ def sanitize_value(value: Any) -> Any:
 
 def load_private_texts(jsonl_path: Path) -> list[dict]:
     """Load private texts from JSONL file."""
-    docs = []
     with open(jsonl_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                docs.append(json.loads(line))
-    return docs
+        return [json.loads(line) for line in f if line.strip()]
 
 
 def private_doc_to_chunks(doc: dict, chunk_idx_start: int = 0) -> list[DocumentChunk]:
@@ -193,10 +188,8 @@ def ingest_private_texts(
     print(f"  Created {len(all_chunks)} chunks from {len(docs)} documents")
     
     # Count by type
-    type_counts = {}
-    for chunk in all_chunks:
-        t = chunk.metadata.get("type", "unknown")
-        type_counts[t] = type_counts.get(t, 0) + 1
+    from collections import Counter
+    type_counts = Counter(c.metadata.get("type", "unknown") for c in all_chunks)
     for t, count in sorted(type_counts.items()):
         print(f"    - {t}: {count} chunks")
     
@@ -289,10 +282,7 @@ def ingest_private_texts(
     console = Console()
     
     # Count companies
-    companies = {}
-    for c in all_chunks:
-        cid = c.metadata.get("company_id", "")
-        companies[cid] = companies.get(cid, 0) + 1
+    companies = Counter(c.metadata.get("company_id", "") for c in all_chunks)
     
     # Summary table
     table = Table(title="Ingestion Summary", show_header=True, header_style="bold cyan")
