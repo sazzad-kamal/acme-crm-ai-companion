@@ -35,6 +35,7 @@ class RouterEvalResult(BaseModel):
     company_correct: bool
     intent_expected: Optional[str] = None
     intent_actual: Optional[str] = None
+    intent_correct: bool = True  # New: track intent accuracy
 
 
 class E2EEvalResult(BaseModel):
@@ -71,7 +72,9 @@ class RouterEvalSummary(BaseModel):
     total_tests: int
     mode_accuracy: float
     company_extraction_accuracy: float
+    intent_accuracy: float = 1.0  # New: track intent accuracy
     by_mode: dict[str, dict]  # mode -> {expected, correct, accuracy}
+    by_intent: dict[str, dict] = {}  # New: intent -> {expected, correct, accuracy}
 
 
 class E2EEvalSummary(BaseModel):
@@ -81,7 +84,19 @@ class E2EEvalSummary(BaseModel):
     groundedness_rate: float
     tool_selection_accuracy: float
     avg_latency_ms: float
+    p95_latency_ms: float = 0.0  # New: 95th percentile latency
+    latency_slo_pass: bool = True  # New: Did we meet latency SLO?
     by_category: dict[str, dict]
+
+
+# SLO Thresholds
+SLO_LATENCY_P95_MS = 5000  # 5 second p95 latency
+SLO_TOOL_ACCURACY = 0.90   # 90% tool accuracy
+SLO_ROUTER_ACCURACY = 0.90 # 90% router accuracy
+SLO_INTENT_ACCURACY = 0.85 # 85% intent accuracy
+SLO_ANSWER_RELEVANCE = 0.80  # 80% answer relevance
+SLO_GROUNDEDNESS = 0.80    # 80% groundedness
+SLO_OVERALL = 0.80         # 80% overall
 
 
 class AgentEvalSummary(BaseModel):
@@ -90,3 +105,7 @@ class AgentEvalSummary(BaseModel):
     router_eval: Optional[RouterEvalSummary] = None
     e2e_eval: Optional[E2EEvalSummary] = None
     overall_score: float = 0.0  # Weighted composite score
+    all_slos_passed: bool = True  # New: Did all SLOs pass?
+    failed_slos: list[str] = []   # New: Which SLOs failed?
+    regression_detected: bool = False  # New: Score worse than baseline?
+    baseline_score: Optional[float] = None  # Previous run score

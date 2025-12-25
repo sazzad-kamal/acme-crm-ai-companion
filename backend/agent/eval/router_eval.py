@@ -158,6 +158,150 @@ ROUTER_TEST_CASES = [
         "expected_mode": "data",
         "expected_company": "ACME-MFG",  # Should still resolve
     },
+    # =========================================================================
+    # NEW INTENTS - Contact Search
+    # =========================================================================
+    {
+        "id": "contact_search_decision_makers",
+        "question": "Who are the decision makers at our accounts?",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "contact_search",
+    },
+    {
+        "id": "contact_search_champions",
+        "question": "List all champions",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "contact_search",
+    },
+    {
+        "id": "contact_search_company",
+        "question": "Who are the contacts at Acme Manufacturing?",
+        "expected_mode": "data",
+        "expected_company": "ACME-MFG",
+        "expected_intent": "contact_search",
+    },
+    {
+        "id": "contact_lookup_who",
+        "question": "Who is Maria Silva?",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "contact_lookup",
+    },
+    # =========================================================================
+    # NEW INTENTS - Company Search
+    # =========================================================================
+    {
+        "id": "company_search_enterprise",
+        "question": "Show me all enterprise accounts",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "company_search",
+    },
+    {
+        "id": "company_search_smb",
+        "question": "List SMB companies",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "company_search",
+    },
+    {
+        "id": "company_search_industry",
+        "question": "Which companies are in the software industry?",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "company_search",
+    },
+    # =========================================================================
+    # NEW INTENTS - Groups
+    # =========================================================================
+    {
+        "id": "groups_at_risk",
+        "question": "Who is in the at-risk accounts group?",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "groups",
+    },
+    {
+        "id": "groups_list_all",
+        "question": "List all groups",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "groups",
+    },
+    {
+        "id": "groups_champions",
+        "question": "Show the champion contacts group",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "groups",
+    },
+    # =========================================================================
+    # NEW INTENTS - Pipeline Summary (Aggregate)
+    # =========================================================================
+    {
+        "id": "pipeline_summary_total",
+        "question": "What's the total pipeline value across all accounts?",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "pipeline_summary",
+    },
+    {
+        "id": "pipeline_summary_deals",
+        "question": "How many deals are in the pipeline?",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "pipeline_summary",
+    },
+    {
+        "id": "pipeline_summary_forecast",
+        "question": "What's the forecast summary for this quarter?",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "pipeline_summary",
+    },
+    # =========================================================================
+    # NEW INTENTS - Attachments
+    # =========================================================================
+    {
+        "id": "attachments_proposals",
+        "question": "Find all proposals",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "attachments",
+    },
+    {
+        "id": "attachments_contracts",
+        "question": "Show contracts for Acme Manufacturing",
+        "expected_mode": "data",
+        "expected_company": "ACME-MFG",
+        "expected_intent": "attachments",
+    },
+    {
+        "id": "attachments_documents",
+        "question": "What documents do we have?",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "attachments",
+    },
+    # =========================================================================
+    # NEW INTENTS - Activity Search (without company)
+    # =========================================================================
+    {
+        "id": "activities_meetings",
+        "question": "What meetings happened this week?",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "activities",
+    },
+    {
+        "id": "activities_calls",
+        "question": "Show me all calls from last month",
+        "expected_mode": "data",
+        "expected_company": None,
+        "expected_intent": "activities",
+    },
 ]
 
 
@@ -208,12 +352,29 @@ def run_router_test(
         # Found a company when none expected - may be okay
         company_correct = True
     
+    # Evaluate intent correctness (NEW)
+    expected_intent = test_case.get("expected_intent")
+    actual_intent = result.intent
+    intent_correct = True
+    if expected_intent:
+        # Allow flexibility: some intents are related
+        intent_correct = actual_intent == expected_intent
+        # Allow "pipeline" to match "pipeline_summary" for aggregate queries
+        if not intent_correct and expected_intent == "pipeline_summary" and actual_intent == "pipeline":
+            intent_correct = True
+        # Allow "activities" for company queries since they may use recent_activity
+        if not intent_correct and expected_intent == "activities" and actual_intent in ("company_status", "general"):
+            intent_correct = True
+    
     if verbose:
         mode_status = "✓" if mode_correct else "✗"
         company_status = "✓" if company_correct else "✗"
+        intent_status = "✓" if intent_correct else "✗"
         console.print(f"  [{mode_status}] {test_id}: mode={actual_mode} (expected={expected_mode})")
         if expected_company:
             console.print(f"      [{company_status}] company={actual_company} (expected={expected_company})")
+        if expected_intent:
+            console.print(f"      [{intent_status}] intent={actual_intent} (expected={expected_intent})")
     
     return RouterEvalResult(
         test_case_id=test_id,
@@ -224,8 +385,9 @@ def run_router_test(
         actual_company_id=actual_company,
         mode_correct=mode_correct,
         company_correct=company_correct,
-        intent_expected=test_case.get("intent"),
-        intent_actual=result.intent,
+        intent_expected=expected_intent,
+        intent_actual=actual_intent,
+        intent_correct=intent_correct,
     )
 
 
@@ -260,6 +422,10 @@ def run_router_eval(
     company_tests = [r for r in results if r.expected_company_id is not None]
     company_correct = sum(1 for r in company_tests if r.company_correct)
     
+    # Intent accuracy (only for tests with expected intent)
+    intent_tests = [r for r in results if r.intent_expected is not None]
+    intent_correct = sum(1 for r in intent_tests if r.intent_correct)
+    
     by_mode: dict[str, dict] = {}
     for r in results:
         mode = r.expected_mode
@@ -272,11 +438,27 @@ def run_router_eval(
     for mode in by_mode:
         by_mode[mode]["accuracy"] = by_mode[mode]["correct"] / by_mode[mode]["expected"]
     
+    # Intent breakdown by expected intent type
+    by_intent: dict[str, dict] = {}
+    for r in results:
+        if r.intent_expected:
+            intent = r.intent_expected
+            if intent not in by_intent:
+                by_intent[intent] = {"expected": 0, "correct": 0}
+            by_intent[intent]["expected"] += 1
+            if r.intent_correct:
+                by_intent[intent]["correct"] += 1
+    
+    for intent in by_intent:
+        by_intent[intent]["accuracy"] = by_intent[intent]["correct"] / by_intent[intent]["expected"]
+    
     summary = RouterEvalSummary(
         total_tests=total,
         mode_accuracy=mode_correct / total if total > 0 else 0,
         company_extraction_accuracy=company_correct / len(company_tests) if company_tests else 1.0,
+        intent_accuracy=intent_correct / len(intent_tests) if intent_tests else 1.0,
         by_mode=by_mode,
+        by_intent=by_intent,
     )
     
     return results, summary
@@ -296,6 +478,9 @@ def print_router_eval_results(results: list[RouterEvalResult], summary: RouterEv
     
     company_color = "green" if summary.company_extraction_accuracy >= 0.9 else "yellow"
     table.add_row("Company Extraction", f"[{company_color}]{summary.company_extraction_accuracy:.1%}[/{company_color}]")
+    
+    intent_color = "green" if summary.intent_accuracy >= 0.9 else "yellow" if summary.intent_accuracy >= 0.7 else "red"
+    table.add_row("Intent Accuracy", f"[{intent_color}]{summary.intent_accuracy:.1%}[/{intent_color}]")
     
     console.print(table)
     
@@ -317,9 +502,29 @@ def print_router_eval_results(results: list[RouterEvalResult], summary: RouterEv
     
     console.print(mode_table)
     
+    # By-intent breakdown (NEW)
+    if summary.by_intent:
+        intent_table = Table(title="Results by Expected Intent", show_header=True)
+        intent_table.add_column("Intent")
+        intent_table.add_column("Expected", justify="right")
+        intent_table.add_column("Correct", justify="right")
+        intent_table.add_column("Accuracy", justify="right")
+        
+        for intent, stats in sorted(summary.by_intent.items()):
+            acc_color = "green" if stats["accuracy"] >= 0.9 else "yellow" if stats["accuracy"] >= 0.7 else "red"
+            intent_table.add_row(
+                intent,
+                str(stats["expected"]),
+                str(stats["correct"]),
+                f"[{acc_color}]{stats['accuracy']:.1%}[/{acc_color}]"
+            )
+        
+        console.print(intent_table)
+    
     # Failed tests
     failed_mode = [r for r in results if not r.mode_correct]
     failed_company = [r for r in results if not r.company_correct and r.expected_company_id]
+    failed_intent = [r for r in results if not r.intent_correct and r.intent_expected]
     
     if failed_mode:
         console.print("\n[red bold]Mode Mismatches:[/red bold]")
@@ -331,6 +536,12 @@ def print_router_eval_results(results: list[RouterEvalResult], summary: RouterEv
         console.print("\n[yellow bold]Company Extraction Failures:[/yellow bold]")
         for r in failed_company:
             console.print(f"  • {r.test_case_id}: got '{r.actual_company_id}', expected '{r.expected_company_id}'")
+    
+    if failed_intent:
+        console.print("\n[yellow bold]Intent Classification Failures:[/yellow bold]")
+        for r in failed_intent:
+            console.print(f"  • {r.test_case_id}: got '{r.intent_actual}', expected '{r.intent_expected}'")
+            console.print(f"    Question: {r.question[:60]}...")
 
 
 # =============================================================================

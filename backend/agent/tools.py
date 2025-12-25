@@ -262,6 +262,385 @@ def tool_upcoming_renewals(
 
 
 # =============================================================================
+# Tool: Contact Lookup
+# =============================================================================
+
+def tool_contact_lookup(
+    contact_id: str,
+    datastore: Optional[CRMDataStore] = None
+) -> ToolResult:
+    """
+    Look up a specific contact by ID.
+    
+    Args:
+        contact_id: The contact ID
+        datastore: Optional datastore instance
+        
+    Returns:
+        ToolResult with contact data
+    """
+    ds = datastore or get_datastore()
+    
+    contact = ds.get_contact(contact_id)
+    
+    if not contact:
+        return ToolResult(
+            data={"found": False, "contact_id": contact_id},
+            sources=[],
+            error=f"Contact '{contact_id}' not found"
+        )
+    
+    # Get company info
+    company = ds.get_company(contact.get("company_id", ""))
+    
+    return ToolResult(
+        data={
+            "found": True,
+            "contact": contact,
+            "company": company,
+        },
+        sources=[Source(
+            type="contact",
+            id=contact_id,
+            label=f"{contact.get('first_name', '')} {contact.get('last_name', '')}"
+        )]
+    )
+
+
+# =============================================================================
+# Tool: Search Contacts
+# =============================================================================
+
+def tool_search_contacts(
+    query: str = "",
+    role: str = "",
+    job_title: str = "",
+    company_id: str = "",
+    limit: int = 20,
+    datastore: Optional[CRMDataStore] = None
+) -> ToolResult:
+    """
+    Search contacts by name, role, job title, or company.
+    
+    Args:
+        query: Search term for name/email
+        role: Filter by role (e.g., "Decision Maker", "Technical Contact")
+        job_title: Filter by job title (e.g., "VP", "Manager")
+        company_id: Filter by company
+        limit: Max results
+        datastore: Optional datastore instance
+        
+    Returns:
+        ToolResult with matching contacts
+    """
+    ds = datastore or get_datastore()
+    
+    contacts = ds.search_contacts(
+        query=query,
+        role=role,
+        job_title=job_title,
+        company_id=company_id,
+        limit=limit
+    )
+    
+    search_desc = []
+    if query:
+        search_desc.append(f"name/email='{query}'")
+    if role:
+        search_desc.append(f"role='{role}'")
+    if job_title:
+        search_desc.append(f"title='{job_title}'")
+    if company_id:
+        search_desc.append(f"company='{company_id}'")
+    
+    label = f"Contacts: {', '.join(search_desc)}" if search_desc else "All contacts"
+    
+    return ToolResult(
+        data={
+            "count": len(contacts),
+            "contacts": contacts,
+            "filters": {"query": query, "role": role, "job_title": job_title, "company_id": company_id},
+        },
+        sources=_make_sources(contacts, "contacts", "search", label)
+    )
+
+
+# =============================================================================
+# Tool: Search Companies
+# =============================================================================
+
+def tool_search_companies(
+    query: str = "",
+    industry: str = "",
+    segment: str = "",
+    status: str = "",
+    region: str = "",
+    limit: int = 20,
+    datastore: Optional[CRMDataStore] = None
+) -> ToolResult:
+    """
+    Search companies by various criteria.
+    
+    Args:
+        query: Search term for company name
+        industry: Filter by industry (e.g., "Healthcare", "Software")
+        segment: Filter by segment (e.g., "SMB", "Mid-market", "Enterprise")
+        status: Filter by status (e.g., "Active", "Churned")
+        region: Filter by region
+        limit: Max results
+        datastore: Optional datastore instance
+        
+    Returns:
+        ToolResult with matching companies
+    """
+    ds = datastore or get_datastore()
+    
+    companies = ds.search_companies(
+        query=query,
+        industry=industry,
+        segment=segment,
+        status=status,
+        region=region,
+        limit=limit
+    )
+    
+    search_desc = []
+    if query:
+        search_desc.append(f"name='{query}'")
+    if industry:
+        search_desc.append(f"industry='{industry}'")
+    if segment:
+        search_desc.append(f"segment='{segment}'")
+    if status:
+        search_desc.append(f"status='{status}'")
+    if region:
+        search_desc.append(f"region='{region}'")
+    
+    label = f"Companies: {', '.join(search_desc)}" if search_desc else "All companies"
+    
+    return ToolResult(
+        data={
+            "count": len(companies),
+            "companies": companies,
+            "filters": {"query": query, "industry": industry, "segment": segment, "status": status, "region": region},
+        },
+        sources=_make_sources(companies, "companies", "search", label)
+    )
+
+
+# =============================================================================
+# Tool: Group Members
+# =============================================================================
+
+def tool_group_members(
+    group_id: str,
+    limit: int = 50,
+    datastore: Optional[CRMDataStore] = None
+) -> ToolResult:
+    """
+    Get companies that belong to a specific group/segment.
+    
+    Args:
+        group_id: The group ID
+        limit: Max results
+        datastore: Optional datastore instance
+        
+    Returns:
+        ToolResult with group info and member companies
+    """
+    ds = datastore or get_datastore()
+    
+    group = ds.get_group(group_id)
+    
+    if not group:
+        # Try to find matching groups
+        all_groups = ds.get_all_groups()
+        return ToolResult(
+            data={
+                "found": False,
+                "group_id": group_id,
+                "available_groups": [{"group_id": g["group_id"], "name": g["name"]} for g in all_groups],
+            },
+            sources=[],
+            error=f"Group '{group_id}' not found"
+        )
+    
+    members = ds.get_group_members(group_id, limit=limit)
+    
+    return ToolResult(
+        data={
+            "found": True,
+            "group": group,
+            "count": len(members),
+            "members": members,
+        },
+        sources=[Source(
+            type="group",
+            id=group_id,
+            label=group.get("name", group_id)
+        )] if members else []
+    )
+
+
+# =============================================================================
+# Tool: List Groups
+# =============================================================================
+
+def tool_list_groups(
+    datastore: Optional[CRMDataStore] = None
+) -> ToolResult:
+    """
+    List all available groups/segments.
+    
+    Returns:
+        ToolResult with all groups
+    """
+    ds = datastore or get_datastore()
+    
+    groups = ds.get_all_groups()
+    
+    return ToolResult(
+        data={
+            "count": len(groups),
+            "groups": groups,
+        },
+        sources=_make_sources(groups, "groups", "all", "All groups/segments")
+    )
+
+
+# =============================================================================
+# Tool: Search Attachments
+# =============================================================================
+
+def tool_search_attachments(
+    query: str = "",
+    company_id: str = "",
+    file_type: str = "",
+    limit: int = 20,
+    datastore: Optional[CRMDataStore] = None
+) -> ToolResult:
+    """
+    Search attachments/documents by title, company, or file type.
+    
+    Args:
+        query: Search term for title/summary
+        company_id: Filter by company
+        file_type: Filter by file type (e.g., "pdf", "xlsx")
+        limit: Max results
+        datastore: Optional datastore instance
+        
+    Returns:
+        ToolResult with matching attachments
+    """
+    ds = datastore or get_datastore()
+    
+    attachments = ds.search_attachments(
+        query=query,
+        company_id=company_id,
+        file_type=file_type,
+        limit=limit
+    )
+    
+    search_desc = []
+    if query:
+        search_desc.append(f"title='{query}'")
+    if company_id:
+        search_desc.append(f"company='{company_id}'")
+    if file_type:
+        search_desc.append(f"type='{file_type}'")
+    
+    label = f"Attachments: {', '.join(search_desc)}" if search_desc else "All attachments"
+    
+    return ToolResult(
+        data={
+            "count": len(attachments),
+            "attachments": attachments,
+            "filters": {"query": query, "company_id": company_id, "file_type": file_type},
+        },
+        sources=_make_sources(attachments, "attachments", "search", label)
+    )
+
+
+# =============================================================================
+# Tool: Pipeline Summary (All Companies)
+# =============================================================================
+
+def tool_pipeline_summary(
+    datastore: Optional[CRMDataStore] = None
+) -> ToolResult:
+    """
+    Get overall pipeline summary across all companies.
+    
+    Returns:
+        ToolResult with aggregate pipeline stats
+    """
+    ds = datastore or get_datastore()
+    
+    summary = ds.get_all_pipeline_summary()
+    
+    return ToolResult(
+        data=summary,
+        sources=[Source(
+            type="pipeline",
+            id="all",
+            label=f"Pipeline: {summary['total_count']} deals, ${summary['total_value']:,.0f}"
+        )] if summary.get("total_count", 0) > 0 else []
+    )
+
+
+# =============================================================================
+# Tool: Search Activities
+# =============================================================================
+
+def tool_search_activities(
+    activity_type: str = "",
+    days: int = 30,
+    company_id: str = "",
+    limit: int = 30,
+    datastore: Optional[CRMDataStore] = None
+) -> ToolResult:
+    """
+    Search activities by type, date range, or company.
+    
+    Args:
+        activity_type: Filter by type (e.g., "Demo", "Meeting", "Call")
+        days: Look back N days (default 30)
+        company_id: Filter by company
+        limit: Max results
+        datastore: Optional datastore instance
+        
+    Returns:
+        ToolResult with matching activities
+    """
+    ds = datastore or get_datastore()
+    
+    activities = ds.search_activities(
+        activity_type=activity_type,
+        days=days,
+        company_id=company_id,
+        limit=limit
+    )
+    
+    search_desc = []
+    if activity_type:
+        search_desc.append(f"type='{activity_type}'")
+    if company_id:
+        search_desc.append(f"company='{company_id}'")
+    search_desc.append(f"last {days} days")
+    
+    label = f"Activities: {', '.join(search_desc)}"
+    
+    return ToolResult(
+        data={
+            "count": len(activities),
+            "activities": activities,
+            "filters": {"activity_type": activity_type, "days": days, "company_id": company_id},
+        },
+        sources=_make_sources(activities, "activities", "search", label)
+    )
+
+
+# =============================================================================
 # Test
 # =============================================================================
 
@@ -270,38 +649,57 @@ if __name__ == "__main__":
     print("=" * 60)
     
     # Test company lookup
-    print("\n1. Testing tool_company_lookup('Acme Manufacturing')...")
+    print("\n1. tool_company_lookup('Acme Manufacturing')...")
     result = tool_company_lookup("Acme Manufacturing")
     if result.data.get("found"):
         print(f"   Found: {result.data['company'].get('name')}")
-        print(f"   Sources: {[s.label for s in result.sources]}")
     else:
         print(f"   Not found: {result.error}")
     
-    # Test not found
-    print("\n2. Testing tool_company_lookup('Unknown Corp')...")
-    result = tool_company_lookup("Unknown Corp")
-    print(f"   Found: {result.data.get('found')}")
-    if result.data.get("close_matches"):
-        print(f"   Close matches: {[c.get('name') for c in result.data['close_matches']]}")
-    
     # Test recent activity
-    print("\n3. Testing tool_recent_activity('ACME-MFG', days=365)...")
+    print("\n2. tool_recent_activity('ACME-MFG', days=365)...")
     result = tool_recent_activity("ACME-MFG", days=365)
     print(f"   Count: {result.data.get('count')}")
-    for act in result.data.get("activities", [])[:2]:
-        print(f"   - {act.get('type')}: {act.get('subject')}")
     
     # Test pipeline
-    print("\n4. Testing tool_pipeline('ACME-MFG')...")
+    print("\n3. tool_pipeline('ACME-MFG')...")
     result = tool_pipeline("ACME-MFG")
-    summary = result.data.get("summary", {})
-    print(f"   Total deals: {summary.get('total_count')}")
-    print(f"   Total value: ${summary.get('total_value')}")
+    print(f"   Total deals: {result.data.get('summary', {}).get('total_count')}")
     
     # Test renewals
-    print("\n5. Testing tool_upcoming_renewals(days=365)...")
+    print("\n4. tool_upcoming_renewals(days=365)...")
     result = tool_upcoming_renewals(days=365)
     print(f"   Count: {result.data.get('count')}")
-    for r in result.data.get("renewals", [])[:3]:
-        print(f"   - {r.get('name')}: {r.get('renewal_date')}")
+    
+    # Test search contacts
+    print("\n5. tool_search_contacts(role='Decision Maker')...")
+    result = tool_search_contacts(role="Decision Maker")
+    print(f"   Count: {result.data.get('count')}")
+    for c in result.data.get("contacts", [])[:3]:
+        print(f"   - {c.get('first_name')} {c.get('last_name')} ({c.get('job_title')})")
+    
+    # Test search companies
+    print("\n6. tool_search_companies(industry='Software')...")
+    result = tool_search_companies(industry="Software")
+    print(f"   Count: {result.data.get('count')}")
+    for co in result.data.get("companies", [])[:3]:
+        print(f"   - {co.get('name')} ({co.get('segment')})")
+    
+    # Test list groups
+    print("\n7. tool_list_groups()...")
+    result = tool_list_groups()
+    print(f"   Count: {result.data.get('count')}")
+    for g in result.data.get("groups", [])[:3]:
+        print(f"   - {g.get('group_id')}: {g.get('name')}")
+    
+    # Test pipeline summary
+    print("\n8. tool_pipeline_summary()...")
+    result = tool_pipeline_summary()
+    print(f"   Total: {result.data.get('total_count')} deals, ${result.data.get('total_value', 0):,.0f}")
+    
+    # Test search attachments
+    print("\n9. tool_search_attachments(query='proposal')...")
+    result = tool_search_attachments(query="proposal")
+    print(f"   Count: {result.data.get('count')}")
+    for a in result.data.get("attachments", [])[:3]:
+        print(f"   - {a.get('title')} ({a.get('file_type')})")

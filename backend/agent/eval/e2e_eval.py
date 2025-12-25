@@ -227,6 +227,143 @@ E2E_TEST_CASES = [
         "expected_mode": "data+docs",
         "expected_tools": [],
     },
+    # =========================================================================
+    # NEW TOOL COVERAGE - Contact Search
+    # =========================================================================
+    {
+        "id": "e2e_contacts_decision_makers",
+        "question": "Who are the decision makers across all our accounts?",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_contacts"],
+    },
+    {
+        "id": "e2e_contacts_company",
+        "question": "Show me the contacts at Beta Tech Solutions",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_contacts"],
+    },
+    {
+        "id": "e2e_contacts_champions",
+        "question": "List all champion contacts",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_contacts"],
+    },
+    # =========================================================================
+    # NEW TOOL COVERAGE - Company Search
+    # =========================================================================
+    {
+        "id": "e2e_companies_enterprise",
+        "question": "Show me all enterprise accounts",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_companies"],
+    },
+    {
+        "id": "e2e_companies_industry",
+        "question": "Which companies are in the manufacturing industry?",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_companies"],
+    },
+    {
+        "id": "e2e_companies_smb",
+        "question": "List all SMB companies",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_companies"],
+    },
+    # =========================================================================
+    # NEW TOOL COVERAGE - Groups
+    # =========================================================================
+    {
+        "id": "e2e_groups_at_risk",
+        "question": "Who is in the at-risk accounts group?",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["group_members"],
+    },
+    {
+        "id": "e2e_groups_list",
+        "question": "What groups do we have?",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["list_groups"],
+    },
+    {
+        "id": "e2e_groups_churned",
+        "question": "Show the churned accounts group",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["group_members"],
+    },
+    # =========================================================================
+    # NEW TOOL COVERAGE - Pipeline Summary (Aggregate)
+    # =========================================================================
+    {
+        "id": "e2e_pipeline_total",
+        "question": "What's the total pipeline value?",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["pipeline_summary"],
+    },
+    {
+        "id": "e2e_pipeline_deals_count",
+        "question": "How many deals do we have in the pipeline?",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["pipeline_summary"],
+    },
+    {
+        "id": "e2e_pipeline_forecast",
+        "question": "Give me a pipeline overview across all accounts",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["pipeline_summary"],
+    },
+    # =========================================================================
+    # NEW TOOL COVERAGE - Attachments
+    # =========================================================================
+    {
+        "id": "e2e_attachments_proposals",
+        "question": "Find all proposals",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_attachments"],
+    },
+    {
+        "id": "e2e_attachments_company",
+        "question": "What documents do we have for Crown Foods?",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_attachments"],
+    },
+    {
+        "id": "e2e_attachments_contracts",
+        "question": "Show all contracts",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_attachments"],
+    },
+    # =========================================================================
+    # NEW TOOL COVERAGE - Activity Search (Global)
+    # =========================================================================
+    {
+        "id": "e2e_activities_meetings",
+        "question": "What meetings do we have scheduled?",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_activities"],
+    },
+    {
+        "id": "e2e_activities_calls",
+        "question": "Show me all recent calls",
+        "category": "data",
+        "expected_mode": "data",
+        "expected_tools": ["search_activities"],
+    },
 ]
 
 
@@ -367,6 +504,15 @@ def run_e2e_eval(
     tool_accuracy = sum(1 for r in results if r.tool_selection_correct) / total if total > 0 else 0
     avg_latency = sum(r.latency_ms for r in results) / total if total > 0 else 0
     
+    # Compute P95 latency
+    latencies = sorted([r.latency_ms for r in results])
+    p95_index = int(len(latencies) * 0.95) if latencies else 0
+    p95_latency = latencies[min(p95_index, len(latencies) - 1)] if latencies else 0.0
+    
+    # Import SLO for latency check
+    from backend.agent.eval.models import SLO_LATENCY_P95_MS
+    latency_slo_pass = p95_latency <= SLO_LATENCY_P95_MS
+    
     by_category: dict[str, dict] = {}
     for r in results:
         cat = r.category
@@ -391,6 +537,8 @@ def run_e2e_eval(
         groundedness_rate=groundedness_rate,
         tool_selection_accuracy=tool_accuracy,
         avg_latency_ms=avg_latency,
+        p95_latency_ms=p95_latency,
+        latency_slo_pass=latency_slo_pass,
         by_category=by_category,
     )
     
@@ -416,6 +564,9 @@ def print_e2e_eval_results(results: list[E2EEvalResult], summary: E2EEvalSummary
     table.add_row("Tool Selection", f"[{tool_color}]{summary.tool_selection_accuracy:.1%}[/{tool_color}]")
     
     table.add_row("Avg Latency", f"{summary.avg_latency_ms:.0f}ms")
+    
+    p95_color = "green" if summary.latency_slo_pass else "red"
+    table.add_row("P95 Latency", f"[{p95_color}]{summary.p95_latency_ms:.0f}ms[/{p95_color}]")
     
     console.print(table)
     

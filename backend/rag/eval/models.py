@@ -4,7 +4,20 @@ Evaluation data models.
 Defines the result structures for RAG evaluation.
 """
 
+from typing import Optional
 from pydantic import BaseModel
+
+
+# =============================================================================
+# SLO Constants (Service Level Objectives)
+# =============================================================================
+SLO_CONTEXT_RELEVANCE = 0.80    # 80% context relevance
+SLO_ANSWER_RELEVANCE = 0.80     # 80% answer relevance
+SLO_GROUNDEDNESS = 0.80         # 80% groundedness
+SLO_RAG_TRIAD = 0.70            # 70% full triad success
+SLO_DOC_RECALL = 0.70           # 70% doc recall
+SLO_PRIVACY_LEAKAGE = 0.0       # 0% privacy leakage (strict)
+SLO_LATENCY_P95_MS = 5000       # 5 second P95 latency
 
 
 class JudgeResult(BaseModel):
@@ -45,3 +58,53 @@ class AccountEvalResult(BaseModel):
     latency_ms: float
     total_tokens: int
     estimated_cost: float
+
+
+# =============================================================================
+# Summary Models
+# =============================================================================
+
+class DocsEvalSummary(BaseModel):
+    """Summary of docs RAG evaluation."""
+    total_tests: int
+    context_relevance: float
+    answer_relevance: float
+    groundedness: float
+    rag_triad_success: float
+    avg_doc_recall: float
+    avg_latency_ms: float
+    p95_latency_ms: float
+    total_tokens: int
+    estimated_cost: float
+    # SLO tracking
+    all_slos_passed: bool = True
+    failed_slos: list[str] = []
+
+
+class AccountEvalSummary(BaseModel):
+    """Summary of account RAG evaluation."""
+    total_tests: int
+    context_relevance: float
+    answer_relevance: float
+    groundedness: float
+    rag_triad_success: float
+    privacy_leakage_rate: float
+    leaked_questions: int
+    avg_latency_ms: float
+    p95_latency_ms: float
+    total_tokens: int
+    total_cost: float
+    # SLO tracking
+    all_slos_passed: bool = True
+    failed_slos: list[str] = []
+
+
+class RAGEvalSummary(BaseModel):
+    """Combined RAG evaluation summary."""
+    docs_eval: Optional[DocsEvalSummary] = None
+    account_eval: Optional[AccountEvalSummary] = None
+    overall_score: float = 0.0
+    all_slos_passed: bool = True
+    failed_slos: list[str] = []
+    regression_detected: bool = False
+    baseline_score: Optional[float] = None

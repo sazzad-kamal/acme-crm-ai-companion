@@ -6,5 +6,6 @@ This module exists only for import convenience.
 """
 
 from backend.agent.graph import answer_question, run_agent, agent_graph
+from backend.agent.progress import AgentProgress
 
-__all__ = ["answer_question", "run_agent", "agent_graph"]
+__all__ = ["answer_question", "run_agent", "agent_graph", "AgentProgress"]

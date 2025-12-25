@@ -77,6 +77,15 @@ from backend.agent.tools import (
     tool_recent_history,
     tool_pipeline,
     tool_upcoming_renewals,
+    # New comprehensive tools
+    tool_contact_lookup,
+    tool_search_contacts,
+    tool_search_companies,
+    tool_group_members,
+    tool_list_groups,
+    tool_search_attachments,
+    tool_pipeline_summary,
+    tool_search_activities,
 )
 
 
@@ -113,6 +122,9 @@ class AgentState(TypedDict, total=False):
     history_data: Optional[dict]
     pipeline_data: Optional[dict]
     renewals_data: Optional[dict]
+    contacts_data: Optional[dict]
+    groups_data: Optional[dict]
+    attachments_data: Optional[dict]
     
     # Docs output
     docs_answer: str
@@ -183,17 +195,28 @@ def data_node(state: AgentState) -> AgentState:
     """
     Data node: Fetch CRM data based on router output.
     
-    Fetches company info, activities, history, pipeline, and renewals.
+    Handles multiple intents:
+    - company_status: Full company profile with activities, history, pipeline
+    - renewals: Upcoming renewals across all accounts
+    - pipeline / pipeline_summary: Deals and forecast data
+    - contact_lookup / contact_search: Contact information
+    - company_search: Search companies by criteria
+    - groups: Group membership and lists
+    - attachments: File/document search
+    - activities: Activity search
     """
     logger.info(f"[Data] Fetching CRM data for intent={state.get('intent')}")
     
     sources: list[Source] = []
     raw_data = {
         "companies": [],
+        "contacts": [],
         "activities": [],
         "opportunities": [],
         "history": [],
         "renewals": [],
+        "groups": [],
+        "attachments": [],
         "pipeline_summary": None,
     }
     
@@ -202,22 +225,194 @@ def data_node(state: AgentState) -> AgentState:
     history_data = None
     pipeline_data = None
     renewals_data = None
+    contacts_data = None
+    groups_data = None
+    attachments_data = None
     
     intent = state.get("intent", "general")
     resolved_company_id = state.get("resolved_company_id")
     days = state.get("days", 90)
+    question = state.get("question", "").lower()
     
     try:
-        # Handle renewals intent (no specific company)
-        if intent == "renewals" and not resolved_company_id:
+        # =================================================================
+        # Intent: Pipeline Summary (aggregate across all companies)
+        # =================================================================
+        if intent == "pipeline_summary":
+            logger.debug("[Data] Fetching aggregate pipeline summary")
+            summary_result = tool_pipeline_summary()
+            pipeline_data = summary_result.data
+            sources.extend(summary_result.sources)
+            raw_data["pipeline_summary"] = {
+                "total_count": pipeline_data.get("total_count"),
+                "total_value": pipeline_data.get("total_value"),
+                "by_stage": pipeline_data.get("by_stage", []),
+            }
+            raw_data["opportunities"] = pipeline_data.get("top_opportunities", [])[:8]
+        
+        # =================================================================
+        # Intent: Renewals (can be company-specific or aggregate)
+        # =================================================================
+        elif intent == "renewals":
+            if resolved_company_id:
+                # Company-specific renewals - check their renewal dates
+                company_result = tool_company_lookup(resolved_company_id)
+                if company_result.data.get("found"):
+                    company_data = company_result.data
+                    sources.extend(company_result.sources)
+                    raw_data["companies"] = [company_data["company"]]
+            
             logger.debug(f"[Data] Fetching renewals for next {days} days")
             renewals_result = tool_upcoming_renewals(days=days)
             renewals_data = renewals_result.data
             sources.extend(renewals_result.sources)
             raw_data["renewals"] = renewals_data.get("renewals", [])[:8]
         
-        # Handle company-specific queries
-        elif resolved_company_id or state.get("router_result", {}).company_name_query if state.get("router_result") else None:
+        # =================================================================
+        # Intent: Contact lookup or search
+        # =================================================================
+        elif intent in ("contact_lookup", "contact_search"):
+            logger.debug("[Data] Handling contact query")
+            
+            # Extract search criteria from question
+            role = None
+            if any(word in question for word in ["decision", "maker", "decision-maker"]):
+                role = "Decision Maker"
+            elif "champion" in question:
+                role = "Champion"
+            elif "executive" in question or "vp" in question or "director" in question:
+                role = "Executive"
+            
+            if resolved_company_id:
+                # Search contacts for specific company
+                contacts_result = tool_search_contacts(company_id=resolved_company_id, role=role)
+            else:
+                # Search all contacts
+                contacts_result = tool_search_contacts(role=role)
+            
+            contacts_data = contacts_result.data
+            sources.extend(contacts_result.sources)
+            raw_data["contacts"] = contacts_data.get("contacts", [])[:10]
+        
+        # =================================================================
+        # Intent: Company search
+        # =================================================================
+        elif intent == "company_search":
+            logger.debug("[Data] Searching companies")
+            
+            # Extract search criteria
+            segment = None
+            if "enterprise" in question:
+                segment = "Enterprise"
+            elif "smb" in question:
+                segment = "SMB"
+            elif "mid-market" in question or "midmarket" in question:
+                segment = "Mid-Market"
+            
+            industry = None
+            # Try to detect industry from question
+            industries = ["software", "manufacturing", "healthcare", "food", "consulting", "retail"]
+            for ind in industries:
+                if ind in question:
+                    industry = ind.capitalize()
+                    break
+            
+            companies_result = tool_search_companies(segment=segment, industry=industry)
+            company_data = companies_result.data
+            sources.extend(companies_result.sources)
+            raw_data["companies"] = company_data.get("companies", [])[:10]
+        
+        # =================================================================
+        # Intent: Groups
+        # =================================================================
+        elif intent == "groups":
+            logger.debug("[Data] Handling groups query")
+            
+            # Check if asking about specific group
+            group_keywords = {
+                "at risk": "GRP-AT-RISK",
+                "at-risk": "GRP-AT-RISK", 
+                "champion": "GRP-CHAMPIONS",
+                "churned": "GRP-CHURNED",
+                "dormant": "GRP-DORMANT",
+                "hot lead": "GRP-HOT-LEADS",
+            }
+            
+            group_id = None
+            for keyword, gid in group_keywords.items():
+                if keyword in question:
+                    group_id = gid
+                    break
+            
+            if group_id:
+                # Get specific group members
+                members_result = tool_group_members(group_id)
+                groups_data = members_result.data
+                sources.extend(members_result.sources)
+                raw_data["groups"] = [{
+                    "group_id": group_id,
+                    "name": groups_data.get("group_name"),
+                    "members": groups_data.get("members", [])[:10],
+                }]
+            else:
+                # List all groups
+                groups_result = tool_list_groups()
+                groups_data = groups_result.data
+                sources.extend(groups_result.sources)
+                raw_data["groups"] = groups_data.get("groups", [])[:10]
+        
+        # =================================================================
+        # Intent: Attachments
+        # =================================================================
+        elif intent == "attachments":
+            logger.debug("[Data] Searching attachments")
+            
+            # Build search query from question
+            search_terms = []
+            attachment_words = ["proposal", "contract", "document", "agreement", "pdf", "report"]
+            for word in attachment_words:
+                if word in question:
+                    search_terms.append(word)
+            
+            query = " ".join(search_terms) if search_terms else None
+            
+            attachments_result = tool_search_attachments(
+                query=query,
+                company_id=resolved_company_id
+            )
+            attachments_data = attachments_result.data
+            sources.extend(attachments_result.sources)
+            raw_data["attachments"] = attachments_data.get("attachments", [])[:10]
+        
+        # =================================================================
+        # Intent: Activities (can be company-specific or search)
+        # =================================================================
+        elif intent == "activities" and not resolved_company_id:
+            logger.debug("[Data] Searching activities across all companies")
+            
+            # Determine activity type from question
+            activity_type = None
+            if "call" in question:
+                activity_type = "Call"
+            elif "email" in question:
+                activity_type = "Email"
+            elif "meeting" in question:
+                activity_type = "Meeting"
+            elif "task" in question:
+                activity_type = "Task"
+            
+            activities_result = tool_search_activities(
+                activity_type=activity_type,
+                days=days
+            )
+            activities_data = activities_result.data
+            sources.extend(activities_result.sources)
+            raw_data["activities"] = activities_data.get("activities", [])[:10]
+        
+        # =================================================================
+        # Intent: Company-specific queries (default for company_status, pipeline, etc.)
+        # =================================================================
+        elif resolved_company_id or (state.get("router_result") and state.get("router_result").company_name_query):
             query = resolved_company_id or (state.get("router_result").company_name_query if state.get("router_result") else None)
             logger.debug(f"[Data] Looking up company: {query}")
             
@@ -259,9 +454,11 @@ def data_node(state: AgentState) -> AgentState:
                 company_data = company_result.data
                 logger.info(f"[Data] Company not found: {query}")
         
+        # =================================================================
+        # Fallback: General renewals query
+        # =================================================================
         else:
-            # No company specified - get general renewals
-            logger.debug("[Data] No company specified, fetching general renewals")
+            logger.debug("[Data] No specific intent, fetching general renewals")
             renewals_result = tool_upcoming_renewals(days=days)
             renewals_data = renewals_result.data
             sources.extend(renewals_result.sources)
@@ -273,6 +470,9 @@ def data_node(state: AgentState) -> AgentState:
             "history_data": history_data,
             "pipeline_data": pipeline_data,
             "renewals_data": renewals_data,
+            "contacts_data": contacts_data,
+            "groups_data": groups_data,
+            "attachments_data": attachments_data,
             "resolved_company_id": resolved_company_id,
             "sources": sources,
             "raw_data": raw_data,
@@ -319,10 +519,13 @@ def skip_data_node(state: AgentState) -> AgentState:
     return {
         "raw_data": {
             "companies": [],
+            "contacts": [],
             "activities": [],
             "opportunities": [],
             "history": [],
             "renewals": [],
+            "groups": [],
+            "attachments": [],
             "pipeline_summary": None,
         },
         "steps": [{"id": "data", "label": "Skipped (docs-only query)", "status": "skipped"}],
@@ -745,9 +948,29 @@ if __name__ == "__main__":
     print("-" * 60)
     
     test_questions = [
+        # Company-specific queries
         ("What's going on with Acme Manufacturing?", "auto"),
+        
+        # Documentation queries
         ("How do I create a new opportunity?", "auto"),
+        
+        # Renewals
         ("What renewals are coming up?", "auto"),
+        
+        # Pipeline summary (aggregate)
+        ("What's the total pipeline value?", "auto"),
+        
+        # Contact search
+        ("Who are the decision makers?", "auto"),
+        
+        # Company search  
+        ("Show me all enterprise accounts", "auto"),
+        
+        # Groups
+        ("Who is in the at-risk accounts group?", "auto"),
+        
+        # Attachments
+        ("Find all proposals", "auto"),
     ]
     
     for q, mode in test_questions:

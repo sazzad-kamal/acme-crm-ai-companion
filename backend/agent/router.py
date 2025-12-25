@@ -112,6 +112,15 @@ INTENT_PATTERNS = {
         r"\bdeals?\s+in\s+progress\b",
         r"\bforecast\b",
     ],
+    "pipeline_summary": [
+        r"\b(total|all|overall|aggregate)\s+(pipeline|deals?|opportunities?)\b",
+        r"\bpipeline\s+(overview|summary|total)\b",
+        r"\bhow\s+(many|much)\b.*\b(deals?|opportunities?|pipeline)\b",
+        r"\b(forecast|revenue)\s+(summary|total|across)\b",
+        r"\bforecast\s+summary\b",
+        r"\btotal\s+(value|amount)\b",
+        r"\bacross\s+all\b",
+    ],
     "activities": [
         r"\bactivit(y|ies)\b",
         r"\bcall(s)?\b",
@@ -125,6 +134,42 @@ INTENT_PATTERNS = {
         r"\bprevious\b",
         r"\bpast\s+(interactions?|communications?)\b",
         r"\bwhat\s+happened\b",
+    ],
+    "contact_lookup": [
+        r"\bwho\s+is\b",
+        r"\bcontact\s+(info|details?|information)\b",
+        r"\bfind\s+contact\b",
+        r"\bget\s+contact\b",
+    ],
+    "contact_search": [
+        r"\b(search|find|list|show)\s+(all\s+)?contacts?\b",
+        r"\bcontacts?\s+(at|for|in|from)\b",
+        r"\b(decision\s*makers?|champions?|executives?)\b",
+        r"\bwho\s+(works|is)\s+(at|with)\b",
+        r"\b(key|primary)\s+contacts?\b",
+    ],
+    "company_search": [
+        r"\b(search|find|list|show)\s+(all\s+)?(compan(y|ies)|accounts?)\b",
+        r"\bcompan(y|ies)\s+(in|with|from)\b",
+        r"\b(enterprise|smb|mid-?market)\s+(accounts?|compan(y|ies))\b",
+        r"\bcompan(y|ies)\s+(by|with)\s+(industry|segment|region)\b",
+        r"\bwhich\s+compan(y|ies)\b",
+        r"\b(in\s+the\s+)?(\w+)\s+industry\b",
+    ],
+    "groups": [
+        r"\bgroup(s)?\b",
+        r"\b(at\s*risk|champion|churned)\s+(accounts?|contacts?)\s+group\b",
+        r"\bwho\s+is\s+(in|on)\b.*\bgroup\b",
+        r"\bmembers?\s+(of|in)\b.*\bgroup\b",
+        r"\bgroup\s+(list|members?)\b",
+    ],
+    "attachments": [
+        r"\battachment(s)?\b",
+        r"\bdocument(s)?\b",
+        r"\bfile(s)?\b",
+        r"\bproposal(s)?\b",
+        r"\bcontract(s)?\b",
+        r"\bpdf(s)?\b",
     ],
 }
 
@@ -164,6 +209,18 @@ def _extract_company_reference(
     Returns the resolved company_id if found.
     """
     ds = datastore or get_datastore()
+    
+    # Skip extraction if question is clearly about the CRM product itself
+    product_mentions = [
+        r"\bacme\s+crm\b",          # "Acme CRM" product name
+        r"\bthe\s+(crm|system|platform)\b",
+        r"\bwhat\s+is\s+(a|an)\b",  # Definition questions
+        r"\bhow\s+(do|can|to)\b.*\b(crm|system)\b",
+    ]
+    question_lower = question.lower()
+    for pattern in product_mentions:
+        if re.search(pattern, question_lower):
+            return None
     
     # Common patterns for company references
     patterns = [
@@ -227,7 +284,26 @@ def _detect_intent(question: str) -> str:
     question_lower = question.lower()
     scores = {intent: _count_pattern_matches(question_lower, patterns) 
               for intent, patterns in INTENT_PATTERNS.items()}
-    max_intent = max(scores, key=scores.get, default="general")
+    
+    # Specific intents should win ties over generic ones
+    # e.g., "pipeline_summary" over "pipeline", "contact_lookup" over "contact_search"
+    INTENT_PRIORITY = {
+        "pipeline_summary": 10,
+        "contact_lookup": 5, 
+        "groups": 10,  # "who is in the group" should beat "who is"
+        "company_status": 5,
+        "pipeline": 1,
+        "contact_search": 1,
+        "company_search": 1,
+    }
+    
+    # Weight scores by priority (add small bonus for specific intents)
+    weighted_scores = {
+        intent: score + (INTENT_PRIORITY.get(intent, 0) * 0.1 if score > 0 else 0)
+        for intent, score in scores.items()
+    }
+    
+    max_intent = max(weighted_scores, key=weighted_scores.get, default="general")
     return max_intent if scores.get(max_intent, 0) > 0 else "general"
 
 
@@ -312,14 +388,43 @@ if __name__ == "__main__":
     print("=" * 60)
     
     test_questions = [
+        # Company-specific
         "What's going on with Acme Manufacturing in the last 90 days?",
-        "How do I create a new opportunity?",
-        "Which accounts have upcoming renewals in the next 90 days?",
         "Show the open pipeline for Beta Tech Solutions",
+        "What happened with Crown Foods last month?",
+        
+        # Documentation
+        "How do I create a new opportunity?",
         "What is an Activity in Acme CRM?",
         "How can I import contacts?",
-        "What happened with Crown Foods last month?",
+        
+        # Renewals
+        "Which accounts have upcoming renewals in the next 90 days?",
+        
+        # Pipeline summary (aggregate)
+        "What's the total pipeline value across all accounts?",
+        "How many deals are in the pipeline?",
+        
+        # Contacts
+        "Who are the decision makers at our accounts?",
+        "Find contacts at Acme Manufacturing",
+        "List all champions",
+        
+        # Companies
+        "Show me enterprise accounts",
+        "Which companies are in the software industry?",
+        
+        # Groups
+        "Who is in the at-risk accounts group?",
+        "List all groups",
+        
+        # Attachments
+        "Find all proposals",
+        "Show me contracts for Acme Manufacturing",
+        
+        # Activities
         "List all deals closing this quarter",
+        "What meetings happened last week?",
     ]
     
     for q in test_questions:

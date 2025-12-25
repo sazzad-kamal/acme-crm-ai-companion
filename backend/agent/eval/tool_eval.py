@@ -28,6 +28,15 @@ from backend.agent.tools import (
     tool_recent_history,
     tool_pipeline,
     tool_upcoming_renewals,
+    # New comprehensive tools
+    tool_contact_lookup,
+    tool_search_contacts,
+    tool_search_companies,
+    tool_group_members,
+    tool_list_groups,
+    tool_search_attachments,
+    tool_pipeline_summary,
+    tool_search_activities,
 )
 from backend.agent.datastore import get_datastore
 from backend.agent.eval.models import ToolEvalResult, ToolEvalSummary
@@ -150,6 +159,132 @@ TOOL_TEST_CASES = [
         "input": {"days": 90},
         "expected": {"found": True, "min_count": 0},  # May or may not have
     },
+    # =========================================================================
+    # NEW TOOLS - Contact Search
+    # =========================================================================
+    {
+        "id": "search_contacts_by_company",
+        "tool": "search_contacts",
+        "input": {"company_id": "ACME-MFG"},
+        "expected": {"found": True, "min_count": 1},
+    },
+    {
+        "id": "search_contacts_decision_makers",
+        "tool": "search_contacts",
+        "input": {"role": "Decision Maker"},
+        "expected": {"found": True, "min_count": 1},
+    },
+    {
+        "id": "search_contacts_champions",
+        "tool": "search_contacts",
+        "input": {"role": "Champion"},
+        "expected": {"found": True, "min_count": 1},
+    },
+    {
+        "id": "search_contacts_all",
+        "tool": "search_contacts",
+        "input": {},
+        "expected": {"found": True, "min_count": 5},
+    },
+    # =========================================================================
+    # NEW TOOLS - Company Search
+    # =========================================================================
+    {
+        "id": "search_companies_midmarket",
+        "tool": "search_companies",
+        "input": {"segment": "Mid-market"},
+        "expected": {"found": True, "min_count": 1},
+    },
+    {
+        "id": "search_companies_smb",
+        "tool": "search_companies",
+        "input": {"segment": "SMB"},
+        "expected": {"found": True, "min_count": 1},
+    },
+    {
+        "id": "search_companies_software",
+        "tool": "search_companies",
+        "input": {"industry": "Software"},
+        "expected": {"found": True, "min_count": 1},
+    },
+    {
+        "id": "search_companies_all",
+        "tool": "search_companies",
+        "input": {},
+        "expected": {"found": True, "min_count": 5},
+    },
+    # =========================================================================
+    # NEW TOOLS - Groups
+    # =========================================================================
+    {
+        "id": "list_groups_all",
+        "tool": "list_groups",
+        "input": {},
+        "expected": {"found": True, "min_count": 3},
+    },
+    {
+        "id": "group_members_at_risk",
+        "tool": "group_members",
+        "input": {"group_id": "GRP-AT-RISK"},
+        "expected": {"found": True, "min_count": 0},  # Group exists, may have members
+    },
+    {
+        "id": "group_members_champions",
+        "tool": "group_members",
+        "input": {"group_id": "GRP-CHAMPIONS"},
+        "expected": {"found": True, "min_count": 0},  # Group exists, may have members
+    },
+    # =========================================================================
+    # NEW TOOLS - Pipeline Summary (Aggregate)
+    # =========================================================================
+    {
+        "id": "pipeline_summary_all",
+        "tool": "pipeline_summary",
+        "input": {},
+        "expected": {"found": True, "min_count": 1, "has_total": True},
+    },
+    # =========================================================================
+    # NEW TOOLS - Attachments
+    # =========================================================================
+    {
+        "id": "search_attachments_all",
+        "tool": "search_attachments",
+        "input": {},
+        "expected": {"found": True, "min_count": 1},
+    },
+    {
+        "id": "search_attachments_proposal",
+        "tool": "search_attachments",
+        "input": {"query": "proposal"},
+        "expected": {"found": True, "min_count": 1},
+    },
+    {
+        "id": "search_attachments_by_company",
+        "tool": "search_attachments",
+        "input": {"company_id": "ACME-MFG"},
+        "expected": {"found": True, "min_count": 0},  # May or may not have
+    },
+    # =========================================================================
+    # NEW TOOLS - Activity Search
+    # =========================================================================
+    {
+        "id": "search_activities_all",
+        "tool": "search_activities",
+        "input": {"days": 365},
+        "expected": {"found": True, "min_count": 1},
+    },
+    {
+        "id": "search_activities_calls",
+        "tool": "search_activities",
+        "input": {"activity_type": "Call", "days": 365},
+        "expected": {"found": True, "min_count": 0},
+    },
+    {
+        "id": "search_activities_meetings",
+        "tool": "search_activities",
+        "input": {"activity_type": "Meeting", "days": 365},
+        "expected": {"found": True, "min_count": 0},
+    },
 ]
 
 
@@ -179,6 +314,23 @@ def run_tool_test(test_case: dict, verbose: bool = False) -> ToolEvalResult:
             result = tool_pipeline(**input_params)
         elif tool_name == "upcoming_renewals":
             result = tool_upcoming_renewals(**input_params)
+        # New tools
+        elif tool_name == "contact_lookup":
+            result = tool_contact_lookup(**input_params)
+        elif tool_name == "search_contacts":
+            result = tool_search_contacts(**input_params)
+        elif tool_name == "search_companies":
+            result = tool_search_companies(**input_params)
+        elif tool_name == "group_members":
+            result = tool_group_members(**input_params)
+        elif tool_name == "list_groups":
+            result = tool_list_groups(**input_params)
+        elif tool_name == "search_attachments":
+            result = tool_search_attachments(**input_params)
+        elif tool_name == "pipeline_summary":
+            result = tool_pipeline_summary(**input_params)
+        elif tool_name == "search_activities":
+            result = tool_search_activities(**input_params)
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
             
@@ -211,8 +363,29 @@ def run_tool_test(test_case: dict, verbose: bool = False) -> ToolEvalResult:
             actual_company_id = result.data.get("company", {}).get("company_id")
             if expected.get("company_id"):
                 data_correct = actual_company_id == expected["company_id"]
+    elif tool_name == "pipeline_summary":
+        # Pipeline summary has different structure
+        actual_count = result.data.get("total_count", 0)
+        actual_found = actual_count > 0
+        if expected.get("has_total"):
+            data_correct = "total_value" in result.data and result.data.get("total_value", 0) >= 0
+        if "min_count" in expected:
+            data_correct = data_correct and actual_count >= expected["min_count"]
+    elif tool_name == "list_groups":
+        groups = result.data.get("groups", [])
+        actual_count = len(groups)
+        actual_found = actual_count > 0
+        if "min_count" in expected:
+            data_correct = actual_count >= expected["min_count"]
+    elif tool_name == "group_members":
+        members = result.data.get("members", [])
+        actual_count = len(members)
+        # Group is found if the response has found=True or has group info
+        actual_found = result.data.get("found", False) or result.data.get("group") is not None
+        if "min_count" in expected:
+            data_correct = actual_count >= expected["min_count"]
     else:
-        # Activity, history, pipeline, renewals
+        # Activity, history, pipeline, renewals, contacts, companies, attachments
         data = result.data
         if "activities" in data:
             actual_count = len(data["activities"])
@@ -222,6 +395,12 @@ def run_tool_test(test_case: dict, verbose: bool = False) -> ToolEvalResult:
             actual_count = len(data["opportunities"])
         elif "renewals" in data:
             actual_count = len(data["renewals"])
+        elif "contacts" in data:
+            actual_count = len(data["contacts"])
+        elif "companies" in data:
+            actual_count = len(data["companies"])
+        elif "attachments" in data:
+            actual_count = len(data["attachments"])
         else:
             actual_count = data.get("count", 0)
         

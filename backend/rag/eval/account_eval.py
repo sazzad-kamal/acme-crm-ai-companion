@@ -31,7 +31,16 @@ from backend.rag.retrieval.constants import PRIVATE_COLLECTION, QDRANT_PATH
 from backend.rag.ingest.text_builder import find_csv_dir
 from backend.rag.ingest.private_text import ingest_private_texts
 from backend.rag.pipeline.account import answer_account_question, load_companies_df
-from backend.rag.eval.models import AccountEvalResult
+from backend.rag.eval.models import (
+    AccountEvalResult,
+    AccountEvalSummary,
+    SLO_CONTEXT_RELEVANCE,
+    SLO_ANSWER_RELEVANCE,
+    SLO_GROUNDEDNESS,
+    SLO_RAG_TRIAD,
+    SLO_PRIVACY_LEAKAGE,
+    SLO_LATENCY_P95_MS,
+)
 from backend.rag.eval.judge import judge_account_response, check_privacy_leakage
 from backend.rag.eval.questions import generate_eval_questions, NUM_COMPANIES, NUM_QUESTIONS_PER_COMPANY, RANDOM_SEED
 from backend.rag.eval.base import (
@@ -145,7 +154,7 @@ def evaluate_question(
     )
 
 
-def run_evaluation(verbose: bool = True) -> list[AccountEvalResult]:
+def run_evaluation(verbose: bool = True) -> tuple[list[AccountEvalResult], AccountEvalSummary]:
     """Run full evaluation."""
     # Ensure collection exists
     ensure_private_collection_exists()
@@ -165,17 +174,32 @@ def run_evaluation(verbose: bool = True) -> list[AccountEvalResult]:
         result = evaluate_question(q, verbose=verbose)
         results.append(result)
     
-    return results
-
-
-def print_summary(results: list[AccountEvalResult]) -> None:
-    """Print evaluation summary using Rich."""
-    n = len(results)
-    if n == 0:
-        console.print("[yellow]No results[/yellow]")
-        return
+    # Compute summary
+    summary = compute_account_summary(results)
     
-    # Triad metrics
+    return results, summary
+
+
+def compute_account_summary(results: list[AccountEvalResult]) -> AccountEvalSummary:
+    """Compute summary statistics and check SLOs."""
+    n = len(results)
+    
+    if n == 0:
+        return AccountEvalSummary(
+            total_tests=0,
+            context_relevance=0.0,
+            answer_relevance=0.0,
+            groundedness=0.0,
+            rag_triad_success=0.0,
+            privacy_leakage_rate=0.0,
+            leaked_questions=0,
+            avg_latency_ms=0.0,
+            p95_latency_ms=0.0,
+            total_tokens=0,
+            total_cost=0.0,
+        )
+    
+    # Compute aggregates
     ctx_rel = sum(r.judge_result.context_relevance for r in results) / n
     ans_rel = sum(r.judge_result.answer_relevance for r in results) / n
     grounded = sum(r.judge_result.groundedness for r in results) / n
@@ -193,25 +217,91 @@ def print_summary(results: list[AccountEvalResult]) -> None:
     
     # Latency and cost
     avg_latency = sum(r.latency_ms for r in results) / n
+    
+    # P95 latency
+    latencies = sorted([r.latency_ms for r in results])
+    p95_index = int(len(latencies) * 0.95)
+    p95_latency = latencies[min(p95_index, len(latencies) - 1)]
+    
     total_tokens = sum(r.total_tokens for r in results)
     total_cost = sum(r.estimated_cost for r in results)
+    
+    # Check SLOs
+    failed_slos = []
+    if ctx_rel < SLO_CONTEXT_RELEVANCE:
+        failed_slos.append(f"Context relevance {ctx_rel:.1%} < {SLO_CONTEXT_RELEVANCE:.1%}")
+    if ans_rel < SLO_ANSWER_RELEVANCE:
+        failed_slos.append(f"Answer relevance {ans_rel:.1%} < {SLO_ANSWER_RELEVANCE:.1%}")
+    if grounded < SLO_GROUNDEDNESS:
+        failed_slos.append(f"Groundedness {grounded:.1%} < {SLO_GROUNDEDNESS:.1%}")
+    if triad_success < SLO_RAG_TRIAD:
+        failed_slos.append(f"RAG triad {triad_success:.1%} < {SLO_RAG_TRIAD:.1%}")
+    if leakage_rate > SLO_PRIVACY_LEAKAGE:
+        failed_slos.append(f"Privacy leakage {leakage_rate:.1%} > {SLO_PRIVACY_LEAKAGE:.1%}")
+    if p95_latency > SLO_LATENCY_P95_MS:
+        failed_slos.append(f"P95 latency {p95_latency:.0f}ms > {SLO_LATENCY_P95_MS}ms")
+    
+    return AccountEvalSummary(
+        total_tests=n,
+        context_relevance=ctx_rel,
+        answer_relevance=ans_rel,
+        groundedness=grounded,
+        rag_triad_success=triad_success,
+        privacy_leakage_rate=leakage_rate,
+        leaked_questions=leakage_count,
+        avg_latency_ms=avg_latency,
+        p95_latency_ms=p95_latency,
+        total_tokens=total_tokens,
+        total_cost=total_cost,
+        all_slos_passed=len(failed_slos) == 0,
+        failed_slos=failed_slos,
+    )
+
+
+def print_summary(results: list[AccountEvalResult], summary: AccountEvalSummary) -> None:
+    """Print evaluation summary using Rich."""
+    n = len(results)
+    if n == 0:
+        console.print("[yellow]No results[/yellow]")
+        return
     
     # Summary table using shared helper
     summary_table = create_summary_table()
     
-    summary_table.add_row("Questions evaluated", str(n))
-    summary_table.add_row("Context Relevance", f"{ctx_rel:.1%}")
-    summary_table.add_row("Answer Relevance", f"{ans_rel:.1%}")
-    summary_table.add_row("Groundedness", f"{grounded:.1%}")
-    summary_table.add_row("RAG Triad Success", f"[bold green]{triad_success:.1%}[/bold green]")
+    summary_table.add_row("Questions evaluated", str(summary.total_tests))
+    
+    ctx_style = "[green]" if summary.context_relevance >= SLO_CONTEXT_RELEVANCE else "[red]"
+    summary_table.add_row("Context Relevance", f"{ctx_style}{summary.context_relevance:.1%}[/] (SLO: ≥{SLO_CONTEXT_RELEVANCE:.0%})")
+    
+    ans_style = "[green]" if summary.answer_relevance >= SLO_ANSWER_RELEVANCE else "[red]"
+    summary_table.add_row("Answer Relevance", f"{ans_style}{summary.answer_relevance:.1%}[/] (SLO: ≥{SLO_ANSWER_RELEVANCE:.0%})")
+    
+    gnd_style = "[green]" if summary.groundedness >= SLO_GROUNDEDNESS else "[red]"
+    summary_table.add_row("Groundedness", f"{gnd_style}{summary.groundedness:.1%}[/] (SLO: ≥{SLO_GROUNDEDNESS:.0%})")
+    
+    triad_style = "[green]" if summary.rag_triad_success >= SLO_RAG_TRIAD else "[red]"
+    summary_table.add_row("RAG Triad Success", f"[bold {triad_style[1:-1]}]{summary.rag_triad_success:.1%}[/bold {triad_style[1:-1]}] (SLO: ≥{SLO_RAG_TRIAD:.0%})")
+    
     add_separator_row(summary_table)
-    leak_style = "[red]" if leakage_rate > 0 else "[green]"
-    summary_table.add_row("Privacy Leakage Rate", f"{leak_style}{leakage_rate:.1%}[/]")
-    summary_table.add_row("Leaked Questions", f"{leak_style}{leakage_count}[/]")
+    leak_style = "[red]" if summary.privacy_leakage_rate > SLO_PRIVACY_LEAKAGE else "[green]"
+    summary_table.add_row("Privacy Leakage Rate", f"{leak_style}{summary.privacy_leakage_rate:.1%}[/] (SLO: {SLO_PRIVACY_LEAKAGE:.0%})")
+    summary_table.add_row("Leaked Questions", f"{leak_style}{summary.leaked_questions}[/]")
+    
     add_separator_row(summary_table)
-    summary_table.add_row("Avg Latency", f"{avg_latency:.0f}ms")
-    summary_table.add_row("Total Tokens", f"{total_tokens:,}")
-    summary_table.add_row("Total Cost", f"${total_cost:.4f}")
+    summary_table.add_row("Avg Latency", f"{summary.avg_latency_ms:.0f}ms")
+    
+    p95_style = "[green]" if summary.p95_latency_ms <= SLO_LATENCY_P95_MS else "[red]"
+    summary_table.add_row("P95 Latency", f"{p95_style}{summary.p95_latency_ms:.0f}ms[/] (SLO: ≤{SLO_LATENCY_P95_MS}ms)")
+    
+    summary_table.add_row("Total Tokens", f"{summary.total_tokens:,}")
+    summary_table.add_row("Total Cost", f"${summary.total_cost:.4f}")
+    
+    # SLO status
+    add_separator_row(summary_table)
+    if summary.all_slos_passed:
+        summary_table.add_row("SLO Status", "[bold green]✓ ALL PASSED[/bold green]")
+    else:
+        summary_table.add_row("SLO Status", f"[bold red]✗ {len(summary.failed_slos)} FAILED[/bold red]")
     
     console.print(summary_table)
     
@@ -287,18 +377,30 @@ def run(
 ):
     """Run evaluation on generated account questions."""
     # Run evaluation
-    results = run_evaluation(verbose=verbose)
+    results, summary = run_evaluation(verbose=verbose)
     
     # Print summary
-    print_summary(results)
+    print_summary(results, summary)
     
     # Save results
     output.parent.mkdir(parents=True, exist_ok=True)
-    results_data = [r.model_dump() for r in results]
+    results_data = {
+        "results": [r.model_dump() for r in results],
+        "summary": summary.model_dump(),
+    }
     with open(output, "w") as f:
         json.dump(results_data, f, indent=2)
     
     console.print(f"\n[dim]Results saved to {output}[/dim]")
+    
+    # Exit code based on SLOs
+    if not summary.all_slos_passed:
+        console.print("\n[red bold]FAIL: One or more SLOs not met[/red bold]")
+        for slo in summary.failed_slos:
+            console.print(f"  • {slo}")
+        raise typer.Exit(code=1)
+    else:
+        console.print("\n[green bold]✓ PASS: All SLOs met[/green bold]")
 
 
 def main():

@@ -440,6 +440,277 @@ class CRMDataStore:
             [company_id]
         )
 
+    def get_contact(self, contact_id: str) -> dict | None:
+        """Get contact by ID."""
+        self._ensure_table("contacts")
+        return self._fetch_one_dict(
+            "SELECT * FROM contacts WHERE contact_id = ?",
+            [contact_id]
+        )
+
+    def search_contacts(
+        self,
+        query: str = "",
+        role: str = "",
+        job_title: str = "",
+        company_id: str = "",
+        limit: int = 20
+    ) -> list[dict]:
+        """
+        Search contacts by name, role, job_title, or company.
+        
+        Args:
+            query: Search term for name/email
+            role: Filter by role (e.g., "Decision Maker")
+            job_title: Filter by job title (partial match)
+            company_id: Filter by company
+            limit: Max results
+        """
+        self._ensure_table("contacts")
+        
+        conditions = []
+        params = []
+        
+        if query:
+            conditions.append("""
+                (LOWER(first_name) LIKE ? 
+                OR LOWER(last_name) LIKE ? 
+                OR LOWER(email) LIKE ?
+                OR LOWER(first_name || ' ' || last_name) LIKE ?)
+            """)
+            q = f"%{query.lower()}%"
+            params.extend([q, q, q, q])
+        
+        if role:
+            conditions.append("LOWER(role) LIKE ?")
+            params.append(f"%{role.lower()}%")
+        
+        if job_title:
+            conditions.append("LOWER(job_title) LIKE ?")
+            params.append(f"%{job_title.lower()}%")
+        
+        if company_id:
+            conditions.append("company_id = ?")
+            params.append(company_id)
+        
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        return self._fetch_all_dicts(
+            f"SELECT * FROM contacts WHERE {where_clause} LIMIT {limit}",
+            params
+        )
+
+    def search_companies(
+        self,
+        query: str = "",
+        industry: str = "",
+        segment: str = "",
+        status: str = "",
+        region: str = "",
+        limit: int = 20
+    ) -> list[dict]:
+        """
+        Search companies by various criteria.
+        
+        Args:
+            query: Search term for name
+            industry: Filter by industry
+            segment: Filter by segment (SMB, Mid-market, Enterprise)
+            status: Filter by status (Active, Churned, etc.)
+            region: Filter by region
+            limit: Max results
+        """
+        self._ensure_table("companies")
+        
+        conditions = []
+        params = []
+        
+        if query:
+            conditions.append("LOWER(name) LIKE ?")
+            params.append(f"%{query.lower()}%")
+        
+        if industry:
+            conditions.append("LOWER(industry) LIKE ?")
+            params.append(f"%{industry.lower()}%")
+        
+        if segment:
+            conditions.append("LOWER(segment) LIKE ?")
+            params.append(f"%{segment.lower()}%")
+        
+        if status:
+            conditions.append("LOWER(status) LIKE ?")
+            params.append(f"%{status.lower()}%")
+        
+        if region:
+            conditions.append("LOWER(region) LIKE ?")
+            params.append(f"%{region.lower()}%")
+        
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        return self._fetch_all_dicts(
+            f"SELECT * FROM companies WHERE {where_clause} ORDER BY name LIMIT {limit}",
+            params
+        )
+
+    def get_group(self, group_id: str) -> dict | None:
+        """Get group by ID."""
+        if not self._ensure_table("groups"):
+            return None
+        return self._fetch_one_dict(
+            "SELECT * FROM groups WHERE group_id = ?",
+            [group_id]
+        )
+
+    def get_all_groups(self) -> list[dict]:
+        """Get all groups."""
+        if not self._ensure_table("groups"):
+            return []
+        return self._fetch_all_dicts("SELECT * FROM groups ORDER BY name")
+
+    def get_group_members(self, group_id: str, limit: int = 50) -> list[dict]:
+        """
+        Get companies in a group.
+        
+        Returns list of company dicts for companies in the group.
+        """
+        if not self._ensure_table("group_members"):
+            return []
+        self._ensure_table("companies")
+        
+        return self._fetch_all_dicts(f"""
+            SELECT c.* FROM companies c
+            INNER JOIN group_members gm ON c.company_id = gm.company_id
+            WHERE gm.group_id = ?
+            LIMIT {limit}
+        """, [group_id])
+
+    def search_attachments(
+        self,
+        query: str = "",
+        company_id: str = "",
+        file_type: str = "",
+        limit: int = 20
+    ) -> list[dict]:
+        """
+        Search attachments by title, company, or file type.
+        """
+        if not self._ensure_table("attachments"):
+            return []
+        
+        conditions = []
+        params = []
+        
+        if query:
+            conditions.append("(LOWER(title) LIKE ? OR LOWER(summary) LIKE ?)")
+            q = f"%{query.lower()}%"
+            params.extend([q, q])
+        
+        if company_id:
+            conditions.append("company_id = ?")
+            params.append(company_id)
+        
+        if file_type:
+            conditions.append("LOWER(file_type) LIKE ?")
+            params.append(f"%{file_type.lower()}%")
+        
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        return self._fetch_all_dicts(
+            f"SELECT * FROM attachments WHERE {where_clause} ORDER BY created_at DESC LIMIT {limit}",
+            params
+        )
+
+    def get_all_pipeline_summary(self) -> dict:
+        """
+        Get pipeline summary across ALL companies.
+        
+        Returns:
+            Dict with total pipeline stats by stage
+        """
+        self._ensure_table("opportunities")
+        
+        # Overall stats
+        overall = self.conn.execute("""
+            SELECT 
+                COUNT(*) as total_count,
+                SUM(COALESCE(value, 0)) as total_value
+            FROM opportunities 
+            WHERE LOWER(stage) NOT LIKE '%closed%'
+        """).fetchone()
+        
+        # By stage
+        by_stage = self.conn.execute("""
+            SELECT 
+                stage,
+                COUNT(*) as count,
+                SUM(COALESCE(value, 0)) as total_value
+            FROM opportunities 
+            WHERE LOWER(stage) NOT LIKE '%closed%'
+            GROUP BY stage
+            ORDER BY total_value DESC
+        """).fetchall()
+        
+        # By company (top 10)
+        by_company = self.conn.execute("""
+            SELECT 
+                company_id,
+                COUNT(*) as count,
+                SUM(COALESCE(value, 0)) as total_value
+            FROM opportunities 
+            WHERE LOWER(stage) NOT LIKE '%closed%'
+            GROUP BY company_id
+            ORDER BY total_value DESC
+            LIMIT 10
+        """).fetchall()
+        
+        return {
+            "total_count": overall[0] if overall else 0,
+            "total_value": float(overall[1] or 0) if overall else 0,
+            "by_stage": {stage: {"count": count, "value": float(value or 0)} 
+                        for stage, count, value in by_stage},
+            "top_companies": [{"company_id": cid, "count": count, "value": float(value or 0)}
+                            for cid, count, value in by_company],
+        }
+
+    def search_activities(
+        self,
+        activity_type: str = "",
+        days: int = 30,
+        company_id: str = "",
+        limit: int = 30
+    ) -> list[dict]:
+        """
+        Search activities by type, date range, or company.
+        
+        Args:
+            activity_type: Filter by type (e.g., "Demo", "Meeting")
+            days: Look back N days
+            company_id: Filter by company
+            limit: Max results
+        """
+        self._ensure_table("activities")
+        
+        conditions = []
+        params = []
+        cutoff = self._get_date_cutoff(days)
+        
+        conditions.append(f"(due_datetime >= '{cutoff}' OR created_at >= '{cutoff}')")
+        
+        if activity_type:
+            conditions.append("LOWER(type) LIKE ?")
+            params.append(f"%{activity_type.lower()}%")
+        
+        if company_id:
+            conditions.append("company_id = ?")
+            params.append(company_id)
+        
+        where_clause = " AND ".join(conditions)
+        
+        return self._fetch_all_dicts(
+            f"SELECT * FROM activities WHERE {where_clause} ORDER BY due_datetime DESC LIMIT {limit}",
+            params
+        )
+
 
 # =============================================================================
 # Singleton instance
