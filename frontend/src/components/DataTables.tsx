@@ -1,5 +1,7 @@
 import { useState, useCallback, useMemo, memo } from "react";
 import type { RawData } from "../types";
+import { formatDate, formatDateTime, formatCurrency } from "../utils/formatters";
+import { createActivationHandler } from "../utils/keyboard";
 
 interface DataTablesProps {
   rawData: RawData;
@@ -26,13 +28,8 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
     setExpanded((prev) => !prev);
   }, []);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleExpanded();
-      }
-    },
+  const handleKeyDown = useMemo(
+    () => createActivationHandler(toggleExpanded),
     [toggleExpanded]
   );
 
@@ -234,39 +231,3 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
     </section>
   );
 });
-
-// Utility functions for formatting
-function formatDate(dateStr: string): string {
-  try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
-function formatDateTime(dateStr: string): string {
-  try {
-    return new Date(dateStr).toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}

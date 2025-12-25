@@ -118,6 +118,61 @@ body {
   }
 }
 
+@keyframes fadeInSimple {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* -----------------------------------------------------------------------------
+   Utility Classes
+   ----------------------------------------------------------------------------- */
+
+/* Base button styles */
+.btn {
+  padding: var(--space-md) var(--space-xl);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.btn--primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn--primary:hover {
+  background-color: var(--color-primary-hover);
+}
+
+/* Base chip styles */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-xs) 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+/* Flex row utility */
+.flex-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+/* Input focus styles */
+.input-focus:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-bg);
+  outline: none;
+}
+
 @keyframes pulse {
   0%, 100% { 
     opacity: 1; 
@@ -226,12 +281,7 @@ body {
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
   z-index: 100;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  animation: fadeInSimple 0.2s ease;
 }
 
 .drawer {
@@ -658,11 +708,8 @@ body {
    Sources
    ----------------------------------------------------------------------------- */
 .sources-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
+  /* extends .flex-row */
   margin-bottom: var(--space-md);
-  align-items: center;
 }
 
 .sources-row__label {
@@ -672,15 +719,9 @@ body {
 }
 
 .source-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: var(--space-xs) 10px;
+  /* extends .chip */
   background-color: #eff6ff;
   color: #1d4ed8;
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
 }
 
 .source-chip__icon {
@@ -700,11 +741,8 @@ body {
    Steps
    ----------------------------------------------------------------------------- */
 .steps-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
+  /* extends .flex-row */
   margin-bottom: var(--space-md);
-  align-items: center;
 }
 
 .steps-row__label {
@@ -714,13 +752,7 @@ body {
 }
 
 .step-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: var(--space-xs) 10px;
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
+  /* extends .chip - add chip class in markup */
 }
 
 .step-pill--done {
@@ -752,9 +784,7 @@ body {
    Follow-up Suggestions
    ----------------------------------------------------------------------------- */
 .follow-up-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
+  /* extends .flex-row */
   margin-top: var(--space-lg);
   padding-top: var(--space-md);
   border-top: 1px solid var(--color-border);
@@ -1028,15 +1058,7 @@ body {
 }
 
 .error-boundary__button {
-  padding: var(--space-md) var(--space-xl);
-  background-color: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-base);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
+  /* extends .btn .btn--primary */
 }
 
 .error-boundary__button:hover {

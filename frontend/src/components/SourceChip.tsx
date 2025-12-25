@@ -33,7 +33,7 @@ export const SourceChip = memo(function SourceChip({ source }: SourceChipProps) 
 
   return (
     <span
-      className="source-chip"
+      className="chip source-chip"
       role="listitem"
       aria-label={`${typeLabel}: ${source.label}`}
     >
@@ -58,7 +58,7 @@ export const SourcesRow = memo(function SourcesRow({ sources }: SourcesRowProps)
 
   return (
     <div
-      className="sources-row"
+      className="flex-row sources-row"
       role="list"
       aria-label={`${sources.length} source${sources.length !== 1 ? "s" : ""} referenced`}
     >

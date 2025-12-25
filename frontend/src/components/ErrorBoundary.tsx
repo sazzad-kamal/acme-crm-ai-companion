@@ -52,7 +52,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               {this.state.error?.message || "An unexpected error occurred."}
             </p>
             <button
-              className="error-boundary__button"
+              className="btn btn--primary error-boundary__button"
               onClick={this.handleRetry}
               type="button"
               aria-label="Try again"

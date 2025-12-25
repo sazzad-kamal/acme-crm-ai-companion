@@ -23,7 +23,7 @@ export function FollowUpSuggestions({
 
   return (
     <div
-      className="follow-up-container"
+      className="flex-row follow-up-container"
       role="group"
       aria-label="Suggested follow-up questions"
     >

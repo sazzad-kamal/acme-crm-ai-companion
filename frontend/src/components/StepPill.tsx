@@ -33,7 +33,7 @@ export const StepPill = memo(function StepPill({ step }: StepPillProps) {
 
   return (
     <span
-      className={`step-pill step-pill--${step.status}`}
+      className={`chip step-pill step-pill--${step.status}`}
       role="listitem"
       aria-label={`${step.label}: ${statusLabel}`}
     >
@@ -57,7 +57,7 @@ export const StepsRow = memo(function StepsRow({ steps }: StepsRowProps) {
 
   return (
     <div
-      className="steps-row"
+      className="flex-row steps-row"
       role="list"
       aria-label={`Workflow steps: ${completedCount} of ${steps.length} completed`}
     >
