@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Optional, Callable
 
-from backend.common.models import DocumentChunk, ScoredChunk
+from backend.rag.models import DocumentChunk, ScoredChunk
 
 
 logger = logging.getLogger(__name__)

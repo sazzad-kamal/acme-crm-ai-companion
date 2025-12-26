@@ -52,13 +52,12 @@ from backend.agent.config import get_config
 from backend.agent.schemas import Source, RouterResult
 from backend.agent.llm_router import route_question
 from backend.agent.audit import AgentAuditLogger
-from backend.agent.progress import AgentProgress
 from backend.agent.prompts import (
     AGENT_SYSTEM_PROMPT,
     COMPANY_NOT_FOUND_PROMPT,
     DATA_ANSWER_PROMPT,
 )
-from backend.common.formatters import (
+from backend.agent.formatters import (
     format_company_section,
     format_activities_section,
     format_history_section,
@@ -78,7 +77,6 @@ from backend.agent.tools import (
     tool_pipeline,
     tool_upcoming_renewals,
     # New comprehensive tools
-    tool_contact_lookup,
     tool_search_contacts,
     tool_search_companies,
     tool_group_members,

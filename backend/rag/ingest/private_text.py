@@ -27,7 +27,7 @@ from qdrant_client.models import (
 from sentence_transformers import SentenceTransformer
 
 from backend.rag.ingest.text_builder import find_csv_dir, build_private_texts_jsonl
-from backend.common.models import DocumentChunk
+from backend.rag.models import DocumentChunk
 from backend.rag.retrieval.constants import PRIVATE_COLLECTION, QDRANT_PATH
 from backend.rag.ingest.constants import (
     MIN_CHUNK_SIZE,

@@ -7,11 +7,9 @@ Modules:
 - docs: Documentation RAG pipeline (answer_question)
 - account: Account-scoped RAG pipeline (answer_account_question)
 - gating: Chunk filtering and gating functions
-
-For other utilities, import from:
-- backend.common.prompts: LLM prompt templates
-- backend.common.company_resolver: Company resolution utilities
-- backend.common.context_builder: Context building
+- context_builder: Context building utilities
+- prompts: LLM prompt templates
+- company_resolver: Company resolution utilities
 """
 
 from backend.rag.pipeline.base import PipelineProgress
@@ -22,7 +20,7 @@ from backend.rag.pipeline.gating import (
     apply_per_doc_cap,
     apply_per_type_cap,
 )
-from backend.common.context_builder import build_context
+from backend.rag.pipeline.context_builder import build_context
 
 __all__ = [
     "PipelineProgress",

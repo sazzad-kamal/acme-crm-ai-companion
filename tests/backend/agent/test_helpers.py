@@ -22,18 +22,18 @@ class TestFormatCompanySection:
     
     def test_returns_empty_for_none(self):
         """Returns empty string for None input."""
-        from backend.common.formatters import format_company_section
+        from backend.agent.formatters import format_company_section
         assert format_company_section(None) == ""
     
     def test_returns_empty_for_missing_company(self):
         """Returns empty string when company key missing."""
-        from backend.common.formatters import format_company_section
+        from backend.agent.formatters import format_company_section
         assert format_company_section({}) == ""
         assert format_company_section({"other": "data"}) == ""
     
     def test_formats_basic_company_info(self):
         """Formats basic company information."""
-        from backend.common.formatters import format_company_section
+        from backend.agent.formatters import format_company_section
         
         data = {
             "company": {
@@ -53,7 +53,7 @@ class TestFormatCompanySection:
     
     def test_includes_contacts_when_present(self):
         """Includes contacts in output."""
-        from backend.common.formatters import format_company_section
+        from backend.agent.formatters import format_company_section
         
         data = {
             "company": {"name": "Test", "company_id": "T-001"},
@@ -69,7 +69,7 @@ class TestFormatCompanySection:
     
     def test_limits_contacts_to_three(self):
         """Only shows first 3 contacts."""
-        from backend.common.formatters import format_company_section
+        from backend.agent.formatters import format_company_section
         
         contacts = [
             {"first_name": f"Contact{i}", "last_name": "Test", "job_title": "Role", "email": f"c{i}@test.com"}
@@ -90,19 +90,19 @@ class TestFormatActivitiesSection:
     
     def test_returns_empty_for_none(self):
         """Returns empty string for None input."""
-        from backend.common.formatters import format_activities_section
+        from backend.agent.formatters import format_activities_section
         assert format_activities_section(None) == ""
     
     def test_handles_no_activities(self):
         """Shows message when no activities."""
-        from backend.common.formatters import format_activities_section
+        from backend.agent.formatters import format_activities_section
         
         result = format_activities_section({"activities": []})
         assert "No recent activities" in result
     
     def test_formats_activities(self):
         """Formats activity list."""
-        from backend.common.formatters import format_activities_section
+        from backend.agent.formatters import format_activities_section
         
         data = {
             "activities": [
@@ -125,19 +125,19 @@ class TestFormatHistorySection:
     
     def test_returns_empty_for_none(self):
         """Returns empty string for None input."""
-        from backend.common.formatters import format_history_section
+        from backend.agent.formatters import format_history_section
         assert format_history_section(None) == ""
     
     def test_handles_no_history(self):
         """Shows message when no history."""
-        from backend.common.formatters import format_history_section
+        from backend.agent.formatters import format_history_section
         
         result = format_history_section({"history": []})
         assert "No recent history" in result
     
     def test_formats_history_entries(self):
         """Formats history entries."""
-        from backend.common.formatters import format_history_section
+        from backend.agent.formatters import format_history_section
         
         data = {
             "history": [
@@ -159,19 +159,19 @@ class TestFormatPipelineSection:
     
     def test_returns_empty_for_none(self):
         """Returns empty string for None input."""
-        from backend.common.formatters import format_pipeline_section
+        from backend.agent.formatters import format_pipeline_section
         assert format_pipeline_section(None) == ""
     
     def test_handles_empty_pipeline(self):
         """Shows message when no opportunities."""
-        from backend.common.formatters import format_pipeline_section
+        from backend.agent.formatters import format_pipeline_section
         
         result = format_pipeline_section({"summary": {"total_count": 0}})
         assert "No open opportunities" in result
     
     def test_formats_pipeline_summary(self):
         """Formats pipeline summary."""
-        from backend.common.formatters import format_pipeline_section
+        from backend.agent.formatters import format_pipeline_section
         
         data = {
             "summary": {
@@ -193,19 +193,19 @@ class TestFormatRenewalsSection:
     
     def test_returns_empty_for_none(self):
         """Returns empty string for None input."""
-        from backend.common.formatters import format_renewals_section
+        from backend.agent.formatters import format_renewals_section
         assert format_renewals_section(None) == ""
     
     def test_handles_no_renewals(self):
         """Shows message when no renewals."""
-        from backend.common.formatters import format_renewals_section
+        from backend.agent.formatters import format_renewals_section
         
         result = format_renewals_section({"renewals": []})
         assert "No renewals" in result
     
     def test_formats_renewals(self):
         """Formats renewal list."""
-        from backend.common.formatters import format_renewals_section
+        from backend.agent.formatters import format_renewals_section
         
         data = {
             "renewals": [
@@ -226,13 +226,13 @@ class TestFormatDocsSection:
     
     def test_returns_empty_for_none(self):
         """Returns empty string for None input."""
-        from backend.common.formatters import format_docs_section
+        from backend.agent.formatters import format_docs_section
         assert format_docs_section(None) == ""
         assert format_docs_section("") == ""
     
     def test_formats_docs_answer(self):
         """Formats documentation answer."""
-        from backend.common.formatters import format_docs_section
+        from backend.agent.formatters import format_docs_section
         
         result = format_docs_section("Here is how to import contacts...")
         assert "DOCUMENTATION GUIDANCE" in result
