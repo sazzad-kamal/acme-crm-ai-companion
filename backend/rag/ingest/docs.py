@@ -259,6 +259,8 @@ def ingest():
         backend.build_indexes(chunks)
     
     console.print(f"\n[green]✓[/green] Indexed {len(chunks)} chunks in Qdrant")
+
+
 def main():
     """Main entrypoint for document ingestion."""
     app()
