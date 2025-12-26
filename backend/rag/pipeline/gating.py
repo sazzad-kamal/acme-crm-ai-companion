@@ -7,7 +7,6 @@ various criteria like lexical scores, per-document caps, and per-type caps.
 
 import logging
 from collections import defaultdict
-from typing import Optional
 
 from ..models import ScoredChunk
 from .constants import MIN_BM25_SCORE_RATIO, MAX_CHUNKS_PER_DOC, MAX_CHUNKS_PER_TYPE
@@ -17,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def apply_lexical_gate(
     scored_chunks: list[ScoredChunk],
-    min_ratio: Optional[float] = None,
+    min_ratio: float | None = None,
 ) -> list[ScoredChunk]:
     """
     Filter out chunks with very low BM25 scores (lexical gate).
@@ -49,7 +48,7 @@ def apply_lexical_gate(
 
 def apply_per_doc_cap(
     scored_chunks: list[ScoredChunk],
-    max_per_doc: Optional[int] = None,
+    max_per_doc: int | None = None,
 ) -> list[ScoredChunk]:
     """
     Limit the number of chunks per document.
@@ -78,7 +77,7 @@ def apply_per_doc_cap(
 
 def apply_per_type_cap(
     scored_chunks: list[ScoredChunk],
-    max_per_type: Optional[int] = None,
+    max_per_type: int | None = None,
 ) -> list[ScoredChunk]:
     """
     Limit the number of chunks per type (for private data).
@@ -110,8 +109,8 @@ def apply_per_type_cap(
 
 def apply_all_gates(
     scored_chunks: list[ScoredChunk],
-    min_bm25_ratio: Optional[float] = None,
-    max_per_doc: Optional[int] = None,
+    min_bm25_ratio: float | None = None,
+    max_per_doc: int | None = None,
 ) -> list[ScoredChunk]:
     """
     Apply lexical gate and per-doc cap in sequence.

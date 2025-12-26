@@ -46,7 +46,7 @@ class SectionFormatter:
         self.items_key = items_key
         self.days_key = days_key
     
-    def format(self, data: Optional[dict]) -> str:
+    def format(self, data: dict | None) -> str:
         """
         Format the data section.
         
@@ -176,7 +176,7 @@ _RENEWALS_FORMATTER = SectionFormatter(
 # Public API (backwards compatible)
 # =============================================================================
 
-def format_company_section(company_data: Optional[dict]) -> str:
+def format_company_section(company_data: dict | None) -> str:
     """Format company data for the prompt."""
     if not company_data:
         return ""
@@ -208,17 +208,17 @@ def format_company_section(company_data: Optional[dict]) -> str:
     return "\n".join(lines)
 
 
-def format_activities_section(activities_data: Optional[dict]) -> str:
+def format_activities_section(activities_data: dict | None) -> str:
     """Format activities data for the prompt."""
     return _ACTIVITIES_FORMATTER.format(activities_data)
 
 
-def format_history_section(history_data: Optional[dict]) -> str:
+def format_history_section(history_data: dict | None) -> str:
     """Format history data for the prompt."""
     return _HISTORY_FORMATTER.format(history_data)
 
 
-def format_pipeline_section(pipeline_data: Optional[dict]) -> str:
+def format_pipeline_section(pipeline_data: dict | None) -> str:
     """Format pipeline data for the prompt."""
     if not pipeline_data:
         return ""
@@ -247,7 +247,7 @@ def format_pipeline_section(pipeline_data: Optional[dict]) -> str:
     return "\n".join(lines)
 
 
-def format_renewals_section(renewals_data: Optional[dict]) -> str:
+def format_renewals_section(renewals_data: dict | None) -> str:
     """Format renewals data for the prompt."""
     return _RENEWALS_FORMATTER.format(renewals_data)
 

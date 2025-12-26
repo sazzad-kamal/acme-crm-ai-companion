@@ -18,7 +18,7 @@ class ErrorDetail(BaseModel):
     """Detailed error information."""
     code: str
     message: str
-    field: Optional[str] = None
+    field: str | None = None
     details: Optional[dict[str, Any]] = None
 
 
@@ -28,7 +28,7 @@ class ErrorResponse(BaseModel):
     status_code: int
     message: str
     details: Optional[list[ErrorDetail]] = None
-    request_id: Optional[str] = None
+    request_id: str | None = None
 
 
 # =============================================================================
@@ -54,7 +54,7 @@ class ValidationError(APIError):
     """Request validation error."""
 
     @override
-    def __init__(self, message: str, field: Optional[str] = None):
+    def __init__(self, message: str, field: str | None = None):
         details = [ErrorDetail(code="VALIDATION_ERROR", message=message, field=field)]
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -93,7 +93,7 @@ class AgentError(APIError):
     """Error from the agent pipeline."""
 
     @override
-    def __init__(self, message: str, details: Optional[dict] = None):
+    def __init__(self, message: str, details: dict | None = None):
         error_details = [ErrorDetail(code="AGENT_ERROR", message=message, details=details)] if details else None
         super().__init__(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -103,26 +103,26 @@ class AgentState(TypedDict, total=False):
     # Input
     question: str
     mode: str  # "auto", "docs", "data", "data+docs"
-    company_id: Optional[str]
-    session_id: Optional[str]
-    user_id: Optional[str]
+    company_id: str | None
+    session_id: str | None
+    user_id: str | None
     
     # Router output
-    router_result: Optional[RouterResult]
+    router_result: RouterResult | None
     mode_used: str
-    resolved_company_id: Optional[str]
+    resolved_company_id: str | None
     days: int
     intent: str
     
     # Data outputs
-    company_data: Optional[dict]
-    activities_data: Optional[dict]
-    history_data: Optional[dict]
-    pipeline_data: Optional[dict]
-    renewals_data: Optional[dict]
-    contacts_data: Optional[dict]
-    groups_data: Optional[dict]
-    attachments_data: Optional[dict]
+    company_data: dict | None
+    activities_data: dict | None
+    history_data: dict | None
+    pipeline_data: dict | None
+    renewals_data: dict | None
+    contacts_data: dict | None
+    groups_data: dict | None
+    attachments_data: dict | None
     
     # Docs output
     docs_answer: str
@@ -142,7 +142,7 @@ class AgentState(TypedDict, total=False):
     raw_data: dict
     
     # Error handling
-    error: Optional[str]
+    error: str | None
 
 
 # =============================================================================
@@ -725,9 +725,9 @@ agent_graph = build_agent_graph()
 def run_agent(
     question: str,
     mode: str = "auto",
-    company_id: Optional[str] = None,
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
+    company_id: str | None = None,
+    session_id: str | None = None,
+    user_id: str | None = None,
 ) -> dict:
     """
     Run the agent graph and return formatted response.
@@ -816,9 +816,9 @@ def run_agent(
 def answer_question(
     question: str,
     mode: str = "auto",
-    company_id: Optional[str] = None,
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
+    company_id: str | None = None,
+    session_id: str | None = None,
+    user_id: str | None = None,
 ) -> dict:
     """
     Backwards-compatible wrapper for run_agent.

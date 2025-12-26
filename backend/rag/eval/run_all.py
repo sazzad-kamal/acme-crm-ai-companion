@@ -78,8 +78,8 @@ def compute_overall_score(
 
 def compare_to_baseline(
     summary: RAGEvalSummary,
-    baseline_path: Optional[Path] = None,
-) -> tuple[bool, Optional[float]]:
+    baseline_path: Path | None = None,
+) -> tuple[bool, float | None]:
     """
     Compare current results to a baseline.
     
@@ -111,7 +111,7 @@ def run_all_evals(
     skip_account: bool = False,
     verbose: bool = False,
     save_results: bool = True,
-    baseline_path: Optional[Path] = None,
+    baseline_path: Path | None = None,
 ) -> RAGEvalSummary:
     """
     Run all RAG evaluation suites.
@@ -283,7 +283,7 @@ def main(
     skip_account: bool = typer.Option(False, "--skip-account", help="Skip account eval (faster)"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
     no_save: bool = typer.Option(False, "--no-save", help="Don't save results"),
-    baseline: Optional[str] = typer.Option(None, "--baseline", help="Path to baseline JSON for regression comparison"),
+    baseline: str | None = typer.Option(None, "--baseline", help="Path to baseline JSON for regression comparison"),
     set_baseline: bool = typer.Option(False, "--set-baseline", help="Set current results as new baseline"),
 ):
     """Run complete RAG evaluation suite."""

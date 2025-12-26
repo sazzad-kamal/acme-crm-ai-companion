@@ -7,7 +7,7 @@ API route definitions for the CRM AI Companion.
 
 import logging
 from pathlib import Path
-from typing import Optional, Any, Callable
+from typing import Any, Callable
 
 import pandas as pd
 from fastapi import APIRouter, Request, Depends

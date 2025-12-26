@@ -16,7 +16,8 @@ interface UseChatReturn {
 }
 
 /**
- * Custom hook for managing chat state and API communication
+ * Custom hook for managing chat state and API communication.
+ * Implements optimistic updates for instant UI feedback.
  */
 export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -51,7 +52,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         timestamp: new Date(),
       };
 
-      // Optimistically add the message
+      // Optimistically add the message for instant UI feedback
       setMessages((prev) => [...prev, newMessage]);
 
       try {

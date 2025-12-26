@@ -5,7 +5,6 @@ Each tool returns both data and source citations.
 Tools are pure Python and easy to test.
 """
 
-from typing import Optional
 from backend.agent.datastore import get_datastore, CRMDataStore
 from backend.agent.schemas import Source, ToolResult
 
@@ -28,7 +27,7 @@ def _make_sources(
 
 def tool_company_lookup(
     company_id_or_name: str,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Look up company information by ID or name.
@@ -96,7 +95,7 @@ def tool_recent_activity(
     company_id: str,
     days: int = 90,
     limit: int = 20,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Get recent activities for a company.
@@ -141,7 +140,7 @@ def tool_recent_history(
     company_id: str,
     days: int = 90,
     limit: int = 20,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Get recent history entries (calls, emails, notes) for a company.
@@ -184,7 +183,7 @@ def tool_recent_history(
 
 def tool_pipeline(
     company_id: str,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Get pipeline summary and open opportunities for a company.
@@ -231,7 +230,7 @@ def tool_pipeline(
 def tool_upcoming_renewals(
     days: int = 90,
     limit: int = 20,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Get companies with upcoming renewals.
@@ -267,7 +266,7 @@ def tool_upcoming_renewals(
 
 def tool_contact_lookup(
     contact_id: str,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Look up a specific contact by ID.
@@ -317,7 +316,7 @@ def tool_search_contacts(
     job_title: str = "",
     company_id: str = "",
     limit: int = 20,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Search contacts by name, role, job title, or company.
@@ -376,7 +375,7 @@ def tool_search_companies(
     status: str = "",
     region: str = "",
     limit: int = 20,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Search companies by various criteria.
@@ -435,7 +434,7 @@ def tool_search_companies(
 def tool_group_members(
     group_id: str,
     limit: int = 50,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Get companies that belong to a specific group/segment.
@@ -487,7 +486,7 @@ def tool_group_members(
 # =============================================================================
 
 def tool_list_groups(
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     List all available groups/segments.
@@ -517,7 +516,7 @@ def tool_search_attachments(
     company_id: str = "",
     file_type: str = "",
     limit: int = 20,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Search attachments/documents by title, company, or file type.
@@ -566,7 +565,7 @@ def tool_search_attachments(
 # =============================================================================
 
 def tool_pipeline_summary(
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Get overall pipeline summary across all companies.
@@ -597,7 +596,7 @@ def tool_search_activities(
     days: int = 30,
     company_id: str = "",
     limit: int = 30,
-    datastore: Optional[CRMDataStore] = None
+    datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """
     Search activities by type, date range, or company.

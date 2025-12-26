@@ -20,7 +20,7 @@ Usage:
 """
 
 import logging
-from typing import Optional, Callable
+from collections.abc import Callable
 
 from backend.rag.models import DocumentChunk
 from backend.rag.retrieval.base import RetrievalBackend
@@ -169,7 +169,7 @@ def answer_question(
     use_hyde: bool = True,
     use_rewrite: bool = None,  # None = use config
     verbose: bool = False,
-    progress_callback: Optional[Callable[[str, str, float], None]] = None,
+    progress_callback: Callable[[str, str, float], None] | None = None,
 ) -> dict:
     """
     Full RAG pipeline to answer a question.

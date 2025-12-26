@@ -15,7 +15,6 @@ import os
 import time
 import logging
 import hashlib
-from typing import Optional
 from functools import lru_cache
 
 from openai import OpenAI, APIError, RateLimitError, APIConnectionError
@@ -32,7 +31,7 @@ from tenacity import (
 logger = logging.getLogger(__name__)
 
 # Global client instance (lazy initialization)
-_client: Optional[OpenAI] = None
+_client: OpenAI | None = None
 
 # LLM response cache (enabled via environment or config)
 _llm_cache: dict[str, str] = {}
@@ -61,13 +60,13 @@ def _get_client() -> OpenAI:
     return _client
 
 
-def _cache_key(prompt: str, system_prompt: Optional[str], model: str, temperature: float) -> str:
+def _cache_key(prompt: str, system_prompt: str | None, model: str, temperature: float) -> str:
     """Generate a cache key for an LLM request."""
     content = f"{model}:{temperature}:{system_prompt or ''}:{prompt}"
     return hashlib.sha256(content.encode()).hexdigest()[:32]
 
 
-def _get_cached_response(cache_key: str) -> Optional[str]:
+def _get_cached_response(cache_key: str) -> str | None:
     """Get a cached LLM response if available."""
     if not _LLM_CACHE_ENABLED:
         return None
@@ -129,7 +128,7 @@ def _call_openai(
 
 def call_llm(
     prompt: str,
-    system_prompt: Optional[str] = None,
+    system_prompt: str | None = None,
     model: str = "gpt-5-nano",
     temperature: float = 0.0,
     max_tokens: int = 1024,
@@ -196,7 +195,7 @@ def call_llm(
 
 def call_llm_with_metrics(
     prompt: str,
-    system_prompt: Optional[str] = None,
+    system_prompt: str | None = None,
     model: str = "gpt-5-nano",
     temperature: float = 0.0,
     max_tokens: int = 1024,
@@ -273,7 +272,7 @@ def call_llm_with_metrics(
 
 def call_llm_safe(
     prompt: str,
-    system_prompt: Optional[str] = None,
+    system_prompt: str | None = None,
     model: str = "gpt-5-nano",
     temperature: float = 0.0,
     max_tokens: int = 1024,

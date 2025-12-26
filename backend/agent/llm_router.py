@@ -12,7 +12,7 @@ Falls back to heuristic router on LLM failures.
 
 import logging
 import re
-from typing import Optional, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 from tenacity import (
@@ -208,8 +208,8 @@ def _call_llm_router(question: str) -> dict:
 def llm_route_question(
     question: str,
     mode: str = "auto",
-    company_id: Optional[str] = None,
-    datastore: Optional[CRMDataStore] = None,
+    company_id: str | None = None,
+    datastore: CRMDataStore | None = None,
 ) -> RouterResult:
     """
     Route a question using LLM intelligence.
@@ -291,8 +291,8 @@ def llm_route_question(
 def route_question(
     question: str,
     mode: str = "auto",
-    company_id: Optional[str] = None,
-    datastore: Optional[CRMDataStore] = None,
+    company_id: str | None = None,
+    datastore: CRMDataStore | None = None,
 ) -> RouterResult:
     """
     Main routing function - uses LLM or heuristics based on config.

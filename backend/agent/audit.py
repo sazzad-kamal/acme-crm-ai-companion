@@ -35,12 +35,12 @@ class AgentAuditEntry:
     timestamp: str
     question: str
     mode_used: str
-    company_id: Optional[str] = None
+    company_id: str | None = None
     latency_ms: int = 0
     source_count: int = 0
-    user_id: Optional[str] = None
-    session_id: Optional[str] = None
-    error: Optional[str] = None
+    user_id: str | None = None
+    session_id: str | None = None
+    error: str | None = None
     
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -54,7 +54,7 @@ class AgentAuditLogger:
     Writes structured JSONL entries for analysis and debugging.
     """
     
-    def __init__(self, log_file: Optional[Path] = None):
+    def __init__(self, log_file: Path | None = None):
         """Initialize the audit logger."""
         config = get_config()
         self.log_file = log_file or config.audit_log_file
@@ -71,12 +71,12 @@ class AgentAuditLogger:
         self,
         question: str,
         mode_used: str,
-        company_id: Optional[str] = None,
+        company_id: str | None = None,
         latency_ms: int = 0,
         source_count: int = 0,
-        user_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        error: Optional[str] = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        error: str | None = None,
     ) -> None:
         """
         Log a query to the audit log.
@@ -164,7 +164,7 @@ class AgentAuditLogger:
 
 
 # Module-level convenience functions
-_logger_instance: Optional[AgentAuditLogger] = None
+_logger_instance: AgentAuditLogger | None = None
 
 
 def get_audit_logger() -> AgentAuditLogger:

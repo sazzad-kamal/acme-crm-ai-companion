@@ -13,13 +13,13 @@ class ToolEvalResult(BaseModel):
     input_params: dict
     expected_found: bool
     actual_found: bool
-    expected_count: Optional[int] = None
-    actual_count: Optional[int] = None
-    expected_company_id: Optional[str] = None
-    actual_company_id: Optional[str] = None
+    expected_count: int | None = None
+    actual_count: int | None = None
+    expected_company_id: str | None = None
+    actual_company_id: str | None = None
     data_correct: bool
     sources_present: bool
-    error: Optional[str] = None
+    error: str | None = None
     latency_ms: float = 0.0
 
 
@@ -29,12 +29,12 @@ class RouterEvalResult(BaseModel):
     question: str
     expected_mode: str
     actual_mode: str
-    expected_company_id: Optional[str] = None
-    actual_company_id: Optional[str] = None
+    expected_company_id: str | None = None
+    actual_company_id: str | None = None
     mode_correct: bool
     company_correct: bool
-    intent_expected: Optional[str] = None
-    intent_actual: Optional[str] = None
+    intent_expected: str | None = None
+    intent_actual: str | None = None
     intent_correct: bool = True  # New: track intent accuracy
 
 
@@ -54,7 +54,7 @@ class E2EEvalResult(BaseModel):
     has_sources: bool
     latency_ms: float
     total_tokens: int
-    error: Optional[str] = None
+    error: str | None = None
     judge_explanation: str = ""
 
 
@@ -101,11 +101,11 @@ SLO_OVERALL = 0.80         # 80% overall
 
 class AgentEvalSummary(BaseModel):
     """Complete agent evaluation summary."""
-    tool_eval: Optional[ToolEvalSummary] = None
-    router_eval: Optional[RouterEvalSummary] = None
-    e2e_eval: Optional[E2EEvalSummary] = None
+    tool_eval: ToolEvalSummary | None = None
+    router_eval: RouterEvalSummary | None = None
+    e2e_eval: E2EEvalSummary | None = None
     overall_score: float = 0.0  # Weighted composite score
     all_slos_passed: bool = True  # New: Did all SLOs pass?
     failed_slos: list[str] = []   # New: Which SLOs failed?
     regression_detected: bool = False  # New: Score worse than baseline?
-    baseline_score: Optional[float] = None  # Previous run score
+    baseline_score: float | None = None  # Previous run score

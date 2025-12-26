@@ -100,8 +100,8 @@ def check_slos(summary: AgentEvalSummary) -> tuple[bool, list[str]]:
 
 def compare_to_baseline(
     summary: AgentEvalSummary, 
-    baseline_path: Optional[Path] = None,
-) -> tuple[bool, Optional[float]]:
+    baseline_path: Path | None = None,
+) -> tuple[bool, float | None]:
     """
     Compare current results to a baseline.
     
@@ -154,10 +154,10 @@ def compute_overall_score(
 
 def run_all_evals(
     skip_e2e: bool = False,
-    e2e_limit: Optional[int] = None,
+    e2e_limit: int | None = None,
     verbose: bool = False,
     save_results: bool = True,
-    baseline_path: Optional[Path] = None,
+    baseline_path: Path | None = None,
 ) -> AgentEvalSummary:
     """
     Run all agent evaluation suites.
@@ -339,10 +339,10 @@ app = typer.Typer()
 @app.command()
 def main(
     skip_e2e: bool = typer.Option(False, "--skip-e2e", help="Skip E2E tests (faster)"),
-    e2e_limit: Optional[int] = typer.Option(None, "--e2e-limit", help="Limit E2E tests"),
+    e2e_limit: int | None = typer.Option(None, "--e2e-limit", help="Limit E2E tests"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
     no_save: bool = typer.Option(False, "--no-save", help="Don't save results"),
-    baseline: Optional[str] = typer.Option(None, "--baseline", help="Path to baseline JSON for regression comparison"),
+    baseline: str | None = typer.Option(None, "--baseline", help="Path to baseline JSON for regression comparison"),
     set_baseline: bool = typer.Option(False, "--set-baseline", help="Set current results as new baseline"),
 ):
     """Run complete agent evaluation suite."""

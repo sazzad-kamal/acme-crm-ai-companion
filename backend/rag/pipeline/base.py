@@ -11,7 +11,7 @@ For other utilities, import from:
 
 import logging
 import time
-from typing import Optional, Callable
+from collections.abc import Callable
 
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class PipelineProgress:
     Useful for UI progress indicators and debugging.
     """
     
-    def __init__(self, callback: Optional[Callable[[str, str, float], None]] = None):
+    def __init__(self, callback: Callable[[str, str, float], None] | None = None):
         """
         Initialize progress tracker.
         
@@ -38,7 +38,7 @@ class PipelineProgress:
         self.steps: list[dict] = []
         self.callback = callback
         self._start_time = time.time()
-        self._step_start: Optional[float] = None
+        self._step_start: float | None = None
     
     def start_step(self, step_id: str, label: str) -> None:
         """Start tracking a new step."""

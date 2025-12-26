@@ -9,7 +9,6 @@ Uses pydantic-settings for type-safe environment variable loading.
 import os
 from pathlib import Path
 from functools import lru_cache
-from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings

@@ -6,7 +6,6 @@ automatic retry on transient failures.
 """
 
 import logging
-from typing import Optional
 
 from tenacity import (
     retry,
@@ -146,7 +145,7 @@ def call_docs_rag(question: str) -> tuple[str, list[Source]]:
 def generate_follow_up_suggestions(
     question: str,
     mode: str,
-    company_id: Optional[str] = None,
+    company_id: str | None = None,
 ) -> list[str]:
     """
     Generate follow-up question suggestions using LLM.

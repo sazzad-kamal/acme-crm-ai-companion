@@ -8,7 +8,6 @@ Uses heuristics to decide between:
 """
 
 import re
-from typing import Optional
 from backend.agent.schemas import RouterResult
 from backend.agent.datastore import get_datastore, CRMDataStore
 
@@ -201,8 +200,8 @@ def _extract_timeframe(question: str) -> int:
 
 def _extract_company_reference(
     question: str, 
-    datastore: Optional[CRMDataStore] = None
-) -> Optional[str]:
+    datastore: CRMDataStore | None = None
+) -> str | None:
     """
     Try to extract a company name or ID from the question.
     
@@ -310,8 +309,8 @@ def _detect_intent(question: str) -> str:
 def route_question(
     question: str,
     mode: str = "auto",
-    company_id: Optional[str] = None,
-    datastore: Optional[CRMDataStore] = None
+    company_id: str | None = None,
+    datastore: CRMDataStore | None = None
 ) -> RouterResult:
     """
     Route a question to determine mode and extract parameters.

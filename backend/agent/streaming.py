@@ -91,9 +91,9 @@ NODE_MESSAGES = {
 async def stream_agent(
     question: str,
     mode: str = "auto",
-    company_id: Optional[str] = None,
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
+    company_id: str | None = None,
+    session_id: str | None = None,
+    user_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream agent execution as Server-Sent Events.

@@ -12,7 +12,6 @@ Provides a single, consistent API for resolving company names to IDs.
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 from difflib import get_close_matches
 
 import pandas as pd
@@ -64,7 +63,7 @@ class CompanyResolver:
     - Fuzzy matching (using difflib)
     """
     
-    def __init__(self, df: Optional[pd.DataFrame] = None):
+    def __init__(self, df: pd.DataFrame | None = None):
         """
         Initialize resolver.
         
@@ -97,7 +96,7 @@ class CompanyResolver:
         self._id_set = {str(row.get("company_id", "")) for _, row in df.iterrows()}
         self._initialized = True
     
-    def resolve(self, name_or_id: str) -> Optional[str]:
+    def resolve(self, name_or_id: str) -> str | None:
         """
         Resolve a company name or ID to a company_id.
         
@@ -148,7 +147,7 @@ class CompanyResolver:
         logger.debug(f"Could not resolve company: {name_or_id}")
         return None
     
-    def get_name(self, company_id: str) -> Optional[str]:
+    def get_name(self, company_id: str) -> str | None:
         """
         Get company name from company_id.
         
@@ -219,7 +218,7 @@ class CompanyResolver:
 # Module-level convenience functions
 # =============================================================================
 
-_default_resolver: Optional[CompanyResolver] = None
+_default_resolver: CompanyResolver | None = None
 
 
 def get_resolver() -> CompanyResolver:
@@ -230,7 +229,7 @@ def get_resolver() -> CompanyResolver:
     return _default_resolver
 
 
-def resolve_company_id(name_or_id: str) -> Optional[str]:
+def resolve_company_id(name_or_id: str) -> str | None:
     """
     Resolve a company name or ID to a company_id.
     
@@ -239,7 +238,7 @@ def resolve_company_id(name_or_id: str) -> Optional[str]:
     return get_resolver().resolve(name_or_id)
 
 
-def get_company_name(company_id: str) -> Optional[str]:
+def get_company_name(company_id: str) -> str | None:
     """
     Get company name from company_id.
     

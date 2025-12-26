@@ -160,7 +160,7 @@ class AgentConfig(BaseSettings):
 
 
 # Global config instance (lazy initialization)
-_config: Optional[AgentConfig] = None
+_config: AgentConfig | None = None
 
 
 def get_config() -> AgentConfig:

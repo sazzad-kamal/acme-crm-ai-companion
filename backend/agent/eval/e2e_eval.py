@@ -475,7 +475,7 @@ def run_e2e_test(
 
 
 def run_e2e_eval(
-    limit: Optional[int] = None,
+    limit: int | None = None,
     verbose: bool = False,
 ) -> tuple[list[E2EEvalResult], E2EEvalSummary]:
     """
@@ -611,7 +611,7 @@ app = typer.Typer()
 
 @app.command()
 def main(
-    limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Limit tests to run"),
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit tests to run"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ):
     """Run end-to-end agent evaluation."""

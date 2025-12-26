@@ -101,10 +101,10 @@ class AccountEvalSummary(BaseModel):
 
 class RAGEvalSummary(BaseModel):
     """Combined RAG evaluation summary."""
-    docs_eval: Optional[DocsEvalSummary] = None
-    account_eval: Optional[AccountEvalSummary] = None
+    docs_eval: DocsEvalSummary | None = None
+    account_eval: AccountEvalSummary | None = None
     overall_score: float = 0.0
     all_slos_passed: bool = True
     failed_slos: list[str] = []
     regression_detected: bool = False
-    baseline_score: Optional[float] = None
+    baseline_score: float | None = None

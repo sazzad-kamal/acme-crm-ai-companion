@@ -11,7 +11,7 @@ Provides a single, flexible context builder that handles all chunk types.
 from __future__ import annotations
 
 import logging
-from typing import Optional, Callable
+from collections.abc import Callable
 
 from backend.rag.models import DocumentChunk, ScoredChunk
 
@@ -47,9 +47,9 @@ class ContextBuilder:
     def __init__(
         self,
         max_tokens: int = 3000,
-        header: Optional[str] = None,
+        header: str | None = None,
         separator: str = "\n---\n",
-        token_estimator: Optional[Callable[[str], int]] = None,
+        token_estimator: Callable[[str], int] | None = None,
     ):
         """
         Initialize the context builder.
@@ -82,8 +82,8 @@ class ContextBuilder:
     def add_chunk(
         self,
         chunk: DocumentChunk,
-        score: Optional[float] = None,
-        format_fn: Optional[Callable[[DocumentChunk, Optional[float]], str]] = None,
+        score: float | None = None,
+        format_fn: Callable[[DocumentChunk, float | None], str] | None = None,
     ) -> bool:
         """
         Add a document chunk to the context.
@@ -120,7 +120,7 @@ class ContextBuilder:
     def add_scored_chunk(
         self,
         scored_chunk: ScoredChunk,
-        format_fn: Optional[Callable[[DocumentChunk, Optional[float]], str]] = None,
+        format_fn: Callable[[DocumentChunk, float | None], str] | None = None,
     ) -> bool:
         """Add a scored chunk to the context."""
         return self.add_chunk(scored_chunk.chunk, scored_chunk.score, format_fn)
@@ -128,7 +128,7 @@ class ContextBuilder:
     def add_chunks(
         self,
         chunks: list[DocumentChunk],
-        format_fn: Optional[Callable[[DocumentChunk, Optional[float]], str]] = None,
+        format_fn: Callable[[DocumentChunk, float | None], str] | None = None,
     ) -> int:
         """
         Add multiple chunks to the context.
@@ -146,7 +146,7 @@ class ContextBuilder:
     def add_scored_chunks(
         self,
         scored_chunks: list[ScoredChunk],
-        format_fn: Optional[Callable[[DocumentChunk, Optional[float]], str]] = None,
+        format_fn: Callable[[DocumentChunk, float | None], str] | None = None,
     ) -> int:
         """
         Add multiple scored chunks to the context.
@@ -266,7 +266,7 @@ def build_private_context(
     Returns:
         Tuple of (context_string, sources_list)
     """
-    def format_private_chunk(chunk: DocumentChunk, score: Optional[float]) -> str:
+    def format_private_chunk(chunk: DocumentChunk, score: float | None) -> str:
         source_id = chunk.metadata.get("source_id", chunk.doc_id)
         chunk_type = chunk.metadata.get("type", "unknown")
         
@@ -298,7 +298,7 @@ def build_docs_context(
     if not chunks:
         return "", []
     
-    def format_doc_chunk(chunk: DocumentChunk, score: Optional[float]) -> str:
+    def format_doc_chunk(chunk: DocumentChunk, score: float | None) -> str:
         return f"[{chunk.doc_id}]\n{chunk.text}\n"
     
     builder = ContextBuilder(
