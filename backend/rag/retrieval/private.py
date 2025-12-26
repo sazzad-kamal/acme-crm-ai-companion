@@ -14,6 +14,7 @@ Usage:
 
 import logging
 from pathlib import Path
+from typing import override
 
 import numpy as np
 from qdrant_client.models import (
@@ -63,6 +64,7 @@ class PrivateRetrievalBackend(RetrievalBackend):
         # Company-specific BM25 indexes (built on demand)
         self._company_bm25: dict[str, tuple[BM25Okapi | None, list[int]]] = {}
     
+    @override
     def load_from_qdrant(self) -> None:
         """
         Load chunks from existing Qdrant collection.
@@ -153,6 +155,7 @@ class PrivateRetrievalBackend(RetrievalBackend):
             ]
         )
     
+    @override
     def _dense_search(
         self,
         query: str,
@@ -190,6 +193,7 @@ class PrivateRetrievalBackend(RetrievalBackend):
         # No filter - delegate to base class
         return super()._dense_search(query, k=k, qdrant_filter=qdrant_filter)
     
+    @override
     def _bm25_search(
         self,
         query: str,
@@ -220,6 +224,7 @@ class PrivateRetrievalBackend(RetrievalBackend):
         # No filter - delegate to base class
         return super()._bm25_search(query, k=k)
     
+    @override
     def retrieve_candidates(
         self,
         query: str,

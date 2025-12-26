@@ -10,9 +10,9 @@ import logging
 import math
 import random
 from collections import Counter
-from itertools import islice
+from itertools import batched
 from pathlib import Path
-from typing import Any, Iterator, TypeVar
+from typing import Any
 
 import pandas as pd
 from rich.console import Console
@@ -34,15 +34,6 @@ from backend.rag.ingest.chunking import estimate_tokens, chunk_text, MIN_CHUNK_S
 
 # Configure module logger
 logger = logging.getLogger(__name__)
-
-T = TypeVar("T")
-
-
-def _batched(iterable: list[T], n: int) -> Iterator[list[T]]:
-    """Batch data into lists of length n. The last batch may be shorter."""
-    it = iter(iterable)
-    while batch := list(islice(it, n)):
-        yield batch
 
 
 # =============================================================================
@@ -386,9 +377,9 @@ def ingest_private_texts(
     texts = [c.text for c in all_chunks]
     
     all_embeddings = []
-    for batch in _batched(texts, 32):
+    for batch in batched(texts, 32):
         embeddings = embed_model.encode(
-            batch,
+            list(batch),
             normalize_embeddings=True,
             show_progress_bar=False,
         )
