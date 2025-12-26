@@ -18,13 +18,16 @@ from backend.rag.ingest.constants import (
     TARGET_CHUNK_SIZE,
     CHUNK_OVERLAP,
     MIN_CHUNK_SIZE,
-    DOCS_DIR,
 )
 from backend.rag.ingest.chunking import estimate_tokens, recursive_split
 
 
 # Configure module logger
 logger = logging.getLogger(__name__)
+
+# Paths
+_BACKEND_ROOT = Path(__file__).parent.parent.parent
+DOCS_DIR = _BACKEND_ROOT / "data/docs"
 
 # Output file path (for backwards compatibility import)
 OUTPUT_DIR = Path("data/processed")
