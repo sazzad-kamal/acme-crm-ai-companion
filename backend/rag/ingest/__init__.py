@@ -7,7 +7,7 @@ Modules:
 - private_text: Private CRM text ingestion  
 - text_builder: Private text JSONL builder
 - chunking: Text chunking utilities
-- constants: Shared constants
+- constants: Chunking parameters
 
 Ingestion runs automatically at API startup if collections are missing.
 """
