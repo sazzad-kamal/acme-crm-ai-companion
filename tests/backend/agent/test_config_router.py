@@ -12,7 +12,7 @@ import os
 import pytest
 import tempfile
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, UTC
 
 # Set mock mode before imports
 os.environ["MOCK_LLM"] = "1"
@@ -94,7 +94,7 @@ class TestAgentAudit:
     def test_audit_entry_creation(self):
         """Test creating an audit entry."""
         entry = AgentAuditEntry(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             question="Test question",
             mode_used="data",
             company_id="C001",

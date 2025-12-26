@@ -37,9 +37,7 @@ DOCS_DIR = _BACKEND_ROOT / "data/docs"
 
 def extract_title(content: str, filename: str) -> str:
     """Extract the document title from first H1 heading or use filename."""
-    # Look for # Title at the start
-    match = re.match(r'^#\s+(.+?)(?:\n|$)', content.strip())
-    if match:
+    if match := re.match(r'^#\s+(.+?)(?:\n|$)', content.strip()):
         return match.group(1).strip()
     return filename.replace('_', ' ').replace('-', ' ').title()
 

@@ -9,9 +9,10 @@ import json
 import logging
 import math
 import random
-from pathlib import Path
-from typing import Any
 from collections import Counter
+from itertools import islice
+from pathlib import Path
+from typing import Any, Iterator, TypeVar
 
 import pandas as pd
 from rich.console import Console
@@ -33,6 +34,15 @@ from backend.rag.ingest.chunking import estimate_tokens, chunk_text, MIN_CHUNK_S
 
 # Configure module logger
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+def _batched(iterable: list[T], n: int) -> Iterator[list[T]]:
+    """Batch data into lists of length n. The last batch may be shorter."""
+    it = iter(iterable)
+    while batch := list(islice(it, n)):
+        yield batch
 
 
 # =============================================================================
@@ -219,29 +229,20 @@ def build_private_texts_jsonl(csv_dir: Path, out_path: Path) -> None:
 # =============================================================================
 
 def sanitize_value(value: Any) -> Any:
-    """
-    Sanitize a value for JSON serialization.
-    
-    Converts NaN, Inf, and other non-JSON-compliant values to None.
-    """
-    if value is None:
-        return None
-    if isinstance(value, float):
-        if math.isnan(value) or math.isinf(value):
+    """Sanitize a value for JSON serialization (handles NaN, Inf, etc)."""
+    match value:
+        case None:
             return None
-    if isinstance(value, str):
-        return value
-    if isinstance(value, (int, bool)):
-        return value
-    if isinstance(value, dict):
-        return {k: sanitize_value(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [sanitize_value(v) for v in value]
-    # For other types, try to convert to string
-    try:
-        return str(value) if value else None
-    except Exception:
-        return None
+        case float() if math.isnan(value) or math.isinf(value):
+            return None
+        case str() | int() | bool():
+            return value
+        case dict():
+            return {k: sanitize_value(v) for k, v in value.items()}
+        case list() | tuple():
+            return [sanitize_value(v) for v in value]
+        case _:
+            return str(value) if value else None
 
 
 # =============================================================================
@@ -267,34 +268,25 @@ def private_doc_to_chunks(doc: dict, chunk_idx_start: int = 0) -> list[DocumentC
     
     text_chunks = chunk_text(text)
     
-    chunks = []
-    for i, txt_chunk in enumerate(text_chunks):
-        chunk_id = f"{doc['id']}::chunk_{chunk_idx_start + i}"
-        
-        # Build metadata
-        metadata = {
-            "company_id": doc.get("company_id", ""),
-            "type": doc.get("type", ""),
-            "source_id": doc.get("id", ""),
-            "contact_id": doc.get("contact_id"),
-            "opportunity_id": doc.get("opportunity_id"),
-        }
-        
-        # Add original metadata
-        if "metadata" in doc:
-            for k, v in doc["metadata"].items():
-                metadata[k] = v
-        
-        chunk = DocumentChunk(
-            chunk_id=chunk_id,
+    # Base metadata for all chunks
+    base_metadata = {
+        "company_id": doc.get("company_id", ""),
+        "type": doc.get("type", ""),
+        "source_id": doc.get("id", ""),
+        "contact_id": doc.get("contact_id"),
+        "opportunity_id": doc.get("opportunity_id"),
+    } | doc.get("metadata", {})
+    
+    return [
+        DocumentChunk(
+            chunk_id=f"{doc['id']}::chunk_{chunk_idx_start + i}",
             doc_id=doc.get("id", ""),
             title=doc.get("title", ""),
             text=txt_chunk,
-            metadata=metadata,
+            metadata=base_metadata,
         )
-        chunks.append(chunk)
-    
-    return chunks
+        for i, txt_chunk in enumerate(text_chunks)
+    ]
 
 
 # =============================================================================
@@ -393,17 +385,15 @@ def ingest_private_texts(
     print("Embedding chunks...")
     texts = [c.text for c in all_chunks]
     
-    batch_size = 32
     all_embeddings = []
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i:i + batch_size]
+    for batch in _batched(texts, 32):
         embeddings = embed_model.encode(
             batch,
             normalize_embeddings=True,
             show_progress_bar=False,
         )
         all_embeddings.extend(embeddings)
-        print(f"  Embedded {min(i + batch_size, len(texts))}/{len(texts)} chunks")
+        print(f"  Embedded {len(all_embeddings)}/{len(texts)} chunks")
     
     # Build points
     print("\nUploading to Qdrant...")

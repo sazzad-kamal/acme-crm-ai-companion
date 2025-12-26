@@ -13,6 +13,7 @@ Logs are written to JSONL format for easy analysis.
 import json
 import logging
 from dataclasses import dataclass, asdict
+from datetime import datetime, UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -93,7 +94,7 @@ class AgentAuditLogger:
         config = get_config()
         
         entry = AgentAuditEntry(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             question=question[:500],  # Truncate long questions
             mode_used=mode_used,
             company_id=company_id,
