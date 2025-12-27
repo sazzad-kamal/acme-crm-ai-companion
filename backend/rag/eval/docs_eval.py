@@ -48,6 +48,7 @@ from backend.rag.eval.base import (
     format_check_mark,
     add_separator_row,
 )
+from backend.rag.eval.tracking import print_full_tracking_report
 
 
 # =============================================================================
@@ -122,6 +123,13 @@ def evaluate_question(
               f"answer={judge_result.answer_relevance}, "
               f"grounded={judge_result.groundedness}")
     
+    # Extract step timings from pipeline result
+    step_timings = {}
+    for step in result.get("steps", []):
+        step_id = step.get("id", "unknown")
+        elapsed = step.get("elapsed_ms", 0)
+        step_timings[step_id] = elapsed
+
     return EvalResult(
         question_id=question_id,
         question=question,
@@ -132,6 +140,7 @@ def evaluate_question(
         doc_recall=doc_recall,
         latency_ms=total_latency,
         total_tokens=result["metrics"]["total_tokens"],
+        step_timings=step_timings,
     )
 
 
@@ -380,7 +389,10 @@ def run(
         json.dump(results_data, f, indent=2)
     
     console.print(f"\n[dim]Results saved to {output}[/dim]")
-    
+
+    # Print tracking report (regression detection + budget analysis)
+    print_full_tracking_report(results, summary)
+
     # Exit code based on SLOs
     if not summary.all_slos_passed:
         console.print("\n[red bold]FAIL: One or more SLOs not met[/red bold]")

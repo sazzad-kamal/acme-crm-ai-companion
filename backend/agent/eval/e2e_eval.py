@@ -31,6 +31,7 @@ from rich.progress import track
 
 from backend.agent.orchestrator import answer_question
 from backend.agent.eval.models import E2EEvalResult, E2EEvalSummary
+from backend.agent.eval.tracking import print_e2e_tracking_report
 from backend.common.llm_client import call_llm
 
 
@@ -617,13 +618,16 @@ def main(
     """Run end-to-end agent evaluation."""
     results, summary = run_e2e_eval(limit=limit, verbose=verbose)
     print_e2e_eval_results(results, summary)
-    
+
+    # Print tracking report (regression detection + budget analysis)
+    print_e2e_tracking_report(results, summary)
+
     # Overall pass/fail
     overall_pass = (
         summary.answer_relevance_rate >= 0.8 and
         summary.groundedness_rate >= 0.8
     )
-    
+
     if overall_pass:
         console.print("\n[green bold]✓ PASS: E2E evaluation meets thresholds[/green bold]")
     else:

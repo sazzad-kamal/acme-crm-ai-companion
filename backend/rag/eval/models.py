@@ -57,6 +57,7 @@ class EvalResult(BaseModel):
     doc_recall: float  # What fraction of target docs were retrieved
     latency_ms: float
     total_tokens: int
+    step_timings: dict[str, float] = {}  # step_id -> elapsed_ms
 
 
 class AccountEvalResult(BaseModel):
