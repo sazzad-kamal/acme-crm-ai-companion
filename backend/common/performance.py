@@ -142,15 +142,18 @@ def timed_decorator(name: str | None = None) -> Callable[[Callable], Callable]:
             ...
     """
     def decorator(func: Callable) -> Callable:
+        """Wrap function with timing logic."""
         operation_name = name or func.__name__
 
         @wraps(func)
         def wrapper(*args: object, **kwargs: object) -> object:
+            """Synchronous wrapper that times the function call."""
             with timed(operation_name):
                 return func(*args, **kwargs)
 
         @wraps(func)
         async def async_wrapper(*args: object, **kwargs: object) -> object:
+            """Asynchronous wrapper that times the function call."""
             with timed(operation_name):
                 return await func(*args, **kwargs)
 

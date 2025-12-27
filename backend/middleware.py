@@ -20,6 +20,7 @@ else:
         from typing_extensions import override
     except ImportError:
         def override(func):  # type: ignore[misc]
+            """Fallback override decorator for Python < 3.12."""
             return func
 
 from fastapi import Request, Response, status
@@ -91,8 +92,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     @override
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Process request and apply rate limiting if enabled."""
         settings = get_settings()
-        
+
         # Skip if rate limiting disabled
         if not settings.rate_limit_enabled:
             return await call_next(request)
@@ -164,8 +166,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
     @override
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Process request with logging, timing, and request ID tracking."""
         settings = get_settings()
-        
+
         # Generate request ID
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
         
@@ -233,8 +236,9 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 
     @override
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Add cache control headers to prevent caching of API responses."""
         response = await call_next(request)
-        
+
         # Don't cache API responses
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"

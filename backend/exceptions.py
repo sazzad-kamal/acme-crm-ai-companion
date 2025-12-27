@@ -16,6 +16,7 @@ else:
         from typing_extensions import override
     except ImportError:
         def override(func):  # type: ignore[misc]
+            """Fallback override decorator for Python < 3.12."""
             return func
 
 from fastapi import HTTPException, status

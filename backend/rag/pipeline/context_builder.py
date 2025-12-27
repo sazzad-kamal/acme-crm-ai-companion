@@ -276,6 +276,7 @@ def build_private_context(
         Tuple of (context_string, sources_list)
     """
     def format_private_chunk(chunk: DocumentChunk, score: float | None) -> str:
+        """Format a private CRM chunk for context display."""
         source_id = chunk.metadata.get("source_id", chunk.doc_id)
         chunk_type = chunk.metadata.get("type", "unknown")
         
@@ -308,6 +309,7 @@ def build_docs_context(
         return "", []
     
     def format_doc_chunk(chunk: DocumentChunk, score: float | None) -> str:
+        """Format a product docs chunk for context display."""
         return f"[{chunk.doc_id}]\n{chunk.text}\n"
     
     builder = ContextBuilder(

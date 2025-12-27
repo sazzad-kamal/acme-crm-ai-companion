@@ -40,6 +40,7 @@ def format_raw_data_summary(raw_data: dict) -> str:
 
 
 def main() -> None:
+    """CLI entry point for the CRM Agent demo."""
     parser = argparse.ArgumentParser(
         description="CRM Agent CLI Demo",
         formatter_class=argparse.RawDescriptionHelpFormatter,

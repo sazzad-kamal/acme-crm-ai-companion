@@ -185,6 +185,7 @@ def run_all_evals(
     final_table.add_column("Status", justify="center")
     
     def status_icon(score: float, threshold: float, higher_better: bool = True) -> str:
+        """Return pass/fail icon based on score vs threshold."""
         if higher_better:
             passed = score >= threshold
         else:

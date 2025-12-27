@@ -62,6 +62,7 @@ def _group_by_key(
 def _create_simple_data_endpoint(file_name: str, is_jsonl: bool = False):
     """Factory for simple data endpoints without enrichment."""
     async def endpoint(settings: Settings = Depends(get_settings)) -> DataResponse:
+        """Load and return data from the specified file."""
         path = settings.data_dir / "csv" / file_name
         loader = load_jsonl_data if is_jsonl else load_csv_data
         data, columns = loader(path)
