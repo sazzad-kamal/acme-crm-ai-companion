@@ -23,10 +23,11 @@ import sys
 import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 # =============================================================================
 # Path Setup
@@ -146,10 +147,10 @@ def ensure_rag_collections_exist() -> None:
 # =============================================================================
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Application lifespan manager.
-    
+
     Handles startup and shutdown events.
     """
     settings = get_settings()
@@ -276,7 +277,7 @@ Talk to your CRM data using natural language.
     
     # Root redirect to docs
     @app.get("/", include_in_schema=False)
-    async def root():
+    async def root() -> RedirectResponse:
         """Redirect root to API docs."""
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/docs")

@@ -366,7 +366,7 @@ def _group_by_key(
 def _create_simple_data_endpoint(
     file_name: str,
     is_jsonl: bool = False,
-):
+) -> Callable[[Settings], DataResponse]:
     """Factory for simple data endpoints without enrichment."""
     async def endpoint(settings: Settings = Depends(get_settings)) -> DataResponse:
         path = settings.data_dir / "csv" / file_name
