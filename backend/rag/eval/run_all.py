@@ -32,7 +32,6 @@ _project_root = Path(__file__).parent.parent.parent.parent
 load_dotenv(_project_root / ".env")
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
@@ -47,9 +46,7 @@ from backend.rag.eval.models import (
     SLO_PRIVACY_LEAKAGE,
     SLO_LATENCY_P95_MS,
 )
-
-
-console = Console()
+from backend.rag.eval.base import console
 
 OUTPUT_PATH = Path("data/processed/rag_eval_results.json")
 BASELINE_PATH = Path("data/processed/rag_eval_baseline.json")
@@ -285,7 +282,7 @@ def main(
     no_save: bool = typer.Option(False, "--no-save", help="Don't save results"),
     baseline: str | None = typer.Option(None, "--baseline", help="Path to baseline JSON for regression comparison"),
     set_baseline: bool = typer.Option(False, "--set-baseline", help="Set current results as new baseline"),
-):
+) -> None:
     """Run complete RAG evaluation suite."""
     baseline_path = Path(baseline) if baseline else None
     

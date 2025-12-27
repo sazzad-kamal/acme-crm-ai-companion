@@ -345,7 +345,7 @@ def run(
         "--output", "-o",
         help="Output file for results",
     ),
-):
+) -> None:
     """Run evaluation on all test questions."""
     results, summary = run_evaluation(verbose=verbose)
     print_summary(results, summary)

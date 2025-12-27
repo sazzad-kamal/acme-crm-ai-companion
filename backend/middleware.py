@@ -5,11 +5,22 @@
 Custom middleware for logging, timing, request tracking, and rate limiting.
 """
 
+import sys
 import time
 import uuid
 import logging
 from collections import defaultdict
-from typing import Callable, override
+from typing import Callable
+
+# override is available in Python 3.12+, use fallback for earlier versions
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    try:
+        from typing_extensions import override
+    except ImportError:
+        def override(func):  # type: ignore[misc]
+            return func
 
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse

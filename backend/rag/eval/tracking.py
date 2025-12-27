@@ -11,15 +11,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
 from backend.rag.pipeline.constants import LATENCY_BUDGETS, TOTAL_LATENCY_BUDGET_MS
 from backend.rag.eval.models import DocsEvalSummary, EvalResult
-
-
-console = Console()
+from backend.rag.eval.base import console
 
 
 # =============================================================================

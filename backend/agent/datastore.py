@@ -69,9 +69,13 @@ def get_csv_base_path() -> Path:
 class CRMDataStore:
     """
     DuckDB-based CRM data store with lazy loading.
-    
+
     Loads CSV files on first access and provides query methods
     for common CRM operations.
+
+    Supports context manager for automatic cleanup:
+        with CRMDataStore() as store:
+            data = store.get_company("ACME-MFG")
     """
 
     def __init__(self, csv_path: Path | None = None) -> None:
@@ -87,6 +91,27 @@ class CRMDataStore:
         self._loaded_tables: set[str] = set()
         self._company_names_cache: dict[str, str] | None = None  # name -> id
         self._company_ids_cache: set[str] | None = None
+
+    def __enter__(self) -> "CRMDataStore":
+        """Enter context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        """Exit context manager and cleanup resources."""
+        self.close()
+        return False
+
+    def close(self) -> None:
+        """Close the database connection and cleanup resources."""
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+            self._conn = None
+        self._loaded_tables.clear()
+        self._company_names_cache = None
+        self._company_ids_cache = None
     
     @property
     def csv_path(self) -> Path:
@@ -729,54 +754,3 @@ def get_datastore() -> CRMDataStore:
 
 
 __all__ = ["CRMDataStore", "get_datastore", "get_csv_base_path"]
-
-
-# =============================================================================
-# Test
-# =============================================================================
-
-if __name__ == "__main__":
-    print("Testing CRMDataStore")
-    print("=" * 60)
-    
-    ds = get_datastore()
-    print(f"CSV path: {ds.csv_path}")
-    
-    # Test company resolution
-    print("\nResolving 'Acme Manufacturing'...")
-    cid = ds.resolve_company_id("Acme Manufacturing")
-    print(f"  -> {cid}")
-    
-    print("\nResolving 'ACME-MFG'...")
-    cid = ds.resolve_company_id("ACME-MFG")
-    print(f"  -> {cid}")
-    
-    print("\nResolving 'acme' (fuzzy)...")
-    cid = ds.resolve_company_id("acme")
-    print(f"  -> {cid}")
-    
-    # Get company
-    if cid:
-        print(f"\nCompany info for {cid}:")
-        company = ds.get_company(cid)
-        for k, v in (company or {}).items():
-            print(f"  {k}: {v}")
-    
-    # Get recent activities
-    if cid:
-        print(f"\nRecent activities for {cid}:")
-        activities = ds.get_recent_activities(cid, days=365)
-        for act in activities[:3]:
-            print(f"  - {act.get('type')}: {act.get('subject')}")
-    
-    # Get pipeline
-    if cid:
-        print(f"\nPipeline summary for {cid}:")
-        pipeline = ds.get_pipeline_summary(cid)
-        print(f"  Total open: {pipeline['total_count']} deals, ${pipeline['total_value']}")
-    
-    # Get renewals
-    print("\nUpcoming renewals (90 days):")
-    renewals = ds.get_upcoming_renewals(days=90)
-    for r in renewals[:3]:
-        print(f"  - {r.get('name')} ({r.get('company_id')}): {r.get('renewal_date')}")

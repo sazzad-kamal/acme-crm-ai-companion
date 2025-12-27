@@ -15,16 +15,18 @@ import time
 from typing import Optional
 
 import typer
-from rich.console import Console
 from rich.table import Table
 from rich.progress import track
 
 from backend.agent.router import route_question as heuristic_route
 from backend.agent.llm_router import route_question as llm_route
 from backend.agent.eval.models import RouterEvalResult, RouterEvalSummary
-
-
-console = Console()
+from backend.agent.eval.base import (
+    console,
+    create_summary_table,
+    format_percentage,
+    print_eval_header,
+)
 
 
 # =============================================================================
@@ -397,16 +399,19 @@ def run_router_eval(
 ) -> tuple[list[RouterEvalResult], RouterEvalSummary]:
     """
     Run all router evaluation tests.
-    
+
     Args:
         use_llm: Use LLM-based routing instead of heuristics
         verbose: Print detailed progress
-        
+
     Returns:
         Tuple of (results list, summary)
     """
     router_type = "LLM" if use_llm else "Heuristic"
-    console.print(f"\n[bold blue]═══ Router Evaluation ({router_type}) ═══[/bold blue]\n")
+    print_eval_header(
+        f"[bold blue]Router Evaluation ({router_type})[/bold blue]",
+        "Testing routing logic for mode, company, and intent",
+    )
     
     results = []
     
@@ -466,22 +471,14 @@ def run_router_eval(
 
 def print_router_eval_results(results: list[RouterEvalResult], summary: RouterEvalSummary) -> None:
     """Print router evaluation results."""
-    # Summary table
-    table = Table(title="Router Evaluation Summary", show_header=True)
-    table.add_column("Metric", style="dim")
-    table.add_column("Value", justify="right")
-    
+    # Summary table using shared helper
+    table = create_summary_table("Router Evaluation Summary")
+
     table.add_row("Total Tests", str(summary.total_tests))
-    
-    mode_color = "green" if summary.mode_accuracy >= 0.9 else "yellow" if summary.mode_accuracy >= 0.7 else "red"
-    table.add_row("Mode Accuracy", f"[{mode_color}]{summary.mode_accuracy:.1%}[/{mode_color}]")
-    
-    company_color = "green" if summary.company_extraction_accuracy >= 0.9 else "yellow"
-    table.add_row("Company Extraction", f"[{company_color}]{summary.company_extraction_accuracy:.1%}[/{company_color}]")
-    
-    intent_color = "green" if summary.intent_accuracy >= 0.9 else "yellow" if summary.intent_accuracy >= 0.7 else "red"
-    table.add_row("Intent Accuracy", f"[{intent_color}]{summary.intent_accuracy:.1%}[/{intent_color}]")
-    
+    table.add_row("Mode Accuracy", format_percentage(summary.mode_accuracy))
+    table.add_row("Company Extraction", format_percentage(summary.company_extraction_accuracy))
+    table.add_row("Intent Accuracy", format_percentage(summary.intent_accuracy))
+
     console.print(table)
     
     # By-mode breakdown
@@ -555,7 +552,7 @@ app = typer.Typer()
 def main(
     use_llm: bool = typer.Option(False, "--llm", help="Use LLM-based routing"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
-):
+) -> None:
     """Run router evaluation."""
     results, summary = run_router_eval(use_llm=use_llm, verbose=verbose)
     print_router_eval_results(results, summary)

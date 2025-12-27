@@ -92,7 +92,7 @@ class AgentAuditLogger:
             error: Error message (if query failed)
         """
         config = get_config()
-        
+
         entry = AgentAuditEntry(
             timestamp=datetime.now(UTC).isoformat(),
             question=question[:500],  # Truncate long questions

@@ -1,8 +1,8 @@
 """
-Base evaluation utilities for RAG evaluation.
+Base evaluation utilities for agent evaluation.
 
 Re-exports shared utilities from backend.common.eval_base
-and adds any RAG-specific helpers.
+for use by agent eval modules.
 """
 
 # Re-export all shared utilities

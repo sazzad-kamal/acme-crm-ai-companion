@@ -24,18 +24,19 @@ _project_root = Path(__file__).parent.parent.parent.parent
 load_dotenv(_project_root / ".env")
 
 import typer
-from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 from rich.progress import track
 
 from backend.agent.orchestrator import answer_question
 from backend.agent.eval.models import E2EEvalResult, E2EEvalSummary
 from backend.agent.eval.tracking import print_e2e_tracking_report
+from backend.agent.eval.base import (
+    console,
+    create_summary_table,
+    format_percentage,
+    print_eval_header,
+)
 from backend.common.llm_client import call_llm
-
-
-console = Console()
 
 
 # =============================================================================
@@ -481,15 +482,18 @@ def run_e2e_eval(
 ) -> tuple[list[E2EEvalResult], E2EEvalSummary]:
     """
     Run end-to-end evaluation.
-    
+
     Args:
         limit: Limit number of tests to run
         verbose: Print detailed progress
-        
+
     Returns:
         Tuple of (results list, summary)
     """
-    console.print("\n[bold blue]═══ End-to-End Agent Evaluation ═══[/bold blue]\n")
+    print_eval_header(
+        "[bold blue]End-to-End Agent Evaluation[/bold blue]",
+        "Testing full orchestrator pipeline",
+    )
     
     test_cases = E2E_TEST_CASES[:limit] if limit else E2E_TEST_CASES
     results = []
@@ -549,46 +553,35 @@ def run_e2e_eval(
 
 def print_e2e_eval_results(results: list[E2EEvalResult], summary: E2EEvalSummary) -> None:
     """Print end-to-end evaluation results."""
-    # Summary table
-    table = Table(title="E2E Evaluation Summary", show_header=True)
-    table.add_column("Metric", style="dim")
-    table.add_column("Value", justify="right")
-    
+    # Summary table using shared helper
+    table = create_summary_table("E2E Evaluation Summary")
+
     table.add_row("Total Tests", str(summary.total_tests))
-    
-    rel_color = "green" if summary.answer_relevance_rate >= 0.9 else "yellow" if summary.answer_relevance_rate >= 0.7 else "red"
-    table.add_row("Answer Relevance", f"[{rel_color}]{summary.answer_relevance_rate:.1%}[/{rel_color}]")
-    
-    ground_color = "green" if summary.groundedness_rate >= 0.9 else "yellow" if summary.groundedness_rate >= 0.7 else "red"
-    table.add_row("Groundedness", f"[{ground_color}]{summary.groundedness_rate:.1%}[/{ground_color}]")
-    
-    tool_color = "green" if summary.tool_selection_accuracy >= 0.9 else "yellow" if summary.tool_selection_accuracy >= 0.7 else "red"
-    table.add_row("Tool Selection", f"[{tool_color}]{summary.tool_selection_accuracy:.1%}[/{tool_color}]")
-    
+    table.add_row("Answer Relevance", format_percentage(summary.answer_relevance_rate))
+    table.add_row("Groundedness", format_percentage(summary.groundedness_rate))
+    table.add_row("Tool Selection", format_percentage(summary.tool_selection_accuracy))
     table.add_row("Avg Latency", f"{summary.avg_latency_ms:.0f}ms")
-    
+
     p95_color = "green" if summary.latency_slo_pass else "red"
     table.add_row("P95 Latency", f"[{p95_color}]{summary.p95_latency_ms:.0f}ms[/{p95_color}]")
-    
+
     console.print(table)
-    
+
     # By-category breakdown
     cat_table = Table(title="Results by Category", show_header=True)
     cat_table.add_column("Category")
     cat_table.add_column("Tests", justify="right")
     cat_table.add_column("Relevance", justify="right")
     cat_table.add_column("Grounded", justify="right")
-    
+
     for cat, stats in sorted(summary.by_category.items()):
-        rel_color = "green" if stats["relevance_rate"] >= 0.9 else "yellow"
-        ground_color = "green" if stats["groundedness_rate"] >= 0.9 else "yellow"
         cat_table.add_row(
             cat,
             str(stats["count"]),
-            f"[{rel_color}]{stats['relevance_rate']:.0%}[/{rel_color}]",
-            f"[{ground_color}]{stats['groundedness_rate']:.0%}[/{ground_color}]",
+            format_percentage(stats["relevance_rate"]),
+            format_percentage(stats["groundedness_rate"]),
         )
-    
+
     console.print(cat_table)
     
     # Show issues
@@ -614,7 +607,7 @@ app = typer.Typer()
 def main(
     limit: int | None = typer.Option(None, "--limit", "-l", help="Limit tests to run"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
-):
+) -> None:
     """Run end-to-end agent evaluation."""
     results, summary = run_e2e_eval(limit=limit, verbose=verbose)
     print_e2e_eval_results(results, summary)

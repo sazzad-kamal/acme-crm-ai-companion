@@ -10,14 +10,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
 from backend.agent.eval.models import E2EEvalSummary
-
-
-console = Console()
+from backend.agent.eval.base import console
 
 
 # =============================================================================

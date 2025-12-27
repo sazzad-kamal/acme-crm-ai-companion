@@ -25,17 +25,19 @@ _project_root = Path(__file__).parent.parent.parent.parent
 load_dotenv(_project_root / ".env")
 
 import typer
-from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 from rich.progress import track
 
 from backend.agent.config import reset_config
 from backend.agent.eval.e2e_eval import E2E_TEST_CASES, judge_e2e_response
 from backend.agent.eval.models import SLO_LATENCY_P95_MS
-
-
-console = Console()
+from backend.agent.eval.base import (
+    console,
+    format_check_mark,
+    format_percentage,
+    format_delta,
+    print_eval_header,
+)
 app = typer.Typer(help="A/B Evaluation for agent configurations")
 
 
@@ -207,11 +209,10 @@ def run_agent_ab_evaluation(
     Returns:
         List of results per configuration
     """
-    console.print(Panel(
+    print_eval_header(
+        "[bold blue]Agent A/B Evaluation[/bold blue]",
         "Running A/B comparison across agent configurations",
-        title="[bold blue]Agent A/B Evaluation[/bold blue]",
-        border_style="blue",
-    ))
+    )
 
     # Use E2E test cases
     questions = E2E_TEST_CASES[:limit] if limit else E2E_TEST_CASES
@@ -250,21 +251,14 @@ def print_agent_ab_results(results: list[dict[str, Any]]) -> None:
     table.add_column("Grounded", justify="right")
 
     for r in results_sorted:
-        llm_router = "[green]✓[/green]" if r["use_llm_router"] else "[red]✗[/red]"
-        followups = "[green]✓[/green]" if r["follow_ups"] else "[red]✗[/red]"
-        docs = "[green]✓[/green]" if r["docs_integration"] else "[red]✗[/red]"
-
-        rel_color = "green" if r["answer_relevance"] >= 0.8 else "yellow" if r["answer_relevance"] >= 0.6 else "red"
-        gnd_color = "green" if r["answer_grounded"] >= 0.8 else "yellow" if r["answer_grounded"] >= 0.6 else "red"
-
         table.add_row(
             r["config_name"],
-            llm_router,
-            followups,
-            docs,
+            format_check_mark(r["use_llm_router"]),
+            format_check_mark(r["follow_ups"]),
+            format_check_mark(r["docs_integration"]),
             f"{r['avg_latency_ms']:.0f}ms",
-            f"[{rel_color}]{r['answer_relevance']:.1%}[/{rel_color}]",
-            f"[{gnd_color}]{r['answer_grounded']:.1%}[/{gnd_color}]",
+            format_percentage(r["answer_relevance"], (0.8, 0.6)),
+            format_percentage(r["answer_grounded"], (0.8, 0.6)),
         )
 
     console.print(table)
@@ -293,7 +287,7 @@ def print_agent_ab_results(results: list[dict[str, Any]]) -> None:
 
             impact_table.add_row(
                 feature,
-                f"[red]{quality_delta:+.1%}[/red]" if quality_delta < 0 else f"[green]{quality_delta:+.1%}[/green]",
+                format_delta(quality_delta, is_positive_good=True),
                 f"[green]{latency_delta:+.0f}ms[/green]" if latency_delta > 0 else f"{latency_delta:.0f}ms",
             )
 
@@ -325,7 +319,7 @@ def run(
         "--configs", "-c",
         help="Comma-separated configs to run (default: all)",
     ),
-):
+) -> None:
     """Run A/B evaluation across agent configurations."""
     config_list = configs.split(",") if configs else None
 
@@ -335,7 +329,7 @@ def run(
 
 
 @app.command()
-def quick():
+def quick() -> None:
     """Quick A/B test with 5 questions and 3 main configs."""
     results = run_agent_ab_evaluation(
         limit=5,

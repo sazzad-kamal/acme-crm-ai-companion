@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from rich.console import Console
 from rich.table import Table
 from rich.progress import track
 
@@ -40,9 +39,12 @@ from backend.agent.tools import (
 )
 from backend.agent.datastore import get_datastore
 from backend.agent.eval.models import ToolEvalResult, ToolEvalSummary
-
-
-console = Console()
+from backend.agent.eval.base import (
+    console,
+    create_summary_table,
+    format_percentage,
+    print_eval_header,
+)
 
 
 # =============================================================================
@@ -442,11 +444,14 @@ def run_tool_test(test_case: dict, verbose: bool = False) -> ToolEvalResult:
 def run_tool_eval(verbose: bool = False) -> tuple[list[ToolEvalResult], ToolEvalSummary]:
     """
     Run all tool evaluation tests.
-    
+
     Returns:
         Tuple of (results list, summary)
     """
-    console.print("\n[bold blue]═══ Tool Evaluation ═══[/bold blue]\n")
+    print_eval_header(
+        "[bold blue]Tool Evaluation[/bold blue]",
+        "Testing agent tools for correctness",
+    )
     
     results = []
     
@@ -488,16 +493,14 @@ def run_tool_eval(verbose: bool = False) -> tuple[list[ToolEvalResult], ToolEval
 
 def print_tool_eval_results(results: list[ToolEvalResult], summary: ToolEvalSummary) -> None:
     """Print tool evaluation results."""
-    # Summary table
-    table = Table(title="Tool Evaluation Summary", show_header=True)
-    table.add_column("Metric", style="dim")
-    table.add_column("Value", justify="right")
-    
+    # Summary table using shared helper
+    table = create_summary_table("Tool Evaluation Summary")
+
     table.add_row("Total Tests", str(summary.total_tests))
     table.add_row("Passed", f"[green]{summary.passed}[/green]")
     table.add_row("Failed", f"[red]{summary.failed}[/red]")
-    table.add_row("Accuracy", f"{summary.accuracy:.1%}")
-    
+    table.add_row("Accuracy", format_percentage(summary.accuracy))
+
     console.print(table)
     
     # By-tool breakdown

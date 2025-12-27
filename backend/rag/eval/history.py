@@ -15,14 +15,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
 from backend.rag.eval.models import DocsEvalSummary
-
-
-console = Console()
+from backend.rag.eval.base import console
 
 
 # =============================================================================

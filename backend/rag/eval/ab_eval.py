@@ -21,18 +21,20 @@ _project_root = Path(__file__).parent.parent.parent.parent
 load_dotenv(_project_root / ".env")
 
 import typer
-from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 from rich.progress import track
 
 from backend.rag.retrieval.base import create_backend
 from backend.rag.pipeline.docs import answer_question
 from backend.rag.eval.docs_eval import load_eval_questions
 from backend.rag.eval.judge import judge_response
-
-
-console = Console()
+from backend.rag.eval.base import (
+    console,
+    format_check_mark,
+    format_percentage,
+    format_delta,
+    print_eval_header,
+)
 app = typer.Typer(help="A/B Evaluation for pipeline configurations")
 
 
@@ -172,11 +174,10 @@ def run_ab_evaluation(
     Returns:
         List of results per configuration
     """
-    console.print(Panel(
+    print_eval_header(
+        "[bold blue]RAG A/B Evaluation[/bold blue]",
         "Running A/B comparison across pipeline configurations",
-        title="[bold blue]A/B Evaluation[/bold blue]",
-        border_style="blue",
-    ))
+    )
 
     # Load questions
     questions = load_eval_questions()
@@ -223,22 +224,14 @@ def print_ab_results(results: list[dict[str, Any]]) -> None:
     table.add_column("Recall", justify="right")
 
     for r in results_sorted:
-        hyde = "[green]✓[/green]" if r["use_hyde"] else "[red]✗[/red]"
-        rewrite = "[green]✓[/green]" if r["use_rewrite"] else "[red]✗[/red]"
-        reranker = "[green]✓[/green]" if r["use_reranker"] else "[red]✗[/red]"
-
-        # Color code quality
-        triad_color = "green" if r["rag_triad"] >= 0.8 else "yellow" if r["rag_triad"] >= 0.6 else "red"
-        recall_color = "green" if r["doc_recall"] >= 0.7 else "yellow" if r["doc_recall"] >= 0.5 else "red"
-
         table.add_row(
             r["config_name"],
-            hyde,
-            rewrite,
-            reranker,
+            format_check_mark(r["use_hyde"]),
+            format_check_mark(r["use_rewrite"]),
+            format_check_mark(r["use_reranker"]),
             f"{r['avg_latency_ms']:.0f}ms",
-            f"[{triad_color}]{r['rag_triad']:.1%}[/{triad_color}]",
-            f"[{recall_color}]{r['doc_recall']:.1%}[/{recall_color}]",
+            format_percentage(r["rag_triad"], (0.8, 0.6)),
+            format_percentage(r["doc_recall"], (0.7, 0.5)),
         )
 
     console.print(table)
@@ -267,7 +260,7 @@ def print_ab_results(results: list[dict[str, Any]]) -> None:
 
             impact_table.add_row(
                 feature,
-                f"[red]{quality_delta:+.1%}[/red]" if quality_delta < 0 else f"[green]{quality_delta:+.1%}[/green]",
+                format_delta(quality_delta, is_positive_good=True),
                 f"[green]{latency_delta:+.0f}ms[/green]" if latency_delta > 0 else f"{latency_delta:.0f}ms",
                 f"{efficiency:.1f}ms/%",
             )
@@ -321,7 +314,7 @@ def run(
         "--configs", "-c",
         help="Comma-separated configs to run (default: all)",
     ),
-):
+) -> None:
     """Run A/B evaluation across pipeline configurations."""
     config_list = configs.split(",") if configs else None
 
@@ -331,7 +324,7 @@ def run(
 
 
 @app.command()
-def quick():
+def quick() -> None:
     """Quick A/B test with just 3 questions and 4 main configs."""
     results = run_ab_evaluation(
         limit=3,

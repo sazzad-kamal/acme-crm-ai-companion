@@ -374,7 +374,7 @@ def run(
         "--output", "-o",
         help="Output file for results",
     ),
-):
+) -> None:
     """Run evaluation on generated account questions."""
     # Run evaluation
     results, summary = run_evaluation(verbose=verbose)
