@@ -21,7 +21,7 @@ import time
 
 
 from backend.rag.retrieval.private import PrivateRetrievalBackend, create_private_backend
-from backend.rag.retrieval.base import create_backend as create_docs_backend
+from backend.rag.retrieval.base import RetrievalBackend, create_backend as create_docs_backend
 from backend.rag.pipeline.constants import MAX_CONTEXT_TOKENS
 from backend.rag.pipeline.utils import estimate_tokens
 from backend.rag.pipeline.context_builder import build_private_context, build_docs_context
@@ -172,7 +172,7 @@ def get_private_backend() -> PrivateRetrievalBackend:
     return _private_backend
 
 
-def get_docs_backend():
+def get_docs_backend() -> RetrievalBackend | None:
     """Get or create docs retrieval backend (optional)."""
     global _docs_backend
     if _docs_backend is None:

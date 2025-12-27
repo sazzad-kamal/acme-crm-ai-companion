@@ -72,13 +72,13 @@ class CRMDataStore:
     Loads CSV files on first access and provides query methods
     for common CRM operations.
     """
-    
-    def __init__(self, csv_path: Path | None = None):
+
+    def __init__(self, csv_path: Path | None = None) -> None:
         """
         Initialize the data store.
-        
+
         Args:
-            csv_path: Optional path to CSV directory. 
+            csv_path: Optional path to CSV directory.
                       If not provided, uses auto-detection.
         """
         self._csv_path = csv_path
@@ -147,12 +147,12 @@ class CRMDataStore:
         columns = [d[0] for d in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
     
-    def _ensure_core_tables(self):
+    def _ensure_core_tables(self) -> None:
         """Load all required core tables."""
         for table in REQUIRED_TABLES:
             self._ensure_table(table)
-    
-    def _build_company_cache(self):
+
+    def _build_company_cache(self) -> None:
         """Build the company name -> ID cache."""
         if self._company_names_cache is not None:
             return

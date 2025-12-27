@@ -53,7 +53,7 @@ def _load_companies_df() -> pd.DataFrame:
     return pd.read_csv(companies_path)
 
 
-def clear_cache():
+def clear_cache() -> None:
     """Clear the companies cache (useful for testing)."""
     _load_companies_df.cache_clear()
 
@@ -65,7 +65,7 @@ def clear_cache():
 class CompanyResolver:
     """
     Unified company resolution with multiple matching strategies.
-    
+
     Provides:
     - Exact ID matching
     - Exact name matching (case-insensitive)
@@ -73,8 +73,8 @@ class CompanyResolver:
     - Contains matching
     - Fuzzy matching (using difflib)
     """
-    
-    def __init__(self, df: pd.DataFrame | None = None):
+
+    def __init__(self, df: pd.DataFrame | None = None) -> None:
         """
         Initialize resolver.
         
@@ -94,7 +94,7 @@ class CompanyResolver:
             self._df = _load_companies_df()
         return self._df
     
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> None:
         """Build internal caches."""
         if self._initialized:
             return

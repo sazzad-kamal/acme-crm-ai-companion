@@ -536,7 +536,7 @@ app = typer.Typer()
 
 
 @app.command()
-def main(verbose: bool = False):
+def main(verbose: bool = False) -> None:
     """Run tool evaluation."""
     results, summary = run_tool_eval(verbose=verbose)
     print_tool_eval_results(results, summary)

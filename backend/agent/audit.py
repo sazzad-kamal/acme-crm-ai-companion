@@ -53,8 +53,8 @@ class AgentAuditLogger:
     
     Writes structured JSONL entries for analysis and debugging.
     """
-    
-    def __init__(self, log_file: Path | None = None):
+
+    def __init__(self, log_file: Path | None = None) -> None:
         """Initialize the audit logger."""
         config = get_config()
         self.log_file = log_file or config.audit_log_file

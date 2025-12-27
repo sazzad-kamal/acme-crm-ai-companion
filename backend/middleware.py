@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 class RateLimitStore:
     """Simple in-memory rate limit store."""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         self.requests: dict[str, list[float]] = defaultdict(list)
     
     def is_rate_limited(self, client_id: str, max_requests: int, window_seconds: int) -> bool:

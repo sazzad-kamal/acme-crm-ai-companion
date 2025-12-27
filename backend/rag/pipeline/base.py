@@ -27,11 +27,11 @@ class PipelineProgress:
     
     Useful for UI progress indicators and debugging.
     """
-    
-    def __init__(self, callback: Callable[[str, str, float], None] | None = None):
+
+    def __init__(self, callback: Callable[[str, str, float], None] | None = None) -> None:
         """
         Initialize progress tracker.
-        
+
         Args:
             callback: Optional function called with (step_id, label, elapsed_ms)
         """

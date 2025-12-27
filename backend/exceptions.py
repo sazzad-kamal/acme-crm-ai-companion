@@ -5,7 +5,12 @@
 Standardized error responses for the API.
 """
 
-from typing import Any, Optional, override
+from typing import Any, Optional
+try:
+    from typing import override  # Python 3.12+
+except ImportError:
+    from typing_extensions import override  # Python 3.11
+
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 
@@ -54,7 +59,7 @@ class ValidationError(APIError):
     """Request validation error."""
 
     @override
-    def __init__(self, message: str, field: str | None = None):
+    def __init__(self, message: str, field: str | None = None) -> None:
         details = [ErrorDetail(code="VALIDATION_ERROR", message=message, field=field)]
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -68,7 +73,7 @@ class NotFoundError(APIError):
     """Resource not found error."""
 
     @override
-    def __init__(self, resource: str, identifier: str):
+    def __init__(self, resource: str, identifier: str) -> None:
         message = f"{resource} not found: {identifier}"
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -81,7 +86,7 @@ class RateLimitError(APIError):
     """Rate limit exceeded."""
 
     @override
-    def __init__(self, retry_after: int = 60):
+    def __init__(self, retry_after: int = 60) -> None:
         super().__init__(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             message=f"Rate limit exceeded. Retry after {retry_after} seconds.",
@@ -93,7 +98,7 @@ class AgentError(APIError):
     """Error from the agent pipeline."""
 
     @override
-    def __init__(self, message: str, details: dict | None = None):
+    def __init__(self, message: str, details: dict | None = None) -> None:
         error_details = [ErrorDetail(code="AGENT_ERROR", message=message, details=details)] if details else None
         super().__init__(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

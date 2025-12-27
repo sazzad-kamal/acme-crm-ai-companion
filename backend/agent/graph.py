@@ -870,7 +870,7 @@ graph TD
 """
 
 
-def print_graph_ascii():
+def print_graph_ascii() -> None:
     """Print ASCII representation of the graph."""
     print("""
     ┌─────────────────────────────────────────────────────────────┐

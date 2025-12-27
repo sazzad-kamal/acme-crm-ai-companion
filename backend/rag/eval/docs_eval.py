@@ -391,7 +391,7 @@ def run(
         console.print("\n[green bold]✓ PASS: All SLOs met[/green bold]")
 
 
-def main():
+def main() -> None:
     """Main entrypoint for evaluation."""
     app()
 
