@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ChatMessage, ChatResponse, ChatRequest, Source, Step } from "../types";
 import { config } from "../config";
+import { checkHttpResponse, isAbortError, CONNECTION_ERROR_MESSAGE } from "../utils/http";
 
 // =============================================================================
 // Types
@@ -146,10 +147,7 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
           signal: abortControllerRef.current.signal,
         });
 
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => "Unknown error");
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
+        await checkHttpResponse(response);
 
         // Read the stream
         const reader = response.body?.getReader();
@@ -261,15 +259,10 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
         }
 
       } catch (err) {
-        // Don't show error if request was aborted
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
+        if (isAbortError(err)) return;
 
         const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Unable to reach the assistant. Please check that the backend is running.";
+          err instanceof Error ? err.message : CONNECTION_ERROR_MESSAGE;
 
         console.error("Chat stream error:", err);
         setError(errorMessage);

@@ -7,7 +7,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { useDataFetch } from "../../hooks/useDataFetch";
 import { DataTable } from "./DataTable";
-import { TABS, type DataTab } from "./types";
+import { TABS, type DataTab } from "../../types/dataExplorer";
 
 // =============================================================================
 // Types

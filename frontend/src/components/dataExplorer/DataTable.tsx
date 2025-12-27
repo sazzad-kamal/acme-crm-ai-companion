@@ -2,7 +2,7 @@
  * Data table component for displaying CRM records with expandable nested data.
  */
 import React, { useState, memo } from "react";
-import type { DataTab, NestedFieldConfig } from "./types";
+import type { DataTab, NestedFieldConfig } from "../../types/dataExplorer";
 import { NestedData } from "./NestedDataDisplay";
 
 // =============================================================================

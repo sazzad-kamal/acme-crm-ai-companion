@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ChatMessage, ChatResponse, ChatRequest } from "../types";
 import { endpoints } from "../config";
+import { checkHttpResponse, isAbortError, CONNECTION_ERROR_MESSAGE } from "../utils/http";
 
 interface UseChatOptions {
   onError?: (error: Error) => void;
@@ -73,10 +74,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           signal: abortControllerRef.current.signal,
         });
 
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => "Unknown error");
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
+        await checkHttpResponse(response);
 
         const data: ChatResponse = await response.json();
 
@@ -87,15 +85,10 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           )
         );
       } catch (err) {
-        // Don't show error if request was aborted
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
+        if (isAbortError(err)) return;
 
         const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Unable to reach the assistant. Please check that the backend is running.";
+          err instanceof Error ? err.message : CONNECTION_ERROR_MESSAGE;
 
         console.error("Chat API error:", err);
         setError(errorMessage);

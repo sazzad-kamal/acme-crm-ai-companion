@@ -3,7 +3,7 @@
  */
 import { useState, useEffect } from "react";
 import { config } from "../config";
-import type { DataResponse } from "../components/dataExplorer/types";
+import type { DataResponse } from "../types/dataExplorer";
 
 interface UseDataFetchReturn {
   data: DataResponse | null;

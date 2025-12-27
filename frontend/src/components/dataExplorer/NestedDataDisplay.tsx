@@ -1,7 +1,7 @@
 /**
  * Components for displaying nested/expanded data in DataExplorer tables.
  */
-import type { NestedFieldConfig } from "./types";
+import type { NestedFieldConfig } from "../../types/dataExplorer";
 
 // =============================================================================
 // Types
