@@ -5,11 +5,7 @@
 Standardized error responses for the API.
 """
 
-from typing import Any, Optional
-try:
-    from typing import override  # Python 3.12+
-except ImportError:
-    from typing_extensions import override  # Python 3.11
+from typing import Any, Optional, override
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
