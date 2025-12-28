@@ -54,6 +54,11 @@ class MetaInfo(BaseModel):
     latency_ms: int
     company_id: str | None = None
     days: int | None = None
+    # Per-node latency breakdown (for performance monitoring)
+    router_latency_ms: int | None = None
+    fetch_latency_ms: int | None = None
+    answer_latency_ms: int | None = None
+    followup_latency_ms: int | None = None
 
 
 # =============================================================================

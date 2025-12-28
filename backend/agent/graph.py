@@ -36,14 +36,18 @@ Usage:
     result = run_agent("What's going on with Acme Manufacturing?")
 """
 
+import hashlib
 import logging
 import time
 import uuid
+from functools import lru_cache
+from typing import Any
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-from backend.agent.state import AgentState
+from backend.agent.state import AgentState, Message
 from backend.agent.nodes import (
     route_node,
     fetch_node,
@@ -51,7 +55,6 @@ from backend.agent.nodes import (
     followup_node,
 )
 from backend.agent.audit import AgentAuditLogger
-from backend.agent.memory import get_conversation_history, add_message
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +66,55 @@ logger = logging.getLogger(__name__)
 
 # Global checkpointer for conversation persistence
 _checkpointer = MemorySaver()
+
+
+# =============================================================================
+# Query Cache
+# =============================================================================
+
+# Cache for repeated identical queries (max 128 entries)
+_query_cache: dict[str, tuple[dict, float]] = {}
+_CACHE_MAX_SIZE = 128
+_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+
+def _make_cache_key(question: str, mode: str, company_id: str | None) -> str:
+    """Generate cache key from query parameters."""
+    key_data = f"{question.lower().strip()}|{mode}|{company_id or ''}"
+    return hashlib.sha256(key_data.encode()).hexdigest()[:16]
+
+
+def _get_cached_result(cache_key: str) -> dict | None:
+    """Get cached result if valid (not expired)."""
+    if cache_key in _query_cache:
+        result, timestamp = _query_cache[cache_key]
+        if time.time() - timestamp < _CACHE_TTL_SECONDS:
+            logger.debug(f"[Cache] Hit for key {cache_key}")
+            return result
+        else:
+            # Expired, remove from cache
+            del _query_cache[cache_key]
+            logger.debug(f"[Cache] Expired key {cache_key}")
+    return None
+
+
+def _set_cached_result(cache_key: str, result: dict) -> None:
+    """Store result in cache with timestamp."""
+    # Evict oldest entries if cache is full
+    if len(_query_cache) >= _CACHE_MAX_SIZE:
+        # Remove oldest entry (first inserted)
+        oldest_key = next(iter(_query_cache))
+        del _query_cache[oldest_key]
+        logger.debug(f"[Cache] Evicted oldest key {oldest_key}")
+
+    _query_cache[cache_key] = (result, time.time())
+    logger.debug(f"[Cache] Stored key {cache_key}")
+
+
+def clear_query_cache() -> None:
+    """Clear the query cache (useful for testing)."""
+    _query_cache.clear()
+    logger.debug("[Cache] Cleared all entries")
 
 
 # =============================================================================
@@ -112,8 +164,51 @@ agent_graph = build_agent_graph()
 
 
 # =============================================================================
+# Transient Errors for Retry
+# =============================================================================
+
+class TransientAgentError(Exception):
+    """Transient error that should trigger a retry."""
+    pass
+
+
+# =============================================================================
 # Runner Function
 # =============================================================================
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=0.5, min=0.5, max=4),
+    retry=retry_if_exception_type(TransientAgentError),
+    reraise=True,
+)
+def _execute_graph(
+    initial_state: AgentState,
+    config: dict,
+) -> dict:
+    """
+    Execute the graph with retry logic for transient failures.
+
+    Args:
+        initial_state: The initial agent state
+        config: LangGraph config with thread_id
+
+    Returns:
+        Final state from graph execution
+
+    Raises:
+        TransientAgentError: For retriable errors (network, timeout)
+        Exception: For non-retriable errors
+    """
+    try:
+        return agent_graph.invoke(initial_state, config=config)
+    except ConnectionError as e:
+        logger.warning(f"[Agent] Transient connection error, will retry: {e}")
+        raise TransientAgentError(str(e)) from e
+    except TimeoutError as e:
+        logger.warning(f"[Agent] Transient timeout error, will retry: {e}")
+        raise TransientAgentError(str(e)) from e
+
 
 def run_agent(
     question: str,
@@ -121,6 +216,7 @@ def run_agent(
     company_id: str | None = None,
     session_id: str | None = None,
     user_id: str | None = None,
+    use_cache: bool = True,
 ) -> dict:
     """
     Run the agent graph and return formatted response.
@@ -135,16 +231,35 @@ def run_agent(
         company_id: Pre-specified company ID
         session_id: Optional session ID (used as thread_id for checkpointing)
         user_id: Optional user ID
+        use_cache: Whether to use query cache (default True)
 
     Returns:
         Dict matching ChatResponse schema
     """
     start_time = time.time()
 
-    # Load conversation history for multi-turn support (legacy + fallback)
-    messages = get_conversation_history(session_id)
-    if messages:
-        logger.debug(f"[Agent] Loaded {len(messages)} messages from session {session_id}")
+    # Check query cache first (only for non-session queries to avoid stale context)
+    cache_key = None
+    if use_cache and not session_id:
+        cache_key = _make_cache_key(question, mode, company_id)
+        cached = _get_cached_result(cache_key)
+        if cached:
+            logger.info(f"[Agent] Cache hit, returning cached result")
+            # Update latency to reflect cache hit
+            cached_copy = cached.copy()
+            cached_copy["meta"] = cached["meta"].copy()
+            cached_copy["meta"]["latency_ms"] = int((time.time() - start_time) * 1000)
+            cached_copy["meta"]["cached"] = True
+            return cached_copy
+
+    # Load conversation history from LangGraph checkpoint
+    messages: list[Message] = []
+    if session_id:
+        checkpoint_state = get_session_state(session_id)
+        if checkpoint_state:
+            messages = checkpoint_state.get("messages", [])
+            if messages:
+                logger.debug(f"[Agent] Loaded {len(messages)} messages from checkpoint")
 
     # Initialize state
     initial_state: AgentState = {
@@ -167,25 +282,18 @@ def run_agent(
     if session_id:
         logger.debug(f"[Agent] Using LangGraph checkpointing with thread_id={session_id}")
 
-    # Run the graph
+    # Run the graph with retry logic
     logger.info(f"[Agent] Starting graph execution for: {question[:50]}...")
 
     try:
-        # Invoke with config for checkpointing
-        final_state = agent_graph.invoke(initial_state, config=config)
+        final_state = _execute_graph(initial_state, config)
+    except TransientAgentError as e:
+        # Retries exhausted
+        logger.error(f"[Agent] Graph execution failed after retries: {e}")
+        return _build_error_response(str(e), start_time)
     except Exception as e:
         logger.error(f"[Agent] Graph execution failed: {e}")
-        return {
-            "answer": f"I'm sorry, I encountered an error: {str(e)}",
-            "sources": [],
-            "steps": [{"id": "error", "label": f"Error: {str(e)[:50]}", "status": "error"}],
-            "raw_data": {},
-            "follow_up_suggestions": [],
-            "meta": {
-                "mode_used": "error",
-                "latency_ms": int((time.time() - start_time) * 1000),
-            }
-        }
+        return _build_error_response(str(e), start_time)
 
     latency_ms = int((time.time() - start_time) * 1000)
 
@@ -203,17 +311,8 @@ def run_agent(
 
     logger.info(f"[Agent] Complete in {latency_ms}ms")
 
-    # Save conversation to memory for multi-turn support
-    # TODO: This is redundant with LangGraph checkpointing. The dual storage exists because:
-    #   - Legacy memory is used by get_last_company_context() for pronoun resolution
-    #   - LangGraph MemorySaver checkpoints full state automatically
-    # Future: Migrate fully to LangGraph checkpointing and remove legacy memory
-    resolved_company = final_state.get("resolved_company_id")
-    add_message(session_id, "user", question, resolved_company)
-    add_message(session_id, "assistant", final_state.get("answer", ""), resolved_company)
-
-    # Build response
-    return {
+    # Build response with per-node latencies
+    result = {
         "answer": final_state.get("answer", ""),
         "sources": [s.model_dump() if hasattr(s, 'model_dump') else s for s in final_state.get("sources", [])],
         "steps": final_state.get("steps", []),
@@ -224,6 +323,36 @@ def run_agent(
             "latency_ms": latency_ms,
             "company_id": final_state.get("resolved_company_id"),
             "days": final_state.get("days", 90),
+            # Per-node latency breakdown
+            "router_latency_ms": final_state.get("router_latency_ms"),
+            "fetch_latency_ms": final_state.get("fetch_latency_ms"),
+            "answer_latency_ms": final_state.get("answer_latency_ms"),
+            "followup_latency_ms": final_state.get("followup_latency_ms"),
+        }
+    }
+
+    # Cache result for non-session queries
+    if cache_key:
+        _set_cached_result(cache_key, result)
+
+    return result
+
+
+def _build_error_response(error: str, start_time: float) -> dict:
+    """Build error response with consistent structure."""
+    return {
+        "answer": f"I'm sorry, I encountered an error: {error}",
+        "sources": [],
+        "steps": [{"id": "error", "label": f"Error: {error[:50]}", "status": "error"}],
+        "raw_data": {},
+        "follow_up_suggestions": [],
+        "meta": {
+            "mode_used": "error",
+            "latency_ms": int((time.time() - start_time) * 1000),
+            "router_latency_ms": None,
+            "fetch_latency_ms": None,
+            "answer_latency_ms": None,
+            "followup_latency_ms": None,
         }
     }
 
@@ -347,6 +476,10 @@ __all__ = [
     # Checkpointing
     "get_checkpointer",
     "get_session_state",
+    # Cache
+    "clear_query_cache",
+    # Errors
+    "TransientAgentError",
 ]
 
 
