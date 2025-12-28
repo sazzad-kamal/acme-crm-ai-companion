@@ -72,7 +72,7 @@ def _get_followup_chain():
     config = get_config()
 
     llm = ChatOpenAI(
-        model=config.llm_model,
+        model=config.router_model,  # Use fast model for suggestions (not critical path)
         temperature=0.7,  # Slightly creative for varied suggestions
         api_key=os.environ.get("OPENAI_API_KEY"),
         max_tokens=150,
