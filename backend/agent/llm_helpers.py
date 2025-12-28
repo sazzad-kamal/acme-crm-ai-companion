@@ -215,43 +215,6 @@ def call_not_found_chain(
     return answer, latency_ms
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=10),
-    retry=retry_if_exception_type((TimeoutError, ConnectionError)),
-    before_sleep=before_sleep_log(logger, logging.WARNING),
-    reraise=True,
-)
-def call_llm(prompt: str, system_prompt: str) -> tuple[str, int]:
-    """
-    Call the LLM with retry logic for transient failures.
-    
-    Returns (response_text, latency_ms)
-    """
-    config = get_config()
-    
-    if is_mock_mode():
-        logger.debug("Mock mode: Returning mock LLM response")
-        return mock_llm_response(prompt), 100
-    
-    # Import here to avoid loading OpenAI client when mocking
-    from backend.common.llm_client import call_llm_with_metrics
-    logger.debug(f"Calling LLM with model={config.llm_model}")
-    
-    result = call_llm_with_metrics(
-        prompt=prompt,
-        system_prompt=system_prompt,
-        model=config.llm_model,
-        max_tokens=config.llm_max_tokens,
-        temperature=config.llm_temperature,
-    )
-    
-    latency_ms = int(result["latency_ms"])
-    logger.info(f"LLM response received in {latency_ms}ms")
-    
-    return result["response"], latency_ms
-
-
 def mock_llm_response(prompt: str) -> str:
     """Generate a mock response for testing."""
     # Extract some context from the prompt for a semi-realistic response

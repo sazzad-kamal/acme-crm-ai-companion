@@ -1,40 +1,37 @@
 """
 LangGraph-based agent orchestration.
 
-Implements a graph workflow for answering CRM questions:
+Implements a simplified graph workflow for answering CRM questions:
 
-    ┌─────────┐
-    │  START  │
-    └────┬────┘
-         │
-         ▼
-    ┌─────────┐
-    │  Route  │  Determine mode & extract entities
-    └────┬────┘
-         │
-         ├─────────────────┬─────────────────┐
-         ▼                 ▼                 ▼
-    ┌─────────┐      ┌─────────┐      ┌─────────────┐
-    │  Data   │      │  Docs   │      │ Data + Docs │
-    │  Only   │      │  Only   │      │   (Both)    │
-    └────┬────┘      └────┬────┘      └──────┬──────┘
-         │                 │                 │
-         └─────────────────┴─────────────────┘
+                      ┌─────────┐
+                      │  Route  │
+                      └────┬────┘
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+     ┌─────────┐      ┌─────────┐     ┌───────────┐
+     │  Data   │      │  Docs   │     │Data+Docs  │
+     │  Only   │      │  Only   │     │(Parallel) │
+     └────┬────┘      └────┬────┘     └─────┬─────┘
+          │                │                │
+          └────────────────┴────────────────┘
                            │
                            ▼
                     ┌─────────────┐
-                    │   Answer    │  Synthesize with LLM
+                    │   Answer    │
                     └──────┬──────┘
                            │
                            ▼
                     ┌─────────────┐
-                    │  Follow-up  │  Generate suggestions
+                    │  Follow-up  │
                     └──────┬──────┘
                            │
                            ▼
                        ┌───────┐
                        │  END  │
                        └───────┘
+
+6 nodes total (simplified from 8 - removed skip_data/skip_docs).
 
 Usage:
     from backend.agent.graph import agent_graph, run_agent
@@ -54,8 +51,6 @@ from backend.agent.nodes import (
     route_node,
     data_node,
     docs_node,
-    skip_data_node,
-    skip_docs_node,
     data_and_docs_parallel_node,
     answer_node,
     followup_node,
@@ -96,12 +91,10 @@ def build_agent_graph(checkpointer=None):
     # Create graph with state schema
     graph = StateGraph(AgentState)
 
-    # Add nodes
+    # Add nodes (simplified - no skip nodes needed)
     graph.add_node("route", route_node)
     graph.add_node("data", data_node)
     graph.add_node("docs", docs_node)
-    graph.add_node("skip_data", skip_data_node)
-    graph.add_node("skip_docs", skip_docs_node)
     graph.add_node("data_and_docs", data_and_docs_parallel_node)  # Parallel node
     graph.add_node("answer", answer_node)
     graph.add_node("followup", followup_node)
@@ -110,33 +103,23 @@ def build_agent_graph(checkpointer=None):
     graph.set_entry_point("route")
 
     # Add conditional routing after route node
-    # - data_only: fetch data only, skip docs
-    # - docs_only: skip data, fetch docs only
-    # - data_and_docs: use parallel node for concurrent fetching
+    # - data_only: fetch CRM data only
+    # - docs_only: fetch documentation only
+    # - data_and_docs: parallel fetch of data + docs + account context
     graph.add_conditional_edges(
         "route",
         route_by_mode,
         {
             "data_only": "data",
-            "docs_only": "skip_data",
-            "data_and_docs": "data_and_docs",  # Use parallel node
+            "docs_only": "docs",
+            "data_and_docs": "data_and_docs",
         }
     )
 
-    # After skip_data (docs-only mode), go to docs
-    graph.add_edge("skip_data", "docs")
-
-    # After data (data-only mode), go to skip_docs
-    graph.add_edge("data", "skip_docs")
-
-    # Parallel node goes directly to answer (already fetched both)
-    graph.add_edge("data_and_docs", "answer")
-
-    # Docs leads to answer
+    # All paths lead to answer
+    graph.add_edge("data", "answer")
     graph.add_edge("docs", "answer")
-
-    # Skip docs leads to answer
-    graph.add_edge("skip_docs", "answer")
+    graph.add_edge("data_and_docs", "answer")
 
     # Answer leads to followup
     graph.add_edge("answer", "followup")
@@ -244,8 +227,11 @@ def run_agent(
 
     logger.info(f"[Agent] Complete in {latency_ms}ms")
 
-    # Save conversation to memory for multi-turn support (legacy compatibility)
-    # Note: LangGraph checkpointing also persists state automatically
+    # Save conversation to memory for multi-turn support
+    # TODO: This is redundant with LangGraph checkpointing. The dual storage exists because:
+    #   - Legacy memory is used by get_last_company_context() for pronoun resolution
+    #   - LangGraph MemorySaver checkpoints full state automatically
+    # Future: Migrate fully to LangGraph checkpointing and remove legacy memory
     resolved_company = final_state.get("resolved_company_id")
     add_message(session_id, "user", question, resolved_company)
     add_message(session_id, "assistant", final_state.get("answer", ""), resolved_company)
@@ -306,14 +292,11 @@ def get_graph_mermaid() -> str:
 graph TD
     START((Start)) --> route[Route]
     route -->|data| data[Fetch CRM Data]
-    route -->|docs| skip_data[Skip Data]
-    route -->|data+docs| data_and_docs[Parallel Fetch<br/>Data + Docs]
+    route -->|docs| docs[Fetch Docs]
+    route -->|data+docs| data_and_docs[Parallel Fetch<br/>Data + Docs + Account]
 
-    data --> skip_docs[Skip Docs]
-    skip_data --> docs[Fetch Docs]
-
-    docs --> answer[Synthesize Answer]
-    skip_docs --> answer
+    data --> answer[Synthesize Answer]
+    docs --> answer
     data_and_docs --> answer
 
     answer --> followup[Generate Follow-ups]
@@ -332,14 +315,9 @@ def print_graph_ascii() -> None:
     """Print ASCII representation of the graph."""
     print("""
     ┌─────────────────────────────────────────────────────────────┐
-    │              LANGGRAPH AGENT (with Parallel Fetch)          │
+    │         LANGGRAPH AGENT (Simplified - 6 nodes)              │
     └─────────────────────────────────────────────────────────────┘
 
-                           ┌─────────┐
-                           │  START  │
-                           └────┬────┘
-                                │
-                                ▼
                            ┌─────────┐
                            │  Route  │  (LLM structured output)
                            └────┬────┘
@@ -351,11 +329,6 @@ def print_graph_ascii() -> None:
        │  Data   │        │  Docs   │        │  Data + Docs  │
        │  Only   │        │  Only   │        │  (Parallel)   │
        └────┬────┘        └────┬────┘        └───────┬───────┘
-            │                  │                     │
-            ▼                  ▼                     │
-       ┌─────────┐        ┌─────────┐               │
-       │Skip Docs│        │Fetch Doc│               │
-       └────┬────┘        └────┬────┘               │
             │                  │                     │
             └──────────────────┴─────────────────────┘
                                 │

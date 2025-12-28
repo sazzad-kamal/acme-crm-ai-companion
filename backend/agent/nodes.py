@@ -29,7 +29,6 @@ from backend.agent.formatters import (
     format_conversation_history_section,
 )
 from backend.agent.llm_helpers import (
-    call_llm,
     call_docs_rag,
     call_account_rag,
     generate_follow_up_suggestions,
@@ -183,37 +182,6 @@ def docs_node(state: AgentState) -> AgentState:
 
 
 # =============================================================================
-# Skip Nodes
-# =============================================================================
-
-def skip_data_node(state: AgentState) -> AgentState:
-    """Placeholder when data is skipped."""
-    return {
-        "raw_data": {
-            "companies": [],
-            "contacts": [],
-            "activities": [],
-            "opportunities": [],
-            "history": [],
-            "renewals": [],
-            "groups": [],
-            "attachments": [],
-            "pipeline_summary": None,
-        },
-        "steps": [{"id": "data", "label": "Skipped (docs-only query)", "status": "skipped"}],
-    }
-
-
-def skip_docs_node(state: AgentState) -> AgentState:
-    """Placeholder when docs is skipped."""
-    return {
-        "docs_answer": "",
-        "docs_sources": [],
-        "steps": [{"id": "docs", "label": "Skipped (data-only query)", "status": "skipped"}],
-    }
-
-
-# =============================================================================
 # Parallel Data + Docs Node (RunnableParallel Pattern)
 # =============================================================================
 
@@ -233,12 +201,13 @@ def data_and_docs_parallel_node(state: AgentState) -> AgentState:
     account_result = {}
     errors = []
 
-    # Check if we should fetch account context
+    # Check if we should fetch account context (notes, attachments via Account RAG)
+    # Trigger for company-specific intents where unstructured text might be relevant
     intent = state.get("intent", "general")
     company_id = state.get("resolved_company_id")
     should_fetch_account_context = (
         company_id and
-        intent in ("account_context", "company_status", "history")
+        intent in ("account_context", "company_status", "history", "pipeline")
     )
 
     def fetch_data():
@@ -512,8 +481,6 @@ __all__ = [
     "route_node",
     "data_node",
     "docs_node",
-    "skip_data_node",
-    "skip_docs_node",
     "data_and_docs_parallel_node",
     "answer_node",
     "followup_node",

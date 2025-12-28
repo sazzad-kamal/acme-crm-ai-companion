@@ -13,16 +13,8 @@ Usage:
 """
 
 import logging
-import sys
 from pathlib import Path
-
-# Python 3.12+ has typing.override, use typing_extensions for 3.11
-if sys.version_info >= (3, 12):
-    from typing import override
-else:
-    # Fallback: no-op decorator for 3.11
-    def override(func):
-        return func
+from typing import override
 
 import numpy as np
 from qdrant_client.models import (

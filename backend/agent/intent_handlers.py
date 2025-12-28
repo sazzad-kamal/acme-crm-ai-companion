@@ -253,17 +253,24 @@ def handle_fallback(ctx: IntentContext) -> IntentResult:
 
 
 # Intent dispatcher - maps intent strings to handler functions
+# Explicit mappings for all router intents (no implicit fallthrough)
 INTENT_HANDLERS = {
+    # Aggregate queries (no company_id required)
     "pipeline_summary": handle_pipeline_summary,
     "renewals": handle_renewals,
-    "contact_lookup": handle_contacts,
-    "contact_search": handle_contacts,
+    "activities": handle_activities,
     "company_search": handle_company_search,
     "groups": handle_groups,
     "attachments": handle_attachments,
-    "activities": handle_activities,
+    # Contact queries
+    "contact_lookup": handle_contacts,
+    "contact_search": handle_contacts,
+    # Company-specific queries (all route to handle_company_status)
     "company_status": handle_company_status,
-    "pipeline": handle_company_status,  # Pipeline for specific company
+    "pipeline": handle_company_status,
+    "history": handle_company_status,  # Explicit: was implicit fallthrough
+    "account_context": handle_company_status,  # Explicit: triggers Account RAG in parallel node
+    "general": handle_company_status,  # Explicit: fallback for ambiguous queries
 }
 
 

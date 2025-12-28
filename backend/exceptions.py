@@ -5,19 +5,7 @@
 Standardized error responses for the API.
 """
 
-import sys
-from typing import Any, Optional
-
-# override is available in Python 3.12+, use fallback for earlier versions
-if sys.version_info >= (3, 12):
-    from typing import override
-else:
-    try:
-        from typing_extensions import override
-    except ImportError:
-        def override(func):  # type: ignore[misc]
-            """Fallback override decorator for Python < 3.12."""
-            return func
+from typing import Any, Optional, override
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
