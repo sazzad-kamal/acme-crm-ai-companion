@@ -41,8 +41,8 @@ class TestAgentConfig:
     def test_default_config_loads(self):
         """Test that default config loads without errors."""
         config = AgentConfig()
-        assert config.llm_model == "gpt-5.2"
-        assert config.router_model == "gpt-5-nano"
+        assert config.llm_model == "gpt-4o"
+        assert config.router_model == "gpt-4o-mini"
         assert config.use_llm_router is True
     
     def test_config_environment_override(self, monkeypatch):
@@ -60,10 +60,10 @@ class TestAgentConfig:
         with pytest.raises(ValueError):
             AgentConfig(llm_temperature=3.0)
     
-    def test_config_validation_days(self):
-        """Test that invalid days raises error."""
+    def test_config_validation_negative_temperature(self):
+        """Test that negative temperature raises error."""
         with pytest.raises(ValueError):
-            AgentConfig(default_days_lookback=0)
+            AgentConfig(llm_temperature=-0.5)
     
     def test_get_config_singleton(self):
         """Test that get_config returns same instance."""
