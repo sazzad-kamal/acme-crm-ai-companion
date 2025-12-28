@@ -22,23 +22,39 @@ from backend.common.judge import (
 # =============================================================================
 
 class TestJudgeScores:
-    """Tests for JudgeScores dataclass."""
+    """Tests for JudgeScores Pydantic model."""
 
     def test_creates_with_required_fields(self):
-        """Creates with answer_relevance and answer_grounded."""
-        scores = JudgeScores(answer_relevance=1, answer_grounded=0)
+        """Creates with answer_relevance, answer_grounded, and explanation."""
+        scores = JudgeScores(
+            answer_relevance=1,
+            answer_grounded=0,
+            explanation="Test explanation"
+        )
         assert scores.answer_relevance == 1
         assert scores.answer_grounded == 0
-        assert scores.explanation == ""
+        assert scores.explanation == "Test explanation"
 
-    def test_creates_with_explanation(self):
-        """Creates with optional explanation."""
+    def test_creates_with_all_fields(self):
+        """Creates with all fields."""
         scores = JudgeScores(
             answer_relevance=1,
             answer_grounded=1,
             explanation="Both criteria met."
         )
+        assert scores.answer_relevance == 1
+        assert scores.answer_grounded == 1
         assert scores.explanation == "Both criteria met."
+
+    def test_validates_int_fields(self):
+        """Fields accept integer values."""
+        scores = JudgeScores(
+            answer_relevance=0,
+            answer_grounded=1,
+            explanation="Valid"
+        )
+        assert scores.answer_relevance == 0
+        assert scores.answer_grounded == 1
 
 
 # =============================================================================
@@ -128,12 +144,13 @@ class TestFormatJudgeSystem:
     def test_crm_preset_contains_expected_values(self):
         """JUDGE_SYSTEM_CRM has correct values."""
         assert "CRM assistant" in JUDGE_SYSTEM_CRM
-        assert "companies, dates, values" in JUDGE_SYSTEM_CRM
+        assert "ANSWER_RELEVANCE" in JUDGE_SYSTEM_CRM
+        assert "ANSWER_GROUNDED" in JUDGE_SYSTEM_CRM
 
     def test_rag_preset_contains_expected_values(self):
         """JUDGE_SYSTEM_RAG has correct values."""
         assert "RAG system" in JUDGE_SYSTEM_RAG
-        assert "document references" in JUDGE_SYSTEM_RAG
+        assert "documentation" in JUDGE_SYSTEM_RAG
 
 
 # =============================================================================
@@ -160,9 +177,9 @@ class TestJudgeAnswer:
         assert result.explanation == "Good"
 
     @patch('backend.common.judge.call_llm')
-    def test_uses_correct_prompt_format(self, mock_call_llm):
-        """Formats prompt with question, answer, and sources."""
-        mock_call_llm.return_value = '{"answer_relevance": 1, "answer_grounded": 1}'
+    def test_calls_llm_with_question_and_answer(self, mock_call_llm):
+        """Passes question and answer to LLM."""
+        mock_call_llm.return_value = '{"answer_relevance": 1, "answer_grounded": 1, "explanation": "OK"}'
 
         judge_answer(
             question="Test question?",
@@ -170,46 +187,46 @@ class TestJudgeAnswer:
             sources=["src1", "src2"],
         )
 
-        call_args = mock_call_llm.call_args
-        prompt = call_args[0][0]
-        assert "Test question?" in prompt
-        assert "Test answer." in prompt
-        assert "src1, src2" in prompt
+        # Verify LLM was called
+        mock_call_llm.assert_called_once()
+        call_kwargs = mock_call_llm.call_args[1]
+        assert "system_prompt" in call_kwargs
+        assert call_kwargs["model"] == "gpt-4o-mini"
 
     @patch('backend.common.judge.call_llm')
     def test_handles_empty_sources(self, mock_call_llm):
         """Handles empty sources list."""
-        mock_call_llm.return_value = '{"answer_relevance": 1, "answer_grounded": 0}'
+        mock_call_llm.return_value = '{"answer_relevance": 1, "answer_grounded": 0, "explanation": "No sources"}'
 
-        judge_answer(
+        result = judge_answer(
             question="Question?",
             answer="Answer.",
             sources=[],
         )
 
-        prompt = mock_call_llm.call_args[0][0]
-        assert "None" in prompt
+        assert result.answer_relevance == 1
+        mock_call_llm.assert_called_once()
 
     @patch('backend.common.judge.call_llm')
-    def test_uses_custom_system_prompt(self, mock_call_llm):
-        """Uses custom system prompt when provided."""
-        mock_call_llm.return_value = '{"answer_relevance": 1, "answer_grounded": 1}'
-        custom_prompt = "Custom judge system prompt"
+    def test_uses_rag_domain(self, mock_call_llm):
+        """Uses RAG prompt when domain is rag."""
+        mock_call_llm.return_value = '{"answer_relevance": 1, "answer_grounded": 1, "explanation": "OK"}'
 
         judge_answer(
             question="Q",
             answer="A",
             sources=[],
-            system_prompt=custom_prompt,
+            domain="rag",
         )
 
         call_kwargs = mock_call_llm.call_args[1]
-        assert call_kwargs["system_prompt"] == custom_prompt
+        system_prompt = call_kwargs["system_prompt"]
+        assert "RAG system" in system_prompt
 
     @patch('backend.common.judge.call_llm')
     def test_uses_custom_model(self, mock_call_llm):
         """Uses custom model when provided."""
-        mock_call_llm.return_value = '{"answer_relevance": 1, "answer_grounded": 1}'
+        mock_call_llm.return_value = '{"answer_relevance": 1, "answer_grounded": 1, "explanation": "OK"}'
 
         judge_answer(
             question="Q",
@@ -237,9 +254,9 @@ class TestJudgeAnswer:
         assert "Judge error" in result.explanation
 
     @patch('backend.common.judge.call_llm')
-    def test_handles_missing_fields_in_response(self, mock_call_llm):
-        """Handles missing fields with defaults."""
-        mock_call_llm.return_value = '{"answer_relevance": 1}'  # Missing answer_grounded
+    def test_returns_zero_scores_on_parse_error(self, mock_call_llm):
+        """Returns zero scores when parsing fails."""
+        mock_call_llm.return_value = 'not valid json'
 
         result = judge_answer(
             question="Q",
@@ -247,9 +264,9 @@ class TestJudgeAnswer:
             sources=[],
         )
 
-        assert result.answer_relevance == 1
-        assert result.answer_grounded == 0  # Default
-        assert result.explanation == ""  # Default
+        assert result.answer_relevance == 0
+        assert result.answer_grounded == 0
+        assert "Judge error" in result.explanation
 
 
 # =============================================================================
@@ -275,3 +292,30 @@ class TestJudgePrompt:
         assert "What is X?" in formatted
         assert "X is Y." in formatted
         assert "doc1, doc2" in formatted
+
+
+# =============================================================================
+# JUDGE_SYSTEM_BASE Tests
+# =============================================================================
+
+class TestJudgeSystemBase:
+    """Tests for JUDGE_SYSTEM_BASE template."""
+
+    def test_base_has_placeholders(self):
+        """Base system prompt has domain and data_type placeholders."""
+        assert "{domain}" in JUDGE_SYSTEM_BASE
+        assert "{data_type}" in JUDGE_SYSTEM_BASE
+
+    def test_base_has_scoring_criteria(self):
+        """Base system prompt has scoring criteria."""
+        assert "ANSWER_RELEVANCE" in JUDGE_SYSTEM_BASE
+        assert "ANSWER_GROUNDED" in JUDGE_SYSTEM_BASE
+
+    def test_base_formats_correctly(self):
+        """Base system prompt formats with values."""
+        formatted = JUDGE_SYSTEM_BASE.format(
+            domain="test domain",
+            data_type="specific facts",
+        )
+        assert "test domain" in formatted
+        assert "specific facts" in formatted

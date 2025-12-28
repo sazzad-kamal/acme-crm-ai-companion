@@ -44,8 +44,10 @@ Usage:
 
 import logging
 import time
+import uuid
 
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 
 from backend.agent.state import AgentState
 from backend.agent.nodes import (
@@ -54,6 +56,7 @@ from backend.agent.nodes import (
     docs_node,
     skip_data_node,
     skip_docs_node,
+    data_and_docs_parallel_node,
     answer_node,
     followup_node,
     route_by_mode,
@@ -66,12 +69,27 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# LangGraph Checkpointing
+# =============================================================================
+
+# Global checkpointer for conversation persistence
+_checkpointer = MemorySaver()
+
+
+# =============================================================================
 # Graph Construction
 # =============================================================================
 
-def build_agent_graph() -> StateGraph:
+def build_agent_graph(checkpointer=None):
     """
     Build the LangGraph workflow.
+
+    Uses RunnableParallel pattern for data+docs mode to fetch
+    CRM data and documentation concurrently, reducing latency.
+
+    Args:
+        checkpointer: Optional LangGraph checkpointer for conversation persistence.
+                     If None, uses the global MemorySaver.
 
     Returns compiled graph ready for execution.
     """
@@ -84,6 +102,7 @@ def build_agent_graph() -> StateGraph:
     graph.add_node("docs", docs_node)
     graph.add_node("skip_data", skip_data_node)
     graph.add_node("skip_docs", skip_docs_node)
+    graph.add_node("data_and_docs", data_and_docs_parallel_node)  # Parallel node
     graph.add_node("answer", answer_node)
     graph.add_node("followup", followup_node)
 
@@ -91,29 +110,27 @@ def build_agent_graph() -> StateGraph:
     graph.set_entry_point("route")
 
     # Add conditional routing after route node
-    # Routes to: data (for data or data+docs), skip_data (for docs-only)
+    # - data_only: fetch data only, skip docs
+    # - docs_only: skip data, fetch docs only
+    # - data_and_docs: use parallel node for concurrent fetching
     graph.add_conditional_edges(
         "route",
         route_by_mode,
         {
             "data_only": "data",
             "docs_only": "skip_data",
-            "data_and_docs": "data",
+            "data_and_docs": "data_and_docs",  # Use parallel node
         }
     )
 
-    # After skip_data, go to docs
+    # After skip_data (docs-only mode), go to docs
     graph.add_edge("skip_data", "docs")
 
-    # Data path - conditionally go to docs or skip_docs
-    graph.add_conditional_edges(
-        "data",
-        lambda s: "docs" if s.get("mode_used") == "data+docs" else "skip_docs",
-        {
-            "docs": "docs",
-            "skip_docs": "skip_docs",
-        }
-    )
+    # After data (data-only mode), go to skip_docs
+    graph.add_edge("data", "skip_docs")
+
+    # Parallel node goes directly to answer (already fetched both)
+    graph.add_edge("data_and_docs", "answer")
 
     # Docs leads to answer
     graph.add_edge("docs", "answer")
@@ -127,10 +144,11 @@ def build_agent_graph() -> StateGraph:
     # Followup is the end
     graph.add_edge("followup", END)
 
-    return graph.compile()
+    # Compile with checkpointer for conversation persistence
+    return graph.compile(checkpointer=checkpointer or _checkpointer)
 
 
-# Compile the graph once at module load
+# Compile the graph once at module load (with checkpointing enabled)
 agent_graph = build_agent_graph()
 
 
@@ -148,11 +166,15 @@ def run_agent(
     """
     Run the agent graph and return formatted response.
 
+    Uses LangGraph checkpointing for conversation persistence when session_id
+    is provided. The checkpointer automatically stores and retrieves conversation
+    state based on the thread_id.
+
     Args:
         question: The user's question
         mode: Mode override ("auto", "docs", "data", "data+docs")
         company_id: Pre-specified company ID
-        session_id: Optional session ID
+        session_id: Optional session ID (used as thread_id for checkpointing)
         user_id: Optional user ID
 
     Returns:
@@ -160,7 +182,7 @@ def run_agent(
     """
     start_time = time.time()
 
-    # Load conversation history for multi-turn support
+    # Load conversation history for multi-turn support (legacy + fallback)
     messages = get_conversation_history(session_id)
     if messages:
         logger.debug(f"[Agent] Loaded {len(messages)} messages from session {session_id}")
@@ -179,11 +201,19 @@ def run_agent(
         "follow_up_suggestions": [],
     }
 
+    # Build config with thread_id for LangGraph checkpointing
+    # Always provide a thread_id (use session_id if provided, else generate one)
+    thread_id = session_id or str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+    if session_id:
+        logger.debug(f"[Agent] Using LangGraph checkpointing with thread_id={session_id}")
+
     # Run the graph
     logger.info(f"[Agent] Starting graph execution for: {question[:50]}...")
 
     try:
-        final_state = agent_graph.invoke(initial_state)
+        # Invoke with config for checkpointing
+        final_state = agent_graph.invoke(initial_state, config=config)
     except Exception as e:
         logger.error(f"[Agent] Graph execution failed: {e}")
         return {
@@ -214,7 +244,8 @@ def run_agent(
 
     logger.info(f"[Agent] Complete in {latency_ms}ms")
 
-    # Save conversation to memory for multi-turn support
+    # Save conversation to memory for multi-turn support (legacy compatibility)
+    # Note: LangGraph checkpointing also persists state automatically
     resolved_company = final_state.get("resolved_company_id")
     add_message(session_id, "user", question, resolved_company)
     add_message(session_id, "assistant", final_state.get("answer", ""), resolved_company)
@@ -276,14 +307,14 @@ graph TD
     START((Start)) --> route[Route]
     route -->|data| data[Fetch CRM Data]
     route -->|docs| skip_data[Skip Data]
-    route -->|data+docs| data
+    route -->|data+docs| data_and_docs[Parallel Fetch<br/>Data + Docs]
 
-    data -->|data+docs| docs[Fetch Docs]
-    data -->|data only| skip_docs[Skip Docs]
+    data --> skip_docs[Skip Docs]
+    skip_data --> docs[Fetch Docs]
 
-    skip_data --> docs
     docs --> answer[Synthesize Answer]
     skip_docs --> answer
+    data_and_docs --> answer
 
     answer --> followup[Generate Follow-ups]
     followup --> END((End))
@@ -291,6 +322,7 @@ graph TD
     style route fill:#e1f5fe
     style data fill:#fff3e0
     style docs fill:#f3e5f5
+    style data_and_docs fill:#ffecb3
     style answer fill:#e8f5e9
     style followup fill:#fce4ec
 """
@@ -300,7 +332,7 @@ def print_graph_ascii() -> None:
     """Print ASCII representation of the graph."""
     print("""
     ┌─────────────────────────────────────────────────────────────┐
-    │                      LANGGRAPH AGENT                        │
+    │              LANGGRAPH AGENT (with Parallel Fetch)          │
     └─────────────────────────────────────────────────────────────┘
 
                            ┌─────────┐
@@ -309,33 +341,32 @@ def print_graph_ascii() -> None:
                                 │
                                 ▼
                            ┌─────────┐
-                           │  Route  │
+                           │  Route  │  (LLM structured output)
                            └────┬────┘
                                 │
             ┌───────────────────┼───────────────────┐
             │                   │                   │
             ▼                   ▼                   ▼
-       ┌─────────┐        ┌─────────┐        ┌───────────┐
-       │  Data   │        │  Docs   │        │Data + Docs│
-       │  Only   │        │  Only   │        │  (Both)   │
-       └────┬────┘        └────┬────┘        └─────┬─────┘
-            │                  │                   │
-            │                  │           ┌───────┴───────┐
-            │                  │           ▼               ▼
-            │                  │      ┌─────────┐    ┌─────────┐
-            │                  │      │  Data   │───▶│  Docs   │
-            │                  │      └─────────┘    └────┬────┘
-            │                  │                          │
-            └──────────────────┴──────────────────────────┘
+       ┌─────────┐        ┌─────────┐        ┌───────────────┐
+       │  Data   │        │  Docs   │        │  Data + Docs  │
+       │  Only   │        │  Only   │        │  (Parallel)   │
+       └────┬────┘        └────┬────┘        └───────┬───────┘
+            │                  │                     │
+            ▼                  ▼                     │
+       ┌─────────┐        ┌─────────┐               │
+       │Skip Docs│        │Fetch Doc│               │
+       └────┬────┘        └────┬────┘               │
+            │                  │                     │
+            └──────────────────┴─────────────────────┘
                                 │
                                 ▼
                          ┌─────────────┐
-                         │   Answer    │
+                         │   Answer    │  (LCEL chain)
                          └──────┬──────┘
                                 │
                                 ▼
                          ┌─────────────┐
-                         │  Follow-up  │
+                         │  Follow-up  │  (Structured output)
                          └──────┬──────┘
                                 │
                                 ▼
@@ -345,6 +376,31 @@ def print_graph_ascii() -> None:
     """)
 
 
+def get_checkpointer() -> MemorySaver:
+    """Get the global checkpointer instance."""
+    return _checkpointer
+
+
+def get_session_state(session_id: str) -> dict | None:
+    """
+    Get the checkpointed state for a session.
+
+    Args:
+        session_id: The session/thread ID
+
+    Returns:
+        The stored state dict, or None if not found
+    """
+    try:
+        config = {"configurable": {"thread_id": session_id}}
+        checkpoint = _checkpointer.get(config)
+        if checkpoint:
+            return checkpoint.get("channel_values", {})
+    except Exception as e:
+        logger.warning(f"Failed to get session state: {e}")
+    return None
+
+
 __all__ = [
     "agent_graph",
     "run_agent",
@@ -352,6 +408,9 @@ __all__ = [
     "build_agent_graph",
     "get_graph_mermaid",
     "print_graph_ascii",
+    # Checkpointing
+    "get_checkpointer",
+    "get_session_state",
 ]
 
 

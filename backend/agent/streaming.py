@@ -8,6 +8,7 @@ as the agent progresses through nodes.
 import json
 import logging
 import time
+import uuid
 from typing import AsyncGenerator, Optional, Any
 from datetime import datetime, date
 
@@ -139,10 +140,14 @@ async def stream_agent(
     # Track accumulated state for final response
     final_state = initial_state.copy()
     seen_steps = set()
-    
+
+    # Build config with thread_id for LangGraph checkpointing
+    thread_id = session_id or str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+
     try:
         # Stream events from the graph
-        async for event in agent_graph.astream_events(initial_state, version="v2"):
+        async for event in agent_graph.astream_events(initial_state, config=config, version="v2"):
             event_type = event.get("event")
             event_name = event.get("name")
             event_data = event.get("data", {})

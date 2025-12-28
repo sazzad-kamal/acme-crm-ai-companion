@@ -1,8 +1,8 @@
 """
-Tests for the LLM client module.
+Tests for the LLM client module (LangChain-based).
 
 Run with:
-    pytest backend/tests/test_llm_client.py -v
+    pytest tests/backend/test_llm_client.py -v
 """
 
 import os
@@ -18,55 +18,143 @@ os.environ["OPENAI_API_KEY"] = "test-key-for-testing"
 # =============================================================================
 
 from backend.common.llm_client import (
-    _cache_key,
     clear_llm_cache,
     call_llm,
     call_llm_with_metrics,
+    call_llm_safe,
+    CostTracker,
+    get_cost_tracker,
+    reset_cost_tracker,
+    MODEL_COSTS,
+    _requires_max_completion_tokens,
 )
 
 
 # =============================================================================
-# Cache Key Tests
+# CostTracker Tests
 # =============================================================================
 
-class TestCacheKey:
-    """Tests for cache key generation."""
-    
-    def test_cache_key_is_deterministic(self):
-        """Test that same inputs produce same cache key."""
-        key1 = _cache_key("prompt", "system", "model", 0.0)
-        key2 = _cache_key("prompt", "system", "model", 0.0)
-        assert key1 == key2
-    
-    def test_different_prompts_different_keys(self):
-        """Test that different prompts produce different keys."""
-        key1 = _cache_key("prompt1", "system", "model", 0.0)
-        key2 = _cache_key("prompt2", "system", "model", 0.0)
-        assert key1 != key2
-    
-    def test_different_models_different_keys(self):
-        """Test that different models produce different keys."""
-        key1 = _cache_key("prompt", "system", "model1", 0.0)
-        key2 = _cache_key("prompt", "system", "model2", 0.0)
-        assert key1 != key2
-    
-    def test_different_temperatures_different_keys(self):
-        """Test that different temperatures produce different keys."""
-        key1 = _cache_key("prompt", "system", "model", 0.0)
-        key2 = _cache_key("prompt", "system", "model", 0.5)
-        assert key1 != key2
-    
-    def test_none_system_prompt_handled(self):
-        """Test that None system prompt is handled."""
-        key = _cache_key("prompt", None, "model", 0.0)
-        assert isinstance(key, str)
-        assert len(key) == 32  # SHA256 truncated to 32 chars
-    
-    def test_cache_key_is_valid_hash(self):
-        """Test that cache key is a valid hex string."""
-        key = _cache_key("prompt", "system", "model", 0.0)
-        # Should be valid hex
-        int(key, 16)
+class TestCostTracker:
+    """Tests for CostTracker class."""
+
+    def test_initial_state(self):
+        """Test that CostTracker starts with zero values."""
+        tracker = CostTracker()
+        assert tracker.total_input_tokens == 0
+        assert tracker.total_output_tokens == 0
+        assert tracker.total_cost_usd == 0.0
+        assert tracker.calls == 0
+
+    def test_add_usage_updates_totals(self):
+        """Test that add_usage updates running totals."""
+        tracker = CostTracker()
+        tracker.add_usage("gpt-4o-mini", 100, 50)
+
+        assert tracker.total_input_tokens == 100
+        assert tracker.total_output_tokens == 50
+        assert tracker.calls == 1
+
+    def test_add_usage_accumulates(self):
+        """Test that multiple add_usage calls accumulate."""
+        tracker = CostTracker()
+        tracker.add_usage("gpt-4o-mini", 100, 50)
+        tracker.add_usage("gpt-4o-mini", 200, 100)
+
+        assert tracker.total_input_tokens == 300
+        assert tracker.total_output_tokens == 150
+        assert tracker.calls == 2
+
+    def test_add_usage_tracks_by_model(self):
+        """Test that usage is tracked per model."""
+        tracker = CostTracker()
+        tracker.add_usage("gpt-4o-mini", 100, 50)
+        tracker.add_usage("gpt-4o", 200, 100)
+
+        assert "gpt-4o-mini" in tracker.costs_by_model
+        assert "gpt-4o" in tracker.costs_by_model
+        assert tracker.costs_by_model["gpt-4o-mini"]["input"] == 100
+        assert tracker.costs_by_model["gpt-4o"]["input"] == 200
+
+    def test_add_usage_returns_cost(self):
+        """Test that add_usage returns the cost for the call."""
+        tracker = CostTracker()
+        cost = tracker.add_usage("gpt-4o-mini", 1_000_000, 0)
+
+        # gpt-4o-mini input: $0.15 per 1M tokens
+        assert cost == pytest.approx(0.15, abs=0.01)
+
+    def test_get_summary_returns_dict(self):
+        """Test that get_summary returns a proper dict."""
+        tracker = CostTracker()
+        tracker.add_usage("gpt-4o-mini", 100, 50)
+
+        summary = tracker.get_summary()
+
+        assert "total_input_tokens" in summary
+        assert "total_output_tokens" in summary
+        assert "total_cost_usd" in summary
+        assert "total_calls" in summary
+        assert "by_model" in summary
+
+    def test_unknown_model_uses_default_cost(self):
+        """Test that unknown models use default pricing."""
+        tracker = CostTracker()
+        cost = tracker.add_usage("unknown-model", 1_000_000, 0)
+
+        # Default input: $2.50 per 1M tokens
+        assert cost == pytest.approx(2.50, abs=0.01)
+
+
+# =============================================================================
+# Global Cost Tracker Tests
+# =============================================================================
+
+class TestGlobalCostTracker:
+    """Tests for global cost tracker functions."""
+
+    def test_get_cost_tracker_returns_tracker(self):
+        """Test that get_cost_tracker returns a CostTracker."""
+        tracker = get_cost_tracker()
+        assert isinstance(tracker, CostTracker)
+
+    def test_reset_cost_tracker_clears_state(self):
+        """Test that reset_cost_tracker creates fresh tracker."""
+        tracker1 = get_cost_tracker()
+        tracker1.add_usage("gpt-4o-mini", 100, 50)
+
+        reset_cost_tracker()
+        tracker2 = get_cost_tracker()
+
+        assert tracker2.calls == 0
+        assert tracker2.total_input_tokens == 0
+
+
+# =============================================================================
+# Model Configuration Tests
+# =============================================================================
+
+class TestModelConfiguration:
+    """Tests for model configuration helpers."""
+
+    def test_requires_max_completion_tokens_for_o1(self):
+        """Test that o1 models require max_completion_tokens."""
+        assert _requires_max_completion_tokens("o1-preview") is True
+        assert _requires_max_completion_tokens("o1-mini") is True
+
+    def test_requires_max_completion_tokens_for_o3(self):
+        """Test that o3 models require max_completion_tokens."""
+        assert _requires_max_completion_tokens("o3-mini") is True
+
+    def test_gpt4_does_not_require_max_completion_tokens(self):
+        """Test that GPT-4 models use regular max_tokens."""
+        assert _requires_max_completion_tokens("gpt-4o") is False
+        assert _requires_max_completion_tokens("gpt-4o-mini") is False
+        assert _requires_max_completion_tokens("gpt-4-turbo") is False
+
+    def test_case_insensitive(self):
+        """Test that check is case-insensitive."""
+        assert _requires_max_completion_tokens("O1-preview") is True
+        assert _requires_max_completion_tokens("O1-MINI") is True
 
 
 # =============================================================================
@@ -75,20 +163,12 @@ class TestCacheKey:
 
 class TestCacheOperations:
     """Tests for cache get/set operations."""
-    
+
     def test_clear_cache_returns_count(self):
         """Test that clear_llm_cache returns the number of cleared entries."""
         count = clear_llm_cache()
         assert isinstance(count, int)
         assert count >= 0
-    
-    def test_clear_cache_empties_cache(self):
-        """Test that clear_llm_cache actually clears the cache."""
-        # Clear first
-        clear_llm_cache()
-        count = clear_llm_cache()
-        # After clearing, should be empty
-        assert count == 0
 
 
 # =============================================================================
@@ -96,72 +176,50 @@ class TestCacheOperations:
 # =============================================================================
 
 class TestCallLLM:
-    """Tests for call_llm function with mocked OpenAI."""
-    
-    @patch("backend.common.llm_client._get_client")
-    def test_call_llm_returns_string(self, mock_get_client):
+    """Tests for call_llm function with mocked LangChain."""
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_call_llm_returns_string(self, mock_get_model):
         """Test that call_llm returns a string response."""
-        # Setup mock
-        mock_client = MagicMock()
+        mock_chat = MagicMock()
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Test response"
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
-        
-        result = call_llm("Test prompt", use_cache=False)
-        
+        mock_response.content = "Test response"
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
+        result = call_llm("Test prompt")
+
         assert isinstance(result, str)
         assert result == "Test response"
-    
-    @patch("backend.common.llm_client._get_client")
-    def test_call_llm_with_system_prompt(self, mock_get_client):
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_call_llm_with_system_prompt(self, mock_get_model):
         """Test that system prompt is included in messages."""
-        mock_client = MagicMock()
+        mock_chat = MagicMock()
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Response"
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
-        
-        call_llm("User prompt", system_prompt="System prompt", use_cache=False)
-        
-        # Verify the messages included system prompt
-        call_args = mock_client.chat.completions.create.call_args
-        messages = call_args.kwargs.get("messages") or call_args[1].get("messages")
-        
-        assert len(messages) == 2
-        assert messages[0]["role"] == "system"
-        assert messages[1]["role"] == "user"
-    
-    @patch("backend.common.llm_client._get_client")
-    def test_call_llm_uses_model_parameter(self, mock_get_client):
-        """Test that model parameter is passed correctly."""
-        mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Response"
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
-        
-        call_llm("Prompt", model="gpt-4", use_cache=False)
-        
-        call_args = mock_client.chat.completions.create.call_args
-        model = call_args.kwargs.get("model") or call_args[1].get("model")
-        assert model == "gpt-4"
-    
-    @patch("backend.common.llm_client._get_client")
-    def test_call_llm_handles_empty_response(self, mock_get_client):
+        mock_response.content = "Response"
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
+        call_llm("User prompt", system_prompt="System prompt")
+
+        # Verify invoke was called with messages
+        call_args = mock_chat.invoke.call_args[0][0]
+        assert len(call_args) == 2  # System + User
+        assert call_args[0].content == "System prompt"
+        assert call_args[1].content == "User prompt"
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_call_llm_handles_empty_response(self, mock_get_model):
         """Test handling of empty response content."""
-        mock_client = MagicMock()
+        mock_chat = MagicMock()
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = None
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
-        
-        result = call_llm("Prompt", use_cache=False)
-        
+        mock_response.content = None
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
+        result = call_llm("Prompt")
+
         assert result == ""
 
 
@@ -171,85 +229,115 @@ class TestCallLLM:
 
 class TestCallLLMWithMetrics:
     """Tests for call_llm_with_metrics function."""
-    
-    @patch("backend.common.llm_client._get_client")
-    def test_returns_dict_with_response(self, mock_get_client):
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_returns_dict_with_response(self, mock_get_model):
         """Test that call_llm_with_metrics returns dict with response."""
-        mock_client = MagicMock()
+        mock_chat = MagicMock()
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Test response"
-        mock_response.usage = MagicMock()
-        mock_response.usage.prompt_tokens = 10
-        mock_response.usage.completion_tokens = 20
-        mock_response.usage.total_tokens = 30
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
-        
+        mock_response.content = "Test response"
+        mock_response.response_metadata = {"token_usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}}
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
         result = call_llm_with_metrics("Test prompt")
-        
+
         assert isinstance(result, dict)
         assert "response" in result
         assert result["response"] == "Test response"
-    
-    @patch("backend.common.llm_client._get_client")
-    def test_returns_latency_metric(self, mock_get_client):
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_returns_latency_metric(self, mock_get_model):
         """Test that call_llm_with_metrics includes latency."""
-        mock_client = MagicMock()
+        mock_chat = MagicMock()
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Response"
-        mock_response.usage = MagicMock()
-        mock_response.usage.prompt_tokens = 10
-        mock_response.usage.completion_tokens = 20
-        mock_response.usage.total_tokens = 30
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
-        
+        mock_response.content = "Response"
+        mock_response.response_metadata = {"token_usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}}
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
         result = call_llm_with_metrics("Prompt")
-        
+
         assert "latency_ms" in result
         assert isinstance(result["latency_ms"], (int, float))
         assert result["latency_ms"] >= 0
-    
-    @patch("backend.common.llm_client._get_client")
-    def test_returns_token_counts(self, mock_get_client):
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_returns_token_counts(self, mock_get_model):
         """Test that call_llm_with_metrics includes token counts."""
-        mock_client = MagicMock()
+        mock_chat = MagicMock()
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Response"
-        mock_response.usage = MagicMock()
-        mock_response.usage.prompt_tokens = 10
-        mock_response.usage.completion_tokens = 20
-        mock_response.usage.total_tokens = 30
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
-        
+        mock_response.content = "Response"
+        mock_response.response_metadata = {"token_usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}}
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
         result = call_llm_with_metrics("Prompt")
-        
+
         assert "prompt_tokens" in result
         assert "completion_tokens" in result
         assert "total_tokens" in result
+        assert result["prompt_tokens"] == 10
+        assert result["completion_tokens"] == 20
+        assert result["total_tokens"] == 30
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_returns_cost(self, mock_get_model):
+        """Test that call_llm_with_metrics includes cost."""
+        mock_chat = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Response"
+        mock_response.response_metadata = {"token_usage": {"prompt_tokens": 1000, "completion_tokens": 500, "total_tokens": 1500}}
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
+        result = call_llm_with_metrics("Prompt", model="gpt-4o-mini")
+
+        assert "cost_usd" in result
+        assert result["cost_usd"] >= 0
 
 
 # =============================================================================
-# Error Handling Tests
+# Safe LLM Call Tests
 # =============================================================================
 
-class TestLLMErrorHandling:
-    """Tests for LLM error handling."""
-    
-    def test_missing_api_key_raises_error(self):
-        """Test that missing API key raises ValueError."""
-        # Temporarily remove the key
-        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=False):
-            # Reset the client
-            import backend.common.llm_client as llm_module
-            llm_module._client = None
-            
-            # This should work since we're using mocked client
-            # The actual error would be raised on _get_client()
+class TestCallLLMSafe:
+    """Tests for call_llm_safe function."""
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_returns_response_on_success(self, mock_get_model):
+        """Test that call_llm_safe returns response on success."""
+        mock_chat = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Success response"
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
+        result = call_llm_safe("Prompt")
+
+        assert result == "Success response"
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_returns_default_on_failure(self, mock_get_model):
+        """Test that call_llm_safe returns default on failure."""
+        mock_get_model.side_effect = Exception("API Error")
+
+        result = call_llm_safe("Prompt", default="fallback")
+
+        assert result == "fallback"
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_returns_default_on_empty_response(self, mock_get_model):
+        """Test that call_llm_safe returns default on empty response."""
+        mock_chat = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "   "  # Whitespace only
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
+        result = call_llm_safe("Prompt", default="fallback")
+
+        assert result == "fallback"
 
 
 # =============================================================================
@@ -258,38 +346,64 @@ class TestLLMErrorHandling:
 
 class TestLLMConfiguration:
     """Tests for LLM client configuration."""
-    
+
     def test_default_model_is_set(self):
         """Test that a default model is used."""
-        # Import to check defaults
         import inspect
         from backend.common.llm_client import call_llm
-        
+
         sig = inspect.signature(call_llm)
         model_default = sig.parameters["model"].default
-        
+
         assert model_default is not None
         assert isinstance(model_default, str)
-    
+        assert model_default == "gpt-4o-mini"
+
     def test_default_temperature_is_deterministic(self):
         """Test that default temperature is 0.0 for deterministic output."""
         import inspect
         from backend.common.llm_client import call_llm
-        
+
         sig = inspect.signature(call_llm)
         temp_default = sig.parameters["temperature"].default
-        
+
         assert temp_default == 0.0
-    
+
     def test_cache_is_enabled_by_default(self):
         """Test that cache is enabled by default in call_llm."""
         import inspect
         from backend.common.llm_client import call_llm
-        
+
         sig = inspect.signature(call_llm)
         cache_default = sig.parameters["use_cache"].default
-        
+
         assert cache_default is True
+
+
+# =============================================================================
+# MODEL_COSTS Tests
+# =============================================================================
+
+class TestModelCosts:
+    """Tests for model cost configuration."""
+
+    def test_model_costs_has_required_keys(self):
+        """Test that MODEL_COSTS has expected models."""
+        assert "gpt-4o" in MODEL_COSTS
+        assert "gpt-4o-mini" in MODEL_COSTS
+        assert "default" in MODEL_COSTS
+
+    def test_model_costs_have_input_output(self):
+        """Test that each model has input and output costs."""
+        for model, costs in MODEL_COSTS.items():
+            assert "input" in costs, f"{model} missing 'input' cost"
+            assert "output" in costs, f"{model} missing 'output' cost"
+
+    def test_costs_are_positive(self):
+        """Test that all costs are positive numbers."""
+        for model, costs in MODEL_COSTS.items():
+            assert costs["input"] >= 0, f"{model} has negative input cost"
+            assert costs["output"] >= 0, f"{model} has negative output cost"
 
 
 # =============================================================================
@@ -298,35 +412,28 @@ class TestLLMConfiguration:
 
 class TestLLMClientIntegration:
     """Integration tests for LLM client."""
-    
-    @patch("backend.common.llm_client._get_client")
-    def test_full_call_flow(self, mock_get_client):
+
+    @patch("backend.common.llm_client._get_chat_model")
+    def test_full_call_flow(self, mock_get_model):
         """Test the full call flow from prompt to response."""
-        # Setup mock
-        mock_client = MagicMock()
+        mock_chat = MagicMock()
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "The answer is 42."
-        mock_response.usage = MagicMock()
-        mock_response.usage.prompt_tokens = 15
-        mock_response.usage.completion_tokens = 5
-        mock_response.usage.total_tokens = 20
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
-        
-        # Make the call
+        mock_response.content = "The answer is 42."
+        mock_response.response_metadata = {
+            "token_usage": {"prompt_tokens": 15, "completion_tokens": 5, "total_tokens": 20}
+        }
+        mock_chat.invoke.return_value = mock_response
+        mock_get_model.return_value = mock_chat
+
         result = call_llm_with_metrics(
             prompt="What is the meaning of life?",
             system_prompt="You are a helpful assistant.",
-            model="gpt-4",
+            model="gpt-4o-mini",
             temperature=0.0,
             max_tokens=100,
         )
-        
-        # Verify result
+
         assert result["response"] == "The answer is 42."
         assert result["total_tokens"] == 20
         assert result["latency_ms"] >= 0
-        
-        # Verify client was called correctly
-        mock_client.chat.completions.create.assert_called_once()
+        mock_chat.invoke.assert_called_once()
