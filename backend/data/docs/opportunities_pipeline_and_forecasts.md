@@ -126,16 +126,52 @@ For individual reps:
 For more detail, see:
 `reports_dashboards_and_analytics.md`.
 
-## 8. Common Questions
+## 8. Reopening Closed Opportunities
 
-- **“When should I close an opportunity as Lost?”**  
+**Can I reopen a closed-lost opportunity?**
+
+Yes. If circumstances change (e.g., the customer comes back, budget is
+approved, or a new decision maker takes over), you can reopen a closed
+opportunity:
+
+1. Open the closed opportunity record.
+2. Click the "Reopen" button (or change the Stage from Closed Lost/Won).
+3. Select the appropriate active stage (e.g., Qualified, Negotiation).
+4. Update the Expected Close Date to a realistic future date.
+5. Add a note explaining why the opportunity was reopened.
+
+**Best practices for reopening:**
+
+- Only reopen if there's genuine renewed interest from the customer.
+- Update the opportunity value if pricing has changed.
+- Consider creating a new opportunity instead if significant time has
+  passed (6+ months) to keep historical reporting accurate.
+
+**Reopening Closed-Won opportunities:**
+
+This is less common but may be needed if:
+
+- The deal fell through after being marked as won.
+- You need to renegotiate terms.
+
+Change the stage back to an active stage and update the close date.
+
+---
+
+## 9. Common Questions
+
+- **"When should I close an opportunity as Lost?"**
   Close it when the customer clearly chooses another option, stops
   responding, or postpones the project beyond your forecast horizon.
 
-- **“Should I create separate opportunities for expansions?”**  
+- **"Should I create separate opportunities for expansions?"**
   Yes, use separate Expansion opportunities so you can track new business,
   renewals, and upgrades separately.
 
-- **“What’s the best way to review pipeline as a team?”**  
+- **"What's the best way to review pipeline as a team?"**
   Use the pipeline board filtered by owner or segment, and review each
   stage weekly, focusing on stuck or stale deals.
+
+- **"Can I reopen a closed-lost opportunity?"**
+  Yes. Click "Reopen" on the opportunity record and select a new active
+  stage. See Section 8 for details and best practices.

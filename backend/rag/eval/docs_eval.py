@@ -11,10 +11,13 @@ Uses LLM-as-judge for relevance and groundedness scoring.
 Usage:
     python -m backend.rag.eval.docs_eval
     python -m backend.rag.eval.docs_eval --verbose
+    python -m backend.rag.eval.docs_eval --parallel --workers 8
 """
 
 import json
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -47,6 +50,9 @@ from backend.rag.eval.base import (
     print_issues_panel,
     format_check_mark,
     add_separator_row,
+    compare_to_baseline,
+    save_baseline,
+    print_baseline_comparison,
 )
 from backend.rag.eval.tracking import print_full_tracking_report
 
@@ -72,29 +78,35 @@ def evaluate_question(
     question_data: dict,
     backend,
     verbose: bool = False,
+    backend_lock: threading.Lock | None = None,
 ) -> EvalResult:
     """
     Evaluate a single question through the RAG pipeline.
-    
+
     Args:
         question_data: Dict with id, question, target_doc_ids
         backend: Initialized RetrievalBackend
         verbose: Print progress
-        
+        backend_lock: Optional lock for thread-safe backend access
+
     Returns:
         EvalResult with all metrics
     """
     question_id = question_data["id"]
     question = question_data["question"]
     target_doc_ids = question_data["target_doc_ids"]
-    
+
     if verbose:
         print(f"\nEvaluating: {question_id}")
         print(f"  Question: {question[:60]}...")
-    
-    # Run RAG pipeline
+
+    # Run RAG pipeline (with optional lock for thread safety)
     start_time = time.time()
-    result = answer_question(question, backend, k=8, verbose=False)
+    if backend_lock:
+        with backend_lock:
+            result = answer_question(question, backend, k=8, verbose=False)
+    else:
+        result = answer_question(question, backend, k=8, verbose=False)
     total_latency = (time.time() - start_time) * 1000
     
     # Build context string for judge
@@ -147,38 +159,115 @@ def evaluate_question(
 def run_evaluation(
     questions: list[dict] | None = None,
     verbose: bool = True,
+    parallel: bool = False,
+    max_workers: int = 4,
 ) -> tuple[list[EvalResult], DocsEvalSummary]:
     """
     Run full evaluation over all questions.
-    
+
     Args:
         questions: List of question dicts (or load from file)
         verbose: Print progress
-        
+        parallel: Run evaluations in parallel (faster but uses more API quota)
+        max_workers: Number of parallel workers (default: 4)
+
     Returns:
         Tuple of (results list, summary)
     """
     if questions is None:
         questions = load_eval_questions()
-    
+
+    mode_str = f"[cyan]parallel ({max_workers} workers)[/cyan]" if parallel else "[dim]sequential[/dim]"
     print_eval_header(
         "RAG Evaluation Harness",
-        f"Evaluating [bold]{len(questions)}[/bold] questions",
+        f"Evaluating [bold]{len(questions)}[/bold] questions {mode_str}",
     )
-    
+
     # Initialize backend
     with console.status("[bold green]Loading backend..."):
         backend = create_backend()
-    
+
+    if parallel:
+        results = _run_parallel(questions, backend, max_workers, verbose)
+    else:
+        results = _run_sequential(questions, backend, verbose)
+
+    # Compute summary
+    summary = compute_summary(results)
+
+    return results, summary
+
+
+def _run_sequential(
+    questions: list[dict],
+    backend,
+    verbose: bool,
+) -> list[EvalResult]:
+    """Run evaluation sequentially."""
     results = []
     for q in track(questions, description="Evaluating..."):
         result = evaluate_question(q, backend, verbose=verbose)
         results.append(result)
-    
-    # Compute summary
-    summary = compute_summary(results)
-    
-    return results, summary
+    return results
+
+
+def _run_parallel(
+    questions: list[dict],
+    backend,
+    max_workers: int,
+    verbose: bool,
+) -> list[EvalResult]:
+    """Run evaluation in parallel using ThreadPoolExecutor.
+
+    Note: The embedding model isn't fully thread-safe, so we use a lock
+    around the RAG pipeline call. The LLM judge calls still run in parallel.
+    """
+    results: list[EvalResult] = []
+    completed = 0
+    total = len(questions)
+
+    # Create a dict to preserve order
+    results_by_id: dict[str, EvalResult] = {}
+
+    # Lock for thread-safe access to the embedding model
+    backend_lock = threading.Lock()
+
+    def evaluate_with_lock(q: dict) -> EvalResult:
+        """Wrapper that uses lock for backend access."""
+        return evaluate_question(q, backend, False, backend_lock)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_question = {
+            executor.submit(evaluate_with_lock, q): q
+            for q in questions
+        }
+
+        # Process as they complete
+        for future in as_completed(future_to_question):
+            question = future_to_question[future]
+            try:
+                result = future.result()
+                results_by_id[question["id"]] = result
+                completed += 1
+
+                # Progress update
+                pct = completed / total * 100
+                status = "✓" if result.judge_result.groundedness == 1 else "✗"
+                console.print(
+                    f"  [{completed}/{total}] {status} {question['id'][:20]:<20} "
+                    f"({result.latency_ms:.0f}ms) [{pct:.0f}%]"
+                )
+            except Exception as e:
+                console.print(f"  [red]✗ {question['id']}: {e}[/red]")
+                completed += 1
+
+    # Return in original order
+    for q in questions:
+        if q["id"] in results_by_id:
+            results.append(results_by_id[q["id"]])
+
+    return results
 
 
 def compute_summary(results: list[EvalResult]) -> DocsEvalSummary:
@@ -337,19 +426,30 @@ def print_summary(results: list[EvalResult], summary: DocsEvalSummary) -> None:
 app = typer.Typer(help="RAG Evaluation Harness")
 
 
+BASELINE_PATH = Path("data/processed/docs_eval_baseline.json")
+
+
 @app.command()
 def run(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
+    parallel: bool = typer.Option(False, "--parallel", "-p", help="Run evaluations in parallel"),
+    workers: int = typer.Option(4, "--workers", "-w", help="Number of parallel workers"),
     output: Path = typer.Option(
         Path("data/processed/eval_results.json"),
         "--output", "-o",
         help="Output file for results",
     ),
+    baseline: str | None = typer.Option(None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"),
+    set_baseline: bool = typer.Option(False, "--set-baseline", help="Save current results as new baseline"),
 ) -> None:
     """Run evaluation on all test questions."""
-    results, summary = run_evaluation(verbose=verbose)
+    results, summary = run_evaluation(
+        verbose=verbose,
+        parallel=parallel,
+        max_workers=workers,
+    )
     print_summary(results, summary)
-    
+
     # Per-question detail table
     detail_table = create_detail_table("Per-Question Results", [
         ("ID", "left"),
@@ -359,7 +459,7 @@ def run(
         ("Recall", "right"),
         ("Latency", "right"),
     ])
-    
+
     for r in results:
         detail_table.add_row(
             r.question_id,
@@ -369,16 +469,16 @@ def run(
             f"{r.doc_recall:.1%}",
             f"{r.latency_ms:.0f}ms",
         )
-    
+
     console.print(detail_table)
-    
+
     # Failed questions
     failed = [r for r in results if r.judge_result.groundedness == 0 or r.judge_result.answer_relevance == 0]
     print_issues_panel(
         "Questions Needing Attention",
         [f"[bold]{r.question_id}[/bold]: {r.question}\n  [dim]{r.judge_result.explanation}[/dim]" for r in failed],
     )
-    
+
     # Save results to file
     output.parent.mkdir(parents=True, exist_ok=True)
     results_data = {
@@ -387,20 +487,42 @@ def run(
     }
     with open(output, "w") as f:
         json.dump(results_data, f, indent=2)
-    
+
     console.print(f"\n[dim]Results saved to {output}[/dim]")
 
     # Print tracking report (regression detection + budget analysis)
     print_full_tracking_report(results, summary)
 
-    # Exit code based on SLOs
+    # Baseline comparison
+    baseline_path = Path(baseline) if baseline else BASELINE_PATH
+    is_regression, baseline_score = compare_to_baseline(
+        summary.rag_triad_success,
+        baseline_path,
+        score_key="rag_triad_success",
+    )
+    print_baseline_comparison(summary.rag_triad_success, baseline_score, is_regression)
+
+    # Save as new baseline if requested
+    if set_baseline:
+        save_baseline(summary.model_dump(), BASELINE_PATH)
+
+    # Exit code based on SLOs and regression
+    exit_code = 0
+
     if not summary.all_slos_passed:
         console.print("\n[red bold]FAIL: One or more SLOs not met[/red bold]")
         for slo in summary.failed_slos:
             console.print(f"  • {slo}")
-        raise typer.Exit(code=1)
-    else:
+        exit_code = 1
+
+    if is_regression:
+        console.print("\n[red bold]FAIL: Regression detected[/red bold]")
+        exit_code = 1
+
+    if exit_code == 0:
         console.print("\n[green bold]✓ PASS: All SLOs met[/green bold]")
+
+    raise typer.Exit(code=exit_code)
 
 
 def main() -> None:

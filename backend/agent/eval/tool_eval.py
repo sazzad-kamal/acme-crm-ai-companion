@@ -14,6 +14,7 @@ Usage:
 """
 
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional
 
@@ -44,6 +45,9 @@ from backend.agent.eval.base import (
     create_summary_table,
     format_percentage,
     print_eval_header,
+    compare_to_baseline,
+    save_baseline,
+    print_baseline_comparison,
 )
 
 
@@ -441,9 +445,18 @@ def run_tool_test(test_case: dict, verbose: bool = False) -> ToolEvalResult:
     )
 
 
-def run_tool_eval(verbose: bool = False) -> tuple[list[ToolEvalResult], ToolEvalSummary]:
+def run_tool_eval(
+    verbose: bool = False,
+    parallel: bool = False,
+    max_workers: int = 8,
+) -> tuple[list[ToolEvalResult], ToolEvalSummary]:
     """
     Run all tool evaluation tests.
+
+    Args:
+        verbose: Print detailed progress
+        parallel: Run tests in parallel for faster execution
+        max_workers: Maximum number of parallel workers (default 8)
 
     Returns:
         Tuple of (results list, summary)
@@ -452,15 +465,33 @@ def run_tool_eval(verbose: bool = False) -> tuple[list[ToolEvalResult], ToolEval
         "[bold blue]Tool Evaluation[/bold blue]",
         "Testing agent tools for correctness",
     )
-    
+
     results = []
-    
+
     # Initialize datastore once
     _ = get_datastore()
-    
-    for test_case in track(TOOL_TEST_CASES, description="Testing tools..."):
-        result = run_tool_test(test_case, verbose=verbose)
-        results.append(result)
+
+    if parallel:
+        # Run tests in parallel using ThreadPoolExecutor
+        console.print(f"[cyan]Running {len(TOOL_TEST_CASES)} tests in parallel (max {max_workers} workers)...[/cyan]")
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(run_tool_test, test_case, verbose): test_case
+                for test_case in TOOL_TEST_CASES
+            }
+            completed = 0
+            for future in as_completed(futures):
+                result = future.result()
+                results.append(result)
+                completed += 1
+                if not verbose:
+                    console.print(f"  Completed {completed}/{len(TOOL_TEST_CASES)}", end="\r")
+        console.print()  # Newline after progress
+    else:
+        # Run tests sequentially with progress bar
+        for test_case in track(TOOL_TEST_CASES, description="Testing tools..."):
+            result = run_tool_test(test_case, verbose=verbose)
+            results.append(result)
     
     # Compute summary
     total = len(results)
@@ -537,16 +568,45 @@ def print_tool_eval_results(results: list[ToolEvalResult], summary: ToolEvalSumm
 
 app = typer.Typer()
 
+BASELINE_PATH = Path("data/processed/tool_eval_baseline.json")
+
 
 @app.command()
-def main(verbose: bool = False) -> None:
+def main(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
+    parallel: bool = typer.Option(False, "--parallel", "-p", help="Run tests in parallel"),
+    workers: int = typer.Option(8, "--workers", "-w", help="Max parallel workers"),
+    baseline: str | None = typer.Option(None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"),
+    set_baseline: bool = typer.Option(False, "--set-baseline", help="Save current results as new baseline"),
+) -> None:
     """Run tool evaluation."""
-    results, summary = run_tool_eval(verbose=verbose)
+    results, summary = run_tool_eval(verbose=verbose, parallel=parallel, max_workers=workers)
     print_tool_eval_results(results, summary)
-    
-    # Exit with error code if tests failed
+
+    # Baseline comparison
+    baseline_path = Path(baseline) if baseline else BASELINE_PATH
+    is_regression, baseline_score = compare_to_baseline(
+        summary.accuracy,
+        baseline_path,
+        score_key="accuracy",
+    )
+    print_baseline_comparison(summary.accuracy, baseline_score, is_regression)
+
+    # Save as new baseline if requested
+    if set_baseline:
+        save_baseline(summary.model_dump(), BASELINE_PATH)
+
+    # Exit code
+    exit_code = 0
+
     if summary.failed > 0:
-        raise typer.Exit(code=1)
+        exit_code = 1
+
+    if is_regression:
+        console.print("\n[red bold]FAIL: Regression detected[/red bold]")
+        exit_code = 1
+
+    raise typer.Exit(code=exit_code)
 
 
 if __name__ == "__main__":

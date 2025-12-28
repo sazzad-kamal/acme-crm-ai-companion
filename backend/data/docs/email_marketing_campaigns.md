@@ -93,17 +93,52 @@ If your bounce or complaint rates are high, you may see:
 
 ## 5. Templates and Personalization
 
-You can use templates with merge fields such as:
+### Built-in Email Templates
+
+Acme CRM Suite includes ready-to-use templates:
+
+**Onboarding Templates:**
+- Welcome Email – greet new customers with getting-started links
+- Setup Checklist – guide users through initial configuration
+- Feature Highlight – introduce key features over the first week
+
+**Renewal Templates:**
+- Renewal Reminder (60 days) – early notice with account summary
+- Renewal Reminder (30 days) – detailed renewal information
+- Renewal Reminder (7 days) – urgent final reminder
+- Thank You for Renewing – confirmation and next steps
+
+**Engagement Templates:**
+- Check-in Email – "How's everything going?" for quiet accounts
+- Product Update – announce new features
+- Feedback Request – ask for reviews or testimonials
+- Re-engagement – win back inactive users
+
+**Sales Templates:**
+- Meeting Follow-up – summary and next steps after a call
+- Proposal Sent – accompany a quote or proposal
+- Deal Won – thank you and onboarding handoff
+
+To use a template, go to Campaigns > New Campaign > Select Template.
+You can customize any template or create your own from scratch.
+
+### Merge Fields (Personalization)
+
+You can use merge fields such as:
 
 - `{{contact.first_name}}`
+- `{{contact.last_name}}`
 - `{{company.name}}`
-- `{{account.plan}}` (if available)
+- `{{company.plan}}`
+- `{{company.renewal_date}}`
+- `{{opportunity.value}}`
+- `{{owner.name}}` (account owner)
 
 Good practices:
 
 - keep templates simple and easy to scan,
 - use plain, clear language,
-- include a strong call to action (e.g., “Book a call”, “Review your usage”).
+- include a strong call to action (e.g., "Book a call", "Review your usage").
 
 ## 6. Metrics and Follow‑up
 

@@ -109,6 +109,18 @@ _retry_decorator = retry(
 )
 
 
+# Models that require max_completion_tokens instead of max_tokens
+# - Reasoning models: o1, o3, o4
+# - GPT-5.x models: gpt-5, gpt-5.2, etc.
+_MAX_COMPLETION_TOKENS_PREFIXES = {"o1", "o3", "o4", "gpt-5"}
+
+
+def _requires_max_completion_tokens(model: str) -> bool:
+    """Check if model requires max_completion_tokens instead of max_tokens."""
+    model_lower = model.lower()
+    return any(model_lower.startswith(prefix) for prefix in _MAX_COMPLETION_TOKENS_PREFIXES)
+
+
 @_retry_decorator
 def _call_openai(
     client: OpenAI,
@@ -118,12 +130,22 @@ def _call_openai(
     max_tokens: int,
 ):
     """Make the actual OpenAI API call with retry logic."""
-    return client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
+    # Newer models (o1, o3, o4, gpt-5.x) require max_completion_tokens
+    # Reasoning models (o1, o3, o4) and gpt-5.x don't support temperature parameter
+    if _requires_max_completion_tokens(model):
+        # These models don't support custom temperature (only default 1)
+        return client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_completion_tokens=max_tokens,
+        )
+    else:
+        return client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
 
 
 def call_llm(

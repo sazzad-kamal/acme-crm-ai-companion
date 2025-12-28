@@ -122,7 +122,49 @@ For more detail, see:
 - `email_marketing_campaigns.md`
 - `reports_dashboards_and_analytics.md`
 
-## 6. Common Questions
+## 6. Integrations
+
+Acme CRM Suite integrates with popular business tools:
+
+### Email & Calendar
+
+- **Google Workspace** – sync Gmail, Google Calendar, and Contacts
+- **Microsoft 365** – sync Outlook email, calendar, and contacts
+- **IMAP/SMTP** – connect any email provider for basic email logging
+
+### Communication
+
+- **Slack** – receive notifications for new opportunities, tasks, and
+  mentions
+- **Microsoft Teams** – activity notifications and quick actions
+- **Zoom** – automatically log meeting recordings as activities
+
+### Accounting & Billing
+
+- **QuickBooks Online** – sync invoices and payment status
+- **Xero** – two-way sync for customer and invoice data
+- **Stripe** – track subscription status and payment events
+
+### Marketing
+
+- **Mailchimp** – sync contact lists and campaign engagement
+- **HubSpot Marketing** – import leads and track marketing attribution
+
+### Developer & Automation
+
+- **Zapier** – connect to 3,000+ apps with no-code automation
+- **REST API** – build custom integrations (see `system_performance_and_limits.md`)
+- **Webhooks** – receive real-time notifications for record changes
+
+### Data Import/Export
+
+- **CSV Import/Export** – bulk data operations
+- **Salesforce Migration** – one-time import tool for switching CRMs
+
+To enable integrations, go to Settings > Integrations and follow the
+setup wizard for each service.
+
+## 7. Common Questions
 
 - **“Where should I start if I’m new to Acme CRM Suite?”**  
   Begin with the Companies and Contacts lists to make sure your customer

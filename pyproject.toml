@@ -52,7 +52,13 @@ addopts = "-v --tb=short"
 
 [tool.coverage.run]
 source = ["backend"]
-omit = ["*/tests/*", "*/__pycache__/*"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    # Eval harnesses are CLI tools that run against live LLMs
+    "backend/*/eval/*_eval.py",
+    "backend/*/eval/ab_eval.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [

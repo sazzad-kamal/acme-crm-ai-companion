@@ -156,9 +156,9 @@
   {
     "id": "doc_q23",
     "question": "What integrations does Acme CRM support?",
-    "target_doc_ids": ["product_acme_crm_overview", "faq_data_import_export"],
-    "category": "multi_doc",
-    "difficulty": "medium"
+    "target_doc_ids": ["product_acme_crm_overview"],
+    "category": "single_doc",
+    "difficulty": "easy"
   },
   {
     "id": "doc_q24",
@@ -191,9 +191,9 @@
   {
     "id": "doc_q28",
     "question": "How do I use the API to bulk update records?",
-    "target_doc_ids": ["faq_data_import_export", "system_performance_and_limits"],
-    "category": "multi_doc",
-    "difficulty": "hard"
+    "target_doc_ids": ["system_performance_and_limits"],
+    "category": "single_doc",
+    "difficulty": "medium"
   },
   {
     "id": "neg_q1",
@@ -277,21 +277,21 @@
     "question": "Can a contact belong to multiple companies?",
     "target_doc_ids": ["contacts_companies_and_groups"],
     "category": "edge_case",
-    "difficulty": "medium"
+    "difficulty": "easy"
   },
   {
     "id": "edge_q2",
     "question": "What happens to opportunities when a contact is deleted?",
-    "target_doc_ids": ["contacts_companies_and_groups", "opportunities_pipeline_and_forecasts"],
+    "target_doc_ids": ["contacts_companies_and_groups"],
     "category": "edge_case",
-    "difficulty": "hard"
+    "difficulty": "medium"
   },
   {
     "id": "edge_q3",
     "question": "How do I handle duplicate companies in the system?",
-    "target_doc_ids": ["contacts_companies_and_groups", "faq_data_import_export"],
+    "target_doc_ids": ["contacts_companies_and_groups"],
     "category": "edge_case",
-    "difficulty": "medium"
+    "difficulty": "easy"
   },
   {
     "id": "edge_q4",
@@ -305,6 +305,150 @@
     "question": "Can I reopen a closed-lost opportunity?",
     "target_doc_ids": ["opportunities_pipeline_and_forecasts"],
     "category": "edge_case",
-    "difficulty": "medium"
+    "difficulty": "easy"
+  },
+  {
+    "id": "natural_q1",
+    "question": "how do i add a new compnay",
+    "target_doc_ids": ["contacts_companies_and_groups"],
+    "category": "natural_language",
+    "difficulty": "easy",
+    "note": "Typo in 'company' - tests robustness"
+  },
+  {
+    "id": "natural_q2",
+    "question": "whats the deal with groups??",
+    "target_doc_ids": ["contacts_companies_and_groups"],
+    "category": "natural_language",
+    "difficulty": "easy",
+    "note": "Informal phrasing"
+  },
+  {
+    "id": "natural_q3",
+    "question": "api limits",
+    "target_doc_ids": ["system_performance_and_limits"],
+    "category": "natural_language",
+    "difficulty": "medium",
+    "note": "Keyword-only query, no full sentence"
+  },
+  {
+    "id": "natural_q4",
+    "question": "help with emails not sending",
+    "target_doc_ids": ["email_marketing_campaigns", "system_performance_and_limits"],
+    "category": "natural_language",
+    "difficulty": "medium",
+    "note": "Problem statement, not a question"
+  },
+  {
+    "id": "natural_q5",
+    "question": "renewals next month",
+    "target_doc_ids": ["opportunities_pipeline_and_forecasts", "reports_dashboards_and_analytics"],
+    "category": "natural_language",
+    "difficulty": "medium",
+    "note": "Fragment query"
+  },
+  {
+    "id": "multihop_q1",
+    "question": "If I delete a company, what happens to its contacts' activities?",
+    "target_doc_ids": ["contacts_companies_and_groups"],
+    "category": "multi_hop",
+    "difficulty": "hard",
+    "note": "Requires chaining: company deletion → contact deletion → activity behavior"
+  },
+  {
+    "id": "multihop_q2",
+    "question": "What's the maximum number of contacts I can bulk update via API on the Pro plan?",
+    "target_doc_ids": ["system_performance_and_limits"],
+    "category": "multi_hop",
+    "difficulty": "hard",
+    "note": "Requires combining plan limits + bulk API limits"
+  },
+  {
+    "id": "multihop_q3",
+    "question": "Can I send a renewal reminder email to contacts at companies with opportunities closing next month?",
+    "target_doc_ids": ["email_marketing_campaigns", "contacts_companies_and_groups", "opportunities_pipeline_and_forecasts"],
+    "category": "multi_hop",
+    "difficulty": "hard",
+    "note": "Requires understanding groups + campaigns + opportunities"
+  },
+  {
+    "id": "multihop_q4",
+    "question": "If I'm on the Standard plan and approaching the contact limit, can I still import new contacts via CSV?",
+    "target_doc_ids": ["system_performance_and_limits", "faq_data_import_export"],
+    "category": "multi_hop",
+    "difficulty": "hard",
+    "note": "Requires understanding plan limits + import behavior"
+  },
+  {
+    "id": "persona_admin_q1",
+    "question": "As an admin, how do I set up API access for our development team?",
+    "target_doc_ids": ["system_performance_and_limits", "product_acme_crm_overview"],
+    "category": "persona",
+    "difficulty": "medium",
+    "persona": "admin"
+  },
+  {
+    "id": "persona_admin_q2",
+    "question": "I need to migrate our data from Salesforce. What's the process?",
+    "target_doc_ids": ["faq_data_import_export", "product_acme_crm_overview"],
+    "category": "persona",
+    "difficulty": "medium",
+    "persona": "admin"
+  },
+  {
+    "id": "persona_dev_q1",
+    "question": "What's the endpoint for bulk company updates and what's the rate limit?",
+    "target_doc_ids": ["system_performance_and_limits"],
+    "category": "persona",
+    "difficulty": "medium",
+    "persona": "developer"
+  },
+  {
+    "id": "persona_dev_q2",
+    "question": "How do I handle 429 errors from the API?",
+    "target_doc_ids": ["system_performance_and_limits"],
+    "category": "persona",
+    "difficulty": "easy",
+    "persona": "developer"
+  },
+  {
+    "id": "persona_sales_q1",
+    "question": "I'm a new sales rep. How do I see my pipeline and what deals I should focus on?",
+    "target_doc_ids": ["opportunities_pipeline_and_forecasts", "reports_dashboards_and_analytics"],
+    "category": "persona",
+    "difficulty": "easy",
+    "persona": "sales_rep"
+  },
+  {
+    "id": "persona_sales_q2",
+    "question": "How do I log a call I just had with a customer?",
+    "target_doc_ids": ["history_activities_and_calendar"],
+    "category": "persona",
+    "difficulty": "easy",
+    "persona": "sales_rep"
+  },
+  {
+    "id": "ranking_q1",
+    "question": "How do I work with contacts?",
+    "target_doc_ids": ["contacts_companies_and_groups"],
+    "category": "ranking",
+    "difficulty": "medium",
+    "note": "Broad query - should rank contacts_companies_and_groups highest over other docs that mention contacts"
+  },
+  {
+    "id": "ranking_q2",
+    "question": "Tell me about opportunities",
+    "target_doc_ids": ["opportunities_pipeline_and_forecasts"],
+    "category": "ranking",
+    "difficulty": "medium",
+    "note": "Should rank opportunities doc highest even though other docs reference opportunities"
+  },
+  {
+    "id": "ranking_q3",
+    "question": "email features",
+    "target_doc_ids": ["email_marketing_campaigns"],
+    "category": "ranking",
+    "difficulty": "medium",
+    "note": "Should prioritize email_marketing doc over product_overview which also mentions email"
   }
 ]

@@ -98,28 +98,33 @@ Evaluate:"""
 def _call_judge_llm(
     prompt: str,
     system_prompt: str,
-    max_tokens: int = 500,
+    max_tokens: int = 1000,
 ) -> JudgeResult:
     """
     Generic helper to call LLM and parse judge response.
-    
+
     Args:
         prompt: Formatted prompt for the judge
         system_prompt: System prompt defining evaluation criteria
         max_tokens: Max tokens for response
-        
+
     Returns:
         JudgeResult with scores and explanation
     """
     try:
-        # Use reasoning model for more accurate evaluation judgments
+        # Use gpt-4o-mini for reliable structured JSON output
+        # (reasoning models like o4-mini can return empty content or exceed token limits)
         response = call_llm(
             prompt=prompt,
             system_prompt=system_prompt,
-            model="o4-mini",  # Reasoning model for better judgment accuracy
+            model="gpt-4o-mini",
             max_tokens=max_tokens,
         )
-        
+
+        # Handle empty response
+        if not response or not response.strip():
+            raise ValueError("Empty response from judge LLM")
+
         # Parse JSON response
         json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
         if json_match:
@@ -176,7 +181,7 @@ def judge_response(
         context=context,
         answer=answer,
     )
-    return _call_judge_llm(prompt, _JUDGE_SYSTEM, max_tokens=500)
+    return _call_judge_llm(prompt, _JUDGE_SYSTEM)
 
 
 def judge_account_response(
@@ -208,7 +213,7 @@ def judge_account_response(
         context=context,
         answer=answer,
     )
-    return _call_judge_llm(prompt, _ACCOUNT_JUDGE_SYSTEM, max_tokens=300)
+    return _call_judge_llm(prompt, _ACCOUNT_JUDGE_SYSTEM)
 
 
 def check_privacy_leakage(

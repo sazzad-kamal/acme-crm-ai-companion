@@ -1,17 +1,87 @@
 # System Performance and Limits
 
-_Last updated: 2025-11-26_
+_Last updated: 2025-12-27_
 
-This document describes how certain configuration choices and data volumes
-can affect the behaviour and performance of Acme CRM Suite.
-
-It is intended as a high‑level guide to help you understand why some
-operations may take longer than others, and what general patterns to be
-aware of.
+This document describes system limits, API quotas, and performance
+considerations for Acme CRM Suite.
 
 ---
 
-## 1. Reports and Dashboards
+## 1. System Limits by Plan
+
+| Resource | Free | Standard | Pro | Enterprise |
+|----------|------|----------|-----|------------|
+| Companies | 500 | 5,000 | 50,000 | Unlimited |
+| Contacts | 1,000 | 10,000 | 100,000 | Unlimited |
+| Opportunities | 500 | 5,000 | 50,000 | Unlimited |
+| Activities (total) | 10,000 | 100,000 | 1,000,000 | Unlimited |
+| Storage (attachments) | 1 GB | 10 GB | 100 GB | 1 TB |
+| Email sends/month | 500 | 5,000 | 50,000 | 200,000 |
+| Users | 2 | 10 | 50 | Unlimited |
+| API calls/day | 1,000 | 10,000 | 100,000 | 500,000 |
+
+When you approach 80% of a limit, you'll see a warning in Settings.
+When you reach 100%, new records of that type cannot be created until
+you upgrade or delete existing records.
+
+---
+
+## 2. API Rate Limits
+
+API rate limits protect system stability:
+
+| Limit Type | Value | Window |
+|------------|-------|--------|
+| Requests per minute | 60 | Rolling 1 minute |
+| Requests per hour | 1,000 | Rolling 1 hour |
+| Bulk operations per hour | 10 | Rolling 1 hour |
+| Max records per bulk request | 100 | Per request |
+
+**What happens when you exceed rate limits:**
+
+1. You receive an HTTP 429 (Too Many Requests) response.
+2. The response includes a `Retry-After` header (in seconds).
+3. Your integration should wait and retry after the specified time.
+4. Repeated violations within 24 hours may result in temporary API suspension.
+
+**Best practices:**
+
+- Implement exponential backoff for retries.
+- Use bulk endpoints instead of single-record updates.
+- Cache frequently-read data locally.
+- Spread batch operations over time rather than bursting.
+
+---
+
+## 3. Bulk API Operations
+
+For updating multiple records efficiently:
+
+```
+POST /api/v1/companies/bulk
+Content-Type: application/json
+
+{
+  "operation": "update",
+  "records": [
+    {"id": "comp_123", "status": "Active"},
+    {"id": "comp_456", "status": "Former"}
+  ]
+}
+```
+
+Supported bulk operations:
+
+- `create` – create up to 100 records per request
+- `update` – update up to 100 records per request
+- `delete` – delete up to 100 records per request
+
+Bulk requests are processed asynchronously. The response includes a
+`job_id` you can poll for completion status.
+
+---
+
+## 4. Reports and Dashboards
 
 Reports and dashboards are built on top of the underlying data in your
 database. The time it takes to run a report depends mainly on:
@@ -138,17 +208,26 @@ main patterns that can influence how quickly certain operations complete.
 
 ---
 
-## 7. Common Questions
+## 10. Common Questions
 
-- **“Why did my report suddenly feel slower?”**  
+- **"Why did my report suddenly feel slower?"**
   Check whether you recently widened the date range, added extra grouping
   fields, or removed filters that kept the dataset small.
 
-- **“Do I need to archive old data?”**  
+- **"Do I need to archive old data?"**
   Most SMBs can keep years of history online. If you see performance
   issues, start with filters and saved views before considering data
   archival.
 
-- **“Can I see hard limits for my deployment?”**  
-  Your Acme administrator or implementation partner can provide details
-  about any plan‑specific limits or quotas.
+- **"What happens if I exceed the API rate limits?"**
+  You receive an HTTP 429 response with a `Retry-After` header. Wait for
+  the specified time before retrying. Repeated violations may result in
+  temporary API suspension. See Section 2 for details.
+
+- **"How do I check my current usage against limits?"**
+  Go to Settings > Usage & Billing to see current counts for companies,
+  contacts, storage, and API calls against your plan limits.
+
+- **"Can I request a limit increase?"**
+  Enterprise plans have flexible limits. Contact your account manager to
+  discuss custom quotas for API calls, storage, or record counts.

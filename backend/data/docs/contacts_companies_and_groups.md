@@ -40,7 +40,21 @@ Each contact should normally be linked to a **primary company**. You can
 also store:
 
 - additional company associations as notes or custom fields,
-- tags for segmenting (e.g., “VIP”, “Board Member”).
+- tags for segmenting (e.g., "VIP", "Board Member").
+
+**Can a contact belong to multiple companies?**
+
+Yes. A contact has one **primary company** but can have **secondary
+company associations**:
+
+1. Go to the contact record.
+2. Click "Add Company Association" in the Companies section.
+3. Select the additional company and relationship type (e.g., Consultant,
+   Board Member, Advisor).
+
+Secondary associations appear in the contact's profile and in the
+associated companies' contact lists. This is useful for consultants,
+board members, or contacts who work across multiple client organizations.
 
 ## 3. Groups and Segmentation
 
@@ -133,18 +147,65 @@ For more detailed workflows:
 - see `history_activities_and_calendar.md`,
 - and `opportunities_pipeline_and_forecasts.md`.
 
-## 7. Common Questions
+## 7. Deleting Records
 
-- **“Should I create a company for every contact?”**  
+### Deleting a Contact
+
+When you delete a contact:
+
+- The contact is moved to the Recycle Bin (recoverable for 30 days).
+- **Opportunities** linked to that contact are NOT deleted, but the
+  contact reference is removed. The opportunity remains linked to its
+  company.
+- **Activities** logged against the contact are preserved but show
+  "[Deleted Contact]" as the participant.
+- **Email campaign history** is retained for reporting purposes.
+
+To permanently delete (after 30 days or manual purge):
+
+- All contact data is removed.
+- Activity records show "[Deleted]" for the contact name.
+
+### Deleting a Company
+
+When you delete a company:
+
+- All contacts with that company as their **primary** company are also
+  deleted (moved to Recycle Bin).
+- All opportunities linked to that company are deleted.
+- Activities are preserved but show "[Deleted Company]".
+
+**Warning:** Deleting a company is a significant action. Consider changing
+the status to "Former" instead if you want to preserve history.
+
+### Handling Duplicates
+
+If you find duplicate companies:
+
+1. Go to Settings > Data Management > Merge Records.
+2. Select the duplicate records.
+3. Choose which record to keep as the primary.
+4. The system merges contacts, opportunities, and activities into the
+   primary record.
+
+---
+
+## 8. Common Questions
+
+- **"Should I create a company for every contact?"**
   For business customers, yes. For one‑off consumers, you can choose to use
-  a generic company (e.g., “Individual Customers”) if that matches how you
+  a generic company (e.g., "Individual Customers") if that matches how you
   report.
 
-- **“What’s the best way to track multiple brands or locations?”**  
+- **"What's the best way to track multiple brands or locations?"**
   Use separate company records when you need separate ownership, renewals,
   or reporting. Use custom fields or groups to link related companies.
 
-- **“When should I use a Group instead of a report?”**  
-  Use Groups for lists you’ll use often in calls or campaigns (e.g.,
-  “Renewals next 60 days”). Use reports when you mainly care about counts
+- **"When should I use a Group instead of a report?"**
+  Use Groups for lists you'll use often in calls or campaigns (e.g.,
+  "Renewals next 60 days"). Use reports when you mainly care about counts
   and totals.
+
+- **"What happens to opportunities when a contact is deleted?"**
+  Opportunities are NOT deleted. The contact reference is removed, but the
+  opportunity stays linked to its company. See Section 7 for details.

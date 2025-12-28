@@ -9,9 +9,12 @@ Evaluates account-scoped RAG using:
 Usage:
     python -m backend.rag.eval.account_eval
     python -m backend.rag.eval.account_eval --verbose
+    python -m backend.rag.eval.account_eval --parallel --workers 8
 """
 
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional
 
@@ -42,7 +45,14 @@ from backend.rag.eval.models import (
     SLO_LATENCY_P95_MS,
 )
 from backend.rag.eval.judge import judge_account_response, check_privacy_leakage
-from backend.rag.eval.questions import generate_eval_questions, NUM_COMPANIES, NUM_QUESTIONS_PER_COMPANY, RANDOM_SEED
+from backend.rag.eval.questions import (
+    generate_eval_questions,
+    generate_adversarial_questions,
+    generate_privacy_leakage_questions,
+    NUM_COMPANIES,
+    NUM_QUESTIONS_PER_COMPANY,
+    RANDOM_SEED,
+)
 from backend.rag.eval.base import (
     console,
     create_summary_table,
@@ -50,6 +60,9 @@ from backend.rag.eval.base import (
     print_eval_header,
     print_issues_panel,
     add_separator_row,
+    compare_to_baseline,
+    save_baseline,
+    print_baseline_comparison,
 )
 
 
@@ -90,23 +103,41 @@ def ensure_private_collection_exists() -> None:
 def evaluate_question(
     question_data: dict,
     verbose: bool = False,
+    rag_lock: threading.Lock | None = None,
 ) -> AccountEvalResult:
-    """Evaluate a single account question."""
+    """Evaluate a single account question.
+
+    Args:
+        question_data: Dict with id, company_id, company_name, question, question_type
+        verbose: Print progress
+        rag_lock: Optional lock for thread-safe RAG pipeline access
+
+    Returns:
+        AccountEvalResult with all metrics
+    """
     q_id = question_data["id"]
     company_id = question_data["company_id"]
     company_name = question_data["company_name"]
     question = question_data["question"]
     q_type = question_data["question_type"]
-    
+
     if verbose:
         print(f"\n  {q_id}: {question[:50]}...")
-    
-    # Run RAG
-    result = answer_account_question(
-        question=question,
-        company_id=company_id,
-        verbose=False,
-    )
+
+    # Run RAG (with optional lock for thread safety)
+    if rag_lock:
+        with rag_lock:
+            result = answer_account_question(
+                question=question,
+                company_id=company_id,
+                verbose=False,
+            )
+    else:
+        result = answer_account_question(
+            question=question,
+            company_id=company_id,
+            verbose=False,
+        )
     
     # Check privacy leakage
     leakage, leaked_ids = check_privacy_leakage(
@@ -154,30 +185,127 @@ def evaluate_question(
     )
 
 
-def run_evaluation(verbose: bool = True) -> tuple[list[AccountEvalResult], AccountEvalSummary]:
-    """Run full evaluation."""
+def run_evaluation(
+    verbose: bool = True,
+    parallel: bool = False,
+    max_workers: int = 4,
+) -> tuple[list[AccountEvalResult], AccountEvalSummary]:
+    """Run full evaluation.
+
+    Args:
+        verbose: Print progress
+        parallel: Run evaluations in parallel (faster but uses more API quota)
+        max_workers: Number of parallel workers (default: 4)
+
+    Returns:
+        Tuple of (results list, summary)
+    """
     # Ensure collection exists
     ensure_private_collection_exists()
-    
-    # Generate questions
-    questions = generate_eval_questions()
-    num_companies = len(set(q['company_id'] for q in questions))
-    
+
+    # Generate all questions (standard + adversarial + privacy leakage)
+    standard_questions = generate_eval_questions()
+    adversarial_questions = generate_adversarial_questions()
+    privacy_questions = generate_privacy_leakage_questions()
+
+    # Adversarial questions need a company context - use first company as default
+    companies_df = load_companies_df()
+    default_company = companies_df.iloc[0]
+    for q in adversarial_questions:
+        if 'company_id' not in q:
+            q['company_id'] = default_company['company_id']
+            q['company_name'] = default_company['name']
+
+    # Combine all questions
+    questions = standard_questions + adversarial_questions + privacy_questions
+    num_companies = len(set(q['company_id'] for q in questions if 'company_id' in q))
+
+    mode_str = f"[cyan]parallel ({max_workers} workers)[/cyan]" if parallel else "[dim]sequential[/dim]"
     print_eval_header(
         "Account RAG Evaluation (MVP2)",
         f"Evaluating [bold]{len(questions)}[/bold] questions across "
-        f"[bold]{num_companies}[/bold] companies",
+        f"[bold]{num_companies}[/bold] companies {mode_str}",
     )
-    
+
+    if parallel:
+        results = _run_parallel(questions, max_workers, verbose)
+    else:
+        results = _run_sequential(questions, verbose)
+
+    # Compute summary
+    summary = compute_account_summary(results)
+
+    return results, summary
+
+
+def _run_sequential(
+    questions: list[dict],
+    verbose: bool,
+) -> list[AccountEvalResult]:
+    """Run evaluation sequentially."""
     results = []
     for q in track(questions, description="Evaluating..."):
         result = evaluate_question(q, verbose=verbose)
         results.append(result)
-    
-    # Compute summary
-    summary = compute_account_summary(results)
-    
-    return results, summary
+    return results
+
+
+def _run_parallel(
+    questions: list[dict],
+    max_workers: int,
+    verbose: bool,
+) -> list[AccountEvalResult]:
+    """Run evaluation in parallel using ThreadPoolExecutor.
+
+    Note: The embedding model isn't fully thread-safe, so we use a lock
+    around the RAG pipeline call. The LLM judge calls still run in parallel.
+    """
+    completed = 0
+    total = len(questions)
+
+    # Create a dict to preserve order
+    results_by_id: dict[str, AccountEvalResult] = {}
+
+    # Lock for thread-safe access to the embedding model
+    rag_lock = threading.Lock()
+
+    def evaluate_with_lock(q: dict) -> AccountEvalResult:
+        """Wrapper that uses lock for RAG access."""
+        return evaluate_question(q, False, rag_lock)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_question = {
+            executor.submit(evaluate_with_lock, q): q
+            for q in questions
+        }
+
+        # Process as they complete
+        for future in as_completed(future_to_question):
+            question = future_to_question[future]
+            try:
+                result = future.result()
+                results_by_id[question["id"]] = result
+                completed += 1
+
+                # Progress update
+                pct = completed / total * 100
+                status = "✓" if result.judge_result.groundedness == 1 and not result.privacy_leakage else "✗"
+                console.print(
+                    f"  [{completed}/{total}] {status} {question['id'][:20]:<20} "
+                    f"({result.latency_ms:.0f}ms) [{pct:.0f}%]"
+                )
+            except Exception as e:
+                console.print(f"  [red]✗ {question['id']}: {e}[/red]")
+                completed += 1
+
+    # Return in original order
+    results = []
+    for q in questions:
+        if q["id"] in results_by_id:
+            results.append(results_by_id[q["id"]])
+
+    return results
 
 
 def compute_account_summary(results: list[AccountEvalResult]) -> AccountEvalSummary:
@@ -365,23 +493,33 @@ def print_summary(results: list[AccountEvalResult], summary: AccountEvalSummary)
 
 app = typer.Typer(help="Account RAG Evaluation Harness (MVP2)")
 
+BASELINE_PATH = Path("data/processed/account_eval_baseline.json")
+
 
 @app.command()
 def run(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
+    parallel: bool = typer.Option(False, "--parallel", "-p", help="Run evaluations in parallel"),
+    workers: int = typer.Option(4, "--workers", "-w", help="Number of parallel workers"),
     output: Path = typer.Option(
         OUTPUT_PATH,
         "--output", "-o",
         help="Output file for results",
     ),
+    baseline: str | None = typer.Option(None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"),
+    set_baseline: bool = typer.Option(False, "--set-baseline", help="Save current results as new baseline"),
 ) -> None:
     """Run evaluation on generated account questions."""
     # Run evaluation
-    results, summary = run_evaluation(verbose=verbose)
-    
+    results, summary = run_evaluation(
+        verbose=verbose,
+        parallel=parallel,
+        max_workers=workers,
+    )
+
     # Print summary
     print_summary(results, summary)
-    
+
     # Save results
     output.parent.mkdir(parents=True, exist_ok=True)
     results_data = {
@@ -390,17 +528,39 @@ def run(
     }
     with open(output, "w") as f:
         json.dump(results_data, f, indent=2)
-    
+
     console.print(f"\n[dim]Results saved to {output}[/dim]")
-    
-    # Exit code based on SLOs
+
+    # Baseline comparison
+    baseline_path = Path(baseline) if baseline else BASELINE_PATH
+    is_regression, baseline_score = compare_to_baseline(
+        summary.rag_triad_success,
+        baseline_path,
+        score_key="rag_triad_success",
+    )
+    print_baseline_comparison(summary.rag_triad_success, baseline_score, is_regression)
+
+    # Save as new baseline if requested
+    if set_baseline:
+        save_baseline(summary.model_dump(), BASELINE_PATH)
+
+    # Exit code based on SLOs and regression
+    exit_code = 0
+
     if not summary.all_slos_passed:
         console.print("\n[red bold]FAIL: One or more SLOs not met[/red bold]")
         for slo in summary.failed_slos:
             console.print(f"  • {slo}")
-        raise typer.Exit(code=1)
-    else:
+        exit_code = 1
+
+    if is_regression:
+        console.print("\n[red bold]FAIL: Regression detected[/red bold]")
+        exit_code = 1
+
+    if exit_code == 0:
         console.print("\n[green bold]✓ PASS: All SLOs met[/green bold]")
+
+    raise typer.Exit(code=exit_code)
 
 
 def main() -> None:

@@ -7,10 +7,13 @@ to quantify the quality vs latency tradeoffs of HyDE, query rewrite, and reranki
 Usage:
     python -m backend.rag.eval.ab_eval
     python -m backend.rag.eval.ab_eval --limit 5
+    python -m backend.rag.eval.ab_eval --parallel --workers 8
 """
 
 import json
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -65,27 +68,41 @@ AB_CONFIGS: dict[str, dict[str, bool]] = {
 # A/B Evaluation
 # =============================================================================
 
-def run_config_eval(
-    config_name: str,
+def _evaluate_single_question(
+    q: dict,
     config: dict[str, bool],
-    questions: list[dict],
     backend,
+    backend_lock: threading.Lock | None = None,
 ) -> dict[str, Any]:
-    """
-    Run evaluation with a specific configuration.
+    """Evaluate a single question with the given config.
+
+    Args:
+        q: Question dict with question and target_doc_ids
+        config: Config dict with use_hyde, use_rewrite, use_reranker
+        backend: Initialized RetrievalBackend
+        backend_lock: Optional lock for thread-safe backend access
 
     Returns:
-        Dict with metrics for this configuration
+        Dict with question-level metrics
     """
-    results = []
+    question = q["question"]
+    target_doc_ids = q["target_doc_ids"]
 
-    for q in questions:
-        question = q["question"]
-        target_doc_ids = q["target_doc_ids"]
+    start_time = time.time()
 
-        start_time = time.time()
-
-        try:
+    try:
+        # Run RAG (with optional lock for thread safety)
+        if backend_lock:
+            with backend_lock:
+                result = answer_question(
+                    question,
+                    backend,
+                    k=8,
+                    use_hyde=config["use_hyde"],
+                    use_rewrite=config["use_rewrite"],
+                    verbose=False,
+                )
+        else:
             result = answer_question(
                 question,
                 backend,
@@ -94,50 +111,80 @@ def run_config_eval(
                 use_rewrite=config["use_rewrite"],
                 verbose=False,
             )
-            latency = (time.time() - start_time) * 1000
+        latency = (time.time() - start_time) * 1000
 
-            # Build context for judge
-            context = "\n\n".join([
-                f"[{c.doc_id}] {c.text[:500]}"
-                for c in result["used_chunks"]
-            ])
+        # Build context for judge
+        context = "\n\n".join([
+            f"[{c.doc_id}] {c.text[:500]}"
+            for c in result["used_chunks"]
+        ])
 
-            # Judge the response
-            judge_result = judge_response(
-                question=question,
-                context=context,
-                answer=result["answer"],
-                doc_ids=result["doc_ids_used"],
-            )
+        # Judge the response
+        judge_result = judge_response(
+            question=question,
+            context=context,
+            answer=result["answer"],
+            doc_ids=result["doc_ids_used"],
+        )
 
-            # Compute doc recall
-            target_set = set(target_doc_ids)
-            retrieved_set = set(result["doc_ids_used"])
-            doc_recall = len(target_set & retrieved_set) / len(target_set) if target_set else 1.0
+        # Compute doc recall
+        target_set = set(target_doc_ids)
+        retrieved_set = set(result["doc_ids_used"])
+        doc_recall = len(target_set & retrieved_set) / len(target_set) if target_set else 1.0
 
-            results.append({
-                "latency_ms": latency,
-                "context_relevance": judge_result.context_relevance,
-                "answer_relevance": judge_result.answer_relevance,
-                "groundedness": judge_result.groundedness,
-                "doc_recall": doc_recall,
-                "rag_triad": int(
-                    judge_result.context_relevance == 1 and
-                    judge_result.answer_relevance == 1 and
-                    judge_result.groundedness == 1
-                ),
-            })
+        return {
+            "id": q["id"],
+            "latency_ms": latency,
+            "context_relevance": judge_result.context_relevance,
+            "answer_relevance": judge_result.answer_relevance,
+            "groundedness": judge_result.groundedness,
+            "doc_recall": doc_recall,
+            "rag_triad": int(
+                judge_result.context_relevance == 1 and
+                judge_result.answer_relevance == 1 and
+                judge_result.groundedness == 1
+            ),
+        }
 
-        except Exception as e:
-            console.print(f"[red]Error on question: {e}[/red]")
-            results.append({
-                "latency_ms": (time.time() - start_time) * 1000,
-                "context_relevance": 0,
-                "answer_relevance": 0,
-                "groundedness": 0,
-                "doc_recall": 0,
-                "rag_triad": 0,
-            })
+    except Exception as e:
+        return {
+            "id": q["id"],
+            "latency_ms": (time.time() - start_time) * 1000,
+            "context_relevance": 0,
+            "answer_relevance": 0,
+            "groundedness": 0,
+            "doc_recall": 0,
+            "rag_triad": 0,
+            "error": str(e),
+        }
+
+
+def run_config_eval(
+    config_name: str,
+    config: dict[str, bool],
+    questions: list[dict],
+    backend,
+    parallel: bool = False,
+    max_workers: int = 4,
+) -> dict[str, Any]:
+    """
+    Run evaluation with a specific configuration.
+
+    Args:
+        config_name: Name of the config
+        config: Config dict with use_hyde, use_rewrite, use_reranker
+        questions: List of question dicts
+        backend: Initialized RetrievalBackend
+        parallel: Run evaluations in parallel
+        max_workers: Number of parallel workers
+
+    Returns:
+        Dict with metrics for this configuration
+    """
+    if parallel:
+        results = _run_config_parallel(config, questions, backend, max_workers)
+    else:
+        results = _run_config_sequential(config, questions, backend)
 
     # Aggregate metrics
     n = len(results)
@@ -160,9 +207,82 @@ def run_config_eval(
     }
 
 
+def _run_config_sequential(
+    config: dict[str, bool],
+    questions: list[dict],
+    backend,
+) -> list[dict[str, Any]]:
+    """Run config evaluation sequentially."""
+    results = []
+    for q in questions:
+        result = _evaluate_single_question(q, config, backend)
+        if "error" in result:
+            console.print(f"[red]Error on question: {result['error']}[/red]")
+        results.append(result)
+    return results
+
+
+def _run_config_parallel(
+    config: dict[str, bool],
+    questions: list[dict],
+    backend,
+    max_workers: int,
+) -> list[dict[str, Any]]:
+    """Run config evaluation in parallel using ThreadPoolExecutor.
+
+    Note: The embedding model isn't fully thread-safe, so we use a lock
+    around the RAG pipeline call. The LLM judge calls still run in parallel.
+    """
+    results_by_id: dict[str, dict[str, Any]] = {}
+
+    # Lock for thread-safe access to the embedding model
+    backend_lock = threading.Lock()
+
+    def evaluate_with_lock(q: dict) -> dict[str, Any]:
+        """Wrapper that uses lock for backend access."""
+        return _evaluate_single_question(q, config, backend, backend_lock)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_question = {
+            executor.submit(evaluate_with_lock, q): q
+            for q in questions
+        }
+
+        # Process as they complete
+        for future in as_completed(future_to_question):
+            question = future_to_question[future]
+            try:
+                result = future.result()
+                results_by_id[question["id"]] = result
+                if "error" in result:
+                    console.print(f"[red]Error on question: {result['error']}[/red]")
+            except Exception as e:
+                console.print(f"[red]✗ {question['id']}: {e}[/red]")
+                results_by_id[question["id"]] = {
+                    "id": question["id"],
+                    "latency_ms": 0,
+                    "context_relevance": 0,
+                    "answer_relevance": 0,
+                    "groundedness": 0,
+                    "doc_recall": 0,
+                    "rag_triad": 0,
+                }
+
+    # Return in original order
+    results = []
+    for q in questions:
+        if q["id"] in results_by_id:
+            results.append(results_by_id[q["id"]])
+
+    return results
+
+
 def run_ab_evaluation(
     limit: int | None = None,
     configs: list[str] | None = None,
+    parallel: bool = False,
+    max_workers: int = 4,
 ) -> list[dict[str, Any]]:
     """
     Run A/B evaluation across all configurations.
@@ -170,13 +290,16 @@ def run_ab_evaluation(
     Args:
         limit: Limit number of questions per config
         configs: Specific configs to run (default: all)
+        parallel: Run question evaluations in parallel within each config
+        max_workers: Number of parallel workers
 
     Returns:
         List of results per configuration
     """
+    mode_str = f"[cyan]parallel ({max_workers} workers)[/cyan]" if parallel else "[dim]sequential[/dim]"
     print_eval_header(
         "[bold blue]RAG A/B Evaluation[/bold blue]",
-        "Running A/B comparison across pipeline configurations",
+        f"Running A/B comparison across pipeline configurations {mode_str}",
     )
 
     # Load questions
@@ -200,7 +323,10 @@ def run_ab_evaluation(
         console.print(f"\n[cyan]Config: {config_name}[/cyan]")
         console.print(f"  HyDE={config['use_hyde']}, Rewrite={config['use_rewrite']}, Reranker={config['use_reranker']}")
 
-        result = run_config_eval(config_name, config, questions, backend)
+        result = run_config_eval(
+            config_name, config, questions, backend,
+            parallel=parallel, max_workers=max_workers,
+        )
         all_results.append(result)
 
         console.print(f"  RAG Triad: {result['rag_triad']:.1%}, Latency: {result['avg_latency_ms']:.0f}ms")
@@ -304,6 +430,8 @@ def save_ab_results(results: list[dict[str, Any]], output_path: Path) -> None:
 @app.command()
 def run(
     limit: int | None = typer.Option(None, "--limit", "-l", help="Limit questions per config"),
+    parallel: bool = typer.Option(False, "--parallel", "-p", help="Run evaluations in parallel"),
+    workers: int = typer.Option(4, "--workers", "-w", help="Number of parallel workers"),
     output: Path = typer.Option(
         Path("backend/data/processed/ab_eval_results.json"),
         "--output", "-o",
@@ -318,7 +446,12 @@ def run(
     """Run A/B evaluation across pipeline configurations."""
     config_list = configs.split(",") if configs else None
 
-    results = run_ab_evaluation(limit=limit, configs=config_list)
+    results = run_ab_evaluation(
+        limit=limit,
+        configs=config_list,
+        parallel=parallel,
+        max_workers=workers,
+    )
     print_ab_results(results)
     save_ab_results(results, output)
 

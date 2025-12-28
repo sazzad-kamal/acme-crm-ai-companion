@@ -24,6 +24,10 @@ from backend.common.eval_base import (
     load_results_json,
     compute_p95,
     compute_pass_rate,
+    compare_to_baseline,
+    save_baseline,
+    print_baseline_comparison,
+    REGRESSION_THRESHOLD,
 )
 
 __all__ = [
@@ -44,4 +48,8 @@ __all__ = [
     "load_results_json",
     "compute_p95",
     "compute_pass_rate",
+    "compare_to_baseline",
+    "save_baseline",
+    "print_baseline_comparison",
+    "REGRESSION_THRESHOLD",
 ]

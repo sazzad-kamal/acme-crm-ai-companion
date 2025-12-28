@@ -299,23 +299,35 @@ class TestQuestionGeneration:
     
     def test_generates_expected_number_of_questions(self):
         """Test that question generation produces expected count."""
-        from backend.rag.eval.account_eval import (
+        from backend.rag.eval.questions import (
             generate_eval_questions,
             NUM_COMPANIES,
             NUM_QUESTIONS_PER_COMPANY,
+            EDGE_CASE_TEMPLATES,
+            NATURAL_LANGUAGE_TEMPLATES,
+            GROUND_TRUTH_TEMPLATES,
         )
-        
+
         questions = generate_eval_questions()
-        
-        # Base questions + edge case questions (3 companies × 3 edge case templates)
-        NUM_EDGE_CASE_COMPANIES = 3
-        NUM_EDGE_CASE_TEMPLATES = 3
-        expected = (NUM_COMPANIES * NUM_QUESTIONS_PER_COMPANY) + (NUM_EDGE_CASE_COMPANIES * NUM_EDGE_CASE_TEMPLATES)
+
+        # Base questions: all companies × questions per company
+        base = NUM_COMPANIES * NUM_QUESTIONS_PER_COMPANY
+
+        # Edge cases: 3 companies × all edge case templates
+        edge_cases = 3 * len(EDGE_CASE_TEMPLATES)
+
+        # Natural language: 4 companies × all NL templates
+        natural_language = 4 * len(NATURAL_LANGUAGE_TEMPLATES)
+
+        # Ground truth: 4 companies × all GT templates
+        ground_truth = 4 * len(GROUND_TRUTH_TEMPLATES)
+
+        expected = base + edge_cases + natural_language + ground_truth
         assert len(questions) == expected
     
     def test_questions_have_required_fields(self):
         """Test that generated questions have all required fields."""
-        from backend.rag.eval.account_eval import generate_eval_questions
+        from backend.rag.eval.questions import generate_eval_questions
         
         questions = generate_eval_questions()
         
@@ -328,7 +340,7 @@ class TestQuestionGeneration:
     
     def test_questions_are_deterministic(self):
         """Test that question generation is deterministic."""
-        from backend.rag.eval.account_eval import generate_eval_questions
+        from backend.rag.eval.questions import generate_eval_questions
         
         q1 = generate_eval_questions(seed=42)
         q2 = generate_eval_questions(seed=42)
