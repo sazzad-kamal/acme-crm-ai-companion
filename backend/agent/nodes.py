@@ -11,6 +11,7 @@ from backend.agent.state import AgentState
 from backend.agent.config import get_config
 from backend.agent.schemas import Source
 from backend.agent.llm_router import route_question
+from backend.agent.memory import format_history_for_prompt
 from backend.agent.prompts import (
     AGENT_SYSTEM_PROMPT,
     COMPANY_NOT_FOUND_PROMPT,
@@ -23,6 +24,7 @@ from backend.agent.formatters import (
     format_pipeline_section,
     format_renewals_section,
     format_docs_section,
+    format_conversation_history_section,
 )
 from backend.agent.llm_helpers import (
     call_llm,
@@ -57,14 +59,20 @@ def route_node(state: AgentState) -> AgentState:
     Router node: Determine mode and extract parameters.
 
     Uses LLM-based or heuristic routing based on config.
+    Passes conversation history for pronoun resolution.
     """
     logger.info(f"[Route] Processing: {state['question'][:50]}...")
+
+    # Format conversation history for the router
+    messages = state.get("messages", [])
+    conversation_history = format_history_for_prompt(messages) if messages else ""
 
     try:
         router_result = route_question(
             state["question"],
             mode=state.get("mode", "auto"),
             company_id=state.get("company_id"),
+            conversation_history=conversation_history,
         )
 
         logger.info(
@@ -479,6 +487,9 @@ def answer_node(state: AgentState) -> AgentState:
 
         else:
             # Build context sections
+            conversation_history_section = format_conversation_history_section(
+                state.get("messages", [])
+            )
             company_section = format_company_section(company_data)
             activities_section = format_activities_section(state.get("activities_data"))
             history_section = format_history_section(state.get("history_data"))
@@ -488,6 +499,7 @@ def answer_node(state: AgentState) -> AgentState:
 
             prompt = DATA_ANSWER_PROMPT.format(
                 question=state["question"],
+                conversation_history_section=conversation_history_section,
                 company_section=company_section,
                 activities_section=activities_section,
                 history_section=history_section,
@@ -520,6 +532,8 @@ def answer_node(state: AgentState) -> AgentState:
 def followup_node(state: AgentState) -> AgentState:
     """
     Follow-up node: Generate suggested follow-up questions.
+
+    Uses conversation history for contextual suggestions.
     """
     config = get_config()
 
@@ -528,11 +542,16 @@ def followup_node(state: AgentState) -> AgentState:
 
     logger.info("[Followup] Generating suggestions...")
 
+    # Format conversation history for follow-up context
+    messages = state.get("messages", [])
+    conversation_history = format_history_for_prompt(messages) if messages else ""
+
     try:
         suggestions = generate_follow_up_suggestions(
             question=state["question"],
             mode=state.get("mode_used", "auto"),
             company_id=state.get("resolved_company_id"),
+            conversation_history=conversation_history,
         )
         logger.debug(f"[Followup] Generated {len(suggestions)} suggestions")
 

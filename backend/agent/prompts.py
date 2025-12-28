@@ -5,7 +5,7 @@ This module contains all system prompts and prompt templates
 used by the agent orchestrator.
 """
 
-AGENT_SYSTEM_PROMPT = """You are a helpful CRM assistant for Acme CRM Suite. 
+AGENT_SYSTEM_PROMPT = """You are a helpful CRM assistant for Acme CRM Suite.
 Your job is to answer questions about company accounts, activities, pipeline, and renewals using ONLY the provided CRM data.
 
 IMPORTANT RULES:
@@ -19,6 +19,7 @@ IMPORTANT RULES:
 6. If a company was not found, ask a clarifying question and list close matches.
 7. Format currency values with $ and commas.
 8. Format dates in a human-readable way (e.g., "March 31, 2026").
+9. If conversation history is provided, use it to understand context and resolve references.
 
 Keep your answer SHORT and DIRECT. Do not add "next steps" or "suggested actions" - the UI handles follow-ups separately."""
 
@@ -39,6 +40,8 @@ DATA_ANSWER_PROMPT = """Based on the following CRM data, answer the user's quest
 
 User's question: {question}
 
+{conversation_history_section}
+
 {company_section}
 
 {activities_section}
@@ -53,16 +56,21 @@ User's question: {question}
 
 Please provide a helpful, grounded response following the rules in your system prompt."""
 
-FOLLOW_UP_PROMPT = """Based on the user's question and the answer provided, suggest 3 natural follow-up questions they might want to ask next.
+FOLLOW_UP_PROMPT = """Based on the user's question and conversation context, suggest 3 natural follow-up questions they might want to ask next.
 
-User's original question: {question}
+User's current question: {question}
 Mode used: {mode}
 Company context: {company}
+
+{conversation_history_section}
 
 Generate 3 SHORT, SPECIFIC follow-up questions that would be valuable. Focus on:
 - Drilling deeper into the data shown
 - Related information they might need
 - Actionable next steps
+- Questions that build on the conversation context
+
+IMPORTANT: If there's conversation history, suggest follow-ups that continue that flow naturally.
 
 Respond with ONLY a JSON array of 3 strings, nothing else:
 ["Question 1?", "Question 2?", "Question 3?"]"""

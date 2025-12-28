@@ -259,6 +259,36 @@ def format_docs_section(docs_answer: str) -> str:
     return f"=== DOCUMENTATION GUIDANCE ===\n{docs_answer}"
 
 
+def format_conversation_history_section(messages: list[dict] | None, max_messages: int = 4) -> str:
+    """
+    Format conversation history for the prompt.
+
+    Args:
+        messages: List of message dicts with 'role' and 'content'
+        max_messages: Maximum number of recent messages to include
+
+    Returns:
+        Formatted conversation history section
+    """
+    if not messages:
+        return ""
+
+    recent = messages[-max_messages:]
+    if not recent:
+        return ""
+
+    lines = ["=== RECENT CONVERSATION ==="]
+    for msg in recent:
+        role = "User" if msg.get("role") == "user" else "Assistant"
+        content = msg.get("content", "")
+        # Truncate long messages
+        if len(content) > 150:
+            content = content[:150] + "..."
+        lines.append(f"{role}: {content}")
+
+    return "\n".join(lines)
+
+
 __all__ = [
     "SectionFormatter",
     "format_company_section",
@@ -267,4 +297,5 @@ __all__ = [
     "format_pipeline_section",
     "format_renewals_section",
     "format_docs_section",
+    "format_conversation_history_section",
 ]

@@ -56,12 +56,15 @@ Your job is to analyze user questions and provide a complete understanding:
    - "general": General questions or unclear intent
 
 3. **company_name**: If a specific company/account is mentioned, extract it (null if none)
+   - IMPORTANT: If the user uses pronouns like "their", "them", "they", "that company", or "it",
+     look at the CONVERSATION HISTORY to find the most recently mentioned company and use that name.
 
 4. **days**: Relevant time period in days (default 30 if not specified)
    - "last 90 days" → 90, "this month" → 30, "this quarter" → 90, "recent" → 90
 
 ## QUERY UNDERSTANDING
 5. **query_expansion**: A clearer, expanded version of the query that captures full user intent
+   - If pronouns are used, expand them to the actual company name from conversation history
 
 6. **key_entities**: Important entities mentioned (companies, contacts, products, metrics)
 
@@ -186,14 +189,22 @@ def _parse_router_response(response_text: str) -> dict:
     retry=retry_if_exception_type((TimeoutError, ConnectionError)),
     reraise=True,
 )
-def _call_llm_router(question: str) -> dict:
+def _call_llm_router(question: str, conversation_history: str = "") -> dict:
     """Call LLM for routing with retry logic."""
     config = get_config()
-    
-    prompt = f"{ROUTER_EXAMPLES}\n\nNow analyze this question:\nQ: \"{question}\""
-    
+
+    # Build prompt with optional conversation history
+    if conversation_history:
+        prompt = (
+            f"{ROUTER_EXAMPLES}\n\n"
+            f"CONVERSATION HISTORY:\n{conversation_history}\n\n"
+            f"Now analyze this question:\nQ: \"{question}\""
+        )
+    else:
+        prompt = f"{ROUTER_EXAMPLES}\n\nNow analyze this question:\nQ: \"{question}\""
+
     logger.debug(f"LLM Router: Analyzing question: {question[:50]}...")
-    
+
     response = call_llm(
         prompt=prompt,
         system_prompt=ROUTER_SYSTEM_PROMPT,
@@ -201,7 +212,7 @@ def _call_llm_router(question: str) -> dict:
         temperature=config.router_temperature,
         max_tokens=256,
     )
-    
+
     return _parse_router_response(response)
 
 
@@ -210,38 +221,40 @@ def llm_route_question(
     mode: str = "auto",
     company_id: str | None = None,
     datastore: CRMDataStore | None = None,
+    conversation_history: str = "",
 ) -> RouterResult:
     """
     Route a question using LLM intelligence.
-    
+
     Falls back to heuristic router on failure.
-    
+
     Args:
         question: The user's question
         mode: Explicit mode override ("auto" for LLM decision)
         company_id: Pre-specified company ID
         datastore: Optional datastore instance
-        
+        conversation_history: Formatted conversation history for context
+
     Returns:
         RouterResult with routing decision and extracted parameters
     """
     config = get_config()
     ds = datastore or get_datastore()
-    
+
     # If mode is explicitly set, skip LLM routing
     if mode and mode != "auto":
         logger.debug(f"Mode explicitly set to '{mode}', skipping LLM router")
         return heuristic_router.route_question(question, mode, company_id, datastore)
-    
+
     # Skip LLM in mock mode
     if is_mock_mode():
         logger.debug("Mock mode: Using heuristic router")
         return heuristic_router.route_question(question, mode, company_id, datastore)
-    
+
     # Try LLM routing
     if config.use_llm_router:
         try:
-            llm_result = _call_llm_router(question)
+            llm_result = _call_llm_router(question, conversation_history)
             
             logger.info(
                 f"LLM Router: mode={llm_result['mode']}, "
@@ -293,17 +306,25 @@ def route_question(
     mode: str = "auto",
     company_id: str | None = None,
     datastore: CRMDataStore | None = None,
+    conversation_history: str = "",
 ) -> RouterResult:
     """
     Main routing function - uses LLM or heuristics based on config.
-    
+
     This is the recommended entry point for routing questions.
     Merges routing + query understanding into a single LLM call.
+
+    Args:
+        question: The user's question
+        mode: Explicit mode override ("auto" for LLM decision)
+        company_id: Pre-specified company ID
+        datastore: Optional datastore instance
+        conversation_history: Formatted conversation history for context
     """
     config = get_config()
-    
+
     if config.use_llm_router:
-        return llm_route_question(question, mode, company_id, datastore)
+        return llm_route_question(question, mode, company_id, datastore, conversation_history)
     else:
         return heuristic_router.route_question(question, mode, company_id, datastore)
 

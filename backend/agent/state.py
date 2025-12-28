@@ -10,6 +10,14 @@ from operator import add
 from backend.agent.schemas import Source, RouterResult
 
 
+class Message(TypedDict):
+    """A single message in conversation history."""
+
+    role: str  # "user" or "assistant"
+    content: str
+    company_id: str | None  # Company context for this message
+
+
 class AgentState(TypedDict, total=False):
     """
     State that flows through the LangGraph workflow.
@@ -22,6 +30,9 @@ class AgentState(TypedDict, total=False):
     company_id: str | None
     session_id: str | None
     user_id: str | None
+
+    # Conversation history (loaded from memory at start)
+    messages: list[Message]
 
     # Router output
     router_result: RouterResult | None
@@ -61,4 +72,4 @@ class AgentState(TypedDict, total=False):
     error: str | None
 
 
-__all__ = ["AgentState"]
+__all__ = ["AgentState", "Message"]

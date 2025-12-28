@@ -146,19 +146,27 @@ def generate_follow_up_suggestions(
     question: str,
     mode: str,
     company_id: str | None = None,
+    conversation_history: str = "",
 ) -> list[str]:
     """
     Generate follow-up question suggestions using LLM.
-    
-    Returns list of 3 suggested follow-up questions.
+
+    Args:
+        question: The user's current question
+        mode: The mode used (data, docs, data+docs)
+        company_id: The company context if any
+        conversation_history: Formatted conversation history for context
+
+    Returns:
+        List of 3 suggested follow-up questions.
     """
     from backend.agent.prompts import FOLLOW_UP_PROMPT
-    
+
     config = get_config()
-    
+
     if not config.enable_follow_up_suggestions:
         return []
-    
+
     if is_mock_mode():
         # Return context-aware mock suggestions
         if "renewal" in question.lower():
@@ -173,22 +181,35 @@ def generate_follow_up_suggestions(
                 "What's the forecast for this quarter?",
                 "Show me deals closing this month",
             ]
+        elif company_id:
+            # Company-specific follow-ups
+            return [
+                "What are their recent activities?",
+                "Show me their open opportunities",
+                "Who are the key contacts?",
+            ]
         else:
             return [
                 "What are the recent activities?",
                 "Show me the open opportunities",
                 "Any upcoming renewals?",
             ]
-    
+
     try:
         from backend.common.llm_client import call_llm as llm_call
-        
+
+        # Format conversation history section
+        history_section = ""
+        if conversation_history:
+            history_section = f"=== RECENT CONVERSATION ===\n{conversation_history}"
+
         prompt = FOLLOW_UP_PROMPT.format(
             question=question,
             mode=mode,
             company=company_id or "None specified",
+            conversation_history_section=history_section,
         )
-        
+
         response = llm_call(
             prompt=prompt,
             system_prompt="You are a helpful CRM assistant.",
@@ -196,7 +217,7 @@ def generate_follow_up_suggestions(
             temperature=0.7,  # Slightly creative for varied suggestions
             max_tokens=150,
         )
-        
+
         # Parse JSON array from response
         import json
         text = response.strip()
@@ -204,10 +225,10 @@ def generate_follow_up_suggestions(
             suggestions = json.loads(text)
             if isinstance(suggestions, list) and len(suggestions) >= 3:
                 return suggestions[:3]
-        
+
         logger.warning(f"Failed to parse follow-up suggestions: {text[:100]}")
         return []
-        
+
     except Exception as e:
         logger.warning(f"Follow-up generation failed: {e}")
         return []

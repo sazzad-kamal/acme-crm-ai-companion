@@ -1,22 +1,26 @@
 """
 Agent evaluation suite.
 
-Provides comprehensive evaluation for:
-- Tool correctness (do tools return accurate data?)
-- Router accuracy (does it pick the right mode?)
-- End-to-end orchestration (full pipeline quality)
+Provides comprehensive LLM quality evaluation:
+- Routing accuracy (mode selection, company extraction)
+- Tool selection accuracy
+- Answer quality (relevance, groundedness)
+
+Note: Tool correctness is tested via pytest (backend/agent/tests/).
+
+Usage:
+    python -m backend.agent.eval.e2e_eval
+    python -m backend.agent.eval.e2e_eval --parallel -w 4
 """
 
 from backend.agent.eval.models import (
-    ToolEvalResult,
-    RouterEvalResult,
-    E2EEvalResult,
     AgentEvalSummary,
+    E2EEvalResult,
+    E2EEvalSummary,
 )
 
 __all__ = [
-    "ToolEvalResult",
-    "RouterEvalResult",
     "E2EEvalResult",
+    "E2EEvalSummary",
     "AgentEvalSummary",
 ]

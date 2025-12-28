@@ -59,6 +59,7 @@ from backend.agent.nodes import (
     route_by_mode,
 )
 from backend.agent.audit import AgentAuditLogger
+from backend.agent.memory import get_conversation_history, add_message
 
 
 logger = logging.getLogger(__name__)
@@ -159,6 +160,11 @@ def run_agent(
     """
     start_time = time.time()
 
+    # Load conversation history for multi-turn support
+    messages = get_conversation_history(session_id)
+    if messages:
+        logger.debug(f"[Agent] Loaded {len(messages)} messages from session {session_id}")
+
     # Initialize state
     initial_state: AgentState = {
         "question": question,
@@ -166,6 +172,7 @@ def run_agent(
         "company_id": company_id,
         "session_id": session_id,
         "user_id": user_id,
+        "messages": messages,
         "sources": [],
         "steps": [],
         "raw_data": {},
@@ -206,6 +213,11 @@ def run_agent(
     )
 
     logger.info(f"[Agent] Complete in {latency_ms}ms")
+
+    # Save conversation to memory for multi-turn support
+    resolved_company = final_state.get("resolved_company_id")
+    add_message(session_id, "user", question, resolved_company)
+    add_message(session_id, "assistant", final_state.get("answer", ""), resolved_company)
 
     # Build response
     return {
