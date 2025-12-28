@@ -56,6 +56,8 @@ Your job is to analyze user questions and provide a complete understanding:
 
    COMPANY-SPECIFIC INTENTS (require a company name):
    - "company_status": General status/summary of a specific company/account
+     * ALSO use for: "activities for [company]", "what's happening with [company]"
+     * If a company is mentioned with activities/calls/emails, use company_status NOT activities
    - "pipeline": Opportunities/deals for a SPECIFIC company
    - "history": Past interactions for a SPECIFIC company
    - "contact_lookup": Get contacts for a SPECIFIC company (e.g., "show me Acme's contacts")
@@ -79,7 +81,9 @@ Your job is to analyze user questions and provide a complete understanding:
      * These ask about HOW TO USE features, not to RETRIEVE data
      * NEVER confuse with data intents (e.g., "How do I add a contact?" is general, NOT contact_search)
 
-3. **company_name**: If a specific company/account is mentioned, extract it (null if none)
+3. **company_name**: If a specific company/account is mentioned, extract it EXACTLY as stated (null if none)
+   - Extract the FULL name as the user wrote it (e.g., "Global Tech Solutions" not just "Global")
+   - For partial names like "Show me Global's pipeline", extract "Global"
    - IMPORTANT: If the user uses pronouns like "their", "them", "they", "that company", or "it",
      look at the CONVERSATION HISTORY to find the most recently mentioned company and use that name.
 
@@ -199,6 +203,19 @@ Q: "Which accounts are at risk and what should I do?"
 {"mode": "data+docs", "intent": "renewals", "company_name": null, "days": 90,
  "query_expansion": "Identify at-risk accounts and provide churn prevention guidance",
  "key_entities": ["at-risk"], "action_type": "analyze", "confidence": 0.9}
+
+### COMPANY-SPECIFIC ACTIVITIES (use company_status, NOT activities)
+Q: "Show me recent activities for Skyline Industries"
+{"mode": "data", "intent": "company_status", "company_name": "Skyline Industries", "days": 90,
+ "query_expansion": "Show recent activities for Skyline Industries",
+ "key_entities": ["Skyline Industries", "activities"], "action_type": "retrieve", "confidence": 0.95}
+
+### PRONOUN RESOLUTION (requires conversation history)
+# Given conversation history: "User asked about Northwind Corp"
+Q: "What about their contacts?"
+{"mode": "data", "intent": "contact_lookup", "company_name": "Northwind Corp", "days": 30,
+ "query_expansion": "List contacts for Northwind Corp",
+ "key_entities": ["Northwind Corp", "contacts"], "action_type": "retrieve", "confidence": 0.9}
 """
 
 # =============================================================================

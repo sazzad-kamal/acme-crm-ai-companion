@@ -204,33 +204,33 @@ class CRMDataStore:
     def resolve_company_id(self, name_or_id: str) -> str | None:
         """
         Resolve a company name or ID to a company_id.
-        
+
         Args:
             name_or_id: Either a company_id or a company name
-            
+
         Returns:
             The company_id if found, else None
         """
         if not name_or_id:
             return None
-        
+
         self._build_company_cache()
-        
+
         # Check exact ID match
         if name_or_id in self._company_ids_cache:
             return name_or_id
-        
+
         # Check exact name match (case-insensitive)
         lower_name = name_or_id.lower()
         if lower_name in self._company_names_cache:
             return self._company_names_cache[lower_name]
-        
+
         # Fuzzy match on company names
         all_names = list(self._company_names_cache.keys())
         matches = get_close_matches(lower_name, all_names, n=1, cutoff=0.6)
         if matches:
             return self._company_names_cache[matches[0]]
-        
+
         return None
     
     def get_company_name_matches(self, partial_name: str, limit: int = 5) -> list[dict]:
