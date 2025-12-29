@@ -78,8 +78,8 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "company_id": "ACME-MFG",
         "follow_ups": [
             "When exactly is Acme Manufacturing's renewal date?",
-            "What's the renewal amount for Acme Manufacturing?",
-            "Who owns the Acme Manufacturing account?",
+            "What documents are attached to Acme deals?",
+            "What is Beth Turner's role at Acme?",
         ],
     },
 
@@ -88,14 +88,14 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "company_id": "ACME-MFG",
         "follow_ups": [
             "Who is the contact for the upgrade opportunity?",
-            "What's the upgrade deal worth?",
-            "How many Acme deals are in Proposal stage?",
+            "Show me deals in discovery stage",
+            "Which deals have we closed won?",
         ],
     },
     "When does the Acme renewal opportunity close?": {
         "company_id": "ACME-MFG",
         "follow_ups": [
-            "What's the renewal value for Acme?",
+            "What's the expected close date for Acme's renewal?",
             "Who's handling the Acme Manufacturing renewal?",
             "What's the current stage of Acme's renewal?",
         ],
@@ -123,13 +123,13 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "What is Joe Smith's contact info?",
             "What deals involve Joe Smith?",
-            "Show me activities with Joe Smith",
+            "What's the priority of the next Acme activity?",
         ],
     },
     "Show me recent activities with Acme Manufacturing": {
         "company_id": "ACME-MFG",
         "follow_ups": [
-            "What was the last call about?",
+            "Who is Ravi Kumar at Eastern Travel?",
             "When was the last meeting with Acme?",
             "How many activities has Acme had this month?",
         ],
@@ -140,23 +140,23 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "company_id": "ACME-MFG",
         "follow_ups": [
             "What's the health status of Acme Manufacturing?",
-            "Who should I contact about the Acme renewal?",
-            "What is the Acme renewal amount?",
+            "What proposals have been sent to Acme?",
+            "What's the Acme upgrade opportunity worth?",
         ],
     },
-    "What's the renewal amount for Acme Manufacturing?": {
+    "What documents are attached to Acme deals?": {
         "company_id": "ACME-MFG",
         "follow_ups": [
             "Is there an expansion opportunity at Acme?",
-            "Show me all Acme Manufacturing opportunities",
-            "Who is the primary contact for Acme?",
+            "Show me the PDF attachments for Acme",
+            "Who is the CFO at Acme Manufacturing?",
         ],
     },
-    "Who owns the Acme Manufacturing account?": {
+    "What is Beth Turner's role at Acme?": {
         "company_id": "ACME-MFG",
         "follow_ups": [
-            "What other accounts does jsmith own?",
-            "Show me the Acme account details",
+            "Who is Dan O'Brien at Harbor Logistics?",
+            "Who is Linda Park at Green Energy?",
             "What's the Acme industry segment?",
         ],
     },
@@ -212,7 +212,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "company_id": "BETA-TECH",
         "follow_ups": [
             "What's Lisa Ng's job title?",
-            "When did we last talk to Beta Tech?",
+            "Who is Omar Haddad at Beta Tech?",
             "What is Lisa Ng's email?",
         ],
     },
@@ -229,7 +229,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
     "What stage is the add-on in?": {
         "company_id": "BETA-TECH",
         "follow_ups": [
-            "How many Beta Tech deals are in Discovery stage?",
+            "Show me closed lost opportunities",
             "Who's driving the add-on deal?",
             "Show me all Beta Tech opportunities",
         ],
@@ -239,14 +239,14 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "What is Sam Clarke's role?",
             "When did we last engage with Sam Clarke?",
-            "What other contacts are at Beta Tech?",
+            "Who is Mike Rivera at Delta Health?",
         ],
     },
     "When does Beta Tech's contract renew?": {
         "company_id": "BETA-TECH",
         "follow_ups": [
             "What's the Beta Tech renewal value?",
-            "Is there expansion potential at Beta Tech?",
+            "Show me internal notes for Crown Foods",
             "What's the health status of Beta Tech?",
         ],
     },
@@ -257,7 +257,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "What deals is Lisa Ng involved in?",
             "When did we last meet with Lisa Ng?",
-            "Who else is at Beta Tech?",
+            "Who is Tom Baker at Green Energy?",
         ],
     },
     "Tell me about Sam Clarke": {
@@ -321,13 +321,13 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "What is Maria Silva's role?",
             "When did we last talk to Crown Foods?",
-            "Show me Crown Foods' opportunities",
+            "Who is Lars Muller at Fusion Retail?",
         ],
     },
     "What's the Crown Foods renewal value?": {
         "company_id": "CROWN-FOODS",
         "follow_ups": [
-            "Is there upsell potential at Crown Foods?",
+            "Who is Carlos Mendez at Green Energy?",
             "Who owns the Crown Foods account?",
             "What's the next renewal after Crown Foods?",
         ],
@@ -446,7 +446,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "Who has the most deals?",
             "What accounts does mmalik own? Like Harbor Logistics?",
-            "Show me jsmith's accounts",
+            "Which accounts are in Europe?",
         ],
     },
     "Which deals are in negotiation stage?": {
@@ -505,8 +505,8 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "company_id": None,
         "follow_ups": [
             "What percentage are calls vs meetings?",
-            "How many emails were logged this month?",
-            "Which activity type is most common?",
+            "What open tasks do we have?",
+            "Any demos scheduled?",
         ],
     },
 
@@ -527,7 +527,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
     "Who are the key contacts at Crown Foods?": {
         "company_id": "CROWN-FOODS",
         "follow_ups": [
-            "What is Maria Silva's role?",
+            "Who is Erin Cho at Delta Health?",
             "Who handles IT at Crown Foods?",
             "Show me the decision makers at Crown Foods",
         ],
@@ -545,7 +545,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "What was the last call with Crown Foods about?",
             "Who attended the recent Crown Foods meetings?",
-            "What's the next scheduled activity with Crown Foods?",
+            "What's Eastern Travel's trial status?",
         ],
     },
 
@@ -579,24 +579,24 @@ QUESTION_TREE: dict[str, QuestionNode] = {
     "When exactly does Crown Foods renew?": {
         "company_id": "CROWN-FOODS",
         "follow_ups": [
-            "How many days until Crown Foods renews?",
+            "Who is Mei Chen at Harbor Logistics?",
             "What's the Crown Foods account health?",
-            "Who owns the Crown Foods account?",
+            "What segment is Crown Foods in?",
         ],
     },
     "What's the renewal value for Crown Foods?": {
         "company_id": "CROWN-FOODS",
         "follow_ups": [
-            "Is there upsell potential at Crown Foods?",
+            "Who is Sanjay Patel at Eastern Travel?",
             "What plan is Crown Foods on?",
-            "Compare Crown Foods to similar accounts",
+            "Who is Emma Khan at Fusion Retail?",
         ],
     },
     "Are there any risks with the Crown Foods renewal?": {
         "company_id": "CROWN-FOODS",
         "follow_ups": [
             "What's the engagement level with Crown Foods?",
-            "Have there been any complaints from Crown Foods?",
+            "What's Fusion Retail's ARR?",
             "What's Crown Foods' usage like?",
         ],
     },
@@ -613,17 +613,17 @@ QUESTION_TREE: dict[str, QuestionNode] = {
     "Who attended the recent Crown Foods meetings?": {
         "company_id": "CROWN-FOODS",
         "follow_ups": [
-            "How many meetings have we had with Crown Foods?",
+            "Who is Jacob Wu at Harbor Logistics?",
             "What topics were discussed?",
-            "Who from our team attended?",
+            "Who is Nina Foster at Crown Foods?",
         ],
     },
     "What's the next scheduled activity with Crown Foods?": {
         "company_id": "CROWN-FOODS",
         "follow_ups": [
-            "What type of activity is it?",
+            "When was this activity scheduled?",
             "Who is attending?",
-            "Who are the attendees for this activity?",
+            "What qualified opportunities do we have?",
         ],
     },
 
