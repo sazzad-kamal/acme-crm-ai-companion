@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useChat } from "./hooks/useChat";
 import { useChatStream } from "./hooks/useChatStream";
 import { useFocusTrap } from "./hooks/useFocusTrap";
 import {
@@ -10,7 +9,6 @@ import {
   SkipLink,
   DataExplorer,
 } from "./components";
-import { config } from "./config";
 import "./styles/index.css";
 
 /**
@@ -42,16 +40,8 @@ export default function App() {
     []
   );
 
-  // Use streaming or regular chat hook based on feature flag
-  const streamingChat = useChatStream(chatOptions);
-  const regularChat = useChat(chatOptions);
-  
-  // Select which hook to use based on config
-  const useStreaming = config.features.useStreaming;
-  const chat = useStreaming ? streamingChat : regularChat;
-  const { messages, isLoading, error, sendMessage, clearError } = chat;
-  const currentStatus = useStreaming && 'currentStatus' in chat ? (chat.currentStatus as string | null) : null;
-  const isStreaming = useStreaming && 'isStreaming' in chat ? (chat.isStreaming as boolean) : false;
+  // Chat hook with streaming
+  const { messages, isLoading, isStreaming, error, currentStatus, sendMessage, clearError } = useChatStream(chatOptions);
 
   // Scroll to bottom when messages change
   useEffect(() => {

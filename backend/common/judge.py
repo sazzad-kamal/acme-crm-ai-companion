@@ -11,8 +11,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 
 from backend.common.llm_client import call_llm
-from backend.rag.pipeline.constants import JUDGE_MODEL
 
+# Judge model for LLM-as-judge evaluations
+JUDGE_MODEL = "o3-mini"
 
 logger = logging.getLogger(__name__)
 

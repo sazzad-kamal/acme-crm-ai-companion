@@ -35,15 +35,15 @@ def ensure_qdrant_collections() -> None:
 
     This allows the eval to run without manual setup steps.
     """
-    from backend.rag.retrieval.constants import (
+    from backend.agent.rag_tools import (
         DOCS_COLLECTION,
         PRIVATE_COLLECTION,
         QDRANT_PATH,
-        get_shared_qdrant_client,
+        get_qdrant_client,
     )
 
     QDRANT_PATH.mkdir(parents=True, exist_ok=True)
-    qdrant = get_shared_qdrant_client()
+    qdrant = get_qdrant_client()
 
     # Check docs collection
     docs_exists = (
@@ -64,18 +64,14 @@ def ensure_qdrant_collections() -> None:
     # Ingest docs if needed
     if not docs_exists:
         print("Ingesting docs into Qdrant...")
-        from backend.rag.ingest.docs import ingest_all_docs
-        from backend.rag.retrieval.base import RetrievalBackend
-
-        chunks = ingest_all_docs()
-        backend = RetrievalBackend()
-        backend.build_indexes(chunks)
-        print(f"  Docs collection created with {len(chunks)} chunks")
+        from backend.ingest import ingest_docs
+        chunk_count = ingest_docs()
+        print(f"  Docs collection created with {chunk_count} chunks")
 
     # Ingest private texts if needed
     if not private_exists:
         print("Ingesting private texts into Qdrant...")
-        from backend.rag.ingest.private_text import ingest_private_texts
+        from backend.ingest import ingest_private_texts
         ingest_private_texts()
         print("  Private collection created")
 
@@ -85,19 +81,12 @@ print("Checking Qdrant collections...")
 ensure_qdrant_collections()
 print()
 
-# Preload embedding and reranker models (simulates server startup)
-from backend.rag.retrieval.preload import preload_models
-print("Preloading models...")
-_preload_result = preload_models()
-print(f"Models loaded in {_preload_result['total_ms']}ms")
-print()
-
 import typer
 from rich.table import Table
 from rich.progress import track
 
 from backend.agent.orchestrator import answer_question
-from backend.rag.eval.parallel_runner import run_parallel_evaluation
+from backend.common.eval_base import run_parallel_evaluation
 from backend.agent.eval.models import E2EEvalResult, E2EEvalSummary
 from backend.agent.eval.tracking import print_e2e_tracking_report
 from backend.agent.memory import clear_session

@@ -1,7 +1,20 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ChatArea } from "../components/ChatArea";
 import type { ChatMessage } from "../types";
+import { EXAMPLE_PROMPTS } from "../config";
+
+// Mock fetch for starter questions API
+const mockStarterQuestions = [...EXAMPLE_PROMPTS];
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ questions: mockStarterQuestions }),
+    })
+  ));
+});
 
 // Mock MessageBlock to simplify testing
 vi.mock("../components/MessageBlock", () => ({
@@ -39,31 +52,34 @@ describe("ChatArea", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders example prompts in empty state", () => {
+  it("renders example prompts in empty state", async () => {
     render(<ChatArea {...defaultProps} />);
 
-    expect(screen.getByText(/What's going on with Acme Manufacturing/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/What's going on with Acme Manufacturing/)).toBeInTheDocument();
+    });
     expect(screen.getByText(/Which opportunities are close to renewing/)).toBeInTheDocument();
   });
 
-  it("renders all 5 example prompts", () => {
+  it("renders all 5 example prompts", async () => {
     render(<ChatArea {...defaultProps} />);
 
-    const buttons = screen.getAllByRole("button");
-    // Filter out any non-suggestion buttons
-    const suggestionButtons = buttons.filter((btn) =>
-      btn.className.includes("suggestion-btn")
-    );
-
-    expect(suggestionButtons.length).toBe(5);
+    await waitFor(() => {
+      const buttons = screen.getAllByRole("button");
+      // Filter out any non-suggestion buttons
+      const suggestionButtons = buttons.filter((btn) =>
+        btn.className.includes("suggestion-btn")
+      );
+      expect(suggestionButtons.length).toBe(5);
+    });
   });
 
-  it("calls onSuggestionClick when example prompt clicked", () => {
+  it("calls onSuggestionClick when example prompt clicked", async () => {
     const handleSuggestionClick = vi.fn();
 
     render(<ChatArea {...defaultProps} onSuggestionClick={handleSuggestionClick} />);
 
-    const button = screen.getByText(/What's going on with Acme Manufacturing/);
+    const button = await waitFor(() => screen.getByText(/What's going on with Acme Manufacturing/));
     fireEvent.click(button);
 
     expect(handleSuggestionClick).toHaveBeenCalledWith(
@@ -281,12 +297,12 @@ describe("ChatArea", () => {
     expect(screen.getByRole("region", { name: "Getting started" })).toBeInTheDocument();
   });
 
-  it("example prompts have proper ARIA labels", () => {
+  it("example prompts have proper ARIA labels", async () => {
     render(<ChatArea {...defaultProps} />);
 
-    const firstPrompt = screen.getByLabelText(
+    const firstPrompt = await waitFor(() => screen.getByLabelText(
       /Ask: What's going on with Acme Manufacturing/
-    );
+    ));
     expect(firstPrompt).toBeInTheDocument();
   });
 

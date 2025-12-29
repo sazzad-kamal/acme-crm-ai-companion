@@ -33,15 +33,15 @@ def ensure_qdrant_collections() -> None:
 
     This allows the eval to run without manual setup steps.
     """
-    from backend.rag.retrieval.constants import (
+    from backend.agent.rag_tools import (
         DOCS_COLLECTION,
         PRIVATE_COLLECTION,
         QDRANT_PATH,
-        get_shared_qdrant_client,
+        get_qdrant_client,
     )
 
     QDRANT_PATH.mkdir(parents=True, exist_ok=True)
-    qdrant = get_shared_qdrant_client()
+    qdrant = get_qdrant_client()
 
     # Check docs collection
     docs_exists = (
@@ -62,18 +62,14 @@ def ensure_qdrant_collections() -> None:
     # Ingest docs if needed
     if not docs_exists:
         print("Ingesting docs into Qdrant...")
-        from backend.rag.ingest.docs import ingest_all_docs
-        from backend.rag.retrieval.base import RetrievalBackend
-
-        chunks = ingest_all_docs()
-        backend = RetrievalBackend()
-        backend.build_indexes(chunks)
-        print(f"  Docs collection created with {len(chunks)} chunks")
+        from backend.ingest import ingest_docs
+        chunk_count = ingest_docs()
+        print(f"  Docs collection created with {chunk_count} chunks")
 
     # Ingest private texts if needed
     if not private_exists:
         print("Ingesting private texts into Qdrant...")
-        from backend.rag.ingest.private_text import ingest_private_texts
+        from backend.ingest import ingest_private_texts
         ingest_private_texts()
         print("  Private collection created")
 

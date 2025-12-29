@@ -277,9 +277,9 @@ def mock_llm_response(prompt: str) -> str:
 
 def call_docs_rag(question: str) -> tuple[str, list[Source]]:
     """
-    Call the docs RAG pipeline from backend.rag.
+    Call the docs RAG tool for documentation search.
 
-    Returns (answer_text, doc_sources)
+    Returns (context_text, doc_sources)
     """
     if is_mock_mode():
         return (
@@ -289,28 +289,8 @@ def call_docs_rag(question: str) -> tuple[str, list[Source]]:
         )
 
     try:
-        from backend.rag.retrieval import create_backend
-        from backend.rag.pipeline import answer_question as rag_answer
-
-        config = get_config()
-        backend = create_backend()
-        # Use centralized config for RAG pipeline settings
-        result = rag_answer(
-            question,
-            backend,
-            use_hyde=config.rag_use_hyde,
-            use_rewrite=config.rag_use_rewrite,
-        )
-
-        # Extract sources from used docs
-        doc_sources = []
-        for doc_id in result.get("doc_ids_used", [])[:3]:
-            # Format doc_id into readable label
-            label = doc_id.replace("_", " ").replace(".md", "").title()
-            doc_sources.append(Source(type="doc", id=doc_id, label=label))
-
-        return result.get("answer", ""), doc_sources
-
+        from backend.agent.rag_tools import tool_docs_rag
+        return tool_docs_rag(question)
     except Exception as e:
         logger.warning(f"Docs RAG failed: {e}")
         return "", []
@@ -318,7 +298,7 @@ def call_docs_rag(question: str) -> tuple[str, list[Source]]:
 
 def call_account_rag(question: str, company_id: str) -> tuple[str, list[Source]]:
     """
-    Call the account RAG pipeline for private CRM text search.
+    Call the account RAG tool for company-scoped CRM text search.
 
     Searches unstructured text (history notes, opportunity notes, attachments)
     scoped to a specific company.
@@ -328,7 +308,7 @@ def call_account_rag(question: str, company_id: str) -> tuple[str, list[Source]]
         company_id: Company ID to scope the search
 
     Returns:
-        Tuple of (answer_text, account_sources)
+        Tuple of (context_text, account_sources)
     """
     if is_mock_mode():
         return (
@@ -338,29 +318,8 @@ def call_account_rag(question: str, company_id: str) -> tuple[str, list[Source]]
         )
 
     try:
-        from backend.rag.pipeline.account import answer_account_question
-
-        result = answer_account_question(
-            question=question,
-            company_id=company_id,
-            include_docs=False,  # Only private data, docs handled separately
-        )
-
-        # Extract sources from account RAG
-        account_sources = []
-        for source in result.get("sources", [])[:5]:
-            source_type = source.get("type", "account_note")
-            source_id = source.get("id", "unknown")
-            label = source.get("label", source_type.replace("_", " ").title())
-            account_sources.append(Source(type=source_type, id=source_id, label=label))
-
-        logger.info(
-            f"Account RAG completed: {len(account_sources)} sources, "
-            f"{result.get('meta', {}).get('latency_ms', 0)}ms"
-        )
-
-        return result.get("answer", ""), account_sources
-
+        from backend.agent.rag_tools import tool_account_rag
+        return tool_account_rag(question, company_id)
     except Exception as e:
         logger.warning(f"Account RAG failed: {e}")
         return "", []

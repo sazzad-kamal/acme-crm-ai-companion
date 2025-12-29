@@ -78,32 +78,32 @@ logger = logging.getLogger(__name__)
 def ensure_rag_collections_exist() -> None:
     """
     Ensure RAG Qdrant collections exist, create if missing.
-    
+
     This runs at startup to auto-ingest data if collections don't exist.
     """
     from qdrant_client import QdrantClient
-    from backend.rag.retrieval.constants import QDRANT_PATH, DOCS_COLLECTION, PRIVATE_COLLECTION
-    from backend.rag.ingest import ingest_all_docs, ingest_private_texts
-    
+    from backend.agent.rag_tools import QDRANT_PATH, DOCS_COLLECTION, PRIVATE_COLLECTION
+    from backend.ingest import ingest_docs, ingest_private_texts
+
     qdrant = QdrantClient(path=str(QDRANT_PATH))
-    
+
     try:
         # Check docs collection
         if not qdrant.collection_exists(DOCS_COLLECTION):
             logger.info(f"Collection '{DOCS_COLLECTION}' not found, ingesting docs...")
             qdrant.close()
-            ingest_all_docs()
+            ingest_docs()
             qdrant = QdrantClient(path=str(QDRANT_PATH))
         else:
             info = qdrant.get_collection(DOCS_COLLECTION)
             if info.points_count == 0:
                 logger.info(f"Collection '{DOCS_COLLECTION}' is empty, ingesting docs...")
                 qdrant.close()
-                ingest_all_docs()
+                ingest_docs()
                 qdrant = QdrantClient(path=str(QDRANT_PATH))
             else:
                 logger.info(f"Docs collection ready with {info.points_count} points")
-        
+
         # Check private collection
         if not qdrant.collection_exists(PRIVATE_COLLECTION):
             logger.info(f"Collection '{PRIVATE_COLLECTION}' not found, ingesting private texts...")
@@ -119,7 +119,7 @@ def ensure_rag_collections_exist() -> None:
                 qdrant = QdrantClient(path=str(QDRANT_PATH))
             else:
                 logger.info(f"Private collection ready with {info.points_count} points")
-        
+
         qdrant.close()
     except Exception as e:
         qdrant.close()
@@ -147,10 +147,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Ensure RAG collections exist
     ensure_rag_collections_exist()
-
-    # Preload embedding and reranker models to eliminate cold start latency
-    from backend.rag.retrieval.preload import preload_models
-    preload_models()
 
     yield
     

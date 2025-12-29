@@ -23,7 +23,6 @@ export const config = {
   
   // Feature flags
   features: {
-    useStreaming: true, // Use SSE streaming for real-time responses
     showDataTables: true,
     showSteps: true,
     showFollowUpSuggestions: true,

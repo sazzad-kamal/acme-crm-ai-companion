@@ -92,22 +92,6 @@ class AgentConfig(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
-    # RAG Pipeline Configuration
-    # -------------------------------------------------------------------------
-    rag_use_hyde: bool = Field(
-        default=False,
-        description="Use HyDE (Hypothetical Document Embeddings) for retrieval - adds ~2-3s latency"
-    )
-    rag_use_rewrite: bool = Field(
-        default=False,
-        description="Use query rewriting for better retrieval - adds ~1-2s latency"
-    )
-    rag_use_reranker: bool = Field(
-        default=True,
-        description="Use reranker for better result ordering"
-    )
-    
-    # -------------------------------------------------------------------------
     # Paths
     # -------------------------------------------------------------------------
     csv_dir: Path = Field(
