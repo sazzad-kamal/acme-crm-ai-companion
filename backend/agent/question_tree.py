@@ -97,7 +97,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "What's the renewal value for Acme?",
             "Who's handling the Acme Manufacturing renewal?",
-            "What's the risk if this deal becomes stale?",
+            "What's the current stage of Acme's renewal?",
         ],
     },
     "What's the total pipeline value for Acme Manufacturing?": {
@@ -452,7 +452,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
     "Which deals are in negotiation stage?": {
         "company_id": None,
         "follow_ups": [
-            "What's the typical close rate for negotiation deals?",
+            "How many negotiation deals do we have?",
             "Which negotiation deals close this month?",
             "Who owns the negotiation deals?",
         ],
@@ -570,7 +570,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "company_id": "CROWN-FOODS",
         "follow_ups": [
             "Who should I contact about the renewal?",
-            "What's the best way to reach the VP?",
+            "What's the VP's email address?",
             "Who else influences decisions at Crown Foods?",
         ],
     },
@@ -623,7 +623,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "What type of activity is it?",
             "Who is attending?",
-            "What should we prepare for it?",
+            "Who are the attendees for this activity?",
         ],
     },
 
