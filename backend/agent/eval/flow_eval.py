@@ -781,10 +781,10 @@ def _check_qdrant_access() -> bool:
         True if accessible, False if locked
     """
     try:
-        from backend.rag.retrieval.constants import get_shared_qdrant_client
+        from backend.agent.rag_tools import get_qdrant_client
 
         # Use shared client (already opened by ensure_qdrant_collections)
-        client = get_shared_qdrant_client()
+        client = get_qdrant_client()
         # Try a simple operation
         client.get_collections()
         return True
@@ -856,11 +856,11 @@ async def main():
             ))
             return 1
 
-        # Warmup: preload models before parallel execution
+        # Warmup: trigger model loading by a simple query
         console.print("\n[dim]Warming up models...[/dim]")
         try:
-            from backend.rag.retrieval.preload import preload_models
-            preload_models(parallel=False)  # Sequential to avoid race
+            from backend.agent.rag_tools import tool_docs_rag
+            tool_docs_rag("warmup", top_k=1)  # Trigger embedding model load
             console.print("[dim]Models loaded.[/dim]")
         except Exception as e:
             console.print(f"[yellow]Warning: Model preload failed: {e}[/yellow]")
@@ -893,26 +893,10 @@ async def main():
     if args.output:
         save_results(results, Path(args.output))
 
-    # Cleanup Qdrant clients to avoid shutdown errors
+    # Cleanup Qdrant client to avoid shutdown errors
     try:
-        from backend.rag.retrieval import clear_backend_cache, clear_private_backend_cache
-        from backend.rag.retrieval.base import _backend_cache
-        from backend.rag.retrieval.private import _private_backend_cache
-
-        # Close the actual Qdrant clients if they exist
-        if _backend_cache is not None and hasattr(_backend_cache, 'client'):
-            try:
-                _backend_cache.client.close()
-            except Exception:
-                pass
-        if _private_backend_cache is not None and hasattr(_private_backend_cache, 'client'):
-            try:
-                _private_backend_cache.client.close()
-            except Exception:
-                pass
-
-        clear_backend_cache()
-        clear_private_backend_cache()
+        from backend.agent.rag_tools import close_qdrant_client
+        close_qdrant_client()
     except Exception:
         pass  # Ignore cleanup errors
 

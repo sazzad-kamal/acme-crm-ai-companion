@@ -206,13 +206,13 @@ class TestFormatCheckMark:
         """True returns green check mark."""
         result = format_check_mark(True)
         assert "[green]" in result
-        assert "✓" in result
+        assert "Y" in result
 
     def test_false_returns_red_cross(self):
         """False returns red cross mark."""
         result = format_check_mark(False)
         assert "[red]" in result
-        assert "✗" in result
+        assert "X" in result
 
 
 class TestFormatPercentage:

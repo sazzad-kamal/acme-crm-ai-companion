@@ -13,7 +13,7 @@ import json
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, TypeVar, Callable
+from typing import Any, TypeVar, Callable, Optional
 
 from rich.console import Console
 from rich.table import Table
@@ -389,7 +389,7 @@ def print_baseline_comparison(
 
 def run_parallel_evaluation(
     items: list[dict],
-    evaluate_fn: Callable[[dict, threading.Lock | None], T],
+    evaluate_fn: Callable[[dict, Optional[threading.Lock]], T],
     max_workers: int,
     description: str,
     id_field: str = "id",

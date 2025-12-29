@@ -23,7 +23,7 @@ project_root = Path(__file__).parent.parent.parent
 load_dotenv(project_root / ".env")
 
 from backend.agent.graph import run_agent
-from backend.rag.retrieval.preload import preload_models
+from backend.agent.rag_tools import tool_docs_rag
 
 # Configure logging to show timing
 logging.basicConfig(
@@ -32,10 +32,12 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-# Preload models (simulates server startup)
-print("Preloading models...")
-preload_result = preload_models()
-print(f"Models loaded in {preload_result['total_ms']}ms")
+# Warmup models (simulates server startup)
+print("Warming up models...")
+warmup_start = time.time()
+tool_docs_rag("warmup", top_k=1)  # Trigger embedding model load
+warmup_ms = int((time.time() - warmup_start) * 1000)
+print(f"Models loaded in {warmup_ms}ms")
 print()
 
 # Check LangSmith status

@@ -9,7 +9,11 @@ import time
 import uuid
 import logging
 from collections import defaultdict
-from typing import Callable, override
+from typing import Callable
+try:
+    from typing import override
+except ImportError:
+    from typing_extensions import override
 
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
