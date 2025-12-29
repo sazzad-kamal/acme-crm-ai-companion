@@ -463,19 +463,22 @@ class TestDispatchIntent:
         assert result is not None
         mock_tool.assert_called_once()
 
-    @patch('backend.agent.intent_handlers.handle_activities')
-    def test_dispatches_activities_without_company(self, mock_handler):
+    @patch('backend.agent.intent_handlers.tool_search_activities')
+    def test_dispatches_activities_without_company(self, mock_tool):
         """Dispatches activities without company to activities handler."""
-        mock_handler.return_value = IntentResult()
+        from backend.agent.tools import ToolResult
+        mock_tool.return_value = ToolResult(data={"activities": []}, sources=[])
 
         ctx = IntentContext(
             question="show all calls",
             resolved_company_id=None,
             days=90,
         )
-        dispatch_intent("activities", ctx)
+        result = dispatch_intent("activities", ctx)
 
-        mock_handler.assert_called_once()
+        # Should call activities tool, not company lookup
+        mock_tool.assert_called_once()
+        assert result is not None
 
     @patch('backend.agent.intent_handlers.handle_company_status')
     def test_dispatches_to_company_status_when_company_resolved(self, mock_handler):

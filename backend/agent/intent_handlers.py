@@ -389,40 +389,18 @@ def dispatch_intent(intent: str, ctx: IntentContext) -> IntentResult:
     """
     Dispatch to the appropriate intent handler.
 
-    Args:
-        intent: The intent string from router
-        ctx: Context with question, company_id, days, etc.
-
-    Returns:
-        IntentResult with fetched data
+    Simple dict lookup with one override: company-specific queries get full context.
     """
-    # Intents that always use their dedicated handler (even with company context)
-    dedicated_intents = frozenset({
-        "pipeline_summary", "deals_at_risk", "forecast",
-        "company_search", "analytics"
-    })
+    # These intents always use their dedicated handler (global aggregates)
+    global_intents = {"pipeline_summary", "deals_at_risk", "forecast", "company_search", "analytics"}
 
-    # Special case: activities without company goes to activities handler
-    if intent == "activities" and not ctx.resolved_company_id:
-        return handle_activities(ctx)
+    # If there's a company and intent isn't a global aggregate, fetch full company context
+    has_company = ctx.resolved_company_id or (ctx.router_result and getattr(ctx.router_result, 'company_name_query', None))
+    if has_company and intent not in global_intents:
+        return handle_company_status(ctx)
 
-    # Special case: dedicated intents always go to their handler
-    if intent in dedicated_intents:
-        handler = INTENT_HANDLERS.get(intent)
-        if handler:
-            return handler(ctx)
-
-    # Special case: company-specific queries
-    if ctx.resolved_company_id or (ctx.router_result and getattr(ctx.router_result, 'company_name_query', None)):
-        if intent not in dedicated_intents:
-            return handle_company_status(ctx)
-
-    # Normal dispatch
-    handler = INTENT_HANDLERS.get(intent)
-    if handler:
-        return handler(ctx)
-
-    return handle_fallback(ctx)
+    # Simple dict lookup with fallback
+    return INTENT_HANDLERS.get(intent, handle_fallback)(ctx)
 
 
 __all__ = [
