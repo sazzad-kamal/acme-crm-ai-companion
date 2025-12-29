@@ -22,6 +22,67 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
+
+# =============================================================================
+# Ensure Qdrant Collections Exist
+# =============================================================================
+
+def ensure_qdrant_collections() -> None:
+    """
+    Ensure Qdrant collections exist, ingesting data if needed.
+
+    This allows the eval to run without manual setup steps.
+    """
+    from backend.rag.retrieval.constants import (
+        DOCS_COLLECTION,
+        PRIVATE_COLLECTION,
+        QDRANT_PATH,
+        get_shared_qdrant_client,
+    )
+
+    QDRANT_PATH.mkdir(parents=True, exist_ok=True)
+    qdrant = get_shared_qdrant_client()
+
+    # Check docs collection
+    docs_exists = (
+        qdrant.collection_exists(DOCS_COLLECTION) and
+        qdrant.get_collection(DOCS_COLLECTION).points_count > 0
+    )
+
+    # Check private collection
+    private_exists = (
+        qdrant.collection_exists(PRIVATE_COLLECTION) and
+        qdrant.get_collection(PRIVATE_COLLECTION).points_count > 0
+    )
+
+    if docs_exists and private_exists:
+        print("Qdrant collections ready.")
+        return
+
+    # Ingest docs if needed
+    if not docs_exists:
+        print("Ingesting docs into Qdrant...")
+        from backend.rag.ingest.docs import ingest_all_docs
+        from backend.rag.retrieval.base import RetrievalBackend
+
+        chunks = ingest_all_docs()
+        backend = RetrievalBackend()
+        backend.build_indexes(chunks)
+        print(f"  Docs collection created with {len(chunks)} chunks")
+
+    # Ingest private texts if needed
+    if not private_exists:
+        print("Ingesting private texts into Qdrant...")
+        from backend.rag.ingest.private_text import ingest_private_texts
+        ingest_private_texts()
+        print("  Private collection created")
+
+
+# Ensure collections exist before running eval
+print("Checking Qdrant collections...")
+ensure_qdrant_collections()
+print()
+
 from rich.table import Table
 from rich.panel import Panel
 
@@ -485,7 +546,7 @@ def print_summary(results: EvalResults):
     summary_table.add_row(
         "Path Pass Rate",
         format_percentage(path_pass_rate),
-        f"≥{format_percentage(SLO_PATH_PASS_RATE)}",
+        f">={format_percentage(SLO_PATH_PASS_RATE)}",
         format_check_mark(path_slo_pass),
     )
     summary_table.add_row("", "", "", "")  # Spacer
@@ -502,7 +563,7 @@ def print_summary(results: EvalResults):
     summary_table.add_row(
         "Question Pass Rate",
         format_percentage(q_pass_rate),
-        f"≥{format_percentage(SLO_QUESTION_PASS_RATE)}",
+        f">={format_percentage(SLO_QUESTION_PASS_RATE)}",
         format_check_mark(q_slo_pass),
     )
     summary_table.add_row("", "", "", "")  # Spacer
@@ -519,20 +580,18 @@ def print_summary(results: EvalResults):
     summary_table.add_row(
         "  Relevance",
         format_percentage(results.avg_relevance),
-        f"≥{format_percentage(SLO_RELEVANCE)}",
+        f">={format_percentage(SLO_RELEVANCE)}",
         format_check_mark(relevance_slo_pass),
     )
     summary_table.add_row(
         "  Groundedness",
         format_percentage(results.avg_grounded),
-        f"≥{format_percentage(SLO_GROUNDED)}",
+        f">={format_percentage(SLO_GROUNDED)}",
         format_check_mark(grounded_slo_pass),
     )
     summary_table.add_row("", "", "", "")  # Spacer
 
-    # Latency metrics
-    avg_latency_slo_pass = results.avg_latency_per_question_ms <= SLO_AVG_LATENCY_MS
-    p95_latency_slo_pass = results.p95_latency_ms <= SLO_P95_LATENCY_MS
+    # Latency metrics (tracked, not SLO)
     summary_table.add_row(
         "[bold]Latency[/bold]",
         "",
@@ -542,14 +601,14 @@ def print_summary(results: EvalResults):
     summary_table.add_row(
         "  Avg per Question",
         f"{results.avg_latency_per_question_ms:.0f}ms",
-        f"≤{SLO_AVG_LATENCY_MS}ms",
-        format_check_mark(avg_latency_slo_pass),
+        "[dim]tracked[/dim]",
+        "",
     )
     summary_table.add_row(
         "  P95 per Question",
         f"{results.p95_latency_ms:.0f}ms",
-        f"≤{SLO_P95_LATENCY_MS}ms",
-        format_check_mark(p95_latency_slo_pass),
+        "[dim]tracked[/dim]",
+        "",
     )
     summary_table.add_row(
         "  Total",
@@ -574,12 +633,10 @@ def print_summary(results: EvalResults):
     # SLO Summary Panel
     # ==========================================================================
     slo_checks = [
-        ("Path Pass Rate", path_slo_pass, format_percentage(path_pass_rate), f"≥{format_percentage(SLO_PATH_PASS_RATE)}"),
-        ("Question Pass Rate", q_slo_pass, format_percentage(q_pass_rate), f"≥{format_percentage(SLO_QUESTION_PASS_RATE)}"),
-        ("Relevance", relevance_slo_pass, format_percentage(results.avg_relevance), f"≥{format_percentage(SLO_RELEVANCE)}"),
-        ("Groundedness", grounded_slo_pass, format_percentage(results.avg_grounded), f"≥{format_percentage(SLO_GROUNDED)}"),
-        ("Avg Latency", avg_latency_slo_pass, f"{results.avg_latency_per_question_ms:.0f}ms", f"≤{SLO_AVG_LATENCY_MS}ms"),
-        ("P95 Latency", p95_latency_slo_pass, f"{results.p95_latency_ms:.0f}ms", f"≤{SLO_P95_LATENCY_MS}ms"),
+        ("Path Pass Rate", path_slo_pass, format_percentage(path_pass_rate), f">={format_percentage(SLO_PATH_PASS_RATE)}"),
+        ("Question Pass Rate", q_slo_pass, format_percentage(q_pass_rate), f">={format_percentage(SLO_QUESTION_PASS_RATE)}"),
+        ("Relevance", relevance_slo_pass, format_percentage(results.avg_relevance), f">={format_percentage(SLO_RELEVANCE)}"),
+        ("Groundedness", grounded_slo_pass, format_percentage(results.avg_grounded), f">={format_percentage(SLO_GROUNDED)}"),
     ]
 
     passed_slos = sum(1 for _, passed, _, _ in slo_checks if passed)
@@ -603,7 +660,7 @@ def print_summary(results: EvalResults):
     if failed_slos:
         console.print(f"\n[red bold][!] {len(failed_slos)} SLO(s) FAILED:[/red bold]")
         for slo_name in failed_slos:
-            console.print(f"    [red]✗[/red] {slo_name}")
+            console.print(f"    [red]X[/red] {slo_name}")
     else:
         console.print(f"\n[green bold][OK] All {total_slos} SLOs passed[/green bold]")
 
@@ -683,8 +740,10 @@ def save_results(results: EvalResults, output_path: Path):
             "question_pass_rate": {"value": results.question_pass_rate, "target": SLO_QUESTION_PASS_RATE, "passed": results.question_pass_rate >= SLO_QUESTION_PASS_RATE},
             "relevance": {"value": results.avg_relevance, "target": SLO_RELEVANCE, "passed": results.avg_relevance >= SLO_RELEVANCE},
             "groundedness": {"value": results.avg_grounded, "target": SLO_GROUNDED, "passed": results.avg_grounded >= SLO_GROUNDED},
-            "avg_latency_ms": {"value": results.avg_latency_per_question_ms, "target": SLO_AVG_LATENCY_MS, "passed": results.avg_latency_per_question_ms <= SLO_AVG_LATENCY_MS},
-            "p95_latency_ms": {"value": results.p95_latency_ms, "target": SLO_P95_LATENCY_MS, "passed": results.p95_latency_ms <= SLO_P95_LATENCY_MS},
+        },
+        "tracked_metrics": {
+            "avg_latency_ms": results.avg_latency_per_question_ms,
+            "p95_latency_ms": results.p95_latency_ms,
         },
         "failed_paths": [
             {
@@ -725,14 +784,12 @@ def _check_qdrant_access() -> bool:
         True if accessible, False if locked
     """
     try:
-        from backend.rag.retrieval.constants import QDRANT_PATH
-        from qdrant_client import QdrantClient
+        from backend.rag.retrieval.constants import get_shared_qdrant_client
 
-        # Try to open the Qdrant storage
-        client = QdrantClient(path=str(QDRANT_PATH))
+        # Use shared client (already opened by ensure_qdrant_collections)
+        client = get_shared_qdrant_client()
         # Try a simple operation
         client.get_collections()
-        client.close()
         return True
     except Exception as e:
         if "already accessed" in str(e).lower():

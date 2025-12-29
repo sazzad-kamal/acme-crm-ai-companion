@@ -17,7 +17,6 @@ from typing import Any
 import pandas as pd
 from rich.console import Console
 from rich.table import Table
-from qdrant_client import QdrantClient
 from qdrant_client.models import (
     VectorParams,
     Distance,
@@ -27,8 +26,13 @@ from sentence_transformers import SentenceTransformer
 
 from backend.rag.utils import find_csv_dir
 from backend.rag.models import DocumentChunk
-from backend.rag.retrieval.constants import PRIVATE_COLLECTION, QDRANT_PATH
-from backend.rag.retrieval.constants import EMBEDDING_MODEL, EMBEDDING_DIM
+from backend.rag.retrieval.constants import (
+    PRIVATE_COLLECTION,
+    QDRANT_PATH,
+    EMBEDDING_MODEL,
+    EMBEDDING_DIM,
+    get_shared_qdrant_client,
+)
 from backend.rag.ingest.chunking import estimate_tokens, chunk_text, MIN_CHUNK_SIZE
 
 
@@ -343,7 +347,7 @@ def ingest_private_texts(
     # ---------------------------------------------------------------------------
     print("\nInitializing Qdrant...")
     QDRANT_PATH.mkdir(parents=True, exist_ok=True)
-    qdrant = QdrantClient(path=str(QDRANT_PATH))
+    qdrant = get_shared_qdrant_client()
     
     # Check if collection exists
     if qdrant.collection_exists(collection_name):

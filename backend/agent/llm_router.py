@@ -80,6 +80,12 @@ The CRM has distinct data tables - route based on which table has the data:
    - "company_search": Search companies by segment/industry (e.g., "Show enterprise accounts")
    - "groups": Account group queries (e.g., "Who is in the at-risk group?")
    - "attachments": Document/file searches (e.g., "Find all proposals")
+   - "analytics": Counts, breakdowns, distributions, aggregations
+     * Pattern: "How many...", "What's the breakdown...", "What percentage...", "What's the distribution..."
+     * "What's the breakdown of contact roles at Acme?" → analytics (with company_name)
+     * "How many activities has Acme had this month?" → analytics (with company_name)
+     * "What's the distribution of accounts by group?" → analytics (no company_name)
+     * "Which activity type is most common?" → analytics (no company_name)
 
    DOCUMENTATION INTENT:
    - "general": How-to questions, feature explanations, help documentation
@@ -208,6 +214,29 @@ Q: "Why is the Acme deal stalled?"
  "query_expansion": "Search notes for blockers on Acme deal",
  "key_entities": ["Acme", "stalled"], "action_type": "analyze", "confidence": 0.95}
 
+### ANALYTICS QUERIES (counts, breakdowns, distributions)
+# Pattern: "How many...", "What's the breakdown...", "percentage", "distribution", "count"
+
+Q: "How many calls did we make last week?"
+{"mode": "data", "intent": "analytics", "company_name": null, "days": 7,
+ "query_expansion": "Count call activities in the last 7 days",
+ "key_entities": ["calls"], "action_type": "summarize", "confidence": 0.95}
+
+Q: "What percentage of contacts are decision makers?"
+{"mode": "data", "intent": "analytics", "company_name": null, "days": 30,
+ "query_expansion": "Calculate percentage of contacts with decision maker role",
+ "key_entities": ["contacts", "decision makers"], "action_type": "summarize", "confidence": 0.95}
+
+Q: "Show me activity counts by type"
+{"mode": "data", "intent": "analytics", "company_name": null, "days": 30,
+ "query_expansion": "Break down activities by type",
+ "key_entities": ["activities"], "action_type": "summarize", "confidence": 0.95}
+
+Q: "What's the deal value split across groups?"
+{"mode": "data", "intent": "analytics", "company_name": null, "days": 30,
+ "query_expansion": "Show pipeline value distribution by group",
+ "key_entities": ["deals", "groups"], "action_type": "summarize", "confidence": 0.95}
+
 ### COMBINED DATA + DOCS
 Q: "Which accounts are at risk and what should I do?"
 {"mode": "data+docs", "intent": "renewals", "company_name": null, "days": 90,
@@ -286,6 +315,7 @@ class LLMRouterResponse(BaseModel):
         "company_search",  # Search companies by criteria (segment, industry)
         "groups",          # Account groups queries
         "attachments",     # Document/file searches
+        "analytics",       # Counts, breakdowns, aggregations (how many, breakdown, distribution)
         "general",         # Documentation/help questions
     ] = Field(
         default="general",

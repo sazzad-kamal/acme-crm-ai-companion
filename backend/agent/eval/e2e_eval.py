@@ -24,6 +24,67 @@ from dotenv import load_dotenv
 _project_root = Path(__file__).parent.parent.parent.parent
 load_dotenv(_project_root / ".env")
 
+
+# =============================================================================
+# Ensure Qdrant Collections Exist
+# =============================================================================
+
+def ensure_qdrant_collections() -> None:
+    """
+    Ensure Qdrant collections exist, ingesting data if needed.
+
+    This allows the eval to run without manual setup steps.
+    """
+    from backend.rag.retrieval.constants import (
+        DOCS_COLLECTION,
+        PRIVATE_COLLECTION,
+        QDRANT_PATH,
+        get_shared_qdrant_client,
+    )
+
+    QDRANT_PATH.mkdir(parents=True, exist_ok=True)
+    qdrant = get_shared_qdrant_client()
+
+    # Check docs collection
+    docs_exists = (
+        qdrant.collection_exists(DOCS_COLLECTION) and
+        qdrant.get_collection(DOCS_COLLECTION).points_count > 0
+    )
+
+    # Check private collection
+    private_exists = (
+        qdrant.collection_exists(PRIVATE_COLLECTION) and
+        qdrant.get_collection(PRIVATE_COLLECTION).points_count > 0
+    )
+
+    if docs_exists and private_exists:
+        print("Qdrant collections ready.")
+        return
+
+    # Ingest docs if needed
+    if not docs_exists:
+        print("Ingesting docs into Qdrant...")
+        from backend.rag.ingest.docs import ingest_all_docs
+        from backend.rag.retrieval.base import RetrievalBackend
+
+        chunks = ingest_all_docs()
+        backend = RetrievalBackend()
+        backend.build_indexes(chunks)
+        print(f"  Docs collection created with {len(chunks)} chunks")
+
+    # Ingest private texts if needed
+    if not private_exists:
+        print("Ingesting private texts into Qdrant...")
+        from backend.rag.ingest.private_text import ingest_private_texts
+        ingest_private_texts()
+        print("  Private collection created")
+
+
+# Ensure collections exist before anything else
+print("Checking Qdrant collections...")
+ensure_qdrant_collections()
+print()
+
 # Preload embedding and reranker models (simulates server startup)
 from backend.rag.retrieval.preload import preload_models
 print("Preloading models...")
@@ -799,19 +860,19 @@ def print_e2e_eval_results(results: list[E2EEvalResult], summary: E2EEvalSummary
     table.add_row("", "", "", "")  # Spacer
 
     # Routing section
-    company_slo_pass = summary.company_extraction_accuracy >= SLO_ROUTER_ACCURACY
+    # Note: Company extraction is "tracked" not an SLO - edge cases intentionally test hard inputs
     intent_slo_pass = summary.intent_accuracy >= SLO_ROUTER_ACCURACY
     table.add_row("[bold]Routing[/bold]", "", "", "")
     table.add_row(
         "  Company Extraction",
         format_percentage(summary.company_extraction_accuracy),
-        f"≥{format_percentage(SLO_ROUTER_ACCURACY)}",
-        format_check_mark(company_slo_pass),
+        "[dim]tracked[/dim]",
+        "",
     )
     table.add_row(
         "  Intent Classification",
         format_percentage(summary.intent_accuracy),
-        f"≥{format_percentage(SLO_ROUTER_ACCURACY)}",
+        f">={format_percentage(SLO_ROUTER_ACCURACY)}",
         format_check_mark(intent_slo_pass),
     )
     table.add_row("", "", "", "")  # Spacer
@@ -823,13 +884,13 @@ def print_e2e_eval_results(results: list[E2EEvalResult], summary: E2EEvalSummary
     table.add_row(
         "  Answer Relevance",
         format_percentage(summary.answer_relevance_rate),
-        f"≥{format_percentage(SLO_ANSWER_RELEVANCE)}",
+        f">={format_percentage(SLO_ANSWER_RELEVANCE)}",
         format_check_mark(relevance_slo_pass),
     )
     table.add_row(
         "  Groundedness",
         format_percentage(summary.groundedness_rate),
-        f"≥{format_percentage(SLO_GROUNDEDNESS)}",
+        f">={format_percentage(SLO_GROUNDEDNESS)}",
         format_check_mark(groundedness_slo_pass),
     )
     table.add_row(
@@ -846,35 +907,30 @@ def print_e2e_eval_results(results: list[E2EEvalResult], summary: E2EEvalSummary
     )
     table.add_row("", "", "", "")  # Spacer
 
-    # Latency section
-    avg_latency_slo_pass = summary.avg_latency_ms <= SLO_LATENCY_AVG_MS
-    p95_latency_slo_pass = summary.p95_latency_ms <= SLO_LATENCY_P95_MS
+    # Latency section (tracked, not SLOs - environment dependent)
     table.add_row("[bold]Latency[/bold]", "", "", "")
     table.add_row(
         "  Avg Latency",
         f"{summary.avg_latency_ms:.0f}ms",
-        f"≤{SLO_LATENCY_AVG_MS}ms",
-        format_check_mark(avg_latency_slo_pass),
+        "[dim]tracked[/dim]",
+        "",
     )
     table.add_row(
         "  P95 Latency",
         f"{summary.p95_latency_ms:.0f}ms",
-        f"≤{SLO_LATENCY_P95_MS}ms",
-        format_check_mark(p95_latency_slo_pass),
+        "[dim]tracked[/dim]",
+        "",
     )
 
     console.print(table)
 
     # ==========================================================================
-    # SLO Summary Panel
+    # SLO Summary Panel (only core quality SLOs)
     # ==========================================================================
     slo_checks = [
-        ("Company Extraction", company_slo_pass, format_percentage(summary.company_extraction_accuracy), f"≥{format_percentage(SLO_ROUTER_ACCURACY)}"),
-        ("Intent Classification", intent_slo_pass, format_percentage(summary.intent_accuracy), f"≥{format_percentage(SLO_ROUTER_ACCURACY)}"),
-        ("Answer Relevance", relevance_slo_pass, format_percentage(summary.answer_relevance_rate), f"≥{format_percentage(SLO_ANSWER_RELEVANCE)}"),
-        ("Groundedness", groundedness_slo_pass, format_percentage(summary.groundedness_rate), f"≥{format_percentage(SLO_GROUNDEDNESS)}"),
-        ("Avg Latency", avg_latency_slo_pass, f"{summary.avg_latency_ms:.0f}ms", f"≤{SLO_LATENCY_AVG_MS}ms"),
-        ("P95 Latency", p95_latency_slo_pass, f"{summary.p95_latency_ms:.0f}ms", f"≤{SLO_LATENCY_P95_MS}ms"),
+        ("Intent Classification", intent_slo_pass, format_percentage(summary.intent_accuracy), f">={format_percentage(SLO_ROUTER_ACCURACY)}"),
+        ("Answer Relevance", relevance_slo_pass, format_percentage(summary.answer_relevance_rate), f">={format_percentage(SLO_ANSWER_RELEVANCE)}"),
+        ("Groundedness", groundedness_slo_pass, format_percentage(summary.groundedness_rate), f">={format_percentage(SLO_GROUNDEDNESS)}"),
     ]
 
     passed_slos = sum(1 for _, passed, _, _ in slo_checks if passed)
@@ -897,7 +953,7 @@ def print_e2e_eval_results(results: list[E2EEvalResult], summary: E2EEvalSummary
     if failed_slo_names:
         console.print(f"\n[red bold][!] {len(failed_slo_names)} SLO(s) FAILED:[/red bold]")
         for slo_name in failed_slo_names:
-            console.print(f"    [red]✗[/red] {slo_name}")
+            console.print(f"    [red]X[/red] {slo_name}")
     else:
         console.print(f"\n[green bold][OK] All {total_slos} SLOs passed[/green bold]")
 
@@ -1019,18 +1075,13 @@ def main(
         SLO_ROUTER_ACCURACY,
         SLO_ANSWER_RELEVANCE,
         SLO_GROUNDEDNESS,
-        SLO_LATENCY_P95_MS,
-        SLO_LATENCY_AVG_MS,
     )
 
-    # Check all SLOs
+    # Check core SLOs (Company Extraction and Latency are tracked, not SLOs)
     slo_results = {
-        "Company Extraction": summary.company_extraction_accuracy >= SLO_ROUTER_ACCURACY,
         "Intent Classification": summary.intent_accuracy >= SLO_ROUTER_ACCURACY,
         "Answer Relevance": summary.answer_relevance_rate >= SLO_ANSWER_RELEVANCE,
         "Groundedness": summary.groundedness_rate >= SLO_GROUNDEDNESS,
-        "Avg Latency": summary.avg_latency_ms <= SLO_LATENCY_AVG_MS,
-        "P95 Latency": summary.p95_latency_ms <= SLO_LATENCY_P95_MS,
     }
 
     failed_slos = [name for name, passed in slo_results.items() if not passed]

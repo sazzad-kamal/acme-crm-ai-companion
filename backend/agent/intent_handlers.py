@@ -29,6 +29,7 @@ from backend.agent.tools import (
     tool_search_attachments,
     tool_pipeline_summary,
     tool_search_activities,
+    tool_analytics,
 )
 
 
@@ -63,6 +64,7 @@ class IntentResult:
     contacts_data: dict | None = None
     groups_data: dict | None = None
     attachments_data: dict | None = None
+    analytics_data: dict | None = None
     resolved_company_id: str | None = None
 
 
@@ -78,6 +80,7 @@ def _empty_raw_data() -> dict:
         "groups": [],
         "attachments": [],
         "pipeline_summary": None,
+        "analytics": None,
     }
 
 
@@ -196,6 +199,109 @@ def handle_activities(ctx: IntentContext) -> IntentResult:
     return result
 
 
+def _detect_analytics_metric(question: str) -> tuple[str, str, str]:
+    """
+    Detect the analytics metric type from the question.
+
+    Uses general patterns, not exact question matching.
+
+    Returns:
+        (metric, group_by, activity_type) tuple
+    """
+    q = question.lower()
+
+    # Pattern: counting/breakdown keywords
+    is_count_query = any(w in q for w in ["how many", "count", "total", "number of"])
+    is_breakdown_query = any(w in q for w in ["breakdown", "distribution", "percentage", "split", "ratio"])
+    is_comparison = any(w in q for w in ["most", "highest", "lowest", "compare", "common"])
+
+    # Detect entity type
+    has_contact = "contact" in q
+    has_activity = "activit" in q
+    has_account = "account" in q or "compan" in q
+    has_group = "group" in q
+    has_pipeline = "pipeline" in q or "deal" in q or "value" in q
+
+    # Detect specific activity types
+    activity_type = ""
+    for atype in ["email", "call", "meeting", "demo", "task"]:
+        if atype in q:
+            activity_type = atype
+            break
+
+    # Decision logic based on entities
+    if has_contact and (is_breakdown_query or "role" in q):
+        return "contact_breakdown", "role", ""
+
+    if has_activity:
+        if activity_type and is_count_query:
+            return "activity_count", "", activity_type
+        if is_breakdown_query or is_comparison or "type" in q:
+            return "activity_breakdown", "type", ""
+        if is_count_query:
+            return "activity_count", "", ""
+
+    if has_group:
+        if has_pipeline or has_account and ("value" in q or is_comparison):
+            return "pipeline_by_group", "", ""
+        if has_account or is_count_query or is_breakdown_query:
+            return "accounts_by_group", "", ""
+
+    if has_pipeline and has_group:
+        return "pipeline_by_group", "", ""
+
+    # Default based on query type
+    if is_count_query:
+        return "activity_count", "", ""
+    if is_breakdown_query:
+        return "activity_breakdown", "type", ""
+
+    return "activity_breakdown", "type", ""
+
+
+def _extract_group_id_for_analytics(question: str) -> str:
+    """Extract group ID from analytics question."""
+    q = question.lower()
+    if "at-risk" in q or "at risk" in q:
+        return "at-risk"
+    if "enterprise" in q:
+        return "enterprise"
+    if "churn" in q:
+        return "churned"
+    if "strategic" in q:
+        return "strategic"
+    return ""
+
+
+def handle_analytics(ctx: IntentContext) -> IntentResult:
+    """Handle analytics intent (counts, breakdowns, aggregations)."""
+    logger.debug("[Data] Processing analytics query")
+    result = IntentResult(raw_data=_empty_raw_data(), resolved_company_id=ctx.resolved_company_id)
+
+    # Detect the metric type from the question
+    metric, group_by, activity_type = _detect_analytics_metric(ctx.question)
+
+    # Extract group_id if needed
+    group_id = _extract_group_id_for_analytics(ctx.question) if "group" in metric else ""
+
+    logger.debug(f"[Analytics] metric={metric}, group_by={group_by}, activity_type={activity_type}, company={ctx.resolved_company_id}")
+
+    analytics_result = tool_analytics(
+        metric=metric,
+        group_by=group_by,
+        company_id=ctx.resolved_company_id or "",
+        group_id=group_id,
+        activity_type=activity_type,
+        days=ctx.days,
+    )
+
+    result.analytics_data = analytics_result.data
+    _safe_extend(result.sources, analytics_result.sources)
+    result.raw_data["analytics"] = analytics_result.data
+
+    return result
+
+
 def handle_company_status(ctx: IntentContext) -> IntentResult:
     """Handle company_status and company-specific intents."""
     result = IntentResult(raw_data=_empty_raw_data())
@@ -268,6 +374,7 @@ INTENT_HANDLERS = {
     "company_search": handle_company_search,
     "groups": handle_groups,
     "attachments": handle_attachments,
+    "analytics": handle_analytics,  # Counts, breakdowns, aggregations
     # Contact queries
     "contact_lookup": handle_contacts,
     "contact_search": handle_contacts,
@@ -295,9 +402,13 @@ def dispatch_intent(intent: str, ctx: IntentContext) -> IntentResult:
     if intent == "activities" and not ctx.resolved_company_id:
         return handle_activities(ctx)
 
+    # Special case: analytics always goes to analytics handler (even with company_id)
+    if intent == "analytics":
+        return handle_analytics(ctx)
+
     # Special case: company-specific queries
     if ctx.resolved_company_id or (ctx.router_result and getattr(ctx.router_result, 'company_name_query', None)):
-        if intent not in ("pipeline_summary", "company_search"):
+        if intent not in ("pipeline_summary", "company_search", "analytics"):
             return handle_company_status(ctx)
 
     # Normal dispatch

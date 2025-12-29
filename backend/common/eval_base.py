@@ -67,7 +67,7 @@ def create_comparison_table(title: str, columns: list[tuple[str, str, str]]) -> 
 
 def format_check_mark(value: bool) -> str:
     """Format boolean as colored check/cross mark."""
-    return "[green]✓[/green]" if value else "[red]✗[/red]"
+    return "[green]Y[/green]" if value else "[red]X[/red]"
 
 
 def format_percentage(value: float, thresholds: tuple[float, float] = (0.9, 0.7)) -> str:

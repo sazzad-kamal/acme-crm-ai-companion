@@ -115,7 +115,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "What deals is Anna Lopez involved in?",
             "When did we last talk to Anna Lopez?",
-            "What contact roles are typically tracked in the CRM?",
+            "What's the breakdown of contact roles at Acme?",
         ],
     },
     "Who handles IT at Acme Manufacturing?": {
@@ -131,7 +131,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "What was the last call about?",
             "When was the last meeting with Acme?",
-            "What activity types does the CRM track?",
+            "How many activities has Acme had this month?",
         ],
     },
 
@@ -354,7 +354,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "company_id": None,
         "follow_ups": [
             "Which accounts have healthy status?",
-            "What activity types are tracked in the CRM?",
+            "What's the average activity count for at-risk accounts?",
             "When was the last activity for at-risk accounts?",
         ],
     },
@@ -420,7 +420,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "Who is in the at-risk accounts group?",
             "Show me the churned accounts group",
-            "How do account groups work?",
+            "What's the distribution of accounts by group?",
         ],
     },
     "What meetings are scheduled this week?": {
@@ -428,7 +428,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "Show me all recent calls",
             "What's the next scheduled activity?",
-            "What activity types does the CRM support?",
+            "What's the breakdown of activity types this month?",
         ],
     },
 
@@ -475,12 +475,12 @@ QUESTION_TREE: dict[str, QuestionNode] = {
             "What causes accounts to churn?",
         ],
     },
-    "How do account groups work?": {
+    "What's the distribution of accounts by group?": {
         "company_id": None,
         "follow_ups": [
-            "What automatic groups does the CRM create?",
-            "How are at-risk accounts identified?",
-            "Can I create custom groups?",
+            "How many accounts are in each group?",
+            "What's the pipeline value for at-risk accounts?",
+            "Which group has the highest total value?",
         ],
     },
 
@@ -501,12 +501,12 @@ QUESTION_TREE: dict[str, QuestionNode] = {
             "What type of activity is it?",
         ],
     },
-    "What activity types does the CRM support?": {
+    "What's the breakdown of activity types this month?": {
         "company_id": None,
         "follow_ups": [
-            "What's the difference between calls and meetings?",
-            "How are emails tracked in the CRM?",
-            "Which activity types are most common?",
+            "What percentage are calls vs meetings?",
+            "How many emails were logged this month?",
+            "Which activity type is most common?",
         ],
     },
 

@@ -639,6 +639,173 @@ def tool_search_activities(
     )
 
 
+# =============================================================================
+# Tool: Analytics
+# =============================================================================
+
+def tool_analytics(
+    metric: str,
+    group_by: str = "",
+    company_id: str = "",
+    group_id: str = "",
+    activity_type: str = "",
+    days: int = 30,
+    datastore: CRMDataStore | None = None
+) -> ToolResult:
+    """
+    Get analytics and breakdowns for CRM data.
+
+    Supports various metrics:
+    - contact_breakdown: Count contacts by role/job_title
+    - activity_breakdown: Count activities by type
+    - activity_count: Count activities with filters
+    - accounts_by_group: Count accounts in each group
+    - pipeline_by_group: Pipeline value by group
+
+    Args:
+        metric: The type of analysis (contact_breakdown, activity_breakdown, etc.)
+        group_by: Field to group by (varies by metric)
+        company_id: Filter by company (for contact/activity metrics)
+        group_id: Filter by group (for pipeline_by_group)
+        activity_type: Filter by activity type (for activity_count)
+        days: Look back N days (for activity metrics)
+        datastore: Optional datastore instance
+
+    Returns:
+        ToolResult with analytics data
+    """
+    ds = datastore or get_datastore()
+
+    match metric:
+        case "contact_breakdown":
+            # "What's the breakdown of contact roles at Acme?"
+            resolved_company = ds.resolve_company_id(company_id) if company_id else None
+            data = ds.get_contact_breakdown(
+                company_id=resolved_company,
+                group_by=group_by or "role"
+            )
+            company_name = ""
+            if resolved_company:
+                company = ds.get_company(resolved_company)
+                company_name = company.get("name", resolved_company) if company else resolved_company
+
+            label = f"Contact breakdown by {group_by or 'role'}"
+            if company_name:
+                label += f" for {company_name}"
+
+            return ToolResult(
+                data=data,
+                sources=[Source(
+                    type="analytics",
+                    id=f"contacts_{resolved_company or 'all'}",
+                    label=label
+                )]
+            )
+
+        case "activity_breakdown":
+            # "What's the breakdown of activity types this month?"
+            resolved_company = ds.resolve_company_id(company_id) if company_id else None
+            data = ds.get_activity_breakdown(
+                company_id=resolved_company,
+                days=days,
+                group_by=group_by or "type"
+            )
+            company_name = ""
+            if resolved_company:
+                company = ds.get_company(resolved_company)
+                company_name = company.get("name", resolved_company) if company else resolved_company
+
+            label = f"Activity breakdown by {group_by or 'type'} (last {days} days)"
+            if company_name:
+                label += f" for {company_name}"
+
+            return ToolResult(
+                data=data,
+                sources=[Source(
+                    type="analytics",
+                    id=f"activities_{resolved_company or 'all'}",
+                    label=label
+                )]
+            )
+
+        case "activity_count":
+            # "How many activities has Acme had this month?"
+            # "How many emails were logged this month?"
+            resolved_company = ds.resolve_company_id(company_id) if company_id else None
+            data = ds.get_activity_count_by_filter(
+                activity_type=activity_type or None,
+                days=days,
+                company_id=resolved_company
+            )
+            company_name = ""
+            if resolved_company:
+                company = ds.get_company(resolved_company)
+                company_name = company.get("name", resolved_company) if company else resolved_company
+
+            label_parts = [f"Activity count (last {days} days)"]
+            if activity_type:
+                label_parts.append(f"type={activity_type}")
+            if company_name:
+                label_parts.append(f"for {company_name}")
+
+            return ToolResult(
+                data=data,
+                sources=[Source(
+                    type="analytics",
+                    id=f"activity_count",
+                    label=" ".join(label_parts)
+                )]
+            )
+
+        case "accounts_by_group":
+            # "What's the distribution of accounts by group?"
+            # "How many accounts are in each group?"
+            data = ds.get_accounts_by_group()
+
+            return ToolResult(
+                data=data,
+                sources=[Source(
+                    type="analytics",
+                    id="accounts_by_group",
+                    label="Account distribution by group"
+                )]
+            )
+
+        case "pipeline_by_group":
+            # "What's the pipeline value for at-risk accounts?"
+            # "Which group has the highest total value?"
+            data = ds.get_pipeline_by_group(group_id=group_id or None)
+
+            label = "Pipeline by group"
+            if group_id:
+                label = f"Pipeline for group: {group_id}"
+
+            return ToolResult(
+                data=data,
+                sources=[Source(
+                    type="analytics",
+                    id=f"pipeline_{group_id or 'all_groups'}",
+                    label=label
+                )]
+            )
+
+        case _:
+            return ToolResult(
+                data={
+                    "error": f"Unknown metric: {metric}",
+                    "available_metrics": [
+                        "contact_breakdown",
+                        "activity_breakdown",
+                        "activity_count",
+                        "accounts_by_group",
+                        "pipeline_by_group",
+                    ]
+                },
+                sources=[],
+                error=f"Unknown analytics metric: {metric}"
+            )
+
+
 __all__ = [
     "tool_company_lookup",
     "tool_recent_activity",
@@ -653,6 +820,7 @@ __all__ = [
     "tool_search_attachments",
     "tool_pipeline_summary",
     "tool_search_activities",
+    "tool_analytics",
 ]
 
 

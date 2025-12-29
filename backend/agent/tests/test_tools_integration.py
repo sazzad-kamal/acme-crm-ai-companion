@@ -23,6 +23,7 @@ pytestmark = pytest.mark.integration
 
 from backend.agent.datastore import get_datastore
 from backend.agent.tools import (
+    tool_analytics,
     tool_company_lookup,
     tool_contact_lookup,
     tool_group_members,
@@ -304,3 +305,50 @@ class TestSearchActivities:
         result = tool_search_activities(activity_type=activity_type, days=365)
         # Just ensure it doesn't error
         assert "activities" in result.data
+
+
+# =============================================================================
+# Analytics Tests
+# =============================================================================
+
+
+class TestAnalytics:
+    """Tests for tool_analytics."""
+
+    def test_contact_breakdown(self, datastore):
+        """Test contact breakdown by role."""
+        result = tool_analytics(metric="contact_breakdown", group_by="role")
+        assert "breakdown" in result.data
+        assert len(result.data["breakdown"]) >= 1
+
+    def test_contact_breakdown_by_company(self, datastore):
+        """Test contact breakdown filtered by company."""
+        result = tool_analytics(metric="contact_breakdown", company_id="ACME-MFG")
+        assert "breakdown" in result.data
+
+    def test_activity_breakdown(self, datastore):
+        """Test activity breakdown by type."""
+        result = tool_analytics(metric="activity_breakdown", group_by="type", days=365)
+        assert "breakdown" in result.data
+        assert len(result.data["breakdown"]) >= 1
+
+    def test_activity_count(self, datastore):
+        """Test activity count with no filter."""
+        result = tool_analytics(metric="activity_count", days=365)
+        assert "count" in result.data
+        assert result.data["count"] >= 0
+
+    def test_activity_count_by_type(self, datastore):
+        """Test activity count filtered by type."""
+        result = tool_analytics(metric="activity_count", activity_type="Call", days=365)
+        assert "count" in result.data
+
+    def test_accounts_by_group(self, datastore):
+        """Test accounts by group aggregation."""
+        result = tool_analytics(metric="accounts_by_group")
+        assert "breakdown" in result.data
+
+    def test_pipeline_by_group(self, datastore):
+        """Test pipeline value by group."""
+        result = tool_analytics(metric="pipeline_by_group")
+        assert "breakdown" in result.data
