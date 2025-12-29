@@ -193,6 +193,7 @@ Score each criterion as 0 or 1:
 
 2. ANSWER_GROUNDED: Is the answer based on real CRM data?
    - 1 if mentions specific companies, dates, values, numbers, or contact names
+   - 1 if correctly states "no results found" or "none" when query returns empty (this IS grounded)
    - 1 if appropriately says data is not available (honest grounding)
    - 0 if the answer seems made up, hallucinates facts, or is vague ("several", "some")
 

@@ -62,7 +62,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "company_id": "ACME-MFG",
         "follow_ups": [
             "What stage is the upgrade deal in?",
-            "When does the Acme renewal opportunity close?",
+            "What's the expected close date for the Acme renewal deal?",
             "What's the total pipeline value for Acme Manufacturing?",
         ],
     },
@@ -77,7 +77,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
     "What's Acme Manufacturing's renewal status?": {
         "company_id": "ACME-MFG",
         "follow_ups": [
-            "When exactly is Acme Manufacturing's renewal date?",
+            "When does Acme's subscription contract renew?",
             "What's the renewal amount for Acme Manufacturing?",
             "Who owns the Acme Manufacturing account?",
         ],
@@ -92,7 +92,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
             "How many Acme deals are in Proposal stage?",
         ],
     },
-    "When does the Acme renewal opportunity close?": {
+    "What's the expected close date for the Acme renewal deal?": {
         "company_id": "ACME-MFG",
         "follow_ups": [
             "What's the renewal value for Acme?",
@@ -136,7 +136,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
     },
 
     # Layer 3 from "What's Acme Manufacturing's renewal status"
-    "When exactly is Acme Manufacturing's renewal date?": {
+    "When does Acme's subscription contract renew?": {
         "company_id": "ACME-MFG",
         "follow_ups": [
             "What's the health status of Acme Manufacturing?",
@@ -402,7 +402,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         "follow_ups": [
             "Which companies have the biggest deals?",
             "What groups do we have?",
-            "What meetings do we have coming up?",
+            "What meetings are scheduled this week?",
         ],
     },
 
@@ -410,7 +410,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
     "Which companies have the biggest deals?": {
         "company_id": None,
         "follow_ups": [
-            "Show me all enterprise accounts",
+            "Show me all mid-market accounts",
             "What's the pipeline breakdown by owner?",
             "Which deals are in negotiation stage?",
         ],
@@ -423,7 +423,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
             "What's the distribution of accounts by group?",
         ],
     },
-    "What meetings do we have coming up?": {
+    "What meetings are scheduled this week?": {
         "company_id": None,
         "follow_ups": [
             "Show me all recent calls",
@@ -433,7 +433,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
     },
 
     # Layer 3 from "Which companies have the biggest deals"
-    "Show me all enterprise accounts": {
+    "Show me all mid-market accounts": {
         "company_id": None,
         "follow_ups": [
             "Tell me about Fusion Retail Group",
@@ -484,7 +484,7 @@ QUESTION_TREE: dict[str, QuestionNode] = {
         ],
     },
 
-    # Layer 3 from "What meetings do we have coming up"
+    # Layer 3 from "What meetings are scheduled this week"
     "Show me all recent calls": {
         "company_id": None,
         "follow_ups": [
