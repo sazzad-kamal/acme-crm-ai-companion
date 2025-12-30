@@ -299,6 +299,25 @@ Q: "Show me activity counts by type"
  "query_expansion": "Break down activities by type",
  "key_entities": ["activities"], "action_type": "summarize", "confidence": 0.95}
 
+### TEAM PERFORMANCE QUESTIONS (Manager view - no owner filter)
+# Pattern: "team", "team doing", "team performance", "my team"
+# These show aggregate pipeline/activity metrics across all reps
+
+Q: "Give me a team overview"
+{"mode": "data", "intent": "pipeline_summary", "company_name": null, "days": 30,
+ "query_expansion": "Show aggregate team pipeline performance and metrics",
+ "key_entities": ["team", "pipeline"], "action_type": "summarize", "confidence": 0.95}
+
+Q: "Show team metrics for this month"
+{"mode": "data", "intent": "pipeline_summary", "company_name": null, "days": 30,
+ "query_expansion": "Show team pipeline and activity metrics",
+ "key_entities": ["team", "metrics"], "action_type": "summarize", "confidence": 0.95}
+
+Q: "What's the overall team status?"
+{"mode": "data", "intent": "pipeline_summary", "company_name": null, "days": 30,
+ "query_expansion": "Show my team's aggregate pipeline and activity metrics",
+ "key_entities": ["team", "status"], "action_type": "summarize", "confidence": 0.95}
+
 ### COMBINED DATA + DOCS
 Q: "Which accounts are at risk and what should I do?"
 {"mode": "data+docs", "intent": "renewals", "company_name": null, "days": 90,

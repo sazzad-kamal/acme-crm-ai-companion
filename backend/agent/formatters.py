@@ -276,8 +276,30 @@ def format_pipeline_section(pipeline_data: dict | None) -> str:
 
 
 def format_renewals_section(renewals_data: dict | None) -> str:
-    """Format renewals data for the prompt."""
-    return _RENEWALS_FORMATTER.format(renewals_data)
+    """Format renewals data for the prompt with explicit date range."""
+    if not renewals_data:
+        return ""
+
+    renewals = renewals_data.get("renewals", [])
+    if not renewals:
+        return "=== UPCOMING RENEWALS ===\nNo renewals in the specified timeframe."
+
+    # Show explicit date range from the actual data
+    days = renewals_data.get("days", 90)
+    count = renewals_data.get("count", len(renewals))
+
+    # Calculate actual date range from today
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    end_date = today + timedelta(days=days)
+    date_range = f"{today.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
+
+    lines = [f"=== UPCOMING RENEWALS ({count} in next {days} days: {date_range}) ==="]
+
+    for r in renewals[:10]:
+        lines.append(_format_renewal(r))
+
+    return "\n".join(lines)
 
 
 def format_contacts_section(contacts_data: dict | None) -> str:
