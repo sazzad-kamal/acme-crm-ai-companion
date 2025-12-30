@@ -24,59 +24,8 @@ from dotenv import load_dotenv
 _project_root = Path(__file__).parent.parent.parent.parent
 load_dotenv(_project_root / ".env")
 
-
-# =============================================================================
-# Ensure Qdrant Collections Exist
-# =============================================================================
-
-def ensure_qdrant_collections() -> None:
-    """
-    Ensure Qdrant collections exist, ingesting data if needed.
-
-    This allows the eval to run without manual setup steps.
-    """
-    from backend.agent.rag_tools import (
-        DOCS_COLLECTION,
-        PRIVATE_COLLECTION,
-        QDRANT_PATH,
-        get_qdrant_client,
-    )
-
-    QDRANT_PATH.mkdir(parents=True, exist_ok=True)
-    qdrant = get_qdrant_client()
-
-    # Check docs collection
-    docs_exists = (
-        qdrant.collection_exists(DOCS_COLLECTION) and
-        qdrant.get_collection(DOCS_COLLECTION).points_count > 0
-    )
-
-    # Check private collection
-    private_exists = (
-        qdrant.collection_exists(PRIVATE_COLLECTION) and
-        qdrant.get_collection(PRIVATE_COLLECTION).points_count > 0
-    )
-
-    if docs_exists and private_exists:
-        print("Qdrant collections ready.")
-        return
-
-    # Ingest docs if needed
-    if not docs_exists:
-        print("Ingesting docs into Qdrant...")
-        from backend.ingest import ingest_docs
-        chunk_count = ingest_docs()
-        print(f"  Docs collection created with {chunk_count} chunks")
-
-    # Ingest private texts if needed
-    if not private_exists:
-        print("Ingesting private texts into Qdrant...")
-        from backend.ingest import ingest_private_texts
-        ingest_private_texts()
-        print("  Private collection created")
-
-
 # Ensure collections exist before anything else
+from backend.agent.eval.base import ensure_qdrant_collections
 print("Checking Qdrant collections...")
 ensure_qdrant_collections()
 print()

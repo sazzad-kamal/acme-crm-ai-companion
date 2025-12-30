@@ -5,6 +5,48 @@ Re-exports shared utilities from backend.common.eval_base
 for use by agent eval modules.
 """
 
+
+def ensure_qdrant_collections() -> None:
+    """
+    Ensure Qdrant collections exist, ingesting data if needed.
+    Shared by e2e_eval and flow_eval.
+    """
+    from backend.agent.rag_tools import (
+        DOCS_COLLECTION,
+        PRIVATE_COLLECTION,
+        QDRANT_PATH,
+        get_qdrant_client,
+    )
+
+    QDRANT_PATH.mkdir(parents=True, exist_ok=True)
+    qdrant = get_qdrant_client()
+
+    docs_exists = (
+        qdrant.collection_exists(DOCS_COLLECTION) and
+        qdrant.get_collection(DOCS_COLLECTION).points_count > 0
+    )
+    private_exists = (
+        qdrant.collection_exists(PRIVATE_COLLECTION) and
+        qdrant.get_collection(PRIVATE_COLLECTION).points_count > 0
+    )
+
+    if docs_exists and private_exists:
+        print("Qdrant collections ready.")
+        return
+
+    if not docs_exists:
+        print("Ingesting docs into Qdrant...")
+        from backend.ingest import ingest_docs
+        chunk_count = ingest_docs()
+        print(f"  Docs collection created with {chunk_count} chunks")
+
+    if not private_exists:
+        print("Ingesting private texts into Qdrant...")
+        from backend.ingest import ingest_private_texts
+        ingest_private_texts()
+        print("  Private collection created")
+
+
 # Re-export all shared utilities
 from backend.common.eval_base import (
     console,
@@ -31,6 +73,7 @@ from backend.common.eval_base import (
 )
 
 __all__ = [
+    "ensure_qdrant_collections",
     "console",
     "create_summary_table",
     "create_detail_table",
