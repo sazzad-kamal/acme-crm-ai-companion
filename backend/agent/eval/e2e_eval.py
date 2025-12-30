@@ -12,6 +12,8 @@ Usage:
     python -m backend.agent.eval.e2e_eval --limit 10
 """
 
+from __future__ import annotations
+
 import json
 import threading
 import time
@@ -995,18 +997,22 @@ BASELINE_PATH = _BACKEND_ROOT / "data" / "processed" / "e2e_eval_baseline.json"
 
 @app.command()
 def main(
-    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit tests to run"),
-    verbose: bool = typer.Option(False, "--verbose", "-v"),
-    parallel: bool = typer.Option(
-        False, "--parallel", "-p",
-        help="Run tests in parallel (uses lock to prevent Qdrant file conflicts)"
-    ),
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of tests to run"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output"),
+    parallel: bool = typer.Option(False, "--parallel", "-p", help="Run tests in parallel"),
     workers: int = typer.Option(4, "--workers", "-w", help="Max parallel workers"),
+    no_judge: bool = typer.Option(False, "--no-judge", help="Skip LLM-as-judge evaluation"),
+    output: str | None = typer.Option(None, "--output", "-o", help="Path to save JSON results"),
     baseline: str | None = typer.Option(None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"),
     set_baseline: bool = typer.Option(False, "--set-baseline", help="Save current results as new baseline"),
     debug: bool = typer.Option(False, "--debug", "-d", help="Dump full details for failing cases"),
 ) -> None:
     """Run end-to-end agent evaluation."""
+    # Note: no_judge is accepted for CLI consistency but not implemented in e2e_eval
+    # (e2e tests require judge for quality metrics)
+    if no_judge:
+        console.print("[yellow]Warning: --no-judge is ignored in e2e_eval (judge is required for quality metrics)[/yellow]")
+
     results, summary = run_e2e_eval(limit=limit, verbose=verbose, parallel=parallel, max_workers=workers)
     print_e2e_eval_results(results, summary)
 
@@ -1042,6 +1048,32 @@ def main(
     # Save as new baseline if requested
     if set_baseline:
         save_baseline(summary.model_dump(), BASELINE_PATH)
+
+    # Save results to file if requested
+    if output:
+        output_data = {
+            "summary": summary.model_dump(),
+            "results": [
+                {
+                    "test_case_id": r.test_case_id,
+                    "question": r.question,
+                    "category": r.category,
+                    "company_correct": r.company_correct,
+                    "intent_correct": r.intent_correct,
+                    "answer_relevance": r.answer_relevance,
+                    "answer_grounded": r.answer_grounded,
+                    "context_relevance": r.context_relevance,
+                    "faithfulness": r.faithfulness,
+                    "latency_ms": r.latency_ms,
+                    "error": r.error,
+                }
+                for r in results
+            ],
+        }
+        import json
+        with open(output, "w") as f:
+            json.dump(output_data, f, indent=2)
+        console.print(f"[dim]Results saved to {output}[/dim]")
 
     # Exit code
     from backend.agent.eval.models import (

@@ -6,11 +6,12 @@ path with accumulating conversation memory.
 
 Usage:
     python -m backend.agent.eval.flow_eval
-    python -m backend.agent.eval.flow_eval --max-paths 10  # Quick test
+    python -m backend.agent.eval.flow_eval --limit 10  # Quick test
     python -m backend.agent.eval.flow_eval --verbose  # Show all responses
 """
 
-import argparse
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -28,6 +29,7 @@ print("Checking Qdrant collections...")
 ensure_qdrant_collections()
 print()
 
+import typer
 from rich.table import Table
 from rich.panel import Panel
 
@@ -37,6 +39,9 @@ from backend.agent.eval.base import (
     format_percentage,
     format_check_mark,
     print_eval_header,
+    compare_to_baseline,
+    save_baseline,
+    print_baseline_comparison,
 )
 
 logger = logging.getLogger(__name__)
@@ -746,73 +751,48 @@ def _check_qdrant_access() -> bool:
 
 
 # =============================================================================
-# Main
+# CLI
 # =============================================================================
 
-async def main():
-    parser = argparse.ArgumentParser(description="Run conversation flow evaluation")
-    parser.add_argument(
-        "--max-paths",
-        type=int,
-        default=None,
-        help="Maximum number of paths to test (default: all)",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Show detailed output for each question",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="Path to save JSON results",
-    )
-    parser.add_argument(
-        "--mock",
-        action="store_true",
-        help="Run in mock mode (no LLM calls, uses canned responses)",
-    )
-    parser.add_argument(
-        "--no-judge",
-        action="store_true",
-        help="Skip LLM-as-judge evaluation (faster, but no quality scores)",
-    )
-    parser.add_argument(
-        "--concurrency",
-        type=int,
-        default=5,
-        help="Number of flows to run in parallel (default: 5)",
-    )
+app = typer.Typer()
 
-    args = parser.parse_args()
+# Use absolute path for baseline (relative to backend root)
+_BACKEND_ROOT = Path(__file__).parent.parent.parent.resolve()
+BASELINE_PATH = _BACKEND_ROOT / "data" / "processed" / "flow_eval_baseline.json"
 
-    # Enable mock mode if requested
-    if args.mock:
-        import os
-        os.environ["MOCK_LLM"] = "true"
-        console.print("\n[yellow][MOCK MODE] Using canned responses, no LLM calls[/yellow]")
-    else:
-        # Check if Qdrant is accessible (only when not in mock mode)
-        if not _check_qdrant_access():
-            console.print(Panel(
-                "[red bold]ERROR: Qdrant storage is locked by another process![/red bold]\n\n"
-                "[bold]Solutions:[/bold]\n"
-                "  1. Stop the backend server: Ctrl+C in the uvicorn terminal\n"
-                "  2. Close any Jupyter notebooks using RAG\n"
-                "  3. Run with --mock for testing without real LLM/RAG",
-                border_style="red",
-            ))
-            return 1
 
-        # Warmup: trigger model loading by a simple query
-        console.print("\n[dim]Warming up models...[/dim]")
-        try:
-            from backend.agent.rag_tools import tool_docs_rag
-            tool_docs_rag("warmup", top_k=1)  # Trigger embedding model load
-            console.print("[dim]Models loaded.[/dim]")
-        except Exception as e:
-            console.print(f"[yellow]Warning: Model preload failed: {e}[/yellow]")
+async def _run_eval_async(
+    limit: int | None,
+    verbose: bool,
+    parallel: bool,
+    workers: int,
+    no_judge: bool,
+    output: str | None,
+    baseline: str | None,
+    set_baseline: bool,
+    debug: bool,
+) -> int:
+    """Async implementation of the eval runner."""
+    # Check if Qdrant is accessible
+    if not _check_qdrant_access():
+        console.print(Panel(
+            "[red bold]ERROR: Qdrant storage is locked by another process![/red bold]\n\n"
+            "[bold]Solutions:[/bold]\n"
+            "  1. Stop the backend server: Ctrl+C in the uvicorn terminal\n"
+            "  2. Close any Jupyter notebooks using RAG\n"
+            "  3. Run with --mock for testing without real LLM/RAG",
+            border_style="red",
+        ))
+        return 1
+
+    # Warmup: trigger model loading by a simple query
+    console.print("\n[dim]Warming up models...[/dim]")
+    try:
+        from backend.agent.rag_tools import tool_docs_rag
+        tool_docs_rag("warmup", top_k=1)  # Trigger embedding model load
+        console.print("[dim]Models loaded.[/dim]")
+    except Exception as e:
+        console.print(f"[yellow]Warning: Model preload failed: {e}[/yellow]")
 
     # Show tree stats first
     stats = get_tree_stats()
@@ -821,13 +801,14 @@ async def main():
         console.print(f"  [dim]{key}:[/dim] {value}")
 
     # Run evaluation
-    use_judge = not args.no_judge
+    use_judge = not no_judge
+    concurrency = workers if parallel else 1
     try:
         results = await run_flow_eval(
-            max_paths=args.max_paths,
-            verbose=args.verbose,
+            max_paths=limit,
+            verbose=verbose,
             use_judge=use_judge,
-            concurrency=args.concurrency,
+            concurrency=concurrency,
         )
     except Exception as e:
         console.print(f"\n[red bold]ERROR: Evaluation failed: {e}[/red bold]")
@@ -838,9 +819,45 @@ async def main():
     # Print summary
     print_summary(results)
 
+    # Debug output for failing paths
+    if debug and results.failed_paths:
+        console.print("\n" + "="*80)
+        console.print("[bold yellow]DEBUG: Full details for failed paths[/bold yellow]")
+        console.print("="*80)
+
+        for fp in results.failed_paths[:10]:
+            console.print(f"\n[bold cyan]--- Path {fp.path_id} ---[/bold cyan]")
+            for i, step in enumerate(fp.steps):
+                status = "PASS" if step.passed else "FAIL"
+                console.print(f"[bold]Q{i+1}:[/bold] {step.question}")
+                console.print(f"    [{status}] R={step.relevance_score} G={step.grounded_score}")
+                console.print(f"    [bold]Answer:[/bold] {step.answer[:200]}...")
+                if step.judge_explanation:
+                    console.print(f"    [bold]Judge:[/bold] {step.judge_explanation}")
+            console.print("-"*40)
+
     # Save if requested
-    if args.output:
-        save_results(results, Path(args.output))
+    if output:
+        save_results(results, Path(output))
+
+    # Baseline comparison
+    baseline_path = Path(baseline) if baseline else BASELINE_PATH
+    is_regression, baseline_score = compare_to_baseline(
+        results.question_pass_rate,
+        baseline_path,
+        score_key="question_pass_rate",
+    )
+    print_baseline_comparison(results.question_pass_rate, baseline_score, is_regression)
+
+    # Save as new baseline if requested
+    if set_baseline:
+        baseline_data = {
+            "path_pass_rate": results.path_pass_rate,
+            "question_pass_rate": results.question_pass_rate,
+            "avg_relevance": results.avg_relevance,
+            "avg_grounded": results.avg_grounded,
+        }
+        save_baseline(baseline_data, BASELINE_PATH)
 
     # Cleanup Qdrant client to avoid shutdown errors
     try:
@@ -849,11 +866,53 @@ async def main():
     except Exception:
         pass  # Ignore cleanup errors
 
-    # Exit with error code if failures
-    return 0 if results.paths_failed == 0 else 1
+    # Check SLOs for exit code
+    slo_results = {
+        "Path Pass Rate": results.path_pass_rate >= SLO_PATH_PASS_RATE,
+        "Question Pass Rate": results.question_pass_rate >= SLO_QUESTION_PASS_RATE,
+        "Relevance": results.avg_relevance >= SLO_RELEVANCE,
+        "Groundedness": results.avg_grounded >= SLO_GROUNDED,
+    }
+
+    failed_slos = [name for name, passed in slo_results.items() if not passed]
+    all_slos_passed = len(failed_slos) == 0
+
+    exit_code = 0
+    if not all_slos_passed:
+        exit_code = 1
+    if is_regression:
+        exit_code = 1
+
+    return exit_code
+
+
+@app.command()
+def main(
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of paths to test"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output for each question"),
+    parallel: bool = typer.Option(True, "--parallel/--no-parallel", "-p", help="Run flows in parallel"),
+    workers: int = typer.Option(5, "--workers", "-w", help="Max parallel workers"),
+    no_judge: bool = typer.Option(False, "--no-judge", help="Skip LLM-as-judge evaluation"),
+    output: str | None = typer.Option(None, "--output", "-o", help="Path to save JSON results"),
+    baseline: str | None = typer.Option(None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"),
+    set_baseline: bool = typer.Option(False, "--set-baseline", help="Save current results as new baseline"),
+    debug: bool = typer.Option(False, "--debug", "-d", help="Dump full details for failing paths"),
+) -> None:
+    """Run conversation flow evaluation."""
+    logging.basicConfig(level=logging.WARNING)
+    exit_code = asyncio.run(_run_eval_async(
+        limit=limit,
+        verbose=verbose,
+        parallel=parallel,
+        workers=workers,
+        no_judge=no_judge,
+        output=output,
+        baseline=baseline,
+        set_baseline=set_baseline,
+        debug=debug,
+    ))
+    raise typer.Exit(code=exit_code)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.WARNING)
-    exit_code = asyncio.run(main())
-    exit(exit_code)
+    app()
