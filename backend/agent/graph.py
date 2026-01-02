@@ -244,7 +244,7 @@ def run_agent(
         cache_key = _make_cache_key(question, mode, company_id)
         cached = _get_cached_result(cache_key)
         if cached:
-            logger.info(f"[Agent] Cache hit, returning cached result")
+            logger.info("[Agent] Cache hit, returning cached result")
             # Update latency to reflect cache hit
             cached_copy = cached.copy()
             cached_copy["meta"] = cached["meta"].copy()

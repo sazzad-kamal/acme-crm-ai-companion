@@ -236,7 +236,7 @@ def mock_llm_response(prompt: str) -> str:
             "Could you clarify which company you're asking about? "
             "Here are some similar companies I found that might be what you're looking for."
         )
-    
+
     if "renewal" in prompt.lower():
         return (
             "**Upcoming Renewals Summary**\n\n"
@@ -248,7 +248,7 @@ def mock_llm_response(prompt: str) -> str:
             "2. Prepare renewal proposals for key accounts\n"
             "3. Review recent activity levels to identify any concerns"
         )
-    
+
     if "pipeline" in prompt.lower():
         return (
             "**Pipeline Summary**\n\n"
@@ -260,7 +260,7 @@ def mock_llm_response(prompt: str) -> str:
             "2. Follow up on stalled opportunities\n"
             "3. Update expected close dates if needed"
         )
-    
+
     # Default response for company status questions
     return (
         "**Account Summary**\n\n"

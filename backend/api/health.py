@@ -38,14 +38,14 @@ async def health_check(
 ) -> HealthResponse:
     """
     Health check endpoint for monitoring and load balancers.
-    
+
     Returns status of the API and its dependencies.
     """
     services = {
         "api": "healthy",
         "agent": "healthy",
     }
-    
+
     # Check if CSV data is available
     try:
         csv_dir = settings.data_dir / "csv"
@@ -55,7 +55,7 @@ async def health_check(
             services["data"] = "missing"
     except Exception:
         services["data"] = "error"
-    
+
     return HealthResponse(
         status="ok",
         version=settings.app_version,
@@ -74,7 +74,7 @@ async def system_info(
 ) -> SystemInfo:
     """
     Get system configuration information.
-    
+
     Useful for debugging and verifying deployment configuration.
     """
     return SystemInfo(

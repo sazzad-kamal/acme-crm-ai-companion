@@ -26,11 +26,11 @@ _DEFAULT_AUDIT_LOG = _BACKEND_ROOT / "data" / "logs" / "agent_audit.jsonl"
 class AgentConfig(BaseSettings):
     """
     Agentic layer configuration with environment variable support.
-    
+
     All settings can be overridden via environment variables with the
     AGENT_ prefix (e.g., AGENT_LLM_MODEL=gpt-4).
     """
-    
+
     # -------------------------------------------------------------------------
     # LLM Configuration
     # -------------------------------------------------------------------------
@@ -54,7 +54,7 @@ class AgentConfig(BaseSettings):
         default=1024,
         description="Maximum tokens in LLM response"
     )
-    
+
     # -------------------------------------------------------------------------
     # Feature Flags
     # -------------------------------------------------------------------------
@@ -102,14 +102,14 @@ class AgentConfig(BaseSettings):
         default=_DEFAULT_AUDIT_LOG,
         description="Path to agent audit log file"
     )
-    
+
     # Pydantic v2 configuration
     model_config = SettingsConfigDict(
         env_prefix="AGENT_",
         env_file=".env",
         extra="ignore",
     )
-    
+
     @model_validator(mode='after')
     def validate_config(self) -> 'AgentConfig':
         """Cross-field validation."""
@@ -134,31 +134,31 @@ def get_config() -> AgentConfig:
 def _validate_startup_config(config: AgentConfig) -> None:
     """Validate configuration at startup and log warnings."""
     issues = []
-    
+
     # Check if OpenAI API key is set
     if not os.environ.get('OPENAI_API_KEY'):
         logger.warning("OPENAI_API_KEY not set - LLM calls will fail")
         issues.append("OPENAI_API_KEY not set")
-    
+
     # Check if CSV directory exists
     if not config.csv_dir.exists():
         logger.warning(f"CSV directory not found: {config.csv_dir}")
         issues.append(f"CSV directory not found: {config.csv_dir}")
-    
+
     # Create audit log directory if needed
     if config.enable_audit_logging:
         audit_dir = config.audit_log_file.parent
         if not audit_dir.exists():
             logger.info(f"Creating audit log directory: {audit_dir}")
             audit_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Log configuration summary
     logger.info(
         f"Agent Config loaded: llm_model={config.llm_model}, "
         f"router_model={config.router_model}, "
         f"follow_up_suggestions={config.enable_follow_up_suggestions}"
     )
-    
+
     if issues:
         logger.warning(f"Configuration issues: {issues}")
 

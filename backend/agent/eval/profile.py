@@ -52,7 +52,7 @@ print()
 
 if langsmith_enabled and langsmith_key:
     print(f"[OK] LangSmith ENABLED - Project: {langsmith_project}")
-    print(f"     View traces at: https://smith.langchain.com/")
+    print("     View traces at: https://smith.langchain.com/")
 else:
     print("[!] LangSmith NOT enabled")
     print("    To enable, set in .env:")

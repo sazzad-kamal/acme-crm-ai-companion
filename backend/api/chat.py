@@ -33,14 +33,14 @@ router = APIRouter()
     summary="Ask a question about your CRM",
     description="""
     Main chat endpoint - answers questions using CRM data and/or documentation.
-    
+
     The agent pipeline:
     1. **Router** - Determines if the question needs CRM data, docs, or both
     2. **Data Gathering** - Fetches relevant company, activity, pipeline data
     3. **Docs RAG** - Retrieves relevant documentation if needed
     4. **Answer Synthesis** - Generates a grounded answer using LLM
     5. **Follow-up Suggestions** - Suggests relevant next questions
-    
+
     ## Example Questions
     - "What's going on with Acme Manufacturing in the last 90 days?"
     - "Which renewals are coming up this month?"
@@ -61,27 +61,27 @@ async def chat_endpoint(
 ) -> ChatResponse:
     """
     Process a natural language question about CRM data.
-    
+
     Args:
         payload: The chat request containing the question and optional parameters
         request: FastAPI request object (for request ID)
         settings: Application settings
-        
+
     Returns:
         ChatResponse with answer, sources, steps, and follow-up suggestions
     """
     request_id = getattr(request.state, "request_id", "unknown")
-    
+
     # Validate question
     if not payload.question or not payload.question.strip():
         raise ValidationError("Question cannot be empty", field="question")
-    
+
     if len(payload.question) > 2000:
         raise ValidationError(
             "Question too long (max 2000 characters)",
             field="question",
         )
-    
+
     logger.info(
         f"[{request_id}] Processing question: {payload.question[:100]}...",
         extra={
@@ -91,7 +91,7 @@ async def chat_endpoint(
             "company_id": payload.company_id,
         },
     )
-    
+
     try:
         # Call the agent
         result = answer_question(
@@ -101,7 +101,7 @@ async def chat_endpoint(
             session_id=payload.session_id,
             user_id=payload.user_id,
         )
-        
+
         # Build response
         response = ChatResponse(
             answer=result["answer"],
@@ -111,7 +111,7 @@ async def chat_endpoint(
             meta=MetaInfo(**result["meta"]),
             follow_up_suggestions=result.get("follow_up_suggestions", []),
         )
-        
+
         logger.info(
             f"[{request_id}] Response generated: {len(response.answer)} chars, "
             f"{len(response.sources)} sources, {len(response.follow_up_suggestions)} follow-ups",
@@ -122,9 +122,9 @@ async def chat_endpoint(
                 "mode_used": response.meta.mode_used,
             },
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(
             f"[{request_id}] Agent error: {e}",
@@ -142,7 +142,7 @@ async def chat_endpoint(
     summary="Stream a chat response (SSE)",
     description="""
     Streaming version of the chat endpoint using Server-Sent Events (SSE).
-    
+
     Returns real-time progress updates as the agent processes the question:
     - **status**: Progress messages (e.g., "Routing question...")
     - **step**: Step completions with status
@@ -153,7 +153,7 @@ async def chat_endpoint(
     - **followup**: Follow-up suggestions
     - **done**: Final complete response
     - **error**: Error occurred
-    
+
     ## Usage (JavaScript)
     ```javascript
     const eventSource = new EventSource('/api/chat/stream?question=...');
@@ -174,21 +174,21 @@ async def chat_stream_endpoint(
 ) -> StreamingResponse:
     """
     Stream chat response as Server-Sent Events.
-    
+
     Provides real-time feedback as the agent processes the question.
     """
     request_id = getattr(request.state, "request_id", "unknown")
-    
+
     # Validate question
     if not payload.question or not payload.question.strip():
         raise ValidationError("Question cannot be empty", field="question")
-    
+
     if len(payload.question) > 2000:
         raise ValidationError(
             "Question too long (max 2000 characters)",
             field="question",
         )
-    
+
     logger.info(
         f"[{request_id}] Streaming question: {payload.question[:100]}...",
         extra={
@@ -198,7 +198,7 @@ async def chat_stream_endpoint(
             "streaming": True,
         },
     )
-    
+
     return StreamingResponse(
         stream_agent(
             question=payload.question,

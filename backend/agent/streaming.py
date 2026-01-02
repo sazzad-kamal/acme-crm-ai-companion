@@ -1,7 +1,7 @@
 """
 Streaming support for the agent graph.
 
-Provides async generator that yields Server-Sent Events (SSE) 
+Provides async generator that yields Server-Sent Events (SSE)
 as the agent progresses through nodes.
 """
 
@@ -53,7 +53,7 @@ def serialize_for_json(obj: Any) -> Any:
 class StreamEvent:
     """Event types for SSE streaming."""
     STATUS = "status"          # Progress update (e.g., "Routing question...")
-    STEP = "step"              # Step completed 
+    STEP = "step"              # Step completed
     SOURCES = "sources"        # Sources discovered
     ANSWER_START = "answer_start"    # Answer generation starting
     ANSWER_CHUNK = "answer_chunk"    # Answer token/chunk
@@ -98,9 +98,9 @@ async def stream_agent(
 ) -> AsyncGenerator[str, None]:
     """
     Stream agent execution as Server-Sent Events.
-    
+
     Yields SSE-formatted strings as the agent progresses.
-    
+
     Events:
         - status: Progress messages (e.g., "Routing question...")
         - step: Step completion with status
@@ -111,19 +111,19 @@ async def stream_agent(
         - followup: Follow-up suggestions
         - done: Final complete response
         - error: Error occurred
-    
+
     Args:
         question: User's question
         mode: Query mode
         company_id: Optional pre-specified company
-        session_id: Optional session ID  
+        session_id: Optional session ID
         user_id: Optional user ID
-        
+
     Yields:
         SSE-formatted event strings
     """
     start_time = time.time()
-    
+
     # Initialize state
     initial_state: AgentState = {
         "question": question,
@@ -136,7 +136,7 @@ async def stream_agent(
         "raw_data": {},
         "follow_up_suggestions": [],
     }
-    
+
     # Track accumulated state for final response
     final_state = initial_state.copy()
     seen_steps = set()
@@ -151,18 +151,18 @@ async def stream_agent(
             event_type = event.get("event")
             event_name = event.get("name")
             event_data = event.get("data", {})
-            
+
             # Node starting
             if event_type == "on_chain_start" and event_name in NODE_MESSAGES:
                 yield format_sse(StreamEvent.STATUS, {
                     "node": event_name,
                     "message": NODE_MESSAGES[event_name],
                 })
-            
+
             # Node completed - extract output
             elif event_type == "on_chain_end" and event_name in NODE_MESSAGES:
                 output = event_data.get("output", {})
-                
+
                 # Merge output into final state
                 if isinstance(output, dict):
                     for key, value in output.items():
@@ -178,7 +178,7 @@ async def stream_agent(
                             final_state["steps"].extend(value)
                         else:
                             final_state[key] = value
-                
+
                 # Emit steps that are new
                 steps = output.get("steps", [])
                 for step in steps:
@@ -186,14 +186,14 @@ async def stream_agent(
                     if step_id and step_id not in seen_steps:
                         seen_steps.add(step_id)
                         yield format_sse(StreamEvent.STEP, step)
-                
+
                 # Emit sources if any
                 sources = output.get("sources", [])
                 if sources:
                     yield format_sse(StreamEvent.SOURCES, {
                         "sources": sources  # format_sse handles serialization
                     })
-                
+
                 # Special handling for answer node
                 if event_name == "answer":
                     answer = output.get("answer", "")
@@ -202,7 +202,7 @@ async def stream_agent(
                         # For now, emit full answer (LLM streaming can be added later)
                         yield format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": answer})
                         yield format_sse(StreamEvent.ANSWER_END, {"answer": answer})
-                
+
                 # Follow-up suggestions
                 if event_name == "followup":
                     suggestions = output.get("follow_up_suggestions", [])
@@ -210,10 +210,10 @@ async def stream_agent(
                         yield format_sse(StreamEvent.FOLLOWUP, {
                             "suggestions": suggestions
                         })
-        
+
         # Calculate latency
         latency_ms = int((time.time() - start_time) * 1000)
-        
+
         # Audit logging
         audit = AgentAuditLogger()
         audit.log_query(
@@ -225,7 +225,7 @@ async def stream_agent(
             user_id=user_id,
             session_id=session_id,
         )
-        
+
         # Emit final done event with complete response
         yield format_sse(StreamEvent.DONE, {
             "answer": final_state.get("answer", ""),
@@ -241,7 +241,7 @@ async def stream_agent(
                 "days": final_state.get("days", 90),
             }
         })
-        
+
     except Exception as e:
         logger.error(f"[Stream] Error: {e}")
         yield format_sse(StreamEvent.ERROR, {

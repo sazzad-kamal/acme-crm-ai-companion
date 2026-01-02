@@ -376,7 +376,7 @@ def print_baseline_comparison(
     diff_str = f"+{diff:.1%}" if diff >= 0 else f"{diff:.1%}"
 
     if is_regression:
-        console.print(f"\n[red bold]REGRESSION DETECTED[/red bold]")
+        console.print("\n[red bold]REGRESSION DETECTED[/red bold]")
         console.print(f"  Baseline: {baseline_score:.1%} -> Current: {current_score:.1%} ({diff_str})")
     else:
         color = "green" if diff >= 0 else "yellow"

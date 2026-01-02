@@ -258,7 +258,7 @@ def analyze_e2e_budget_violations(
         avg = sum(latencies) / len(latencies) if latencies else 0
         p95_idx = int(len(latencies) * 0.95)
         p95 = sorted(latencies)[min(p95_idx, len(latencies) - 1)] if latencies else 0
-        exceeded = sum(1 for l in latencies if l > AGENT_TOTAL_LATENCY_BUDGET_MS)
+        exceeded = sum(1 for lat in latencies if lat > AGENT_TOTAL_LATENCY_BUDGET_MS)
 
         category_stats[cat] = {
             "count": len(latencies),

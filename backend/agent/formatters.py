@@ -11,11 +11,11 @@ from typing import Optional, Callable, Any
 class SectionFormatter:
     """
     Generic section formatter for CRM data.
-    
+
     Reduces repetitive formatting code by providing a configurable
     template for formatting data sections.
     """
-    
+
     def __init__(
         self,
         header: str,
@@ -28,7 +28,7 @@ class SectionFormatter:
     ):
         """
         Initialize the formatter.
-        
+
         Args:
             header: Section header text (without ===)
             empty_message: Message when no data available
@@ -45,7 +45,7 @@ class SectionFormatter:
         self.count_key = count_key
         self.items_key = items_key
         self.days_key = days_key
-    
+
     def format(self, data: dict[str, Any] | None) -> str:
         """
         Format the data section.
@@ -58,31 +58,31 @@ class SectionFormatter:
         """
         if not data:
             return ""
-        
+
         items = data.get(self.items_key, [])
         if not items:
             return f"=== {self.header} ===\n{self.empty_message}"
-        
+
         # Build header with optional count and days
         header_parts = [f"=== {self.header}"]
-        
+
         count = data.get(self.count_key)
         days = data.get(self.days_key)
-        
+
         if count is not None and days is not None:
             header_parts.append(f" ({count} found, last {days} days)")
         elif count is not None:
             header_parts.append(f" ({count})")
         elif days is not None:
             header_parts.append(f" (last {days} days)")
-        
+
         header_parts.append(" ===")
-        
+
         lines = ["".join(header_parts)]
-        
+
         for item in items[:self.max_items]:
             lines.append(self.item_formatter(item))
-        
+
         return "\n".join(lines)
 
 
@@ -250,28 +250,28 @@ def format_pipeline_section(pipeline_data: dict | None) -> str:
     """Format pipeline data for the prompt."""
     if not pipeline_data:
         return ""
-    
+
     summary = pipeline_data.get("summary", {})
     opps = pipeline_data.get("opportunities", [])
-    
+
     if not summary.get("total_count"):
         return "=== PIPELINE ===\nNo open opportunities."
-    
+
     lines = [
-        f"=== PIPELINE SUMMARY ===",
+        "=== PIPELINE SUMMARY ===",
         f"Total Open Deals: {summary.get('total_count', 0)}",
         f"Total Value: ${summary.get('total_value', 0):,.0f}",
         "\nBy Stage:"
     ]
-    
+
     for stage, data in summary.get("stages", {}).items():
         lines.append(f"  - {stage}: {data.get('count', 0)} deals (${data.get('total_value', 0):,.0f})")
-    
+
     if opps:
         lines.append("\nOpen Opportunities:")
         for opp in opps[:5]:
             lines.append(_format_opportunity(opp))
-    
+
     return "\n".join(lines)
 
 

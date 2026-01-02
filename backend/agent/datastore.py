@@ -36,7 +36,7 @@ REQUIRED_TABLES = {"companies", "contacts", "activities", "history", "opportunit
 def get_csv_base_path() -> Path:
     """
     Get the base path for CSV files with fallback logic.
-    
+
     Priority:
     1. data/crm/ (if exists)
     2. data/csv/ (fallback)
@@ -44,17 +44,17 @@ def get_csv_base_path() -> Path:
     """
     # Get backend root (go up from backend/agent/ to backend/)
     backend_root = Path(__file__).parent.parent
-    
+
     # Check preferred path
     preferred = backend_root / "data" / "crm"
     if preferred.exists() and preferred.is_dir():
         return preferred
-    
+
     # Check fallback path
     fallback = backend_root / "data" / "csv"
     if fallback.exists() and fallback.is_dir():
         return fallback
-    
+
     raise FileNotFoundError(
         f"Could not find CSV data directory. "
         f"Checked: {preferred} and {fallback}. "
@@ -112,44 +112,44 @@ class CRMDataStore:
         self._loaded_tables.clear()
         self._company_names_cache = None
         self._company_ids_cache = None
-    
+
     @property
     def csv_path(self) -> Path:
         """Get the CSV base path (lazy resolved)."""
         if self._csv_path is None:
             self._csv_path = get_csv_base_path()
         return self._csv_path
-    
+
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:
         """Get the DuckDB connection (lazy created)."""
         if self._conn is None:
             self._conn = duckdb.connect(":memory:")
         return self._conn
-    
+
     def _ensure_table(self, table_name: str) -> bool:
         """
         Ensure a table is loaded into DuckDB.
-        
+
         Returns True if table is available, False if not found.
         """
         if table_name in self._loaded_tables:
             return True
-        
+
         filename = CSV_TABLES.get(table_name)
         if not filename:
             return False
-        
+
         csv_file = self.csv_path / filename
         if not csv_file.exists():
             if table_name in REQUIRED_TABLES:
                 raise FileNotFoundError(f"Required CSV file not found: {csv_file}")
             return False
-        
+
         # Load using DuckDB's read_csv_auto
         try:
             self.conn.execute(f"""
-                CREATE TABLE IF NOT EXISTS {table_name} AS 
+                CREATE TABLE IF NOT EXISTS {table_name} AS
                 SELECT * FROM read_csv_auto('{csv_file.as_posix()}')
             """)
             self._loaded_tables.add(table_name)
@@ -157,7 +157,7 @@ class CRMDataStore:
         except Exception as e:
             print(f"Warning: Failed to load {table_name}: {e}")
             return False
-    
+
     def _fetch_one_dict(self, query: str, params: list[Any] | None = None) -> dict[str, Any] | None:
         """Execute query and return first row as dict, or None."""
         result = self.conn.execute(query, params or []).fetchone()
@@ -172,7 +172,7 @@ class CRMDataStore:
             return []
         columns = [d[0] for d in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
-    
+
     def _ensure_core_tables(self) -> None:
         """Load all required core tables."""
         for table in REQUIRED_TABLES:
@@ -182,25 +182,25 @@ class CRMDataStore:
         """Build the company name -> ID cache."""
         if self._company_names_cache is not None:
             return
-        
+
         self._ensure_table("companies")
-        
+
         result = self.conn.execute(
             "SELECT company_id, name FROM companies"
         ).fetchall()
-        
+
         self._company_names_cache = {name.lower(): cid for cid, name in result}
         self._company_ids_cache = {cid for cid, _ in result}
-    
+
     def _get_date_cutoff(self, days: int) -> str:
         """Get ISO date string for N days ago."""
         cutoff = datetime.now() - timedelta(days=days)
         return cutoff.isoformat()
-    
+
     # =========================================================================
     # Public API
     # =========================================================================
-    
+
     def resolve_company_id(self, name_or_id: str) -> str | None:
         """
         Resolve a company name or ID to a company_id.
@@ -232,36 +232,36 @@ class CRMDataStore:
             return self._company_names_cache[matches[0]]
 
         return None
-    
+
     def get_company_name_matches(self, partial_name: str, limit: int = 5) -> list[dict]:
         """
         Get companies matching a partial name (fuzzy match).
-        
+
         Returns list of {company_id, name, similarity} dicts.
         """
         if not partial_name:
             return []
-        
+
         self._build_company_cache()
-        
+
         all_names = list(self._company_names_cache.keys())
         matches = get_close_matches(
             partial_name.lower(), all_names, n=limit, cutoff=0.4
         )
-        
+
         results = []
         for name in matches:
             company_id = self._company_names_cache[name]
             company = self.get_company(company_id)
             if company:
                 results.append(company)
-        
+
         return results
-    
+
     def get_company(self, company_id: str) -> dict | None:
         """
         Get company details by ID.
-        
+
         Returns dict with company fields, or None if not found.
         """
         self._ensure_table("companies")
@@ -269,7 +269,7 @@ class CRMDataStore:
             "SELECT * FROM companies WHERE company_id = ?",
             [company_id]
         )
-    
+
     def get_recent_activities(
         self,
         company_id: str,
@@ -278,27 +278,27 @@ class CRMDataStore:
     ) -> list[dict]:
         """
         Get recent activities for a company.
-        
+
         Args:
             company_id: The company ID
             days: Number of days to look back
             limit: Maximum number of activities
-            
+
         Returns:
             List of activity dicts sorted by date (newest first)
         """
         self._ensure_table("activities")
-        
+
         cutoff = self._get_date_cutoff(days)
-        
+
         # Query with date filtering
         # Note: due_datetime may have timezone info, we do substring comparison
         try:
             result = self.conn.execute(f"""
-                SELECT * FROM activities 
+                SELECT * FROM activities
                 WHERE company_id = ?
                 AND (
-                    due_datetime >= '{cutoff}' 
+                    due_datetime >= '{cutoff}'
                     OR created_at >= '{cutoff}'
                     OR due_datetime IS NULL
                 )
@@ -308,15 +308,15 @@ class CRMDataStore:
         except Exception:
             # Fallback without date filter if date parsing fails
             result = self.conn.execute(f"""
-                SELECT * FROM activities 
+                SELECT * FROM activities
                 WHERE company_id = ?
                 ORDER BY created_at DESC
                 LIMIT {limit}
             """, [company_id]).fetchall()
-        
+
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
-    
+
     def get_recent_history(
         self,
         company_id: str,
@@ -325,22 +325,22 @@ class CRMDataStore:
     ) -> list[dict]:
         """
         Get recent history entries for a company.
-        
+
         Args:
             company_id: The company ID
             days: Number of days to look back
             limit: Maximum number of entries
-            
+
         Returns:
             List of history dicts sorted by date (newest first)
         """
         self._ensure_table("history")
-        
+
         cutoff = self._get_date_cutoff(days)
-        
+
         try:
             result = self.conn.execute(f"""
-                SELECT * FROM history 
+                SELECT * FROM history
                 WHERE company_id = ?
                 AND occurred_at >= '{cutoff}'
                 ORDER BY occurred_at DESC
@@ -349,15 +349,15 @@ class CRMDataStore:
         except Exception:
             # Fallback without date filter
             result = self.conn.execute(f"""
-                SELECT * FROM history 
+                SELECT * FROM history
                 WHERE company_id = ?
                 ORDER BY occurred_at DESC
                 LIMIT {limit}
             """, [company_id]).fetchall()
-        
+
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
-    
+
     def get_open_opportunities(
         self,
         company_id: str,
@@ -365,26 +365,26 @@ class CRMDataStore:
     ) -> list[dict]:
         """
         Get open opportunities for a company.
-        
+
         Filters out closed stages (Closed Won, Closed Lost).
         """
         self._ensure_table("opportunities")
-        
+
         result = self.conn.execute(f"""
-            SELECT * FROM opportunities 
+            SELECT * FROM opportunities
             WHERE company_id = ?
             AND LOWER(stage) NOT LIKE '%closed%'
             ORDER BY value DESC
             LIMIT {limit}
         """, [company_id]).fetchall()
-        
+
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
-    
+
     def get_pipeline_summary(self, company_id: str) -> dict:
         """
         Get pipeline summary for a company.
-        
+
         Returns:
             Dict with:
             - stages: {stage_name: {count, total_value}}
@@ -392,18 +392,18 @@ class CRMDataStore:
             - total_value: float
         """
         self._ensure_table("opportunities")
-        
+
         result = self.conn.execute("""
-            SELECT 
-                stage, 
+            SELECT
+                stage,
                 COUNT(*) as count,
                 SUM(COALESCE(value, 0)) as total_value
-            FROM opportunities 
+            FROM opportunities
             WHERE company_id = ?
             AND LOWER(stage) NOT LIKE '%closed%'
             GROUP BY stage
         """, [company_id]).fetchall()
-        
+
         stages = {stage: {"count": count, "total_value": float(value or 0)}
                   for stage, count, value in result}
         return {
@@ -411,7 +411,7 @@ class CRMDataStore:
             "total_count": sum(s["count"] for s in stages.values()),
             "total_value": sum(s["total_value"] for s in stages.values()),
         }
-    
+
     def get_upcoming_renewals(
         self,
         days: int = 90,
@@ -459,7 +459,7 @@ class CRMDataStore:
 
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
-    
+
     def get_contacts_for_company(
         self,
         company_id: str,
@@ -490,7 +490,7 @@ class CRMDataStore:
     ) -> list[dict]:
         """
         Search contacts by name, role, job_title, or company.
-        
+
         Args:
             query: Search term for name/email
             role: Filter by role (e.g., "Decision Maker")
@@ -499,34 +499,34 @@ class CRMDataStore:
             limit: Max results
         """
         self._ensure_table("contacts")
-        
+
         conditions = []
         params = []
-        
+
         if query:
             conditions.append("""
-                (LOWER(first_name) LIKE ? 
-                OR LOWER(last_name) LIKE ? 
+                (LOWER(first_name) LIKE ?
+                OR LOWER(last_name) LIKE ?
                 OR LOWER(email) LIKE ?
                 OR LOWER(first_name || ' ' || last_name) LIKE ?)
             """)
             q = f"%{query.lower()}%"
             params.extend([q, q, q, q])
-        
+
         if role:
             conditions.append("LOWER(role) LIKE ?")
             params.append(f"%{role.lower()}%")
-        
+
         if job_title:
             conditions.append("LOWER(job_title) LIKE ?")
             params.append(f"%{job_title.lower()}%")
-        
+
         if company_id:
             conditions.append("company_id = ?")
             params.append(company_id)
-        
+
         where_clause = " AND ".join(conditions) if conditions else "1=1"
-        
+
         return self._fetch_all_dicts(
             f"SELECT * FROM contacts WHERE {where_clause} LIMIT {limit}",
             params
@@ -543,7 +543,7 @@ class CRMDataStore:
     ) -> list[dict]:
         """
         Search companies by various criteria.
-        
+
         Args:
             query: Search term for name
             industry: Filter by industry
@@ -553,32 +553,32 @@ class CRMDataStore:
             limit: Max results
         """
         self._ensure_table("companies")
-        
+
         conditions = []
         params = []
-        
+
         if query:
             conditions.append("LOWER(name) LIKE ?")
             params.append(f"%{query.lower()}%")
-        
+
         if industry:
             conditions.append("LOWER(industry) LIKE ?")
             params.append(f"%{industry.lower()}%")
-        
+
         if segment:
             conditions.append("LOWER(segment) LIKE ?")
             params.append(f"%{segment.lower()}%")
-        
+
         if status:
             conditions.append("LOWER(status) LIKE ?")
             params.append(f"%{status.lower()}%")
-        
+
         if region:
             conditions.append("LOWER(region) LIKE ?")
             params.append(f"%{region.lower()}%")
-        
+
         where_clause = " AND ".join(conditions) if conditions else "1=1"
-        
+
         return self._fetch_all_dicts(
             f"SELECT * FROM companies WHERE {where_clause} ORDER BY name LIMIT {limit}",
             params
@@ -602,13 +602,13 @@ class CRMDataStore:
     def get_group_members(self, group_id: str, limit: int = 50) -> list[dict]:
         """
         Get companies in a group.
-        
+
         Returns list of company dicts for companies in the group.
         """
         if not self._ensure_table("group_members"):
             return []
         self._ensure_table("companies")
-        
+
         return self._fetch_all_dicts(f"""
             SELECT c.* FROM companies c
             INNER JOIN group_members gm ON c.company_id = gm.company_id
@@ -628,25 +628,25 @@ class CRMDataStore:
         """
         if not self._ensure_table("attachments"):
             return []
-        
+
         conditions = []
         params = []
-        
+
         if query:
             conditions.append("(LOWER(title) LIKE ? OR LOWER(summary) LIKE ?)")
             q = f"%{query.lower()}%"
             params.extend([q, q])
-        
+
         if company_id:
             conditions.append("company_id = ?")
             params.append(company_id)
-        
+
         if file_type:
             conditions.append("LOWER(file_type) LIKE ?")
             params.append(f"%{file_type.lower()}%")
-        
+
         where_clause = " AND ".join(conditions) if conditions else "1=1"
-        
+
         return self._fetch_all_dicts(
             f"SELECT * FROM attachments WHERE {where_clause} ORDER BY created_at DESC LIMIT {limit}",
             params
@@ -655,50 +655,50 @@ class CRMDataStore:
     def get_all_pipeline_summary(self) -> dict:
         """
         Get pipeline summary across ALL companies.
-        
+
         Returns:
             Dict with total pipeline stats by stage
         """
         self._ensure_table("opportunities")
-        
+
         # Overall stats
         overall = self.conn.execute("""
-            SELECT 
+            SELECT
                 COUNT(*) as total_count,
                 SUM(COALESCE(value, 0)) as total_value
-            FROM opportunities 
+            FROM opportunities
             WHERE LOWER(stage) NOT LIKE '%closed%'
         """).fetchone()
-        
+
         # By stage
         by_stage = self.conn.execute("""
-            SELECT 
+            SELECT
                 stage,
                 COUNT(*) as count,
                 SUM(COALESCE(value, 0)) as total_value
-            FROM opportunities 
+            FROM opportunities
             WHERE LOWER(stage) NOT LIKE '%closed%'
             GROUP BY stage
             ORDER BY total_value DESC
         """).fetchall()
-        
+
         # By company (top 10)
         by_company = self.conn.execute("""
-            SELECT 
+            SELECT
                 company_id,
                 COUNT(*) as count,
                 SUM(COALESCE(value, 0)) as total_value
-            FROM opportunities 
+            FROM opportunities
             WHERE LOWER(stage) NOT LIKE '%closed%'
             GROUP BY company_id
             ORDER BY total_value DESC
             LIMIT 10
         """).fetchall()
-        
+
         return {
             "total_count": overall[0] if overall else 0,
             "total_value": float(overall[1] or 0) if overall else 0,
-            "by_stage": {stage: {"count": count, "value": float(value or 0)} 
+            "by_stage": {stage: {"count": count, "value": float(value or 0)}
                         for stage, count, value in by_stage},
             "top_companies": [{"company_id": cid, "count": count, "value": float(value or 0)}
                             for cid, count, value in by_company],

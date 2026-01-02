@@ -87,10 +87,10 @@ async def get_companies(
     data, columns = load_csv_data(settings.data_dir / "csv" / "companies.csv")
     private_texts, _ = load_jsonl_data(settings.data_dir / "csv" / "private_texts.jsonl")
     texts_by_company = _group_by_key(private_texts, "company_id", "metadata_company_id")
-    
+
     for company in data:
         company["_private_texts"] = texts_by_company.get(company.get("company_id", ""), [])
-    
+
     return DataResponse(data=data, total=len(data), columns=columns)
 
 
@@ -107,10 +107,10 @@ async def get_contacts(
     data, columns = load_csv_data(settings.data_dir / "csv" / "contacts.csv")
     private_texts, _ = load_jsonl_data(settings.data_dir / "csv" / "private_texts.jsonl")
     texts_by_contact = _group_by_key(private_texts, "contact_id", "metadata_contact_id")
-    
+
     for contact in data:
         contact["_private_texts"] = texts_by_contact.get(contact.get("contact_id", ""), [])
-    
+
     return DataResponse(data=data, total=len(data), columns=columns)
 
 
@@ -127,15 +127,15 @@ async def get_opportunities(
     data, columns = load_csv_data(settings.data_dir / "csv" / "opportunities.csv")
     descriptions, _ = load_csv_data(settings.data_dir / "csv" / "opportunity_descriptions.csv")
     attachments, _ = load_csv_data(settings.data_dir / "csv" / "attachments.csv")
-    
+
     desc_by_opp = _group_by_key(descriptions, "opportunity_id")
     attach_by_opp = _group_by_key(attachments, "opportunity_id")
-    
+
     for opp in data:
         opp_id = opp.get("opportunity_id", "")
         opp["_descriptions"] = desc_by_opp.get(opp_id, [])
         opp["_attachments"] = attach_by_opp.get(opp_id, [])
-    
+
     return DataResponse(data=data, total=len(data), columns=columns)
 
 
@@ -152,10 +152,10 @@ async def get_groups(
     data, columns = load_csv_data(settings.data_dir / "csv" / "groups.csv")
     members, _ = load_csv_data(settings.data_dir / "csv" / "group_members.csv")
     members_by_group = _group_by_key(members, "group_id")
-    
+
     for group in data:
         group["_members"] = members_by_group.get(group.get("group_id", ""), [])
-    
+
     return DataResponse(data=data, total=len(data), columns=columns)
 
 
