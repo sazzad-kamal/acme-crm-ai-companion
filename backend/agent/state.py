@@ -24,6 +24,7 @@ class AgentState(TypedDict, total=False):
 
     This is the central data structure that each node can read/write.
     """
+
     # Input
     question: str
     mode: str  # "auto", "docs", "data", "data+docs"

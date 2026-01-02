@@ -33,10 +33,12 @@ def with_datastore(func: Callable[..., ToolResult]) -> Callable[..., ToolResult]
     Allows tools to accept an optional `datastore` parameter for testing,
     while using the singleton in production.
     """
+
     @wraps(func)
     def wrapper(*args, datastore: CRMDataStore | None = None, **kwargs) -> ToolResult:
         ds = datastore or get_datastore()
         return func(*args, datastore=ds, **kwargs)
+
     return wrapper
 
 

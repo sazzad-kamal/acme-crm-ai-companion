@@ -24,12 +24,12 @@ def ensure_qdrant_collections() -> None:
     qdrant = get_qdrant_client()
 
     docs_exists = (
-        qdrant.collection_exists(DOCS_COLLECTION) and
-        qdrant.get_collection(DOCS_COLLECTION).points_count > 0
+        qdrant.collection_exists(DOCS_COLLECTION)
+        and qdrant.get_collection(DOCS_COLLECTION).points_count > 0
     )
     private_exists = (
-        qdrant.collection_exists(PRIVATE_COLLECTION) and
-        qdrant.get_collection(PRIVATE_COLLECTION).points_count > 0
+        qdrant.collection_exists(PRIVATE_COLLECTION)
+        and qdrant.get_collection(PRIVATE_COLLECTION).points_count > 0
     )
 
     if docs_exists and private_exists:
@@ -47,25 +47,13 @@ def ensure_qdrant_collections() -> None:
         print("  Private collection created")
 
 
-# Re-export all shared utilities
+# Re-export shared utilities that are actually used
 from backend.agent.eval.shared import (
     console,
     create_summary_table,
-    create_detail_table,
-    create_comparison_table,
     format_check_mark,
     format_percentage,
-    format_latency,
-    format_delta,
     print_eval_header,
-    print_issues_panel,
-    print_success_panel,
-    add_separator_row,
-    add_metric_row,
-    save_results_json,
-    load_results_json,
-    compute_p95,
-    compute_pass_rate,
     compare_to_baseline,
     save_baseline,
     print_baseline_comparison,
@@ -76,21 +64,9 @@ __all__ = [
     "ensure_qdrant_collections",
     "console",
     "create_summary_table",
-    "create_detail_table",
-    "create_comparison_table",
     "format_check_mark",
     "format_percentage",
-    "format_latency",
-    "format_delta",
     "print_eval_header",
-    "print_issues_panel",
-    "print_success_panel",
-    "add_separator_row",
-    "add_metric_row",
-    "save_results_json",
-    "load_results_json",
-    "compute_p95",
-    "compute_pass_rate",
     "compare_to_baseline",
     "save_baseline",
     "print_baseline_comparison",

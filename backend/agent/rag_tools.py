@@ -74,7 +74,6 @@ def close_qdrant_client() -> None:
 # =============================================================================
 
 _docs_index = None
-_private_index = None
 _index_lock = threading.Lock()
 _embed_model = None
 
@@ -84,6 +83,7 @@ def _get_embed_model():
     global _embed_model
     if _embed_model is None:
         from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
         _embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
     return _embed_model
 
@@ -113,34 +113,10 @@ def get_docs_index():
         return _docs_index
 
 
-def get_private_index():
-    """Get or create the private text vector index."""
-    global _private_index
-
-    if _private_index is not None:
-        return _private_index
-
-    with _index_lock:
-        if _private_index is not None:
-            return _private_index
-
-        from llama_index.core import VectorStoreIndex, Settings
-        from llama_index.vector_stores.qdrant import QdrantVectorStore
-
-        Settings.embed_model = _get_embed_model()
-
-        client = get_qdrant_client()
-        vector_store = QdrantVectorStore(
-            client=client,
-            collection_name=PRIVATE_COLLECTION,
-        )
-        _private_index = VectorStoreIndex.from_vector_store(vector_store)
-        return _private_index
-
-
 # =============================================================================
 # RAG Tools
 # =============================================================================
+
 
 def tool_docs_rag(question: str, top_k: int = 5) -> tuple[str, list[Source]]:
     """
@@ -240,29 +216,9 @@ def tool_account_rag(
 
 
 # =============================================================================
-# Collection Existence Check
-# =============================================================================
-
-def collections_exist() -> tuple[bool, bool]:
-    """
-    Check if RAG collections exist in Qdrant.
-
-    Returns:
-        Tuple of (docs_exists, private_exists)
-    """
-    try:
-        client = get_qdrant_client()
-        docs_exists = client.collection_exists(DOCS_COLLECTION)
-        private_exists = client.collection_exists(PRIVATE_COLLECTION)
-        return docs_exists, private_exists
-    except Exception as e:
-        logger.warning(f"Error checking collections: {e}")
-        return False, False
-
-
-# =============================================================================
 # Ingestion Functions
 # =============================================================================
+
 
 def ingest_docs(recreate: bool = True) -> int:
     """
@@ -437,7 +393,6 @@ def ingest_private_texts(recreate: bool = True) -> int:
 __all__ = [
     "tool_docs_rag",
     "tool_account_rag",
-    "collections_exist",
     "get_qdrant_client",
     "close_qdrant_client",
     "ingest_docs",

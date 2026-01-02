@@ -18,6 +18,7 @@ router = APIRouter()
 
 class DataResponse(BaseModel):
     """Response containing CRM data records."""
+
     data: list[dict[str, Any]] = Field(description="List of data records")
     total: int = Field(description="Total number of records")
     columns: list[str] = Field(description="Column names")
@@ -26,6 +27,7 @@ class DataResponse(BaseModel):
 # =============================================================================
 # Data Loading Helpers
 # =============================================================================
+
 
 def load_csv_data(csv_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
     """Load data from a CSV file using pandas."""
@@ -61,18 +63,21 @@ def _group_by_key(
 
 def _create_simple_data_endpoint(file_name: str, is_jsonl: bool = False):
     """Factory for simple data endpoints without enrichment."""
+
     async def endpoint(settings: Settings = Depends(get_settings)) -> DataResponse:
         """Load and return data from the specified file."""
         path = settings.data_dir / "csv" / file_name
         loader = load_jsonl_data if is_jsonl else load_csv_data
         data, columns = loader(path)
         return DataResponse(data=data, total=len(data), columns=columns)
+
     return endpoint
 
 
 # =============================================================================
 # Enriched Data Endpoints
 # =============================================================================
+
 
 @router.get(
     "/data/companies",
@@ -210,8 +215,10 @@ router.get(
 # Starter Questions Endpoint
 # =============================================================================
 
+
 class StarterQuestionsResponse(BaseModel):
     """Response containing dynamic starter questions."""
+
     questions: list[str] = Field(description="List of starter questions for the chat interface")
 
 

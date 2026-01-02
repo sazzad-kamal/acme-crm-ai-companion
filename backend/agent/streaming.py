@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 # JSON Serialization Helper
 # =============================================================================
 
+
 def serialize_for_json(obj: Any) -> Any:
     """Recursively serialize objects for JSON, handling Pydantic models and special types."""
     if obj is None:
@@ -31,10 +32,10 @@ def serialize_for_json(obj: Any) -> Any:
         return obj
     elif isinstance(obj, (datetime, date)):
         return obj.isoformat()
-    elif hasattr(obj, 'model_dump'):
+    elif hasattr(obj, "model_dump"):
         # Pydantic v2 model
         return obj.model_dump()
-    elif hasattr(obj, 'dict'):
+    elif hasattr(obj, "dict"):
         # Pydantic v1 model
         return obj.dict()
     elif isinstance(obj, dict):
@@ -50,17 +51,19 @@ def serialize_for_json(obj: Any) -> Any:
 # Event Types
 # =============================================================================
 
+
 class StreamEvent:
     """Event types for SSE streaming."""
-    STATUS = "status"          # Progress update (e.g., "Routing question...")
-    STEP = "step"              # Step completed
-    SOURCES = "sources"        # Sources discovered
-    ANSWER_START = "answer_start"    # Answer generation starting
-    ANSWER_CHUNK = "answer_chunk"    # Answer token/chunk
-    ANSWER_END = "answer_end"        # Answer complete
-    FOLLOWUP = "followup"      # Follow-up suggestions
-    DONE = "done"              # Stream complete with final response
-    ERROR = "error"            # Error occurred
+
+    STATUS = "status"  # Progress update (e.g., "Routing question...")
+    STEP = "step"  # Step completed
+    SOURCES = "sources"  # Sources discovered
+    ANSWER_START = "answer_start"  # Answer generation starting
+    ANSWER_CHUNK = "answer_chunk"  # Answer token/chunk
+    ANSWER_END = "answer_end"  # Answer complete
+    FOLLOWUP = "followup"  # Follow-up suggestions
+    DONE = "done"  # Stream complete with final response
+    ERROR = "error"  # Error occurred
 
 
 def format_sse(event: str, data: dict[str, Any]) -> str:
@@ -88,6 +91,7 @@ NODE_MESSAGES = {
 # =============================================================================
 # Streaming Runner
 # =============================================================================
+
 
 async def stream_agent(
     question: str,
@@ -154,10 +158,13 @@ async def stream_agent(
 
             # Node starting
             if event_type == "on_chain_start" and event_name in NODE_MESSAGES:
-                yield format_sse(StreamEvent.STATUS, {
-                    "node": event_name,
-                    "message": NODE_MESSAGES[event_name],
-                })
+                yield format_sse(
+                    StreamEvent.STATUS,
+                    {
+                        "node": event_name,
+                        "message": NODE_MESSAGES[event_name],
+                    },
+                )
 
             # Node completed - extract output
             elif event_type == "on_chain_end" and event_name in NODE_MESSAGES:
@@ -190,9 +197,12 @@ async def stream_agent(
                 # Emit sources if any
                 sources = output.get("sources", [])
                 if sources:
-                    yield format_sse(StreamEvent.SOURCES, {
-                        "sources": sources  # format_sse handles serialization
-                    })
+                    yield format_sse(
+                        StreamEvent.SOURCES,
+                        {
+                            "sources": sources  # format_sse handles serialization
+                        },
+                    )
 
                 # Special handling for answer node
                 if event_name == "answer":
@@ -207,9 +217,7 @@ async def stream_agent(
                 if event_name == "followup":
                     suggestions = output.get("follow_up_suggestions", [])
                     if suggestions:
-                        yield format_sse(StreamEvent.FOLLOWUP, {
-                            "suggestions": suggestions
-                        })
+                        yield format_sse(StreamEvent.FOLLOWUP, {"suggestions": suggestions})
 
         # Calculate latency
         latency_ms = int((time.time() - start_time) * 1000)
@@ -227,24 +235,30 @@ async def stream_agent(
         )
 
         # Emit final done event with complete response
-        yield format_sse(StreamEvent.DONE, {
-            "answer": final_state.get("answer", ""),
-            "sources": final_state.get("sources", []),  # format_sse handles serialization
-            "steps": final_state.get("steps", []),
-            "raw_data": final_state.get("raw_data", {}),
-            "follow_up_suggestions": final_state.get("follow_up_suggestions", []),
-            "meta": {
-                "mode_used": final_state.get("mode_used", "unknown"),
-                "latency_ms": latency_ms,
-                "company_id": final_state.get("resolved_company_id"),
-                "intent": final_state.get("intent", "general"),
-                "days": final_state.get("days", 90),
-            }
-        })
+        yield format_sse(
+            StreamEvent.DONE,
+            {
+                "answer": final_state.get("answer", ""),
+                "sources": final_state.get("sources", []),  # format_sse handles serialization
+                "steps": final_state.get("steps", []),
+                "raw_data": final_state.get("raw_data", {}),
+                "follow_up_suggestions": final_state.get("follow_up_suggestions", []),
+                "meta": {
+                    "mode_used": final_state.get("mode_used", "unknown"),
+                    "latency_ms": latency_ms,
+                    "company_id": final_state.get("resolved_company_id"),
+                    "intent": final_state.get("intent", "general"),
+                    "days": final_state.get("days", 90),
+                },
+            },
+        )
 
     except Exception as e:
         logger.error(f"[Stream] Error: {e}")
-        yield format_sse(StreamEvent.ERROR, {
-            "message": str(e),
-            "latency_ms": int((time.time() - start_time) * 1000),
-        })
+        yield format_sse(
+            StreamEvent.ERROR,
+            {
+                "message": str(e),
+                "latency_ms": int((time.time() - start_time) * 1000),
+            },
+        )

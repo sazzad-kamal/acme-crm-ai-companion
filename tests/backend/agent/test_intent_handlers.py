@@ -466,7 +466,7 @@ class TestDispatchIntent:
     @patch('backend.agent.intent_handlers.tool_search_activities')
     def test_dispatches_activities_without_company(self, mock_tool):
         """Dispatches activities without company to activities handler."""
-        from backend.agent.tools import ToolResult
+        from backend.agent.schemas import ToolResult
         mock_tool.return_value = ToolResult(data={"activities": []}, sources=[])
 
         ctx = IntentContext(

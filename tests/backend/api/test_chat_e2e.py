@@ -1,21 +1,28 @@
 """
-End-to-End Tests for Chat Flow.
+End-to-End Tests for Chat Flow (API-level).
 
-Tests the complete chat workflow from API request to response.
-Uses MOCK_LLM=1 to avoid requiring an API key.
+Tests the complete chat workflow from API request to response
+without mocking internal agent functions. Uses MOCK_LLM=1 to avoid
+requiring an API key while still testing full integration.
 
 Run with:
-    MOCK_LLM=1 pytest tests/e2e/test_chat_flow.py -v
+    MOCK_LLM=1 pytest tests/backend/api/test_chat_e2e.py -v
 """
 
 import os
 import pytest
-from unittest.mock import patch, MagicMock
+from fastapi.testclient import TestClient
 
-# Set mock mode before imports (also set in conftest.py)
+# Set mock mode before imports
 os.environ["MOCK_LLM"] = "1"
 
-# client and mock_llm_response fixtures are provided by conftest.py
+from backend.main import app
+
+
+@pytest.fixture
+def client():
+    """Create a test client for E2E testing."""
+    return TestClient(app, raise_server_exceptions=False)
 
 
 # =============================================================================

@@ -80,7 +80,7 @@ class SectionFormatter:
 
         lines = ["".join(header_parts)]
 
-        for item in items[:self.max_items]:
+        for item in items[: self.max_items]:
             lines.append(self.item_formatter(item))
 
         return "\n".join(lines)
@@ -106,6 +106,7 @@ def _truncate(text: str, max_len: int = 100) -> str:
 # =============================================================================
 # Pre-configured formatters
 # =============================================================================
+
 
 def _format_activity(act: dict) -> str:
     """Format a single activity item."""
@@ -175,6 +176,7 @@ _RENEWALS_FORMATTER = SectionFormatter(
 # =============================================================================
 # Public API (backwards compatible)
 # =============================================================================
+
 
 def format_company_section(company_data: dict | None) -> str:
     """Format company data for the prompt.
@@ -261,11 +263,13 @@ def format_pipeline_section(pipeline_data: dict | None) -> str:
         "=== PIPELINE SUMMARY ===",
         f"Total Open Deals: {summary.get('total_count', 0)}",
         f"Total Value: ${summary.get('total_value', 0):,.0f}",
-        "\nBy Stage:"
+        "\nBy Stage:",
     ]
 
     for stage, data in summary.get("stages", {}).items():
-        lines.append(f"  - {stage}: {data.get('count', 0)} deals (${data.get('total_value', 0):,.0f})")
+        lines.append(
+            f"  - {stage}: {data.get('count', 0)} deals (${data.get('total_value', 0):,.0f})"
+        )
 
     if opps:
         lines.append("\nOpen Opportunities:")
@@ -290,6 +294,7 @@ def format_renewals_section(renewals_data: dict | None) -> str:
 
     # Calculate actual date range from today
     from datetime import datetime, timedelta
+
     today = datetime.now()
     end_date = today + timedelta(days=days)
     date_range = f"{today.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
@@ -343,7 +348,9 @@ def format_groups_section(groups_data: dict | None) -> str:
     if groups:
         lines = [f"=== ACCOUNT GROUPS ({len(groups)} groups) ==="]
         for g in groups[:10]:
-            lines.append(f"- {g.get('name', 'N/A')} ({g.get('group_id', 'N/A')}): {g.get('description', '')}")
+            lines.append(
+                f"- {g.get('name', 'N/A')} ({g.get('group_id', 'N/A')}): {g.get('description', '')}"
+            )
         return "\n".join(lines)
 
     return ""

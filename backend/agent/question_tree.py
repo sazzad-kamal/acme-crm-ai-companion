@@ -34,8 +34,9 @@ from typing import TypedDict
 
 class QuestionNode(TypedDict):
     """A node in the question tree."""
+
     company_id: str | None  # Company context (if any)
-    follow_ups: list[str]   # Next questions user can ask
+    follow_ups: list[str]  # Next questions user can ask
 
 
 # Load question tree from JSON
@@ -53,6 +54,7 @@ TERMINAL_FOLLOW_UPS: list[str] = []
 # =============================================================================
 # Public API
 # =============================================================================
+
 
 def get_starters() -> list[str]:
     """Get the starter questions."""

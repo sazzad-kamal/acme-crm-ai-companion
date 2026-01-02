@@ -14,6 +14,7 @@ router = APIRouter()
 
 class HealthResponse(BaseModel):
     """Health check response."""
+
     status: str = Field(description="Service status")
     version: str = Field(description="API version")
     services: dict[str, str] = Field(default_factory=dict, description="Service statuses")
@@ -21,6 +22,7 @@ class HealthResponse(BaseModel):
 
 class SystemInfo(BaseModel):
     """System information for diagnostics."""
+
     app_name: str
     version: str
     debug: bool

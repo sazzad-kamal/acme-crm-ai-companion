@@ -31,6 +31,7 @@ class AgentAuditEntry:
 
     Captures key metadata for observability and debugging.
     """
+
     timestamp: str
     question: str
     mode_used: str
@@ -110,56 +111,6 @@ class AgentAuditLogger:
             logger.debug(f"Audit entry logged: mode={mode_used}, latency={latency_ms}ms")
         except Exception as e:
             logger.warning(f"Failed to write audit log: {e}")
-
-    def read_recent_queries(self, limit: int = 100) -> list[dict]:
-        """
-        Read recent queries from the audit log.
-
-        Args:
-            limit: Maximum number of entries to return
-
-        Returns:
-            List of audit entries (most recent first)
-        """
-        if not self.log_file.exists():
-            return []
-
-        entries = []
-        try:
-            with open(self.log_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.strip():
-                        entries.append(json.loads(line))
-
-            # Return most recent first
-            return entries[-limit:][::-1]
-        except Exception as e:
-            logger.warning(f"Failed to read audit log: {e}")
-            return []
-
-    def get_stats(self) -> dict:
-        """
-        Get summary statistics from the audit log.
-
-        Returns:
-            Dictionary with query statistics
-        """
-        entries = self.read_recent_queries(limit=1000)
-
-        if not entries:
-            return {"total_queries": 0}
-
-        from collections import Counter
-        modes = Counter(e.get("mode_used", "unknown") for e in entries)
-        latencies = [e["latency_ms"] for e in entries if e.get("latency_ms")]
-        errors = sum(1 for e in entries if e.get("error"))
-
-        return {
-            "total_queries": len(entries),
-            "modes": modes,
-            "avg_latency_ms": sum(latencies) / len(latencies) if latencies else 0,
-            "error_rate": errors / len(entries) if entries else 0,
-        }
 
 
 # Module-level convenience functions

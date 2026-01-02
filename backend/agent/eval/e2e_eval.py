@@ -28,6 +28,7 @@ load_dotenv(_project_root / ".env")
 
 # Ensure collections exist before anything else
 from backend.agent.eval.base import ensure_qdrant_collections
+
 print("Checking Qdrant collections...")
 ensure_qdrant_collections()
 print()
@@ -51,6 +52,12 @@ from backend.agent.eval.base import (
     compare_to_baseline,
     save_baseline,
     print_baseline_comparison,
+)
+from backend.agent.eval.shared import (
+    parse_json_response,
+    print_slo_result,
+    calculate_p95_latency,
+    determine_exit_code,
 )
 from rich.panel import Panel
 from backend.agent.eval.llm_client import call_llm
@@ -126,24 +133,15 @@ def judge_e2e_response(
         response = call_llm(
             prompt,
             system_prompt=E2E_JUDGE_SYSTEM,
-            model="gpt-4o-mini",  # Use gpt-4o-mini for reliable structured JSON
+            model="gpt-4o-mini",
             temperature=0.0,
             max_tokens=500,
         )
 
-        # Handle empty response
         if not response or not response.strip():
             raise ValueError("Empty response from judge LLM")
 
-        # Parse JSON from response (call_llm returns a string)
-        text = response
-        # Handle markdown code blocks
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0]
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0]
-
-        result = json.loads(text.strip())
+        result = parse_json_response(response)
         return {
             "answer_relevance": result.get("answer_relevance", 0),
             "answer_grounded": result.get("answer_grounded", 0),
@@ -511,6 +509,7 @@ E2E_TEST_CASES = [
 # Evaluation Functions
 # =============================================================================
 
+
 def check_refusal_response(
     answer: str,
     expected_refusal: bool,
@@ -644,8 +643,12 @@ def run_e2e_test(
         faithful = "Y" if judge_result["faithfulness"] else "N"
         company_mark = "Y" if company_correct else "N"
         intent_mark = "Y" if intent_correct else "N"
-        console.print(f"    Company: {actual_company} [{company_mark}], Intent: {actual_intent} [{intent_mark}]")
-        console.print(f"    Relevance: {relevance}, Grounded: {grounded}, CtxRel: {ctx_relevance}, Faithful: {faithful}")
+        console.print(
+            f"    Company: {actual_company} [{company_mark}], Intent: {actual_intent} [{intent_mark}]"
+        )
+        console.print(
+            f"    Relevance: {relevance}, Grounded: {grounded}, CtxRel: {ctx_relevance}, Faithful: {faithful}"
+        )
         if expected_refusal:
             refusal_mark = "Y" if refusal_correct else "N"
             console.print(f"    Refusal: [{refusal_mark}], Forbidden: {has_forbidden}")
@@ -735,7 +738,9 @@ def run_e2e_eval(
 
     # Run multi-turn tests sequentially (required for conversation context)
     if multi_turn_tests:
-        console.print(f"[cyan]Running {len(multi_turn_tests)} multi-turn tests sequentially...[/cyan]")
+        console.print(
+            f"[cyan]Running {len(multi_turn_tests)} multi-turn tests sequentially...[/cyan]"
+        )
         for test_case in track(multi_turn_tests, description="Running multi-turn tests..."):
             result = run_e2e_test(test_case, verbose=verbose)
             results.append(result)
@@ -761,9 +766,8 @@ def run_e2e_eval(
     avg_latency = sum(r.latency_ms for r in results) / total if total > 0 else 0
 
     # Compute P95 latency
-    latencies = sorted([r.latency_ms for r in results])
-    p95_index = int(len(latencies) * 0.95) if latencies else 0
-    p95_latency = latencies[min(p95_index, len(latencies) - 1)] if latencies else 0.0
+    latencies = [r.latency_ms for r in results]
+    p95_latency = calculate_p95_latency(latencies)
 
     # Import SLO for latency check
     from backend.agent.eval.models import SLO_LATENCY_P95_MS
@@ -792,7 +796,9 @@ def run_e2e_eval(
         count = by_category[cat]["count"]
         by_category[cat]["relevance_rate"] = by_category[cat]["relevance_sum"] / count
         by_category[cat]["groundedness_rate"] = by_category[cat]["grounded_sum"] / count
-        by_category[cat]["context_relevance_rate"] = by_category[cat]["context_relevance_sum"] / count
+        by_category[cat]["context_relevance_rate"] = (
+            by_category[cat]["context_relevance_sum"] / count
+        )
         by_category[cat]["faithfulness_rate"] = by_category[cat]["faithfulness_sum"] / count
 
     summary = E2EEvalSummary(
@@ -903,34 +909,28 @@ def print_e2e_eval_results(results: list[E2EEvalResult], summary: E2EEvalSummary
     # SLO Summary Panel (only core quality SLOs)
     # ==========================================================================
     slo_checks = [
-        ("Intent Classification", intent_slo_pass, format_percentage(summary.intent_accuracy), f">={format_percentage(SLO_ROUTER_ACCURACY)}"),
-        ("Answer Relevance", relevance_slo_pass, format_percentage(summary.answer_relevance_rate), f">={format_percentage(SLO_ANSWER_RELEVANCE)}"),
-        ("Groundedness", groundedness_slo_pass, format_percentage(summary.groundedness_rate), f">={format_percentage(SLO_GROUNDEDNESS)}"),
+        (
+            "Intent Classification",
+            intent_slo_pass,
+            format_percentage(summary.intent_accuracy),
+            f">={format_percentage(SLO_ROUTER_ACCURACY)}",
+        ),
+        (
+            "Answer Relevance",
+            relevance_slo_pass,
+            format_percentage(summary.answer_relevance_rate),
+            f">={format_percentage(SLO_ANSWER_RELEVANCE)}",
+        ),
+        (
+            "Groundedness",
+            groundedness_slo_pass,
+            format_percentage(summary.groundedness_rate),
+            f">={format_percentage(SLO_GROUNDEDNESS)}",
+        ),
     ]
 
-    passed_slos = sum(1 for _, passed, _, _ in slo_checks if passed)
-    total_slos = len(slo_checks)
-    failed_slo_names = [name for name, passed, _, _ in slo_checks if not passed]
-
-    console.print()
-    slo_table = Table(title="SLO Summary", show_header=True, header_style="bold")
-    slo_table.add_column("SLO", style="bold")
-    slo_table.add_column("Actual", justify="right")
-    slo_table.add_column("Target", justify="right", style="dim")
-    slo_table.add_column("Status", justify="center")
-
-    for name, passed, actual, target in slo_checks:
-        slo_table.add_row(name, actual, target, format_check_mark(passed))
-
-    console.print(slo_table)
-
-    # SLO pass/fail summary
-    if failed_slo_names:
-        console.print(f"\n[red bold][!] {len(failed_slo_names)} SLO(s) FAILED:[/red bold]")
-        for slo_name in failed_slo_names:
-            console.print(f"    [red]X[/red] {slo_name}")
-    else:
-        console.print(f"\n[green bold][OK] All {total_slos} SLOs passed[/green bold]")
+    # Print SLO summary table
+    all_slos_passed = print_slo_result(slo_checks)
 
     # ==========================================================================
     # By-category breakdown
@@ -961,23 +961,36 @@ def print_e2e_eval_results(results: list[E2EEvalResult], summary: E2EEvalSummary
     # ==========================================================================
     company_issues = [r for r in results if not r.company_correct]
     intent_issues = [r for r in results if not r.intent_correct]
-    quality_issues = [r for r in results if r.answer_relevance == 0 or r.answer_grounded == 0 or r.faithfulness == 0 or r.has_forbidden_content]
+    quality_issues = [
+        r
+        for r in results
+        if r.answer_relevance == 0
+        or r.answer_grounded == 0
+        or r.faithfulness == 0
+        or r.has_forbidden_content
+    ]
 
     if company_issues:
         console.print("\n[yellow bold]Company Extraction Errors:[/yellow bold]")
         for r in company_issues[:5]:
-            console.print(f"  [{r.test_case_id}] expected={r.expected_company_id}, got={r.actual_company_id}")
+            console.print(
+                f"  [{r.test_case_id}] expected={r.expected_company_id}, got={r.actual_company_id}"
+            )
 
     if intent_issues:
         console.print("\n[yellow bold]Intent Classification Errors:[/yellow bold]")
         for r in intent_issues[:5]:
-            console.print(f"  [{r.test_case_id}] expected={r.expected_intent}, got={r.actual_intent}")
+            console.print(
+                f"  [{r.test_case_id}] expected={r.expected_intent}, got={r.actual_intent}"
+            )
 
     if quality_issues:
         console.print("\n[yellow bold]Quality Issues:[/yellow bold]")
         for r in quality_issues[:5]:
             console.print(f"\n  [{r.test_case_id}] {r.question[:50]}...")
-            console.print(f"    Relev: {r.answer_relevance}, Ground: {r.answer_grounded}, CtxRel: {r.context_relevance}, Faith: {r.faithfulness}")
+            console.print(
+                f"    Relev: {r.answer_relevance}, Ground: {r.answer_grounded}, CtxRel: {r.context_relevance}, Faith: {r.faithfulness}"
+            )
             if r.judge_explanation:
                 console.print(f"    Judge: {r.judge_explanation[:100]}...")
             if r.error:
@@ -1003,35 +1016,45 @@ def main(
     workers: int = typer.Option(4, "--workers", "-w", help="Max parallel workers"),
     no_judge: bool = typer.Option(False, "--no-judge", help="Skip LLM-as-judge evaluation"),
     output: str | None = typer.Option(None, "--output", "-o", help="Path to save JSON results"),
-    baseline: str | None = typer.Option(None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"),
-    set_baseline: bool = typer.Option(False, "--set-baseline", help="Save current results as new baseline"),
+    baseline: str | None = typer.Option(
+        None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"
+    ),
+    set_baseline: bool = typer.Option(
+        False, "--set-baseline", help="Save current results as new baseline"
+    ),
     debug: bool = typer.Option(False, "--debug", "-d", help="Dump full details for failing cases"),
 ) -> None:
     """Run end-to-end agent evaluation."""
     # Note: no_judge is accepted for CLI consistency but not implemented in e2e_eval
     # (e2e tests require judge for quality metrics)
     if no_judge:
-        console.print("[yellow]Warning: --no-judge is ignored in e2e_eval (judge is required for quality metrics)[/yellow]")
+        console.print(
+            "[yellow]Warning: --no-judge is ignored in e2e_eval (judge is required for quality metrics)[/yellow]"
+        )
 
-    results, summary = run_e2e_eval(limit=limit, verbose=verbose, parallel=parallel, max_workers=workers)
+    results, summary = run_e2e_eval(
+        limit=limit, verbose=verbose, parallel=parallel, max_workers=workers
+    )
     print_e2e_eval_results(results, summary)
 
     # Debug output for failing cases
     if debug:
-        console.print("\n" + "="*80)
+        console.print("\n" + "=" * 80)
         console.print("[bold yellow]DEBUG: Full details for ungrounded answers[/bold yellow]")
-        console.print("="*80)
+        console.print("=" * 80)
 
         ungrounded = [r for r in results if r.answer_grounded == 0 or r.faithfulness == 0]
         for i, r in enumerate(ungrounded[:10]):  # Show first 10
-            console.print(f"\n[bold cyan]--- Case {i+1}: {r.test_case_id} ---[/bold cyan]")
+            console.print(f"\n[bold cyan]--- Case {i + 1}: {r.test_case_id} ---[/bold cyan]")
             console.print(f"[bold]Question:[/bold] {r.question}")
             console.print(f"[bold]Category:[/bold] {r.category}")
-            console.print(f"[bold]Grounded:[/bold] {r.answer_grounded}, [bold]Faithful:[/bold] {r.faithfulness}, [bold]CtxRel:[/bold] {r.context_relevance}")
+            console.print(
+                f"[bold]Grounded:[/bold] {r.answer_grounded}, [bold]Faithful:[/bold] {r.faithfulness}, [bold]CtxRel:[/bold] {r.context_relevance}"
+            )
             console.print(f"[bold]Sources:[/bold] {r.sources}")
             console.print(f"[bold]Answer:[/bold]\n{r.answer}")
             console.print(f"[bold]Judge Says:[/bold] {r.judge_explanation}")
-            console.print("-"*40)
+            console.print("-" * 40)
 
     # Print tracking report (regression detection + budget analysis)
     print_e2e_tracking_report(results, summary)
@@ -1071,6 +1094,7 @@ def main(
             ],
         }
         import json
+
         with open(output, "w") as f:
             json.dump(output_data, f, indent=2)
         console.print(f"[dim]Results saved to {output}[/dim]")
@@ -1091,34 +1115,30 @@ def main(
 
     failed_slos = [name for name, passed in slo_results.items() if not passed]
     all_slos_passed = len(failed_slos) == 0
-
-    exit_code = 0
-
-    if not all_slos_passed:
-        exit_code = 1
-
-    if is_regression:
-        exit_code = 1
+    exit_code = determine_exit_code(all_slos_passed, is_regression)
 
     # Print overall result panel
     console.print()
     if exit_code == 0:
-        console.print(Panel(
-            "[green bold]OVERALL: PASS[/green bold]\n"
-            f"All {len(slo_results)} SLOs met, no regression detected",
-            border_style="green",
-        ))
+        console.print(
+            Panel(
+                "[green bold]OVERALL: PASS[/green bold]\n"
+                f"All {len(slo_results)} SLOs met, no regression detected",
+                border_style="green",
+            )
+        )
     else:
         failure_reasons = []
         if failed_slos:
             failure_reasons.append(f"{len(failed_slos)} SLOs failed: {', '.join(failed_slos)}")
         if is_regression:
             failure_reasons.append("Regression detected vs baseline")
-        console.print(Panel(
-            "[red bold]OVERALL: FAIL[/red bold]\n"
-            f"{'; '.join(failure_reasons)}",
-            border_style="red",
-        ))
+        console.print(
+            Panel(
+                f"[red bold]OVERALL: FAIL[/red bold]\n{'; '.join(failure_reasons)}",
+                border_style="red",
+            )
+        )
 
     raise typer.Exit(code=exit_code)
 

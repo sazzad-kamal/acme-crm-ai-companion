@@ -12,10 +12,12 @@ import pytest
 os.environ["MOCK_LLM"] = "1"
 
 from backend.agent.datastore import CRMDataStore, get_csv_base_path
-from backend.agent.tools import (
-    tool_company_lookup,
+from backend.agent.tools.company import tool_company_lookup
+from backend.agent.tools.activity import (
     tool_recent_activity,
     tool_recent_history,
+)
+from backend.agent.tools.pipeline import (
     tool_pipeline,
     tool_upcoming_renewals,
     tool_deals_at_risk,

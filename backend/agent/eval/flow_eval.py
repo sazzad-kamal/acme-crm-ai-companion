@@ -21,10 +21,12 @@ from pathlib import Path
 
 # Load .env file before any other imports
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Ensure collections exist before running eval
 from backend.agent.eval.base import ensure_qdrant_collections
+
 print("Checking Qdrant collections...")
 ensure_qdrant_collections()
 print()
@@ -43,6 +45,12 @@ from backend.agent.eval.base import (
     save_baseline,
     print_baseline_comparison,
 )
+from backend.agent.eval.shared import (
+    parse_json_response,
+    print_slo_result,
+    calculate_p95_latency,
+    determine_exit_code,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,23 +60,25 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Quality SLOs
-SLO_PATH_PASS_RATE = 0.85       # 85% of conversation paths should pass
+SLO_PATH_PASS_RATE = 0.85  # 85% of conversation paths should pass
 SLO_QUESTION_PASS_RATE = 0.90  # 90% of individual questions should pass
-SLO_RELEVANCE = 0.85           # 85% relevance score
-SLO_GROUNDED = 0.80            # 80% groundedness score
+SLO_RELEVANCE = 0.85  # 85% relevance score
+SLO_GROUNDED = 0.80  # 80% groundedness score
 
 # Latency SLOs
-SLO_AVG_LATENCY_MS = 4000      # 4s average per question
-SLO_P95_LATENCY_MS = 8000      # 8s P95 per question (flow has multi-turn overhead)
+SLO_AVG_LATENCY_MS = 4000  # 4s average per question
+SLO_P95_LATENCY_MS = 8000  # 8s P95 per question (flow has multi-turn overhead)
 
 
 # =============================================================================
 # Data Models
 # =============================================================================
 
+
 @dataclass
 class StepResult:
     """Result of a single question in a flow."""
+
     question: str
     answer: str
     latency_ms: int
@@ -76,7 +86,7 @@ class StepResult:
     has_sources: bool
     # LLM Judge scores
     relevance_score: int = 0  # 0 or 1
-    grounded_score: int = 0   # 0 or 1
+    grounded_score: int = 0  # 0 or 1
     judge_explanation: str = ""
     error: str | None = None
 
@@ -89,6 +99,7 @@ class StepResult:
 @dataclass
 class FlowResult:
     """Result of testing a complete conversation flow."""
+
     path_id: int
     questions: list[str]
     steps: list[StepResult]
@@ -100,6 +111,7 @@ class FlowResult:
 @dataclass
 class EvalResults:
     """Aggregated results from all flow tests."""
+
     total_paths: int
     paths_tested: int
     paths_passed: int
@@ -185,8 +197,7 @@ def judge_answer(
             temperature=0,
         )
 
-        import json
-        result = json.loads(response)
+        result = parse_json_response(response)
         return {
             "relevance": result.get("answer_relevance", 0),
             "grounded": result.get("answer_grounded", 0),
@@ -200,6 +211,7 @@ def judge_answer(
 # =============================================================================
 # Flow Testing
 # =============================================================================
+
 
 async def test_single_question(
     question: str,
@@ -242,10 +254,12 @@ async def test_single_question(
         # Build context from history for judge
         context = ""
         if history:
-            context = "\n".join([
-                f"Q: {h['question']}\nA: {h['answer'][:200]}..."
-                for h in history[-2:]  # Last 2 turns
-            ])
+            context = "\n".join(
+                [
+                    f"Q: {h['question']}\nA: {h['answer'][:200]}..."
+                    for h in history[-2:]  # Last 2 turns
+                ]
+            )
 
         # Run LLM judge if enabled and we have an answer
         relevance = 0
@@ -315,10 +329,12 @@ async def test_flow(path: list[str], path_id: int, use_judge: bool = True) -> Fl
             success = False
 
         # Add to history for next question
-        history.append({
-            "question": question,
-            "answer": step_result.answer,
-        })
+        history.append(
+            {
+                "question": question,
+                "answer": step_result.answer,
+            }
+        )
 
     return FlowResult(
         path_id=path_id,
@@ -386,24 +402,27 @@ async def run_flow_eval(
                 completed += 1
                 status_color = "green" if result.success else "red"
                 status = "PASS" if result.success else "FAIL"
-                console.print(f"[dim][{completed}/{total}][/dim] Path {path_id+1}: [{status_color}]{status}[/{status_color}] ({result.total_latency_ms}ms)")
+                console.print(
+                    f"[dim][{completed}/{total}][/dim] Path {path_id + 1}: [{status_color}]{status}[/{status_color}] ({result.total_latency_ms}ms)"
+                )
                 if verbose or not result.success:
                     for j, step in enumerate(result.steps):
                         step_color = "green" if step.passed else "red"
                         status_icon = "PASS" if step.passed else "FAIL"
-                        console.print(f"  Q{j+1}: {step.question[:50]}...")
-                        console.print(f"      [{step_color}][{status_icon}][/{step_color}] R={step.relevance_score} G={step.grounded_score} | {step.latency_ms}ms")
+                        console.print(f"  Q{j + 1}: {step.question[:50]}...")
+                        console.print(
+                            f"      [{step_color}][{status_icon}][/{step_color}] R={step.relevance_score} G={step.grounded_score} | {step.latency_ms}ms"
+                        )
                         if step.judge_explanation and verbose:
-                            console.print(f"      [dim]Judge: {step.judge_explanation[:80]}...[/dim]")
+                            console.print(
+                                f"      [dim]Judge: {step.judge_explanation[:80]}...[/dim]"
+                            )
                         if step.error:
                             console.print(f"      [red]ERROR: {step.error}[/red]")
             return result
 
     # Run all flows in parallel (limited by semaphore)
-    tasks = [
-        run_with_semaphore(path, i)
-        for i, path in enumerate(paths_to_test)
-    ]
+    tasks = [run_with_semaphore(path, i) for i, path in enumerate(paths_to_test)]
     console.print(f"[cyan]Starting {len(tasks)} flows...[/cyan]")
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -411,16 +430,18 @@ async def run_flow_eval(
     actual_results = []
     for i, r in enumerate(results):
         if isinstance(r, Exception):
-            console.print(f"[red]Path {i+1} raised exception: {r}[/red]")
+            console.print(f"[red]Path {i + 1} raised exception: {r}[/red]")
             # Create a failed result
-            actual_results.append(FlowResult(
-                path_id=i,
-                questions=paths_to_test[i],
-                steps=[],
-                total_latency_ms=0,
-                success=False,
-                error=str(r),
-            ))
+            actual_results.append(
+                FlowResult(
+                    path_id=i,
+                    questions=paths_to_test[i],
+                    steps=[],
+                    total_latency_ms=0,
+                    success=False,
+                    error=str(r),
+                )
+            )
         else:
             actual_results.append(r)
     results = actual_results
@@ -430,9 +451,7 @@ async def run_flow_eval(
     paths_failed = len(results) - paths_passed
 
     total_questions = sum(len(r.steps) for r in results)
-    questions_passed = sum(
-        sum(1 for s in r.steps if s.passed) for r in results
-    )
+    questions_passed = sum(sum(1 for s in r.steps if s.passed) for r in results)
     questions_failed = total_questions - questions_passed
 
     # Calculate judge score averages
@@ -444,9 +463,8 @@ async def run_flow_eval(
     avg_latency = total_latency / total_questions if total_questions > 0 else 0
 
     # Calculate P95 latency per question
-    step_latencies = sorted([s.latency_ms for s in all_steps])
-    p95_idx = int(len(step_latencies) * 0.95) if step_latencies else 0
-    p95_latency = step_latencies[min(p95_idx, len(step_latencies) - 1)] if step_latencies else 0.0
+    step_latencies = [s.latency_ms for s in all_steps]
+    p95_latency = calculate_p95_latency(step_latencies)
 
     failed_paths = [r for r in results if not r.success]
     wall_clock_ms = int((time.time() - eval_start_time) * 1000)
@@ -479,7 +497,9 @@ def print_summary(results: EvalResults):
     # ==========================================================================
     # Main Summary Table
     # ==========================================================================
-    summary_table = Table(title="Flow Evaluation Summary", show_header=True, header_style="bold cyan")
+    summary_table = Table(
+        title="Flow Evaluation Summary", show_header=True, header_style="bold cyan"
+    )
     summary_table.add_column("Metric", style="bold")
     summary_table.add_column("Value", justify="right")
     summary_table.add_column("SLO", justify="right", style="dim")
@@ -573,7 +593,7 @@ def print_summary(results: EvalResults):
     summary_table.add_row("", "", "", "")  # Spacer
     summary_table.add_row(
         "Wall Clock Time",
-        f"{wall_secs:.1f}s ({wall_secs/60:.1f} min)",
+        f"{wall_secs:.1f}s ({wall_secs / 60:.1f} min)",
         "",
         "",
     )
@@ -584,43 +604,45 @@ def print_summary(results: EvalResults):
     # SLO Summary Panel
     # ==========================================================================
     slo_checks = [
-        ("Path Pass Rate", path_slo_pass, format_percentage(path_pass_rate), f">={format_percentage(SLO_PATH_PASS_RATE)}"),
-        ("Question Pass Rate", q_slo_pass, format_percentage(q_pass_rate), f">={format_percentage(SLO_QUESTION_PASS_RATE)}"),
-        ("Relevance", relevance_slo_pass, format_percentage(results.avg_relevance), f">={format_percentage(SLO_RELEVANCE)}"),
-        ("Groundedness", grounded_slo_pass, format_percentage(results.avg_grounded), f">={format_percentage(SLO_GROUNDED)}"),
+        (
+            "Path Pass Rate",
+            path_slo_pass,
+            format_percentage(path_pass_rate),
+            f">={format_percentage(SLO_PATH_PASS_RATE)}",
+        ),
+        (
+            "Question Pass Rate",
+            q_slo_pass,
+            format_percentage(q_pass_rate),
+            f">={format_percentage(SLO_QUESTION_PASS_RATE)}",
+        ),
+        (
+            "Relevance",
+            relevance_slo_pass,
+            format_percentage(results.avg_relevance),
+            f">={format_percentage(SLO_RELEVANCE)}",
+        ),
+        (
+            "Groundedness",
+            grounded_slo_pass,
+            format_percentage(results.avg_grounded),
+            f">={format_percentage(SLO_GROUNDED)}",
+        ),
     ]
 
-    passed_slos = sum(1 for _, passed, _, _ in slo_checks if passed)
-    total_slos = len(slo_checks)
-    all_slos_passed = passed_slos == total_slos
-
-    console.print()
-    slo_table = Table(title="SLO Summary", show_header=True, header_style="bold")
-    slo_table.add_column("SLO", style="bold")
-    slo_table.add_column("Actual", justify="right")
-    slo_table.add_column("Target", justify="right", style="dim")
-    slo_table.add_column("Status", justify="center")
-
-    for name, passed, actual, target in slo_checks:
-        slo_table.add_row(name, actual, target, format_check_mark(passed))
-
-    console.print(slo_table)
-
-    # Failed SLOs detail
-    failed_slos = [name for name, passed, _, _ in slo_checks if not passed]
-    if failed_slos:
-        console.print(f"\n[red bold][!] {len(failed_slos)} SLO(s) FAILED:[/red bold]")
-        for slo_name in failed_slos:
-            console.print(f"    [red]X[/red] {slo_name}")
-    else:
-        console.print(f"\n[green bold][OK] All {total_slos} SLOs passed[/green bold]")
+    # Print SLO summary table
+    all_slos_passed = print_slo_result(slo_checks)
 
     # ==========================================================================
     # Failed Paths Detail
     # ==========================================================================
     if results.failed_paths:
         console.print()
-        failed_table = Table(title=f"Failed Paths ({len(results.failed_paths)} total, showing first 5)", show_header=True, header_style="bold yellow")
+        failed_table = Table(
+            title=f"Failed Paths ({len(results.failed_paths)} total, showing first 5)",
+            show_header=True,
+            header_style="bold yellow",
+        )
         failed_table.add_column("Path", style="bold", width=6)
         failed_table.add_column("Question", width=50)
         failed_table.add_column("R", justify="center", width=3)
@@ -631,7 +653,11 @@ def print_summary(results: EvalResults):
         for fp in results.failed_paths[:5]:
             for i, step in enumerate(fp.steps):
                 if not step.passed:
-                    issue = step.judge_explanation[:40] if step.judge_explanation else (step.error or "Unknown")
+                    issue = (
+                        step.judge_explanation[:40]
+                        if step.judge_explanation
+                        else (step.error or "Unknown")
+                    )
                     failed_table.add_row(
                         str(fp.path_id) if i == 0 else "",
                         step.question[:48] + "..." if len(step.question) > 48 else step.question,
@@ -648,22 +674,25 @@ def print_summary(results: EvalResults):
     # ==========================================================================
     console.print()
     if all_slos_passed and results.paths_failed == 0:
-        console.print(Panel(
-            "[green bold]OVERALL: PASS[/green bold]\n"
-            f"All {results.paths_tested} paths passed, all SLOs met",
-            border_style="green",
-        ))
+        console.print(
+            Panel(
+                "[green bold]OVERALL: PASS[/green bold]\n"
+                f"All {results.paths_tested} paths passed, all SLOs met",
+                border_style="green",
+            )
+        )
     else:
         failure_reasons = []
         if results.paths_failed > 0:
             failure_reasons.append(f"{results.paths_failed} paths failed")
         if failed_slos:
             failure_reasons.append(f"{len(failed_slos)} SLOs not met: {', '.join(failed_slos)}")
-        console.print(Panel(
-            "[red bold]OVERALL: FAIL[/red bold]\n"
-            f"{'; '.join(failure_reasons)}",
-            border_style="red",
-        ))
+        console.print(
+            Panel(
+                f"[red bold]OVERALL: FAIL[/red bold]\n{'; '.join(failure_reasons)}",
+                border_style="red",
+            )
+        )
 
 
 def save_results(results: EvalResults, output_path: Path):
@@ -687,10 +716,26 @@ def save_results(results: EvalResults, output_path: Path):
             "wall_clock_ms": results.wall_clock_ms,
         },
         "slo_results": {
-            "path_pass_rate": {"value": results.path_pass_rate, "target": SLO_PATH_PASS_RATE, "passed": results.path_pass_rate >= SLO_PATH_PASS_RATE},
-            "question_pass_rate": {"value": results.question_pass_rate, "target": SLO_QUESTION_PASS_RATE, "passed": results.question_pass_rate >= SLO_QUESTION_PASS_RATE},
-            "relevance": {"value": results.avg_relevance, "target": SLO_RELEVANCE, "passed": results.avg_relevance >= SLO_RELEVANCE},
-            "groundedness": {"value": results.avg_grounded, "target": SLO_GROUNDED, "passed": results.avg_grounded >= SLO_GROUNDED},
+            "path_pass_rate": {
+                "value": results.path_pass_rate,
+                "target": SLO_PATH_PASS_RATE,
+                "passed": results.path_pass_rate >= SLO_PATH_PASS_RATE,
+            },
+            "question_pass_rate": {
+                "value": results.question_pass_rate,
+                "target": SLO_QUESTION_PASS_RATE,
+                "passed": results.question_pass_rate >= SLO_QUESTION_PASS_RATE,
+            },
+            "relevance": {
+                "value": results.avg_relevance,
+                "target": SLO_RELEVANCE,
+                "passed": results.avg_relevance >= SLO_RELEVANCE,
+            },
+            "groundedness": {
+                "value": results.avg_grounded,
+                "target": SLO_GROUNDED,
+                "passed": results.avg_grounded >= SLO_GROUNDED,
+            },
         },
         "tracked_metrics": {
             "avg_latency_ms": results.avg_latency_per_question_ms,
@@ -726,6 +771,7 @@ def save_results(results: EvalResults, output_path: Path):
 # =============================================================================
 # Qdrant Access Check
 # =============================================================================
+
 
 def _check_qdrant_access() -> bool:
     """
@@ -775,20 +821,23 @@ async def _run_eval_async(
     """Async implementation of the eval runner."""
     # Check if Qdrant is accessible
     if not _check_qdrant_access():
-        console.print(Panel(
-            "[red bold]ERROR: Qdrant storage is locked by another process![/red bold]\n\n"
-            "[bold]Solutions:[/bold]\n"
-            "  1. Stop the backend server: Ctrl+C in the uvicorn terminal\n"
-            "  2. Close any Jupyter notebooks using RAG\n"
-            "  3. Run with --mock for testing without real LLM/RAG",
-            border_style="red",
-        ))
+        console.print(
+            Panel(
+                "[red bold]ERROR: Qdrant storage is locked by another process![/red bold]\n\n"
+                "[bold]Solutions:[/bold]\n"
+                "  1. Stop the backend server: Ctrl+C in the uvicorn terminal\n"
+                "  2. Close any Jupyter notebooks using RAG\n"
+                "  3. Run with --mock for testing without real LLM/RAG",
+                border_style="red",
+            )
+        )
         return 1
 
     # Warmup: trigger model loading by a simple query
     console.print("\n[dim]Warming up models...[/dim]")
     try:
         from backend.agent.rag_tools import tool_docs_rag
+
         tool_docs_rag("warmup", top_k=1)  # Trigger embedding model load
         console.print("[dim]Models loaded.[/dim]")
     except Exception as e:
@@ -813,6 +862,7 @@ async def _run_eval_async(
     except Exception as e:
         console.print(f"\n[red bold]ERROR: Evaluation failed: {e}[/red bold]")
         import traceback
+
         traceback.print_exc()
         return 1
 
@@ -821,20 +871,20 @@ async def _run_eval_async(
 
     # Debug output for failing paths
     if debug and results.failed_paths:
-        console.print("\n" + "="*80)
+        console.print("\n" + "=" * 80)
         console.print("[bold yellow]DEBUG: Full details for failed paths[/bold yellow]")
-        console.print("="*80)
+        console.print("=" * 80)
 
         for fp in results.failed_paths[:10]:
             console.print(f"\n[bold cyan]--- Path {fp.path_id} ---[/bold cyan]")
             for i, step in enumerate(fp.steps):
                 status = "PASS" if step.passed else "FAIL"
-                console.print(f"[bold]Q{i+1}:[/bold] {step.question}")
+                console.print(f"[bold]Q{i + 1}:[/bold] {step.question}")
                 console.print(f"    [{status}] R={step.relevance_score} G={step.grounded_score}")
                 console.print(f"    [bold]Answer:[/bold] {step.answer[:200]}...")
                 if step.judge_explanation:
                     console.print(f"    [bold]Judge:[/bold] {step.judge_explanation}")
-            console.print("-"*40)
+            console.print("-" * 40)
 
     # Save if requested
     if output:
@@ -862,6 +912,7 @@ async def _run_eval_async(
     # Cleanup Qdrant client to avoid shutdown errors
     try:
         from backend.agent.rag_tools import close_qdrant_client
+
         close_qdrant_client()
     except Exception:
         pass  # Ignore cleanup errors
@@ -874,43 +925,45 @@ async def _run_eval_async(
         "Groundedness": results.avg_grounded >= SLO_GROUNDED,
     }
 
-    failed_slos = [name for name, passed in slo_results.items() if not passed]
-    all_slos_passed = len(failed_slos) == 0
-
-    exit_code = 0
-    if not all_slos_passed:
-        exit_code = 1
-    if is_regression:
-        exit_code = 1
-
-    return exit_code
+    all_slos_passed = all(slo_results.values())
+    return determine_exit_code(all_slos_passed, is_regression)
 
 
 @app.command()
 def main(
     limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of paths to test"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output for each question"),
-    parallel: bool = typer.Option(True, "--parallel/--no-parallel", "-p", help="Run flows in parallel"),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Show detailed output for each question"
+    ),
+    parallel: bool = typer.Option(
+        True, "--parallel/--no-parallel", "-p", help="Run flows in parallel"
+    ),
     workers: int = typer.Option(5, "--workers", "-w", help="Max parallel workers"),
     no_judge: bool = typer.Option(False, "--no-judge", help="Skip LLM-as-judge evaluation"),
     output: str | None = typer.Option(None, "--output", "-o", help="Path to save JSON results"),
-    baseline: str | None = typer.Option(None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"),
-    set_baseline: bool = typer.Option(False, "--set-baseline", help="Save current results as new baseline"),
+    baseline: str | None = typer.Option(
+        None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"
+    ),
+    set_baseline: bool = typer.Option(
+        False, "--set-baseline", help="Save current results as new baseline"
+    ),
     debug: bool = typer.Option(False, "--debug", "-d", help="Dump full details for failing paths"),
 ) -> None:
     """Run conversation flow evaluation."""
     logging.basicConfig(level=logging.WARNING)
-    exit_code = asyncio.run(_run_eval_async(
-        limit=limit,
-        verbose=verbose,
-        parallel=parallel,
-        workers=workers,
-        no_judge=no_judge,
-        output=output,
-        baseline=baseline,
-        set_baseline=set_baseline,
-        debug=debug,
-    ))
+    exit_code = asyncio.run(
+        _run_eval_async(
+            limit=limit,
+            verbose=verbose,
+            parallel=parallel,
+            workers=workers,
+            no_judge=no_judge,
+            output=output,
+            baseline=baseline,
+            set_baseline=set_baseline,
+            debug=debug,
+        )
+    )
     raise typer.Exit(code=exit_code)
 
 

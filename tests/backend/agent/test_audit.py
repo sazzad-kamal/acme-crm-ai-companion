@@ -247,64 +247,6 @@ class TestAgentAuditLogger:
             data = json.loads(line)
             assert "question" in data
 
-    def test_read_recent_queries_empty(self, audit_logger):
-        """Test reading from empty log."""
-        queries = audit_logger.read_recent_queries()
-        assert queries == []
-
-    def test_read_recent_queries(self, audit_logger, temp_log_file):
-        """Test reading recent queries."""
-        # Log some queries
-        for i in range(5):
-            audit_logger.log_query(
-                question=f"Question {i}",
-                mode_used="data",
-            )
-
-        queries = audit_logger.read_recent_queries()
-
-        assert len(queries) == 5
-        # Most recent should be first
-        assert queries[0]["question"] == "Question 4"
-        assert queries[-1]["question"] == "Question 0"
-
-    def test_read_recent_queries_with_limit(self, audit_logger, temp_log_file):
-        """Test reading with limit."""
-        for i in range(10):
-            audit_logger.log_query(
-                question=f"Question {i}",
-                mode_used="data",
-            )
-
-        queries = audit_logger.read_recent_queries(limit=5)
-
-        assert len(queries) == 5
-        # Should be the most recent 5
-        assert queries[0]["question"] == "Question 9"
-
-    def test_get_stats_empty(self, audit_logger):
-        """Test stats from empty log."""
-        stats = audit_logger.get_stats()
-        assert stats["total_queries"] == 0
-
-    def test_get_stats(self, audit_logger, temp_log_file):
-        """Test getting stats from log."""
-        # Log queries with different modes
-        audit_logger.log_query(question="Q1", mode_used="data", latency_ms=100)
-        audit_logger.log_query(question="Q2", mode_used="data", latency_ms=200)
-        audit_logger.log_query(question="Q3", mode_used="docs", latency_ms=150)
-        audit_logger.log_query(question="Q4", mode_used="error", latency_ms=50, error="Failed")
-
-        stats = audit_logger.get_stats()
-
-        assert stats["total_queries"] == 4
-        assert stats["modes"]["data"] == 2
-        assert stats["modes"]["docs"] == 1
-        assert stats["modes"]["error"] == 1
-        assert stats["avg_latency_ms"] == 125.0  # (100+200+150+50)/4
-        assert stats["error_rate"] == 0.25  # 1/4
-
-
 # =============================================================================
 # Module Function Tests
 # =============================================================================

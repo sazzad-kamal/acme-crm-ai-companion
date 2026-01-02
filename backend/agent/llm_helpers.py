@@ -24,8 +24,10 @@ logger = logging.getLogger(__name__)
 # Structured Output Models
 # =============================================================================
 
+
 class FollowUpSuggestions(BaseModel):
     """Structured output for follow-up question suggestions."""
+
     suggestions: list[str] = Field(
         description="List of 3 follow-up questions the user might want to ask next",
         min_length=1,
@@ -37,9 +39,12 @@ class FollowUpSuggestions(BaseModel):
 # Follow-up Prompt Template
 # =============================================================================
 
-FOLLOW_UP_PROMPT_TEMPLATE = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful CRM assistant. Generate 3 follow-up question suggestions."),
-    ("human", """Suggest 3 follow-up questions for the user.
+FOLLOW_UP_PROMPT_TEMPLATE = ChatPromptTemplate.from_messages(
+    [
+        ("system", "You are a helpful CRM assistant. Generate 3 follow-up question suggestions."),
+        (
+            "human",
+            """Suggest 3 follow-up questions for the user.
 
 User's question: {question}
 Current company: {company}
@@ -58,22 +63,16 @@ RULES:
 - Questions 1-2: ONLY ask about data types listed as available above
 - Question 3: Can be general (renewals, pipeline summary) or about CRM features
 - Always use company name, not "they" or "their"
-- Keep questions SHORT"""),
-])
+- Keep questions SHORT""",
+        ),
+    ]
+)
 
 
 # Cached chains - set to None to force rebuild when module reloads
 _followup_chain = None
 _answer_chain = None
 _not_found_chain = None
-
-
-def clear_chain_caches():
-    """Clear all cached chains. Call when prompts change."""
-    global _followup_chain, _answer_chain, _not_found_chain
-    _followup_chain = None
-    _answer_chain = None
-    _not_found_chain = None
 
 
 def _get_followup_chain():
@@ -178,20 +177,22 @@ def call_answer_chain(
     chain = _get_answer_chain()
 
     start_time = time.time()
-    answer = chain.invoke({
-        "question": question,
-        "conversation_history_section": conversation_history_section,
-        "company_section": company_section,
-        "contacts_section": contacts_section,
-        "activities_section": activities_section,
-        "history_section": history_section,
-        "pipeline_section": pipeline_section,
-        "renewals_section": renewals_section,
-        "groups_section": groups_section,
-        "attachments_section": attachments_section,
-        "docs_section": docs_section,
-        "account_context_section": account_context_section,
-    })
+    answer = chain.invoke(
+        {
+            "question": question,
+            "conversation_history_section": conversation_history_section,
+            "company_section": company_section,
+            "contacts_section": contacts_section,
+            "activities_section": activities_section,
+            "history_section": history_section,
+            "pipeline_section": pipeline_section,
+            "renewals_section": renewals_section,
+            "groups_section": groups_section,
+            "attachments_section": attachments_section,
+            "docs_section": docs_section,
+            "account_context_section": account_context_section,
+        }
+    )
     latency_ms = int((time.time() - start_time) * 1000)
 
     logger.info(f"Answer chain completed in {latency_ms}ms")
@@ -216,11 +217,13 @@ def call_not_found_chain(
     chain = _get_not_found_chain()
 
     start_time = time.time()
-    answer = chain.invoke({
-        "question": question,
-        "query": query,
-        "matches": matches,
-    })
+    answer = chain.invoke(
+        {
+            "question": question,
+            "query": query,
+            "matches": matches,
+        }
+    )
     latency_ms = int((time.time() - start_time) * 1000)
 
     logger.info(f"Not-found chain completed in {latency_ms}ms")
@@ -285,11 +288,12 @@ def call_docs_rag(question: str) -> tuple[str, list[Source]]:
         return (
             "According to the documentation, you can find this feature "
             "in the Settings menu under Account Configuration.",
-            [Source(type="doc", id="product_acme_crm_overview", label="Product Overview")]
+            [Source(type="doc", id="product_acme_crm_overview", label="Product Overview")],
         )
 
     try:
         from backend.agent.rag_tools import tool_docs_rag
+
         return tool_docs_rag(question)
     except Exception as e:
         logger.warning(f"Docs RAG failed: {e}")
@@ -314,11 +318,12 @@ def call_account_rag(question: str, company_id: str) -> tuple[str, list[Source]]
         return (
             "Based on the account notes, the customer mentioned concerns about "
             "integration timeline during our last call.",
-            [Source(type="account_note", id=f"{company_id}_notes", label="Account Notes")]
+            [Source(type="account_note", id=f"{company_id}_notes", label="Account Notes")],
         )
 
     try:
         from backend.agent.rag_tools import tool_account_rag
+
         return tool_account_rag(question, company_id)
     except Exception as e:
         logger.warning(f"Account RAG failed: {e}")
@@ -408,12 +413,14 @@ def generate_follow_up_suggestions(
             history_section = f"=== RECENT CONVERSATION ===\n{conversation_history}"
 
         # Invoke chain with structured output
-        result: FollowUpSuggestions = chain.invoke({
-            "question": question,
-            "company": company_name or company_id or "None specified",
-            "available_data": data_context,
-            "conversation_history_section": history_section,
-        })
+        result: FollowUpSuggestions = chain.invoke(
+            {
+                "question": question,
+                "company": company_name or company_id or "None specified",
+                "available_data": data_context,
+                "conversation_history_section": history_section,
+            }
+        )
 
         logger.debug(f"Generated {len(result.suggestions)} follow-up suggestions")
         return result.suggestions[:3]

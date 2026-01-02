@@ -8,10 +8,7 @@ from backend.agent.tools.base import make_sources, with_datastore
 
 
 @with_datastore
-def tool_pipeline(
-    company_id: str,
-    datastore: CRMDataStore | None = None
-) -> ToolResult:
+def tool_pipeline(company_id: str, datastore: CRMDataStore | None = None) -> ToolResult:
     """Get pipeline summary and open opportunities for a company."""
     ds = datastore
 
@@ -30,7 +27,9 @@ def tool_pipeline(
             "summary": summary,
             "opportunities": opportunities,
         },
-        sources=make_sources(has_pipeline, "opportunities", company_id, f"Pipeline for {company_name}")
+        sources=make_sources(
+            has_pipeline, "opportunities", company_id, f"Pipeline for {company_name}"
+        ),
     )
 
 
@@ -42,18 +41,20 @@ def tool_pipeline_summary(datastore: CRMDataStore | None = None) -> ToolResult:
 
     return ToolResult(
         data=summary,
-        sources=[Source(
-            type="pipeline", id="all",
-            label=f"Pipeline: {summary['total_count']} deals, ${summary['total_value']:,.0f}"
-        )] if summary.get("total_count", 0) > 0 else []
+        sources=[
+            Source(
+                type="pipeline",
+                id="all",
+                label=f"Pipeline: {summary['total_count']} deals, ${summary['total_value']:,.0f}",
+            )
+        ]
+        if summary.get("total_count", 0) > 0
+        else [],
     )
 
 
 @with_datastore
-def tool_pipeline_by_owner(
-    owner: str = "",
-    datastore: CRMDataStore | None = None
-) -> ToolResult:
+def tool_pipeline_by_owner(owner: str = "", datastore: CRMDataStore | None = None) -> ToolResult:
     """Get pipeline summary grouped by owner."""
     ds = datastore
     data = ds.get_pipeline_by_owner(owner=owner or None)
@@ -63,22 +64,24 @@ def tool_pipeline_by_owner(
     return ToolResult(
         data=data,
         sources=[Source(type="pipeline", id=f"by_owner_{owner or 'all'}", label=label)]
-        if data.get("total_count", 0) > 0 else []
+        if data.get("total_count", 0) > 0
+        else [],
     )
 
 
 @with_datastore
 def tool_upcoming_renewals(
-    days: int = 90,
-    limit: int = 20,
-    owner: str = "",
-    datastore: CRMDataStore | None = None
+    days: int = 90, limit: int = 20, owner: str = "", datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """Get companies with upcoming renewals."""
     ds = datastore
     renewals = ds.get_upcoming_renewals(days=days, limit=limit, owner=owner or None)
 
-    label = f"Renewals for {owner} (next {days} days)" if owner else f"Upcoming renewals (next {days} days)"
+    label = (
+        f"Renewals for {owner} (next {days} days)"
+        if owner
+        else f"Upcoming renewals (next {days} days)"
+    )
 
     return ToolResult(
         data={
@@ -87,7 +90,7 @@ def tool_upcoming_renewals(
             "owner_filter": owner or None,
             "renewals": renewals,
         },
-        sources=make_sources(renewals, "renewals", "upcoming", label)
+        sources=make_sources(renewals, "renewals", "upcoming", label),
     )
 
 
@@ -96,14 +99,18 @@ def tool_deals_at_risk(
     owner: str = "",
     days_threshold: int = 45,
     limit: int = 20,
-    datastore: CRMDataStore | None = None
+    datastore: CRMDataStore | None = None,
 ) -> ToolResult:
     """Get deals that are at risk (stale, need attention)."""
     ds = datastore
 
     deals = ds.get_deals_at_risk(owner=owner or None, days_threshold=days_threshold, limit=limit)
 
-    label = f"At-risk deals for {owner}" if owner else f"At-risk deals (>{days_threshold} days in stage)"
+    label = (
+        f"At-risk deals for {owner}"
+        if owner
+        else f"At-risk deals (>{days_threshold} days in stage)"
+    )
 
     return ToolResult(
         data={
@@ -112,15 +119,12 @@ def tool_deals_at_risk(
             "owner_filter": owner or None,
             "deals": deals,
         },
-        sources=make_sources(deals, "opportunities", "at_risk", label)
+        sources=make_sources(deals, "opportunities", "at_risk", label),
     )
 
 
 @with_datastore
-def tool_forecast(
-    owner: str = "",
-    datastore: CRMDataStore | None = None
-) -> ToolResult:
+def tool_forecast(owner: str = "", datastore: CRMDataStore | None = None) -> ToolResult:
     """Get weighted pipeline forecast."""
     ds = datastore
     data = ds.get_forecast(owner=owner or None)
@@ -129,19 +133,20 @@ def tool_forecast(
 
     return ToolResult(
         data=data,
-        sources=[Source(
-            type="forecast",
-            id=f"forecast_{owner or 'all'}",
-            label=f"{label}: ${data.get('total_weighted', 0):,.0f} weighted"
-        )] if data.get("total_pipeline", 0) > 0 else []
+        sources=[
+            Source(
+                type="forecast",
+                id=f"forecast_{owner or 'all'}",
+                label=f"{label}: ${data.get('total_weighted', 0):,.0f} weighted",
+            )
+        ]
+        if data.get("total_pipeline", 0) > 0
+        else [],
     )
 
 
 @with_datastore
-def tool_forecast_accuracy(
-    owner: str = "",
-    datastore: CRMDataStore | None = None
-) -> ToolResult:
+def tool_forecast_accuracy(owner: str = "", datastore: CRMDataStore | None = None) -> ToolResult:
     """Get forecast accuracy metrics (win rate) based on historical closed deals."""
     ds = datastore
     data = ds.get_forecast_accuracy(owner=owner or None)
@@ -151,11 +156,15 @@ def tool_forecast_accuracy(
 
     return ToolResult(
         data=data,
-        sources=[Source(
-            type="forecast",
-            id=f"accuracy_{owner or 'all'}",
-            label=f"{label}: {win_rate}% win rate"
-        )] if data.get("total_closed", 0) > 0 else []
+        sources=[
+            Source(
+                type="forecast",
+                id=f"accuracy_{owner or 'all'}",
+                label=f"{label}: {win_rate}% win rate",
+            )
+        ]
+        if data.get("total_closed", 0) > 0
+        else [],
     )
 
 

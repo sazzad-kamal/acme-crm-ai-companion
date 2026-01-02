@@ -36,71 +36,52 @@ class AgentConfig(BaseSettings):
     # -------------------------------------------------------------------------
     llm_model: str = Field(
         default="gpt-5.2",
-        description="LLM model for agent orchestration and synthesis (upgraded from gpt-4o)"
+        description="LLM model for agent orchestration and synthesis (upgraded from gpt-4o)",
     )
     router_model: str = Field(
-        default="gpt-4o-mini",
-        description="LLM model for routing decisions (fast, cheap)"
+        default="gpt-4o-mini", description="LLM model for routing decisions (fast, cheap)"
     )
-    llm_temperature: float = Field(
-        default=0.1,
-        description="LLM temperature for agent responses"
-    )
+    llm_temperature: float = Field(default=0.1, description="LLM temperature for agent responses")
     router_temperature: float = Field(
-        default=0.0,
-        description="LLM temperature for routing (0 for deterministic)"
+        default=0.0, description="LLM temperature for routing (0 for deterministic)"
     )
-    llm_max_tokens: int = Field(
-        default=1024,
-        description="Maximum tokens in LLM response"
-    )
+    llm_max_tokens: int = Field(default=1024, description="Maximum tokens in LLM response")
 
     # -------------------------------------------------------------------------
     # Feature Flags
     # -------------------------------------------------------------------------
     enable_follow_up_suggestions: bool = Field(
-        default=True,
-        description="Generate follow-up question suggestions"
+        default=True, description="Generate follow-up question suggestions"
     )
     enable_docs_integration: bool = Field(
-        default=True,
-        description="Include RAG docs in agent responses"
+        default=True, description="Include RAG docs in agent responses"
     )
     enable_audit_logging: bool = Field(
-        default=True,
-        description="Enable audit logging for agent queries"
+        default=True, description="Enable audit logging for agent queries"
     )
 
     # -------------------------------------------------------------------------
     # Node Configuration
     # -------------------------------------------------------------------------
     default_days: int = Field(
-        default=90,
-        description="Default time window in days for data queries"
+        default=90, description="Default time window in days for data queries"
     )
     fetch_timeout_seconds: int = Field(
-        default=30,
-        description="Timeout for parallel fetch operations"
+        default=30, description="Timeout for parallel fetch operations"
     )
     max_close_matches: int = Field(
-        default=5,
-        description="Maximum number of close matches to show for company not found"
+        default=5, description="Maximum number of close matches to show for company not found"
     )
     max_followup_suggestions: int = Field(
-        default=3,
-        description="Maximum number of follow-up suggestions to return"
+        default=3, description="Maximum number of follow-up suggestions to return"
     )
 
     # -------------------------------------------------------------------------
     # Paths
     # -------------------------------------------------------------------------
-    csv_dir: Path = Field(
-        default=_DEFAULT_CSV_DIR,
-        description="Path to CSV data directory"
-    )
+    csv_dir: Path = Field(default=_DEFAULT_CSV_DIR, description="Path to CSV data directory")
     audit_log_file: Path = Field(
-        default=_DEFAULT_AUDIT_LOG,
-        description="Path to agent audit log file"
+        default=_DEFAULT_AUDIT_LOG, description="Path to agent audit log file"
     )
 
     # Pydantic v2 configuration
@@ -110,8 +91,8 @@ class AgentConfig(BaseSettings):
         extra="ignore",
     )
 
-    @model_validator(mode='after')
-    def validate_config(self) -> 'AgentConfig':
+    @model_validator(mode="after")
+    def validate_config(self) -> "AgentConfig":
         """Cross-field validation."""
         if self.llm_temperature < 0 or self.llm_temperature > 2:
             raise ValueError("llm_temperature must be between 0 and 2")
@@ -136,7 +117,7 @@ def _validate_startup_config(config: AgentConfig) -> None:
     issues = []
 
     # Check if OpenAI API key is set
-    if not os.environ.get('OPENAI_API_KEY'):
+    if not os.environ.get("OPENAI_API_KEY"):
         logger.warning("OPENAI_API_KEY not set - LLM calls will fail")
         issues.append("OPENAI_API_KEY not set")
 

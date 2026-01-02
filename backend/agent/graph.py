@@ -48,12 +48,9 @@ from langgraph.checkpoint.memory import MemorySaver
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from backend.agent.state import AgentState, Message
-from backend.agent.nodes import (
-    route_node,
-    fetch_node,
-    answer_node,
-    followup_node,
-)
+from backend.agent.nodes.routing import route_node
+from backend.agent.nodes.fetching import fetch_node
+from backend.agent.nodes.generation import answer_node, followup_node
 from backend.agent.audit import AgentAuditLogger
 
 
@@ -121,6 +118,7 @@ def clear_query_cache() -> None:
 # Graph Construction
 # =============================================================================
 
+
 def build_agent_graph(checkpointer=None):
     """
     Build the LangGraph workflow.
@@ -167,14 +165,17 @@ agent_graph = build_agent_graph()
 # Transient Errors for Retry
 # =============================================================================
 
+
 class TransientAgentError(Exception):
     """Transient error that should trigger a retry."""
+
     pass
 
 
 # =============================================================================
 # Runner Function
 # =============================================================================
+
 
 @retry(
     stop=stop_after_attempt(3),
@@ -314,7 +315,10 @@ def run_agent(
     # Build response with per-node latencies
     result = {
         "answer": final_state.get("answer", ""),
-        "sources": [s.model_dump() if hasattr(s, 'model_dump') else s for s in final_state.get("sources", [])],
+        "sources": [
+            s.model_dump() if hasattr(s, "model_dump") else s
+            for s in final_state.get("sources", [])
+        ],
         "steps": final_state.get("steps", []),
         "raw_data": final_state.get("raw_data", {}),
         "follow_up_suggestions": final_state.get("follow_up_suggestions", []),
@@ -329,7 +333,7 @@ def run_agent(
             "fetch_latency_ms": final_state.get("fetch_latency_ms"),
             "answer_latency_ms": final_state.get("answer_latency_ms"),
             "followup_latency_ms": final_state.get("followup_latency_ms"),
-        }
+        },
     }
 
     # Cache result for non-session queries
@@ -354,13 +358,14 @@ def _build_error_response(error: str, start_time: float) -> dict:
             "fetch_latency_ms": None,
             "answer_latency_ms": None,
             "followup_latency_ms": None,
-        }
+        },
     }
 
 
 # =============================================================================
 # Backwards Compatibility
 # =============================================================================
+
 
 def answer_question(
     question: str,
@@ -387,6 +392,7 @@ def answer_question(
 # Visualization
 # =============================================================================
 
+
 def get_graph_mermaid() -> str:
     """
     Get Mermaid diagram of the graph.
@@ -407,39 +413,6 @@ graph TD
     style answer fill:#e8f5e9
     style followup fill:#fce4ec
 """
-
-
-def print_graph_ascii() -> None:
-    """Print ASCII representation of the graph."""
-    print("""
-    ┌─────────────────────────────────────────────────────────────┐
-    │             LANGGRAPH AGENT (4 nodes)                       │
-    └─────────────────────────────────────────────────────────────┘
-
-                         ┌─────────┐
-                         │  Route  │  (LLM structured output)
-                         └────┬────┘
-                              │
-                              ▼
-                   ┌─────────────────────┐
-                   │       Fetch         │  (Parallel: CRM + Docs + Account)
-                   └──────────┬──────────┘
-                              │
-                              ▼
-                       ┌─────────────┐
-                       │   Answer    │  (LCEL chain)
-                       └──────┬──────┘
-                              │
-                              ▼
-                       ┌─────────────┐
-                       │  Follow-up  │  (Structured output)
-                       └──────┬──────┘
-                              │
-                              ▼
-                          ┌───────┐
-                          │  END  │
-                          └───────┘
-    """)
 
 
 def get_checkpointer() -> MemorySaver:
@@ -473,7 +446,6 @@ __all__ = [
     "answer_question",
     "build_agent_graph",
     "get_graph_mermaid",
-    "print_graph_ascii",
     # Checkpointing
     "get_checkpointer",
     "get_session_state",
@@ -482,5 +454,3 @@ __all__ = [
     # Errors
     "TransientAgentError",
 ]
-
-

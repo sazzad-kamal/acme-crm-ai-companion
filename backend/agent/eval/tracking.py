@@ -37,11 +37,11 @@ PREVIOUS_RESULTS_PATH = DATA_DIR / "agent_eval_results_previous.json"
 # =============================================================================
 
 AGENT_LATENCY_BUDGETS: dict[str, int] = {
-    "router": 500,          # Intent routing LLM call
+    "router": 500,  # Intent routing LLM call
     "company_lookup": 200,  # Company data fetch
     "tool_execution": 300,  # Per-tool execution
-    "rag_docs": 3000,       # RAG pipeline for docs
-    "synthesis": 2000,      # Final answer synthesis
+    "rag_docs": 3000,  # RAG pipeline for docs
+    "synthesis": 2000,  # Final answer synthesis
 }
 
 AGENT_TOTAL_LATENCY_BUDGET_MS = SLO_LATENCY_P95_MS
@@ -50,6 +50,7 @@ AGENT_TOTAL_LATENCY_BUDGET_MS = SLO_LATENCY_P95_MS
 # =============================================================================
 # Regression Detection
 # =============================================================================
+
 
 def load_previous_e2e_summary() -> E2EEvalSummary | None:
     """Load summary from previous E2E evaluation run."""
@@ -114,40 +115,48 @@ def compare_e2e_with_previous(
         delta = curr_val - prev_val
 
         if delta < -threshold:
-            regressions.append({
-                "metric": label,
-                "previous": prev_val,
-                "current": curr_val,
-                "delta": delta,
-            })
+            regressions.append(
+                {
+                    "metric": label,
+                    "previous": prev_val,
+                    "current": curr_val,
+                    "delta": delta,
+                }
+            )
         elif delta > threshold:
-            improvements.append({
-                "metric": label,
-                "previous": prev_val,
-                "current": curr_val,
-                "delta": delta,
-            })
+            improvements.append(
+                {
+                    "metric": label,
+                    "previous": prev_val,
+                    "current": curr_val,
+                    "delta": delta,
+                }
+            )
 
     # Latency comparison (inverse - increase is regression)
     latency_delta = current.p95_latency_ms - previous.p95_latency_ms
     latency_threshold = 500  # 500ms threshold for latency
 
     if latency_delta > latency_threshold:
-        regressions.append({
-            "metric": "P95 Latency",
-            "previous": previous.p95_latency_ms,
-            "current": current.p95_latency_ms,
-            "delta": latency_delta,
-            "unit": "ms",
-        })
+        regressions.append(
+            {
+                "metric": "P95 Latency",
+                "previous": previous.p95_latency_ms,
+                "current": current.p95_latency_ms,
+                "delta": latency_delta,
+                "unit": "ms",
+            }
+        )
     elif latency_delta < -latency_threshold:
-        improvements.append({
-            "metric": "P95 Latency",
-            "previous": previous.p95_latency_ms,
-            "current": current.p95_latency_ms,
-            "delta": latency_delta,
-            "unit": "ms",
-        })
+        improvements.append(
+            {
+                "metric": "P95 Latency",
+                "previous": previous.p95_latency_ms,
+                "current": current.p95_latency_ms,
+                "delta": latency_delta,
+                "unit": "ms",
+            }
+        )
 
     return {
         "has_previous": True,
@@ -161,14 +170,18 @@ def compare_e2e_with_previous(
 def print_e2e_regression_report(comparison: dict[str, Any]) -> None:
     """Print E2E regression comparison report."""
     if not comparison["has_previous"]:
-        console.print("[dim]No previous run to compare against. This run will be saved as baseline.[/dim]")
+        console.print(
+            "[dim]No previous run to compare against. This run will be saved as baseline.[/dim]"
+        )
         return
 
     previous = comparison["previous_summary"]
     current = comparison["current_summary"]
 
     # Build comparison table
-    table = Table(title="E2E Quality Comparison (vs last run)", show_header=True, header_style="bold cyan")
+    table = Table(
+        title="E2E Quality Comparison (vs last run)", show_header=True, header_style="bold cyan"
+    )
     table.add_column("Metric", style="dim")
     table.add_column("Previous", justify="right")
     table.add_column("Current", justify="right")
@@ -207,7 +220,9 @@ def print_e2e_regression_report(comparison: dict[str, Any]) -> None:
 
     # Regression/improvement summary
     if comparison["regressions"]:
-        console.print(f"\n[red bold][!] REGRESSION DETECTED: {len(comparison['regressions'])} metrics declined[/red bold]")
+        console.print(
+            f"\n[red bold][!] REGRESSION DETECTED: {len(comparison['regressions'])} metrics declined[/red bold]"
+        )
         for r in comparison["regressions"]:
             if r.get("unit") == "ms":
                 console.print(f"  - {r['metric']}: {r['delta']:+.0f}ms")
@@ -215,12 +230,15 @@ def print_e2e_regression_report(comparison: dict[str, Any]) -> None:
                 console.print(f"  - {r['metric']}: {r['delta']:+.1%}")
 
     if comparison["improvements"]:
-        console.print(f"\n[green bold][OK] IMPROVEMENT: {len(comparison['improvements'])} metrics improved[/green bold]")
+        console.print(
+            f"\n[green bold][OK] IMPROVEMENT: {len(comparison['improvements'])} metrics improved[/green bold]"
+        )
 
 
 # =============================================================================
 # Latency Budget Tracking
 # =============================================================================
+
 
 def analyze_e2e_budget_violations(
     results: list[E2EEvalResult],
@@ -238,12 +256,14 @@ def analyze_e2e_budget_violations(
 
     for result in results:
         if result.latency_ms > AGENT_TOTAL_LATENCY_BUDGET_MS:
-            total_violations.append({
-                "test_case_id": result.test_case_id,
-                "question": result.question[:50],
-                "latency_ms": result.latency_ms,
-                "over_by": result.latency_ms - AGENT_TOTAL_LATENCY_BUDGET_MS,
-            })
+            total_violations.append(
+                {
+                    "test_case_id": result.test_case_id,
+                    "question": result.question[:50],
+                    "latency_ms": result.latency_ms,
+                    "over_by": result.latency_ms - AGENT_TOTAL_LATENCY_BUDGET_MS,
+                }
+            )
 
     # Group by category
     by_category: dict[str, list[float]] = {}
@@ -292,7 +312,9 @@ def print_e2e_budget_report(results: list[E2EEvalResult]) -> None:
         for cat, stats in sorted(analysis["category_stats"].items()):
             exceeded = stats["exceeded"]
             total = stats["count"]
-            status = "[green]OK[/green]" if exceeded == 0 else f"[yellow]! {exceeded}/{total}[/yellow]"
+            status = (
+                "[green]OK[/green]" if exceeded == 0 else f"[yellow]! {exceeded}/{total}[/yellow]"
+            )
 
             table.add_row(
                 cat,
@@ -306,17 +328,24 @@ def print_e2e_budget_report(results: list[E2EEvalResult]) -> None:
 
     # Total latency violations
     if analysis["total_violations"]:
-        console.print(f"\n[yellow bold][!] {len(analysis['total_violations'])} tests exceeded latency budget ({analysis['total_budget']}ms)[/yellow bold]")
+        console.print(
+            f"\n[yellow bold][!] {len(analysis['total_violations'])} tests exceeded latency budget ({analysis['total_budget']}ms)[/yellow bold]"
+        )
 
         for v in analysis["total_violations"][:5]:
-            console.print(f"  - {v['test_case_id']}: {v['latency_ms']:.0f}ms (+{v['over_by']:.0f}ms over)")
+            console.print(
+                f"  - {v['test_case_id']}: {v['latency_ms']:.0f}ms (+{v['over_by']:.0f}ms over)"
+            )
     else:
-        console.print(f"\n[green][OK] All tests within latency budget ({analysis['total_budget']}ms)[/green]")
+        console.print(
+            f"\n[green][OK] All tests within latency budget ({analysis['total_budget']}ms)[/green]"
+        )
 
 
 # =============================================================================
 # Combined Report
 # =============================================================================
+
 
 def print_e2e_tracking_report(
     results: list[E2EEvalResult],
@@ -329,10 +358,12 @@ def print_e2e_tracking_report(
         results: Current E2E evaluation results
         summary: Current E2E evaluation summary
     """
-    console.print(Panel(
-        "[bold]Agent E2E Tracking Report[/bold]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel(
+            "[bold]Agent E2E Tracking Report[/bold]",
+            border_style="blue",
+        )
+    )
 
     # 1. Regression detection
     previous = load_previous_e2e_summary()
@@ -344,6 +375,7 @@ def print_e2e_tracking_report(
 
     # 3. Add to history and show trends
     from backend.agent.eval.history import add_to_agent_history, print_agent_trend_report
+
     add_to_agent_history(summary)
     print_agent_trend_report(num_runs=5)
 

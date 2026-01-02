@@ -36,6 +36,7 @@ MAX_HISTORY_ENTRIES = 20
 # History Storage
 # =============================================================================
 
+
 def load_agent_history() -> list[dict[str, Any]]:
     """Load agent evaluation history from file."""
     if not HISTORY_FILE.exists():
@@ -73,11 +74,17 @@ def add_to_agent_history(
     # Compute which SLOs failed
     failed_slos = []
     if not p95_slo_pass:
-        failed_slos.append(f"P95 latency {summary.p95_latency_ms:.0f}ms > {SLO_EVAL_LATENCY_P95_MS}ms")
+        failed_slos.append(
+            f"P95 latency {summary.p95_latency_ms:.0f}ms > {SLO_EVAL_LATENCY_P95_MS}ms"
+        )
     if not avg_slo_pass:
-        failed_slos.append(f"Avg latency {summary.avg_latency_ms:.0f}ms > {SLO_EVAL_LATENCY_AVG_MS}ms")
+        failed_slos.append(
+            f"Avg latency {summary.avg_latency_ms:.0f}ms > {SLO_EVAL_LATENCY_AVG_MS}ms"
+        )
     if summary.answer_relevance_rate < SLO_ANSWER_RELEVANCE:
-        failed_slos.append(f"Answer relevance {summary.answer_relevance_rate:.1%} < {SLO_ANSWER_RELEVANCE:.0%}")
+        failed_slos.append(
+            f"Answer relevance {summary.answer_relevance_rate:.1%} < {SLO_ANSWER_RELEVANCE:.0%}"
+        )
     if summary.groundedness_rate < SLO_GROUNDEDNESS:
         failed_slos.append(f"Groundedness {summary.groundedness_rate:.1%} < {SLO_GROUNDEDNESS:.0%}")
     entry = {
@@ -106,6 +113,7 @@ def add_to_agent_history(
 # =============================================================================
 # Trend Analysis
 # =============================================================================
+
 
 def compute_agent_trends(history: list[dict[str, Any]], metric: str) -> dict[str, Any]:
     """Compute trend statistics for a metric."""
@@ -140,6 +148,7 @@ def compute_agent_trends(history: list[dict[str, Any]], metric: str) -> dict[str
 # Reporting
 # =============================================================================
 
+
 def print_agent_trend_report(num_runs: int | None = None) -> None:
     """Print historical trend report for agent evaluation."""
     history = load_agent_history()
@@ -151,10 +160,12 @@ def print_agent_trend_report(num_runs: int | None = None) -> None:
     if num_runs:
         history = history[-num_runs:]
 
-    console.print(Panel(
-        f"[bold]Agent Evaluation History ({len(history)} runs)[/bold]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel(
+            f"[bold]Agent Evaluation History ({len(history)} runs)[/bold]",
+            border_style="blue",
+        )
+    )
 
     # Trend summary
     metrics = [
@@ -230,7 +241,7 @@ def print_agent_trend_report(num_runs: int | None = None) -> None:
             f"{gnd:.0%}",
             f"{company:.0%}",
             f"{intent:.0%}",
-            f"{lat/1000:.1f}s",
+            f"{lat / 1000:.1f}s",
             slo_str,
         )
 

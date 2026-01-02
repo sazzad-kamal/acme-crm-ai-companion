@@ -15,23 +15,27 @@ from backend.agent.extractors import (
     extract_attachment_query,
     extract_activity_type,
 )
-from backend.agent.tools import (
+from backend.agent.tools.company import (
     tool_company_lookup,
-    tool_recent_activity,
-    tool_recent_history,
-    tool_pipeline,
-    tool_upcoming_renewals,
     tool_search_contacts,
     tool_search_companies,
     tool_search_attachments,
+    tool_accounts_needing_attention,
+)
+from backend.agent.tools.pipeline import (
+    tool_pipeline,
+    tool_upcoming_renewals,
     tool_pipeline_summary,
-    tool_search_activities,
-    tool_analytics,
     tool_pipeline_by_owner,
     tool_deals_at_risk,
     tool_forecast,
     tool_forecast_accuracy,
-    tool_accounts_needing_attention,
+)
+from backend.agent.tools.activity import (
+    tool_recent_activity,
+    tool_recent_history,
+    tool_search_activities,
+    tool_analytics,
 )
 
 
@@ -47,6 +51,7 @@ def _safe_extend(target_list: list, source_list: list | None) -> None:
 @dataclass
 class IntentContext:
     """Context passed to intent handlers."""
+
     question: str
     resolved_company_id: str | None
     days: int
@@ -57,6 +62,7 @@ class IntentContext:
 @dataclass
 class IntentResult:
     """Result from an intent handler."""
+
     raw_data: dict = field(default_factory=dict)
     sources: list[Source] = field(default_factory=list)
     company_data: dict | None = None
@@ -201,7 +207,9 @@ def _detect_analytics_metric(question: str) -> tuple[str, str, str]:
 
     # Pattern: counting/breakdown keywords
     is_count_query = any(w in q for w in ["how many", "count", "total", "number of"])
-    is_breakdown_query = any(w in q for w in ["breakdown", "distribution", "percentage", "split", "ratio"])
+    is_breakdown_query = any(
+        w in q for w in ["breakdown", "distribution", "percentage", "split", "ratio"]
+    )
     is_comparison = any(w in q for w in ["most", "highest", "lowest", "compare", "common"])
 
     # Detect entity type
@@ -244,7 +252,9 @@ def handle_analytics(ctx: IntentContext) -> IntentResult:
     # Detect the metric type from the question
     metric, group_by, activity_type = _detect_analytics_metric(ctx.question)
 
-    logger.debug(f"[Analytics] metric={metric}, group_by={group_by}, activity_type={activity_type}, company={ctx.resolved_company_id}")
+    logger.debug(
+        f"[Analytics] metric={metric}, group_by={group_by}, activity_type={activity_type}, company={ctx.resolved_company_id}"
+    )
 
     analytics_result = tool_analytics(
         metric=metric,
@@ -268,7 +278,7 @@ def handle_company_status(ctx: IntentContext) -> IntentResult:
 
     query = ctx.resolved_company_id
     if not query and ctx.router_result:
-        query = getattr(ctx.router_result, 'company_name_query', None)
+        query = getattr(ctx.router_result, "company_name_query", None)
 
     logger.debug(f"[Data] Looking up company: {query}")
     company_result = tool_company_lookup(query or "")
@@ -416,10 +426,19 @@ def dispatch_intent(intent: str, ctx: IntentContext) -> IntentResult:
     Simple dict lookup with one override: company-specific queries get full context.
     """
     # These intents always use their dedicated handler (global aggregates)
-    global_intents = {"pipeline_summary", "deals_at_risk", "forecast", "forecast_accuracy", "company_search", "analytics"}
+    global_intents = {
+        "pipeline_summary",
+        "deals_at_risk",
+        "forecast",
+        "forecast_accuracy",
+        "company_search",
+        "analytics",
+    }
 
     # If there's a company and intent isn't a global aggregate, fetch full company context
-    has_company = ctx.resolved_company_id or (ctx.router_result and getattr(ctx.router_result, 'company_name_query', None))
+    has_company = ctx.resolved_company_id or (
+        ctx.router_result and getattr(ctx.router_result, "company_name_query", None)
+    )
     if has_company and intent not in global_intents:
         return handle_company_status(ctx)
 

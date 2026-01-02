@@ -66,6 +66,7 @@ def get_csv_base_path() -> Path:
 # CRM Data Store
 # =============================================================================
 
+
 class CRMDataStore:
     """
     DuckDB-based CRM data store with lazy loading.
@@ -185,9 +186,7 @@ class CRMDataStore:
 
         self._ensure_table("companies")
 
-        result = self.conn.execute(
-            "SELECT company_id, name FROM companies"
-        ).fetchall()
+        result = self.conn.execute("SELECT company_id, name FROM companies").fetchall()
 
         self._company_names_cache = {name.lower(): cid for cid, name in result}
         self._company_ids_cache = {cid for cid, _ in result}
@@ -245,9 +244,7 @@ class CRMDataStore:
         self._build_company_cache()
 
         all_names = list(self._company_names_cache.keys())
-        matches = get_close_matches(
-            partial_name.lower(), all_names, n=limit, cutoff=0.4
-        )
+        matches = get_close_matches(partial_name.lower(), all_names, n=limit, cutoff=0.4)
 
         results = []
         for name in matches:
@@ -265,17 +262,9 @@ class CRMDataStore:
         Returns dict with company fields, or None if not found.
         """
         self._ensure_table("companies")
-        return self._fetch_one_dict(
-            "SELECT * FROM companies WHERE company_id = ?",
-            [company_id]
-        )
+        return self._fetch_one_dict("SELECT * FROM companies WHERE company_id = ?", [company_id])
 
-    def get_recent_activities(
-        self,
-        company_id: str,
-        days: int = 90,
-        limit: int = 20
-    ) -> list[dict]:
+    def get_recent_activities(self, company_id: str, days: int = 90, limit: int = 20) -> list[dict]:
         """
         Get recent activities for a company.
 
@@ -294,7 +283,8 @@ class CRMDataStore:
         # Query with date filtering
         # Note: due_datetime may have timezone info, we do substring comparison
         try:
-            result = self.conn.execute(f"""
+            result = self.conn.execute(
+                f"""
                 SELECT * FROM activities
                 WHERE company_id = ?
                 AND (
@@ -304,25 +294,25 @@ class CRMDataStore:
                 )
                 ORDER BY COALESCE(due_datetime, created_at) DESC
                 LIMIT {limit}
-            """, [company_id]).fetchall()
+            """,
+                [company_id],
+            ).fetchall()
         except Exception:
             # Fallback without date filter if date parsing fails
-            result = self.conn.execute(f"""
+            result = self.conn.execute(
+                f"""
                 SELECT * FROM activities
                 WHERE company_id = ?
                 ORDER BY created_at DESC
                 LIMIT {limit}
-            """, [company_id]).fetchall()
+            """,
+                [company_id],
+            ).fetchall()
 
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
 
-    def get_recent_history(
-        self,
-        company_id: str,
-        days: int = 90,
-        limit: int = 20
-    ) -> list[dict]:
+    def get_recent_history(self, company_id: str, days: int = 90, limit: int = 20) -> list[dict]:
         """
         Get recent history entries for a company.
 
@@ -339,30 +329,32 @@ class CRMDataStore:
         cutoff = self._get_date_cutoff(days)
 
         try:
-            result = self.conn.execute(f"""
+            result = self.conn.execute(
+                f"""
                 SELECT * FROM history
                 WHERE company_id = ?
                 AND occurred_at >= '{cutoff}'
                 ORDER BY occurred_at DESC
                 LIMIT {limit}
-            """, [company_id]).fetchall()
+            """,
+                [company_id],
+            ).fetchall()
         except Exception:
             # Fallback without date filter
-            result = self.conn.execute(f"""
+            result = self.conn.execute(
+                f"""
                 SELECT * FROM history
                 WHERE company_id = ?
                 ORDER BY occurred_at DESC
                 LIMIT {limit}
-            """, [company_id]).fetchall()
+            """,
+                [company_id],
+            ).fetchall()
 
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
 
-    def get_open_opportunities(
-        self,
-        company_id: str,
-        limit: int = 20
-    ) -> list[dict]:
+    def get_open_opportunities(self, company_id: str, limit: int = 20) -> list[dict]:
         """
         Get open opportunities for a company.
 
@@ -370,13 +362,16 @@ class CRMDataStore:
         """
         self._ensure_table("opportunities")
 
-        result = self.conn.execute(f"""
+        result = self.conn.execute(
+            f"""
             SELECT * FROM opportunities
             WHERE company_id = ?
             AND LOWER(stage) NOT LIKE '%closed%'
             ORDER BY value DESC
             LIMIT {limit}
-        """, [company_id]).fetchall()
+        """,
+            [company_id],
+        ).fetchall()
 
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
@@ -393,7 +388,8 @@ class CRMDataStore:
         """
         self._ensure_table("opportunities")
 
-        result = self.conn.execute("""
+        result = self.conn.execute(
+            """
             SELECT
                 stage,
                 COUNT(*) as count,
@@ -402,10 +398,14 @@ class CRMDataStore:
             WHERE company_id = ?
             AND LOWER(stage) NOT LIKE '%closed%'
             GROUP BY stage
-        """, [company_id]).fetchall()
+        """,
+            [company_id],
+        ).fetchall()
 
-        stages = {stage: {"count": count, "total_value": float(value or 0)}
-                  for stage, count, value in result}
+        stages = {
+            stage: {"count": count, "total_value": float(value or 0)}
+            for stage, count, value in result
+        }
         return {
             "stages": stages,
             "total_count": sum(s["count"] for s in stages.values()),
@@ -413,10 +413,7 @@ class CRMDataStore:
         }
 
     def get_upcoming_renewals(
-        self,
-        days: int = 90,
-        limit: int = 20,
-        owner: str | None = None
+        self, days: int = 90, limit: int = 20, owner: str | None = None
     ) -> list[dict]:
         """
         Get companies with upcoming renewals.
@@ -460,25 +457,17 @@ class CRMDataStore:
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in result]
 
-    def get_contacts_for_company(
-        self,
-        company_id: str,
-        limit: int = 10
-    ) -> list[dict]:
+    def get_contacts_for_company(self, company_id: str, limit: int = 10) -> list[dict]:
         """Get contacts for a company."""
         self._ensure_table("contacts")
         return self._fetch_all_dicts(
-            f"SELECT * FROM contacts WHERE company_id = ? LIMIT {limit}",
-            [company_id]
+            f"SELECT * FROM contacts WHERE company_id = ? LIMIT {limit}", [company_id]
         )
 
     def get_contact(self, contact_id: str) -> dict | None:
         """Get contact by ID."""
         self._ensure_table("contacts")
-        return self._fetch_one_dict(
-            "SELECT * FROM contacts WHERE contact_id = ?",
-            [contact_id]
-        )
+        return self._fetch_one_dict("SELECT * FROM contacts WHERE contact_id = ?", [contact_id])
 
     def search_contacts(
         self,
@@ -486,7 +475,7 @@ class CRMDataStore:
         role: str = "",
         job_title: str = "",
         company_id: str = "",
-        limit: int = 20
+        limit: int = 20,
     ) -> list[dict]:
         """
         Search contacts by name, role, job_title, or company.
@@ -528,8 +517,7 @@ class CRMDataStore:
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
         return self._fetch_all_dicts(
-            f"SELECT * FROM contacts WHERE {where_clause} LIMIT {limit}",
-            params
+            f"SELECT * FROM contacts WHERE {where_clause} LIMIT {limit}", params
         )
 
     def search_companies(
@@ -539,7 +527,7 @@ class CRMDataStore:
         segment: str = "",
         status: str = "",
         region: str = "",
-        limit: int = 20
+        limit: int = 20,
     ) -> list[dict]:
         """
         Search companies by various criteria.
@@ -580,18 +568,14 @@ class CRMDataStore:
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
         return self._fetch_all_dicts(
-            f"SELECT * FROM companies WHERE {where_clause} ORDER BY name LIMIT {limit}",
-            params
+            f"SELECT * FROM companies WHERE {where_clause} ORDER BY name LIMIT {limit}", params
         )
 
     def get_group(self, group_id: str) -> dict | None:
         """Get group by ID."""
         if not self._ensure_table("groups"):
             return None
-        return self._fetch_one_dict(
-            "SELECT * FROM groups WHERE group_id = ?",
-            [group_id]
-        )
+        return self._fetch_one_dict("SELECT * FROM groups WHERE group_id = ?", [group_id])
 
     def get_all_groups(self) -> list[dict]:
         """Get all groups."""
@@ -609,19 +593,18 @@ class CRMDataStore:
             return []
         self._ensure_table("companies")
 
-        return self._fetch_all_dicts(f"""
+        return self._fetch_all_dicts(
+            f"""
             SELECT c.* FROM companies c
             INNER JOIN group_members gm ON c.company_id = gm.company_id
             WHERE gm.group_id = ?
             LIMIT {limit}
-        """, [group_id])
+        """,
+            [group_id],
+        )
 
     def search_attachments(
-        self,
-        query: str = "",
-        company_id: str = "",
-        file_type: str = "",
-        limit: int = 20
+        self, query: str = "", company_id: str = "", file_type: str = "", limit: int = 20
     ) -> list[dict]:
         """
         Search attachments by title, company, or file type.
@@ -649,7 +632,7 @@ class CRMDataStore:
 
         return self._fetch_all_dicts(
             f"SELECT * FROM attachments WHERE {where_clause} ORDER BY created_at DESC LIMIT {limit}",
-            params
+            params,
         )
 
     def get_all_pipeline_summary(self) -> dict:
@@ -698,18 +681,18 @@ class CRMDataStore:
         return {
             "total_count": overall[0] if overall else 0,
             "total_value": float(overall[1] or 0) if overall else 0,
-            "by_stage": {stage: {"count": count, "value": float(value or 0)}
-                        for stage, count, value in by_stage},
-            "top_companies": [{"company_id": cid, "count": count, "value": float(value or 0)}
-                            for cid, count, value in by_company],
+            "by_stage": {
+                stage: {"count": count, "value": float(value or 0)}
+                for stage, count, value in by_stage
+            },
+            "top_companies": [
+                {"company_id": cid, "count": count, "value": float(value or 0)}
+                for cid, count, value in by_company
+            ],
         }
 
     def search_activities(
-        self,
-        activity_type: str = "",
-        days: int = 30,
-        company_id: str = "",
-        limit: int = 30
+        self, activity_type: str = "", days: int = 30, company_id: str = "", limit: int = 30
     ) -> list[dict]:
         """
         Search activities by type, date range, or company.
@@ -740,18 +723,14 @@ class CRMDataStore:
 
         return self._fetch_all_dicts(
             f"SELECT * FROM activities WHERE {where_clause} ORDER BY due_datetime DESC LIMIT {limit}",
-            params
+            params,
         )
 
     # =========================================================================
     # Analytics Methods
     # =========================================================================
 
-    def get_contact_breakdown(
-        self,
-        company_id: str | None = None,
-        group_by: str = "role"
-    ) -> dict:
+    def get_contact_breakdown(self, company_id: str | None = None, group_by: str = "role") -> dict:
         """
         Get breakdown of contacts by role or job_title.
 
@@ -767,7 +746,8 @@ class CRMDataStore:
         group_field = "role" if group_by == "role" else "job_title"
 
         if company_id:
-            result = self.conn.execute(f"""
+            result = self.conn.execute(
+                f"""
                 SELECT
                     COALESCE({group_field}, 'Unknown') as category,
                     COUNT(*) as count
@@ -775,11 +755,12 @@ class CRMDataStore:
                 WHERE company_id = ?
                 GROUP BY {group_field}
                 ORDER BY count DESC
-            """, [company_id]).fetchall()
+            """,
+                [company_id],
+            ).fetchall()
 
             total = self.conn.execute(
-                "SELECT COUNT(*) FROM contacts WHERE company_id = ?",
-                [company_id]
+                "SELECT COUNT(*) FROM contacts WHERE company_id = ?", [company_id]
             ).fetchone()[0]
         else:
             result = self.conn.execute(f"""
@@ -794,7 +775,11 @@ class CRMDataStore:
             total = self.conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
 
         breakdown = [
-            {"category": cat, "count": count, "percentage": round(count / total * 100, 1) if total > 0 else 0}
+            {
+                "category": cat,
+                "count": count,
+                "percentage": round(count / total * 100, 1) if total > 0 else 0,
+            }
             for cat, count in result
         ]
 
@@ -806,10 +791,7 @@ class CRMDataStore:
         }
 
     def get_activity_breakdown(
-        self,
-        company_id: str | None = None,
-        days: int = 30,
-        group_by: str = "type"
+        self, company_id: str | None = None, days: int = 30, group_by: str = "type"
     ) -> dict:
         """
         Get breakdown of activities by type.
@@ -836,7 +818,8 @@ class CRMDataStore:
 
         where_clause = " AND ".join(conditions)
 
-        result = self.conn.execute(f"""
+        result = self.conn.execute(
+            f"""
             SELECT
                 COALESCE({group_field}, 'Unknown') as category,
                 COUNT(*) as count
@@ -844,16 +827,21 @@ class CRMDataStore:
             WHERE {where_clause}
             GROUP BY {group_field}
             ORDER BY count DESC
-        """, params).fetchall()
+        """,
+            params,
+        ).fetchall()
 
         total_result = self.conn.execute(
-            f"SELECT COUNT(*) FROM activities WHERE {where_clause}",
-            params
+            f"SELECT COUNT(*) FROM activities WHERE {where_clause}", params
         ).fetchone()
         total = total_result[0] if total_result else 0
 
         breakdown = [
-            {"category": cat, "count": count, "percentage": round(count / total * 100, 1) if total > 0 else 0}
+            {
+                "category": cat,
+                "count": count,
+                "percentage": round(count / total * 100, 1) if total > 0 else 0,
+            }
             for cat, count in result
         ]
 
@@ -897,7 +885,9 @@ class CRMDataStore:
                 "group_id": gid,
                 "group_name": name,
                 "count": count,
-                "percentage": round(count / total_memberships * 100, 1) if total_memberships > 0 else 0
+                "percentage": round(count / total_memberships * 100, 1)
+                if total_memberships > 0
+                else 0,
             }
             for gid, name, count in result
         ]
@@ -925,7 +915,8 @@ class CRMDataStore:
 
         if group_id:
             # Stats for specific group
-            result = self.conn.execute("""
+            result = self.conn.execute(
+                """
                 SELECT
                     g.group_id,
                     g.name as group_name,
@@ -938,7 +929,9 @@ class CRMDataStore:
                     AND LOWER(o.stage) NOT LIKE '%closed%'
                 WHERE g.group_id = ?
                 GROUP BY g.group_id, g.name
-            """, [group_id]).fetchone()
+            """,
+                [group_id],
+            ).fetchone()
 
             if result:
                 return {
@@ -975,7 +968,9 @@ class CRMDataStore:
                 "company_count": company_count,
                 "deal_count": deal_count,
                 "total_value": float(value or 0),
-                "percentage": round(float(value or 0) / total_value * 100, 1) if total_value > 0 else 0
+                "percentage": round(float(value or 0) / total_value * 100, 1)
+                if total_value > 0
+                else 0,
             }
             for gid, name, company_count, deal_count, value in result
         ]
@@ -1006,7 +1001,8 @@ class CRMDataStore:
 
         where_clause = " AND ".join(conditions)
 
-        result = self.conn.execute(f"""
+        result = self.conn.execute(
+            f"""
             SELECT
                 owner,
                 COUNT(*) as deal_count,
@@ -1016,7 +1012,9 @@ class CRMDataStore:
             WHERE {where_clause}
             GROUP BY owner
             ORDER BY total_value DESC
-        """, params).fetchall()
+        """,
+            params,
+        ).fetchall()
 
         total_value = sum(float(row[2] or 0) for row in result)
         total_count = sum(row[1] for row in result)
@@ -1027,7 +1025,9 @@ class CRMDataStore:
                 "deal_count": count,
                 "total_value": float(value or 0),
                 "avg_days_in_stage": round(float(avg_days or 0), 1),
-                "percentage": round(float(value or 0) / total_value * 100, 1) if total_value > 0 else 0
+                "percentage": round(float(value or 0) / total_value * 100, 1)
+                if total_value > 0
+                else 0,
             }
             for owner_id, count, value, avg_days in result
         ]
@@ -1040,10 +1040,7 @@ class CRMDataStore:
         }
 
     def get_deals_at_risk(
-        self,
-        owner: str | None = None,
-        days_threshold: int = 45,
-        limit: int = 20
+        self, owner: str | None = None, days_threshold: int = 45, limit: int = 20
     ) -> list[dict]:
         """
         Get deals that are at risk (stale or need attention).
@@ -1064,7 +1061,7 @@ class CRMDataStore:
 
         conditions = [
             "LOWER(stage) NOT LIKE '%closed%'",
-            f"COALESCE(days_in_stage, 0) >= {days_threshold}"
+            f"COALESCE(days_in_stage, 0) >= {days_threshold}",
         ]
         params = []
 
@@ -1074,12 +1071,15 @@ class CRMDataStore:
 
         where_clause = " AND ".join(conditions)
 
-        return self._fetch_all_dicts(f"""
+        return self._fetch_all_dicts(
+            f"""
             SELECT * FROM opportunities
             WHERE {where_clause}
             ORDER BY days_in_stage DESC, value DESC
             LIMIT {limit}
-        """, params)
+        """,
+            params,
+        )
 
     def get_forecast(self, owner: str | None = None) -> dict:
         """
@@ -1118,11 +1118,14 @@ class CRMDataStore:
         where_clause = " AND ".join(conditions)
 
         # Get all open opportunities
-        opps = self._fetch_all_dicts(f"""
+        opps = self._fetch_all_dicts(
+            f"""
             SELECT owner, stage, value, name, expected_close_date
             FROM opportunities
             WHERE {where_clause}
-        """, params)
+        """,
+            params,
+        )
 
         # Calculate weighted values
         by_stage = {}
@@ -1187,11 +1190,14 @@ class CRMDataStore:
         where_clause = " AND ".join(conditions)
 
         # Get all closed opportunities
-        closed = self._fetch_all_dicts(f"""
+        closed = self._fetch_all_dicts(
+            f"""
             SELECT owner, stage, value, name, type
             FROM opportunities
             WHERE {where_clause}
-        """, params)
+        """,
+            params,
+        )
 
         # Calculate metrics
         by_owner = {}
@@ -1242,9 +1248,7 @@ class CRMDataStore:
         }
 
     def get_accounts_needing_attention(
-        self,
-        owner: str | None = None,
-        limit: int = 20
+        self, owner: str | None = None, limit: int = 20
     ) -> list[dict]:
         """
         Get accounts that need immediate attention.
@@ -1279,7 +1283,8 @@ class CRMDataStore:
 
         where_clause = " AND ".join(conditions)
 
-        return self._fetch_all_dicts(f"""
+        return self._fetch_all_dicts(
+            f"""
             SELECT * FROM companies
             WHERE {where_clause}
             ORDER BY
@@ -1290,7 +1295,9 @@ class CRMDataStore:
                 END,
                 name
             LIMIT {limit}
-        """, params)
+        """,
+            params,
+        )
 
     def get_activity_count_by_filter(
         self,
@@ -1326,8 +1333,7 @@ class CRMDataStore:
         where_clause = " AND ".join(conditions)
 
         result = self.conn.execute(
-            f"SELECT COUNT(*) FROM activities WHERE {where_clause}",
-            params
+            f"SELECT COUNT(*) FROM activities WHERE {where_clause}", params
         ).fetchone()
 
         return {
@@ -1353,7 +1359,7 @@ def get_datastore() -> CRMDataStore:
     Each thread gets its own DuckDB connection to avoid
     concurrent access issues.
     """
-    if not hasattr(_thread_local, 'datastore'):
+    if not hasattr(_thread_local, "datastore"):
         _thread_local.datastore = CRMDataStore()
     return _thread_local.datastore
 

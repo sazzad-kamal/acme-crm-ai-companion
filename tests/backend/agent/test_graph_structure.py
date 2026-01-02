@@ -47,25 +47,27 @@ class TestGraphStructure:
         assert not hasattr(nodes, "skip_data_node"), "skip_data_node should be removed"
         assert not hasattr(nodes, "skip_docs_node"), "skip_docs_node should be removed"
 
-    def test_nodes_module_exports(self):
-        """Verify nodes module exports the correct functions."""
-        from backend.agent.nodes import __all__
+    def test_nodes_modules_exist(self):
+        """Verify nodes submodules export the correct functions."""
+        from backend.agent.nodes.routing import route_node
+        from backend.agent.nodes.fetching import (
+            fetch_node,
+            ACCOUNT_RAG_INTENTS,
+            _fetch_crm_data,
+            _fetch_docs,
+            _fetch_account_context,
+        )
+        from backend.agent.nodes.generation import answer_node, followup_node
 
-        expected_exports = {
-            # Node functions
-            "route_node",
-            "fetch_node",
-            "answer_node",
-            "followup_node",
-            # Constants (for testing)
-            "ACCOUNT_RAG_INTENTS",
-            # Helper functions (for testing)
-            "_fetch_crm_data",
-            "_fetch_docs",
-            "_fetch_account_context",
-        }
-
-        assert set(__all__) == expected_exports
+        # Verify all functions are callable
+        assert callable(route_node)
+        assert callable(fetch_node)
+        assert callable(answer_node)
+        assert callable(followup_node)
+        assert callable(_fetch_crm_data)
+        assert callable(_fetch_docs)
+        assert callable(_fetch_account_context)
+        assert isinstance(ACCOUNT_RAG_INTENTS, frozenset)
 
 
 class TestIntentHandlers:
@@ -121,7 +123,7 @@ class TestAccountRAGTrigger:
 
     def test_account_rag_trigger_intents(self):
         """Verify Account RAG triggers for the correct intents using the constant."""
-        from backend.agent.nodes import ACCOUNT_RAG_INTENTS
+        from backend.agent.nodes.fetching import ACCOUNT_RAG_INTENTS
 
         # Expected intents that should trigger Account RAG
         expected_intents = {"account_context", "company_status", "history", "pipeline"}
@@ -132,7 +134,7 @@ class TestAccountRAGTrigger:
 
     def test_account_rag_not_trigger_for_aggregate_intents(self):
         """Verify Account RAG does NOT trigger for aggregate intents."""
-        from backend.agent.nodes import ACCOUNT_RAG_INTENTS
+        from backend.agent.nodes.fetching import ACCOUNT_RAG_INTENTS
 
         # Aggregate intents that don't need Account RAG
         aggregate_intents = {"renewals", "pipeline_summary", "activities", "groups"}

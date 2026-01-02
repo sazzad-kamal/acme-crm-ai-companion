@@ -147,54 +147,6 @@ class TestAgentAudit:
             if log_path.exists():
                 log_path.unlink()
     
-    def test_audit_read_recent_queries(self):
-        """Test reading recent queries."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
-            log_path = Path(f.name)
-        
-        try:
-            logger = AgentAuditLogger(log_file=log_path)
-            
-            # Log multiple queries
-            for i in range(5):
-                logger.log_query(
-                    question=f"Question {i}",
-                    mode_used="data",
-                    latency_ms=100 + i * 10,
-                )
-            
-            # Read back
-            queries = logger.read_recent_queries(limit=3)
-            assert len(queries) == 3
-            # Most recent first
-            assert "Question 4" in queries[0]["question"]
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-    
-    def test_audit_get_stats(self):
-        """Test getting statistics."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
-            log_path = Path(f.name)
-        
-        try:
-            logger = AgentAuditLogger(log_file=log_path)
-            
-            # Log queries with different modes
-            logger.log_query(question="Q1", mode_used="data", latency_ms=100)
-            logger.log_query(question="Q2", mode_used="docs", latency_ms=200)
-            logger.log_query(question="Q3", mode_used="data", latency_ms=300)
-            
-            stats = logger.get_stats()
-            assert stats["total_queries"] == 3
-            assert stats["modes"]["data"] == 2
-            assert stats["modes"]["docs"] == 1
-            assert stats["avg_latency_ms"] == 200
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-
-
 # =============================================================================
 # Progress Tracking Tests
 # =============================================================================

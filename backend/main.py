@@ -46,13 +46,23 @@ load_dotenv(project_root / ".env")
 # =============================================================================
 
 from backend.config import get_settings
-from backend.api import router
+from backend.api.chat import router as chat_router
+from backend.api.health import router as health_router
+from backend.api.data import router as data_router
 from backend.middleware import RequestLoggingMiddleware, CacheControlMiddleware, RateLimitMiddleware
 from backend.exceptions import APIError, ErrorResponse
+
+# Combined API router
+from fastapi import APIRouter
+router = APIRouter(prefix="/api")
+router.include_router(chat_router, tags=["chat"])
+router.include_router(health_router, tags=["health"])
+router.include_router(data_router, tags=["data"])
 
 # =============================================================================
 # Logging Setup
 # =============================================================================
+
 
 def setup_logging() -> None:
     """Configure logging for the application."""
@@ -79,6 +89,7 @@ logger = logging.getLogger(__name__)
 # RAG Collection Setup
 # =============================================================================
 
+
 def ensure_rag_collections_exist() -> None:
     """
     Ensure RAG Qdrant collections exist, create if missing.
@@ -87,8 +98,11 @@ def ensure_rag_collections_exist() -> None:
     """
     from qdrant_client import QdrantClient
     from backend.agent.rag_tools import (
-        QDRANT_PATH, DOCS_COLLECTION, PRIVATE_COLLECTION,
-        ingest_docs, ingest_private_texts,
+        QDRANT_PATH,
+        DOCS_COLLECTION,
+        PRIVATE_COLLECTION,
+        ingest_docs,
+        ingest_private_texts,
     )
 
     qdrant = QdrantClient(path=str(QDRANT_PATH))
@@ -119,7 +133,9 @@ def ensure_rag_collections_exist() -> None:
         else:
             info = qdrant.get_collection(PRIVATE_COLLECTION)
             if info.points_count == 0:
-                logger.info(f"Collection '{PRIVATE_COLLECTION}' is empty, ingesting private texts...")
+                logger.info(
+                    f"Collection '{PRIVATE_COLLECTION}' is empty, ingesting private texts..."
+                )
                 qdrant.close()
                 ingest_private_texts()
                 qdrant = QdrantClient(path=str(QDRANT_PATH))
@@ -136,6 +152,7 @@ def ensure_rag_collections_exist() -> None:
 # =============================================================================
 # Application Lifespan
 # =============================================================================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -163,6 +180,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 # =============================================================================
 # Application Factory
 # =============================================================================
+
 
 def create_app() -> FastAPI:
     """
@@ -210,7 +228,12 @@ Talk to your CRM data using natural language.
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-Request-ID", "X-Response-Time", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
+        expose_headers=[
+            "X-Request-ID",
+            "X-Response-Time",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+        ],
     )
 
     # Custom middleware (order matters - first added = last executed)
@@ -271,6 +294,7 @@ Talk to your CRM data using natural language.
     async def root() -> RedirectResponse:
         """Redirect root to API docs."""
         from fastapi.responses import RedirectResponse
+
         return RedirectResponse(url="/docs")
 
     return app

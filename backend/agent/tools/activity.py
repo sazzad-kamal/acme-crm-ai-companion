@@ -9,10 +9,7 @@ from backend.agent.tools.base import make_sources, with_datastore
 
 @with_datastore
 def tool_recent_activity(
-    company_id: str,
-    days: int = 90,
-    limit: int = 20,
-    datastore: CRMDataStore | None = None
+    company_id: str, days: int = 90, limit: int = 20, datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """Get recent activities for a company."""
     ds = datastore
@@ -31,18 +28,17 @@ def tool_recent_activity(
             "activities": activities,
         },
         sources=make_sources(
-            activities, "activities", company_id,
-            f"Activities for {company_name} (last {days} days)"
-        )
+            activities,
+            "activities",
+            company_id,
+            f"Activities for {company_name} (last {days} days)",
+        ),
     )
 
 
 @with_datastore
 def tool_recent_history(
-    company_id: str,
-    days: int = 90,
-    limit: int = 20,
-    datastore: CRMDataStore | None = None
+    company_id: str, days: int = 90, limit: int = 20, datastore: CRMDataStore | None = None
 ) -> ToolResult:
     """Get recent history entries (calls, emails, notes) for a company."""
     ds = datastore
@@ -61,9 +57,8 @@ def tool_recent_history(
             "history": history,
         },
         sources=make_sources(
-            history, "history", company_id,
-            f"History for {company_name} (last {days} days)"
-        )
+            history, "history", company_id, f"History for {company_name} (last {days} days)"
+        ),
     )
 
 
@@ -73,19 +68,20 @@ def tool_search_activities(
     days: int = 30,
     company_id: str = "",
     limit: int = 30,
-    datastore: CRMDataStore | None = None
+    datastore: CRMDataStore | None = None,
 ) -> ToolResult:
     """Search activities by type, date range, or company."""
     ds = datastore
 
     activities = ds.search_activities(
-        activity_type=activity_type, days=days,
-        company_id=company_id, limit=limit
+        activity_type=activity_type, days=days, company_id=company_id, limit=limit
     )
 
     search_desc = []
-    if activity_type: search_desc.append(f"type='{activity_type}'")
-    if company_id: search_desc.append(f"company='{company_id}'")
+    if activity_type:
+        search_desc.append(f"type='{activity_type}'")
+    if company_id:
+        search_desc.append(f"company='{company_id}'")
     search_desc.append(f"last {days} days")
 
     label = f"Activities: {', '.join(search_desc)}"
@@ -96,7 +92,7 @@ def tool_search_activities(
             "activities": activities,
             "filters": {"activity_type": activity_type, "days": days, "company_id": company_id},
         },
-        sources=make_sources(activities, "activities", "search", label)
+        sources=make_sources(activities, "activities", "search", label),
     )
 
 
@@ -125,7 +121,7 @@ def tool_analytics(
     group_id: str = "",
     activity_type: str = "",
     days: int = 30,
-    datastore: CRMDataStore | None = None
+    datastore: CRMDataStore | None = None,
 ) -> ToolResult:
     """Get analytics and breakdowns for CRM data."""
     ds = datastore
@@ -135,23 +131,39 @@ def tool_analytics(
     match metric:
         case "contact_breakdown":
             data = ds.get_contact_breakdown(company_id=resolved, group_by=group_by or "role")
-            return _analytics_result(ds, data, f"contacts_{resolved or 'all'}",
-                                     f"Contact breakdown by {group_by or 'role'}{suffix}")
+            return _analytics_result(
+                ds,
+                data,
+                f"contacts_{resolved or 'all'}",
+                f"Contact breakdown by {group_by or 'role'}{suffix}",
+            )
 
         case "activity_breakdown":
-            data = ds.get_activity_breakdown(company_id=resolved, days=days, group_by=group_by or "type")
-            return _analytics_result(ds, data, f"activities_{resolved or 'all'}",
-                                     f"Activity breakdown by {group_by or 'type'} (last {days} days){suffix}")
+            data = ds.get_activity_breakdown(
+                company_id=resolved, days=days, group_by=group_by or "type"
+            )
+            return _analytics_result(
+                ds,
+                data,
+                f"activities_{resolved or 'all'}",
+                f"Activity breakdown by {group_by or 'type'} (last {days} days){suffix}",
+            )
 
         case "activity_count":
-            data = ds.get_activity_count_by_filter(activity_type=activity_type or None, days=days, company_id=resolved)
+            data = ds.get_activity_count_by_filter(
+                activity_type=activity_type or None, days=days, company_id=resolved
+            )
             parts = [f"Activity count (last {days} days)"]
-            if activity_type: parts.append(f"type={activity_type}")
-            if company_name: parts.append(f"for {company_name}")
+            if activity_type:
+                parts.append(f"type={activity_type}")
+            if company_name:
+                parts.append(f"for {company_name}")
             return _analytics_result(ds, data, "activity_count", " ".join(parts))
 
         case "accounts_by_group":
-            return _analytics_result(ds, ds.get_accounts_by_group(), "accounts_by_group", "Account distribution by group")
+            return _analytics_result(
+                ds, ds.get_accounts_by_group(), "accounts_by_group", "Account distribution by group"
+            )
 
         case "pipeline_by_group":
             data = ds.get_pipeline_by_group(group_id=group_id or None)
@@ -160,10 +172,18 @@ def tool_analytics(
 
         case _:
             return ToolResult(
-                data={"error": f"Unknown metric: {metric}",
-                      "available_metrics": ["contact_breakdown", "activity_breakdown", "activity_count",
-                                            "accounts_by_group", "pipeline_by_group"]},
-                sources=[], error=f"Unknown analytics metric: {metric}"
+                data={
+                    "error": f"Unknown metric: {metric}",
+                    "available_metrics": [
+                        "contact_breakdown",
+                        "activity_breakdown",
+                        "activity_count",
+                        "accounts_by_group",
+                        "pipeline_by_group",
+                    ],
+                },
+                sources=[],
+                error=f"Unknown analytics metric: {metric}",
             )
 
 

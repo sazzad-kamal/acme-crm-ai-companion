@@ -2,12 +2,18 @@
 
 import pytest
 from unittest.mock import patch
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.testclient import TestClient
 
-from backend.api import router
-from backend.api.health import HealthResponse, SystemInfo
-from backend.api.data import DataResponse, load_csv_data, load_jsonl_data
+from backend.api.chat import router as chat_router
+from backend.api.health import router as health_router, HealthResponse, SystemInfo
+from backend.api.data import router as data_router, DataResponse, load_csv_data, load_jsonl_data
+
+# Combined API router (same as main.py)
+router = APIRouter(prefix="/api")
+router.include_router(chat_router, tags=["chat"])
+router.include_router(health_router, tags=["health"])
+router.include_router(data_router, tags=["data"])
 
 
 # =============================================================================

@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 # Load .env from project root
 from dotenv import load_dotenv
+
 project_root = Path(__file__).parent.parent.parent
 load_dotenv(project_root / ".env")
 
@@ -96,7 +97,13 @@ def run_profiled_query(question: str, expected_mode: str):
     # Print step breakdown
     print("   Steps:")
     for step in steps:
-        status_icon = "[OK]" if step.get("status") == "done" else "[--]" if step.get("status") == "skipped" else "[!!]"
+        status_icon = (
+            "[OK]"
+            if step.get("status") == "done"
+            else "[--]"
+            if step.get("status") == "skipped"
+            else "[!!]"
+        )
         print(f"      {status_icon} {step.get('id', '?'):15} - {step.get('label', '')}")
 
     print()
@@ -142,7 +149,9 @@ def main():
         if "error" in r:
             print(f"{r['question'][:43]:<45} ERROR")
         else:
-            print(f"{r['question'][:43]:<45} {r['mode']:<12} {r['latency_ms']:>6}ms   {r['sources']}")
+            print(
+                f"{r['question'][:43]:<45} {r['mode']:<12} {r['latency_ms']:>6}ms   {r['sources']}"
+            )
 
     # Average latency
     valid = [r for r in results if "latency_ms" in r]

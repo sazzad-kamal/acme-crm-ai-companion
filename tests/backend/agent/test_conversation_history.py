@@ -222,16 +222,3 @@ class TestPronounResolutionContext:
         assert "User:" in formatted
         assert "Assistant:" in formatted
 
-    def test_multiple_companies_last_wins(self):
-        """Test that the most recent company is used for resolution."""
-        session_id = "multi_company"
-
-        add_message(session_id, "user", "Tell me about Acme", None)
-        add_message(session_id, "assistant", "Acme info", "ACME-MFG")
-        add_message(session_id, "user", "Now tell me about Beta Tech", None)
-        add_message(session_id, "assistant", "Beta info", "BETA-TECH")
-
-        # When user asks "their contacts?", should resolve to BETA-TECH
-        from backend.agent.memory import get_last_company_context
-        last_company = get_last_company_context(session_id)
-        assert last_company == "BETA-TECH"

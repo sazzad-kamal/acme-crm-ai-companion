@@ -12,8 +12,10 @@ from pydantic import BaseModel, Field
 # Source Models
 # =============================================================================
 
+
 class Source(BaseModel):
     """A source reference for citations."""
+
     type: str  # "company", "doc", "activity", "opportunity", "history"
     id: str
     label: str
@@ -23,8 +25,10 @@ class Source(BaseModel):
 # Step Models
 # =============================================================================
 
+
 class Step(BaseModel):
     """A processing step for UI progress display."""
+
     id: str
     label: str
     status: str = "done"  # "done", "error", "skipped"
@@ -34,8 +38,10 @@ class Step(BaseModel):
 # Raw Data Models (flexible for UI)
 # =============================================================================
 
+
 class RawData(BaseModel):
     """Raw data payload for UI display."""
+
     companies: list[dict[str, Any]] = Field(default_factory=list)
     activities: list[dict[str, Any]] = Field(default_factory=list)
     opportunities: list[dict[str, Any]] = Field(default_factory=list)
@@ -48,8 +54,10 @@ class RawData(BaseModel):
 # Meta Info
 # =============================================================================
 
+
 class MetaInfo(BaseModel):
     """Metadata about the response."""
+
     mode_used: str  # "docs", "data", "data+docs"
     latency_ms: int
     company_id: str | None = None
@@ -65,8 +73,10 @@ class MetaInfo(BaseModel):
 # Request/Response
 # =============================================================================
 
+
 class ChatRequest(BaseModel):
     """Incoming chat request from the frontend."""
+
     question: str
     mode: str | None = "auto"  # "auto", "docs", "data", "data+docs"
     session_id: str | None = None
@@ -76,6 +86,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     """Response to the frontend."""
+
     answer: str
     sources: list[Source]
     steps: list[Step]
@@ -88,8 +99,10 @@ class ChatResponse(BaseModel):
 # Router Models
 # =============================================================================
 
+
 class RouterResult(BaseModel):
     """Result from the router's analysis."""
+
     mode_used: str  # "docs", "data", "data+docs"
     company_id: str | None = None
     company_name_query: str | None = None  # If we need to resolve a name
@@ -108,8 +121,10 @@ class RouterResult(BaseModel):
 # Tool Results
 # =============================================================================
 
+
 class ToolResult(BaseModel):
     """Result from a tool function."""
+
     data: dict[str, Any]
     sources: list[Source]
     error: str | None = None

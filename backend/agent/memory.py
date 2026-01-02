@@ -74,7 +74,9 @@ def add_message(
         # Trim to max size (keep most recent)
         if len(messages) > MAX_MESSAGES_PER_SESSION:
             _memory_store[session_id] = messages[-MAX_MESSAGES_PER_SESSION:]
-            logger.debug(f"[Memory] Trimmed session {session_id} to {MAX_MESSAGES_PER_SESSION} messages")
+            logger.debug(
+                f"[Memory] Trimmed session {session_id} to {MAX_MESSAGES_PER_SESSION} messages"
+            )
 
         logger.debug(f"[Memory] Added {role} message to session {session_id}")
 
@@ -93,31 +95,6 @@ def clear_session(session_id: str | None) -> None:
         if session_id in _memory_store:
             del _memory_store[session_id]
             logger.debug(f"[Memory] Cleared session {session_id}")
-
-
-def get_last_company_context(session_id: str | None) -> str | None:
-    """
-    Get the most recent company context from conversation history.
-
-    Useful for resolving pronouns like "their" or "them" to the last
-    mentioned company.
-
-    Args:
-        session_id: The session identifier
-
-    Returns:
-        The last company_id mentioned, or None
-    """
-    if not session_id:
-        return None
-
-    with _memory_lock:
-        messages = _memory_store.get(session_id, [])
-        # Walk backwards to find the last message with a company context
-        for msg in reversed(messages):
-            if msg.get("company_id"):
-                return msg["company_id"]
-        return None
 
 
 def format_history_for_prompt(
@@ -155,7 +132,6 @@ __all__ = [
     "get_conversation_history",
     "add_message",
     "clear_session",
-    "get_last_company_context",
     "format_history_for_prompt",
     "MAX_MESSAGES_PER_SESSION",
 ]

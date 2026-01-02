@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentProgress:
     """Tracks progress through the agent pipeline."""
+
     steps: list[Step] = field(default_factory=list)
     start_time: float = field(default_factory=time.time)
 

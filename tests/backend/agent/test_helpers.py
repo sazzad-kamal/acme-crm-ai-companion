@@ -397,28 +397,6 @@ class TestCallAnswerChainMockMode:
 
 
 # =============================================================================
-# clear_chain_caches Tests
-# =============================================================================
-
-class TestClearChainCaches:
-    """Tests for clear_chain_caches function."""
-
-    def test_clears_caches_without_error(self):
-        """Clears caches without raising errors."""
-        from backend.agent.llm_helpers import clear_chain_caches
-        # Should not raise
-        clear_chain_caches()
-
-    def test_can_be_called_multiple_times(self):
-        """Can be called multiple times."""
-        from backend.agent.llm_helpers import clear_chain_caches
-        clear_chain_caches()
-        clear_chain_caches()
-        clear_chain_caches()
-        # No errors
-
-
-# =============================================================================
 # _format_available_data Tests
 # =============================================================================
 

@@ -22,21 +22,25 @@ import pytest
 pytestmark = pytest.mark.integration
 
 from backend.agent.datastore import get_datastore
-from backend.agent.tools import (
-    tool_analytics,
+from backend.agent.tools.company import (
     tool_company_lookup,
     tool_contact_lookup,
     tool_group_members,
     tool_list_groups,
-    tool_pipeline,
-    tool_pipeline_summary,
-    tool_recent_activity,
-    tool_recent_history,
-    tool_search_activities,
     tool_search_attachments,
     tool_search_companies,
     tool_search_contacts,
+)
+from backend.agent.tools.pipeline import (
+    tool_pipeline,
+    tool_pipeline_summary,
     tool_upcoming_renewals,
+)
+from backend.agent.tools.activity import (
+    tool_analytics,
+    tool_recent_activity,
+    tool_recent_history,
+    tool_search_activities,
 )
 
 

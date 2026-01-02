@@ -1,11 +1,10 @@
 """
-Shared evaluation utilities for agent and RAG evaluation harnesses.
+Shared evaluation utilities for agent evaluation harnesses.
 
 Provides:
 - Rich console formatting helpers
-- Common summary table rendering
-- Shared metrics computation
-- Result saving utilities
+- Summary table rendering
+- Baseline comparison utilities
 - Parallel evaluation runner
 """
 
@@ -33,8 +32,9 @@ console = Console()
 
 
 # =============================================================================
-# Table Creation Helpers
+# Table Creation
 # =============================================================================
+
 
 def create_summary_table(title: str = "Evaluation Summary") -> Table:
     """Create a standard summary table with consistent styling."""
@@ -44,37 +44,10 @@ def create_summary_table(title: str = "Evaluation Summary") -> Table:
     return table
 
 
-def create_detail_table(title: str, columns: list[tuple[str, str]]) -> Table:
-    """
-    Create a detail table with custom columns.
-
-    Args:
-        title: Table title
-        columns: List of (name, justify) tuples
-    """
-    table = Table(title=title, show_header=True, header_style="bold")
-    for name, justify in columns:
-        table.add_column(name, justify=justify)
-    return table
-
-
-def create_comparison_table(title: str, columns: list[tuple[str, str, str]]) -> Table:
-    """
-    Create a comparison table with custom columns and styles.
-
-    Args:
-        title: Table title
-        columns: List of (name, justify, style) tuples
-    """
-    table = Table(title=title, show_header=True, header_style="bold cyan")
-    for name, justify, style in columns:
-        table.add_column(name, justify=justify, style=style if style else None)
-    return table
-
-
 # =============================================================================
 # Formatting Helpers
 # =============================================================================
+
 
 def format_check_mark(value: bool) -> str:
     """Format boolean as colored check/cross mark."""
@@ -102,195 +75,20 @@ def format_percentage(value: float, thresholds: tuple[float, float] = (0.9, 0.7)
     return f"[{color}]{value:.1%}[/{color}]"
 
 
-def format_latency(ms: float, slo_ms: float | None = None) -> str:
-    """
-    Format latency with optional SLO comparison.
-
-    Args:
-        ms: Latency in milliseconds
-        slo_ms: Optional SLO threshold for coloring
-
-    Returns:
-        Formatted latency string
-    """
-    if slo_ms is not None:
-        color = "green" if ms <= slo_ms else "red"
-        return f"[{color}]{ms:.0f}ms[/{color}]"
-    return f"{ms:.0f}ms"
-
-
-def format_delta(value: float, is_positive_good: bool = True) -> str:
-    """
-    Format a delta value with color.
-
-    Args:
-        value: Delta value (can be positive or negative)
-        is_positive_good: If True, positive is green, negative is red
-
-    Returns:
-        Colored delta string
-    """
-    if is_positive_good:
-        color = "green" if value >= 0 else "red"
-    else:
-        color = "red" if value > 0 else "green"
-    return f"[{color}]{value:+.1%}[/{color}]" if abs(value) < 1 else f"[{color}]{value:+.0f}[/{color}]"
-
-
 # =============================================================================
 # Panel Helpers
 # =============================================================================
 
+
 def print_eval_header(title: str, subtitle: str) -> None:
     """Print evaluation header panel."""
-    console.print(Panel(
-        subtitle,
-        title=title,
-        border_style="blue",
-    ))
-
-
-def print_issues_panel(title: str, issues: list[str]) -> None:
-    """Print issues panel if there are any issues."""
-    if issues:
-        console.print(Panel(
-            "\n\n".join(issues),
-            title=f"[red]{title}[/red]",
-            border_style="red",
-        ))
-
-
-def print_success_panel(title: str, message: str) -> None:
-    """Print success panel."""
-    console.print(Panel(
-        message,
-        title=f"[green]{title}[/green]",
-        border_style="green",
-    ))
-
-
-# =============================================================================
-# Table Row Helpers
-# =============================================================================
-
-def add_separator_row(table: Table) -> None:
-    """Add a visual separator row to a table."""
-    table.add_row("─" * 20, "─" * 10)
-
-
-def add_metric_row(
-    table: Table,
-    metric: str,
-    value: float,
-    format_type: str = "percent",
-    threshold: float | None = None,
-    slo_label: str | None = None,
-) -> None:
-    """
-    Add a metric row to a summary table.
-
-    Args:
-        table: Rich Table to add to
-        metric: Metric name
-        value: Metric value
-        format_type: "percent", "latency", or "count"
-        threshold: Optional threshold for coloring
-        slo_label: Optional SLO label to append
-    """
-    if format_type == "percent":
-        if threshold is not None:
-            color = "green" if value >= threshold else "red"
-            formatted = f"[{color}]{value:.1%}[/{color}]"
-        else:
-            formatted = f"{value:.1%}"
-    elif format_type == "latency":
-        if threshold is not None:
-            color = "green" if value <= threshold else "red"
-            formatted = f"[{color}]{value:.0f}ms[/{color}]"
-        else:
-            formatted = f"{value:.0f}ms"
-    else:  # count
-        formatted = f"{value:,.0f}"
-
-    if slo_label:
-        formatted = f"{formatted} {slo_label}"
-
-    table.add_row(metric, formatted)
-
-
-# =============================================================================
-# Results I/O
-# =============================================================================
-
-def save_results_json(
-    results: list[dict[str, Any]],
-    summary: dict[str, Any],
-    output_path: Path,
-) -> None:
-    """
-    Save evaluation results to JSON file.
-
-    Args:
-        results: List of result dictionaries
-        summary: Summary dictionary
-        output_path: Path to output file
-    """
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    data = {
-        "results": results,
-        "summary": summary,
-    }
-    with open(output_path, "w") as f:
-        json.dump(data, f, indent=2)
-    console.print(f"\n[dim]Results saved to {output_path}[/dim]")
-
-
-def load_results_json(input_path: Path) -> tuple[list[dict], dict]:
-    """
-    Load evaluation results from JSON file.
-
-    Args:
-        input_path: Path to input file
-
-    Returns:
-        Tuple of (results list, summary dict)
-    """
-    with open(input_path) as f:
-        data = json.load(f)
-    return data.get("results", []), data.get("summary", {})
-
-
-# =============================================================================
-# Metrics Computation
-# =============================================================================
-
-def compute_p95(values: list[float]) -> float:
-    """Compute P95 of a list of values."""
-    if not values:
-        return 0.0
-    sorted_values = sorted(values)
-    p95_index = int(len(sorted_values) * 0.95)
-    return sorted_values[min(p95_index, len(sorted_values) - 1)]
-
-
-def compute_pass_rate(
-    values: list[int | bool],
-    threshold: int = 1,
-) -> float:
-    """
-    Compute pass rate for binary values.
-
-    Args:
-        values: List of 0/1 or True/False values
-        threshold: Value considered as pass (default 1)
-
-    Returns:
-        Pass rate as float between 0 and 1
-    """
-    if not values:
-        return 0.0
-    passes = sum(1 for v in values if v >= threshold)
-    return passes / len(values)
+    console.print(
+        Panel(
+            subtitle,
+            title=title,
+            border_style="blue",
+        )
+    )
 
 
 # =============================================================================
@@ -377,15 +175,20 @@ def print_baseline_comparison(
 
     if is_regression:
         console.print("\n[red bold]REGRESSION DETECTED[/red bold]")
-        console.print(f"  Baseline: {baseline_score:.1%} -> Current: {current_score:.1%} ({diff_str})")
+        console.print(
+            f"  Baseline: {baseline_score:.1%} -> Current: {current_score:.1%} ({diff_str})"
+        )
     else:
         color = "green" if diff >= 0 else "yellow"
-        console.print(f"\n[dim]Baseline: {baseline_score:.1%} -> Current: {current_score:.1%} ([{color}]{diff_str}[/{color}])[/dim]")
+        console.print(
+            f"\n[dim]Baseline: {baseline_score:.1%} -> Current: {current_score:.1%} ([{color}]{diff_str}[/{color}])[/dim]"
+        )
 
 
 # =============================================================================
 # Parallel Evaluation Runner
 # =============================================================================
+
 
 def run_parallel_evaluation(
     items: list[dict],
@@ -438,10 +241,7 @@ def run_parallel_evaluation(
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
-            future_to_item = {
-                executor.submit(evaluate_with_lock, item): item
-                for item in items
-            }
+            future_to_item = {executor.submit(evaluate_with_lock, item): item for item in items}
 
             # Process as they complete
             for future in as_completed(future_to_item):
@@ -465,27 +265,194 @@ def run_parallel_evaluation(
     return results
 
 
+# =============================================================================
+# LLM Judge Utilities
+# =============================================================================
+
+
+def parse_json_response(text: str) -> dict:
+    """
+    Parse JSON from LLM response, handling markdown code blocks.
+
+    Args:
+        text: Raw LLM response text
+
+    Returns:
+        Parsed JSON as dictionary
+
+    Raises:
+        json.JSONDecodeError: If JSON parsing fails
+    """
+    # Handle markdown code blocks
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0]
+    elif "```" in text:
+        text = text.split("```")[1].split("```")[0]
+
+    return json.loads(text.strip())
+
+
+def run_llm_judge(
+    prompt: str,
+    system_prompt: str,
+    model: str = "gpt-4o-mini",
+    temperature: float = 0.0,
+    max_tokens: int = 500,
+) -> dict:
+    """
+    Run LLM judge and parse JSON response.
+
+    Args:
+        prompt: The evaluation prompt
+        system_prompt: System prompt for the judge
+        model: Model to use
+        temperature: Temperature for generation
+        max_tokens: Max tokens for response
+
+    Returns:
+        Parsed JSON result, or dict with 'error' key on failure
+    """
+    from backend.agent.eval.llm_client import call_llm
+
+    try:
+        response = call_llm(
+            prompt,
+            system_prompt=system_prompt,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+        if not response or not response.strip():
+            return {"error": "Empty response from judge LLM"}
+
+        return parse_json_response(response)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# =============================================================================
+# SLO Table Creation
+# =============================================================================
+
+
+def create_slo_table(
+    slo_checks: list[tuple[str, bool, str, str]],
+    title: str = "SLO Summary",
+) -> Table:
+    """
+    Create a standard SLO results table.
+
+    Args:
+        slo_checks: List of (name, passed, actual_value, target_value) tuples
+        title: Table title
+
+    Returns:
+        Formatted Rich Table
+    """
+    table = Table(title=title, show_header=True, header_style="bold")
+    table.add_column("SLO", style="bold")
+    table.add_column("Actual", justify="right")
+    table.add_column("Target", justify="right", style="dim")
+    table.add_column("Status", justify="center")
+
+    for name, passed, actual, target in slo_checks:
+        table.add_row(name, actual, target, format_check_mark(passed))
+
+    return table
+
+
+def print_slo_result(slo_checks: list[tuple[str, bool, str, str]]) -> bool:
+    """
+    Print SLO summary table and pass/fail status.
+
+    Args:
+        slo_checks: List of (name, passed, actual_value, target_value) tuples
+
+    Returns:
+        True if all SLOs passed, False otherwise
+    """
+    console.print()
+    slo_table = create_slo_table(slo_checks)
+    console.print(slo_table)
+
+    passed_slos = sum(1 for _, passed, _, _ in slo_checks if passed)
+    total_slos = len(slo_checks)
+    failed_slo_names = [name for name, passed, _, _ in slo_checks if not passed]
+
+    if failed_slo_names:
+        console.print(f"\n[red bold][!] {len(failed_slo_names)} SLO(s) FAILED:[/red bold]")
+        for slo_name in failed_slo_names:
+            console.print(f"    [red]X[/red] {slo_name}")
+        return False
+    else:
+        console.print(f"\n[green bold][OK] All {total_slos} SLOs passed[/green bold]")
+        return True
+
+
+# =============================================================================
+# Latency Calculations
+# =============================================================================
+
+
+def calculate_p95_latency(latencies: list[float | int]) -> float:
+    """
+    Calculate P95 latency from a list of latencies.
+
+    Args:
+        latencies: List of latency values in milliseconds
+
+    Returns:
+        P95 latency value, or 0.0 if list is empty
+    """
+    if not latencies:
+        return 0.0
+
+    sorted_latencies = sorted(latencies)
+    p95_index = int(len(sorted_latencies) * 0.95)
+    return float(sorted_latencies[min(p95_index, len(sorted_latencies) - 1)])
+
+
+# =============================================================================
+# Exit Code Logic
+# =============================================================================
+
+
+def determine_exit_code(
+    all_slos_passed: bool,
+    is_regression: bool,
+) -> int:
+    """
+    Determine exit code from SLO and regression status.
+
+    Args:
+        all_slos_passed: Whether all SLOs passed
+        is_regression: Whether a regression was detected
+
+    Returns:
+        0 for success, 1 for failure
+    """
+    if not all_slos_passed or is_regression:
+        return 1
+    return 0
+
+
 __all__ = [
     "console",
     "create_summary_table",
-    "create_detail_table",
-    "create_comparison_table",
     "format_check_mark",
     "format_percentage",
-    "format_latency",
-    "format_delta",
     "print_eval_header",
-    "print_issues_panel",
-    "print_success_panel",
-    "add_separator_row",
-    "add_metric_row",
-    "save_results_json",
-    "load_results_json",
-    "compute_p95",
-    "compute_pass_rate",
     "compare_to_baseline",
     "save_baseline",
     "print_baseline_comparison",
     "run_parallel_evaluation",
     "REGRESSION_THRESHOLD",
+    # New shared functions
+    "parse_json_response",
+    "run_llm_judge",
+    "create_slo_table",
+    "print_slo_result",
+    "calculate_p95_latency",
+    "determine_exit_code",
 ]
