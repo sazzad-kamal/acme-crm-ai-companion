@@ -37,7 +37,7 @@ from rich.table import Table
 from rich.progress import track
 
 from backend.agent.orchestrator import answer_question
-from backend.common.eval_base import run_parallel_evaluation
+from backend.agent.eval.shared import run_parallel_evaluation
 from backend.agent.eval.models import E2EEvalResult, E2EEvalSummary
 from backend.agent.eval.tracking import print_e2e_tracking_report
 from backend.agent.memory import clear_session
@@ -53,7 +53,7 @@ from backend.agent.eval.base import (
     print_baseline_comparison,
 )
 from rich.panel import Panel
-from backend.common.llm_client import call_llm
+from backend.agent.eval.llm_client import call_llm
 
 
 # =============================================================================

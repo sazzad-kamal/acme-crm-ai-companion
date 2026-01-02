@@ -48,7 +48,7 @@ def ensure_qdrant_collections() -> None:
 
 
 # Re-export all shared utilities
-from backend.common.eval_base import (
+from backend.agent.eval.shared import (
     console,
     create_summary_table,
     create_detail_table,

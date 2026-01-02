@@ -73,7 +73,7 @@ jobs:
         env:
           MOCK_LLM: "1"
         run: |
-          pytest backend/agent/tests/ -v --tb=short
+          pytest tests/backend/agent/ -v --tb=short
 
   test-rag:
     name: RAG Tests
@@ -97,7 +97,7 @@ jobs:
       
       - name: Run RAG tests
         run: |
-          pytest backend/rag/tests/ -v --tb=short
+          pytest tests/backend/common/ -v --tb=short
 
   test-core:
     name: Core Backend Tests
@@ -124,7 +124,7 @@ jobs:
           MOCK_LLM: "1"
           OPENAI_API_KEY: "test-key"
         run: |
-          pytest backend/tests/ -v --tb=short
+          pytest tests/backend/ -v --tb=short --ignore=tests/backend/agent/ --ignore=tests/backend/common/
 
   coverage:
     name: Test Coverage
@@ -152,7 +152,7 @@ jobs:
           MOCK_LLM: "1"
           OPENAI_API_KEY: "test-key"
         run: |
-          pytest backend/ tests/ --cov=backend --cov-report=xml --cov-report=term-missing -v
+          pytest tests/backend/ --cov=backend --cov-report=xml --cov-report=term-missing -v
         continue-on-error: true
       
       - name: Upload coverage report
