@@ -53,6 +53,7 @@ from backend.agent.eval.shared import (
     get_failed_slos,
     print_overall_result_panel,
 )
+from backend.agent.eval.prompts import FLOW_JUDGE_SYSTEM, FLOW_JUDGE_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -143,38 +144,8 @@ class EvalResults:
 
 
 # =============================================================================
-# LLM Judge (reuse from e2e_eval)
+# LLM Judge
 # =============================================================================
-
-FLOW_JUDGE_SYSTEM = """You are an expert evaluator for a CRM assistant conversation flow.
-Evaluate the quality of each answer in a multi-turn conversation.
-
-Score each criterion as 0 or 1:
-
-1. ANSWER_RELEVANCE: Does the answer address the user's question?
-   - 1 if the answer directly addresses what was asked
-   - 0 if the answer is off-topic, too generic, or doesn't address the question
-
-2. ANSWER_GROUNDED: Is the answer based on real CRM data?
-   - 1 if mentions specific companies, dates, values, numbers, or contact names
-   - 1 if correctly states "no results found" or "none" when query returns empty (this IS grounded)
-   - 1 if appropriately says data is not available (honest grounding)
-   - 0 if the answer seems made up, hallucinates facts, or is vague ("several", "some")
-
-Respond in JSON:
-{
-  "answer_relevance": 0 or 1,
-  "answer_grounded": 0 or 1,
-  "explanation": "brief explanation"
-}"""
-
-FLOW_JUDGE_PROMPT = """Question: {question}
-
-Conversation context: {context}
-
-Answer: {answer}
-
-Evaluate this response:"""
 
 
 def judge_answer(
