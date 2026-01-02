@@ -3,8 +3,12 @@ name: E2E Tests
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'tests/e2e/**'
+      - 'requirements.txt'
+      - '.github/workflows/e2e.yml'
   workflow_dispatch:
 
 env:

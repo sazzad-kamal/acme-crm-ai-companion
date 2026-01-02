@@ -5,15 +5,10 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
-      - 'tests/**'
+      - 'tests/backend/**'
       - 'requirements.txt'
       - 'pyproject.toml'
       - '.github/workflows/backend.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - 'tests/**'
   workflow_dispatch:
 
 env:
