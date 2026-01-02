@@ -11,11 +11,12 @@ import logging
 import os
 
 from pydantic import BaseModel, Field
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from backend.agent.config import get_config, is_mock_mode
 from backend.agent.schemas import Source
+from backend.agent.prompts import FOLLOW_UP_PROMPT_TEMPLATE
+from backend.agent.mocks import mock_llm_response
 
 logger = logging.getLogger(__name__)
 
@@ -33,40 +34,6 @@ class FollowUpSuggestions(BaseModel):
         min_length=1,
         max_length=5,
     )
-
-
-# =============================================================================
-# Follow-up Prompt Template
-# =============================================================================
-
-FOLLOW_UP_PROMPT_TEMPLATE = ChatPromptTemplate.from_messages(
-    [
-        ("system", "You are a helpful CRM assistant. Generate 3 follow-up question suggestions."),
-        (
-            "human",
-            """Suggest 3 follow-up questions for the user.
-
-User's question: {question}
-Current company: {company}
-
-=== AVAILABLE DATA FOR THIS COMPANY ===
-{available_data}
-
-{conversation_history_section}
-
-GENERATE 3 QUESTIONS:
-1. First question: Drill deeper into current company's available data (use company name)
-2. Second question: Another angle on current company's data (use company name)
-3. Third question: Let user explore something NEW - different company, general CRM question, or documentation topic
-
-RULES:
-- Questions 1-2: ONLY ask about data types listed as available above
-- Question 3: Can be general (renewals, pipeline summary) or about CRM features
-- Always use company name, not "they" or "their"
-- Keep questions SHORT""",
-        ),
-    ]
-)
 
 
 # Cached chains - set to None to force rebuild when module reloads
@@ -228,54 +195,6 @@ def call_not_found_chain(
 
     logger.info(f"Not-found chain completed in {latency_ms}ms")
     return answer, latency_ms
-
-
-def mock_llm_response(prompt: str) -> str:
-    """Generate a mock response for testing."""
-    # Extract some context from the prompt for a semi-realistic response
-    if "couldn't find an exact match" in prompt:
-        return (
-            "I couldn't find an exact match for that company in the CRM. "
-            "Could you clarify which company you're asking about? "
-            "Here are some similar companies I found that might be what you're looking for."
-        )
-
-    if "renewal" in prompt.lower():
-        return (
-            "**Upcoming Renewals Summary**\n\n"
-            "Based on the CRM data, here are the accounts with upcoming renewals:\n\n"
-            "• Several accounts have renewals coming up in the specified timeframe\n"
-            "• Review each account's health status before the renewal date\n\n"
-            "**Suggested Actions:**\n"
-            "1. Schedule check-in calls with at-risk accounts\n"
-            "2. Prepare renewal proposals for key accounts\n"
-            "3. Review recent activity levels to identify any concerns"
-        )
-
-    if "pipeline" in prompt.lower():
-        return (
-            "**Pipeline Summary**\n\n"
-            "Here's the current pipeline status based on CRM data:\n\n"
-            "• Open opportunities are progressing through various stages\n"
-            "• Total pipeline value and deal count are shown in the data\n\n"
-            "**Suggested Actions:**\n"
-            "1. Focus on deals in Proposal and Negotiation stages\n"
-            "2. Follow up on stalled opportunities\n"
-            "3. Update expected close dates if needed"
-        )
-
-    # Default response for company status questions
-    return (
-        "**Account Summary**\n\n"
-        "Based on the CRM data provided:\n\n"
-        "• Recent activities show engagement with the account\n"
-        "• Pipeline includes open opportunities in various stages\n"
-        "• History log shows recent touchpoints\n\n"
-        "**Suggested Actions:**\n"
-        "1. Review recent activity and follow up if needed\n"
-        "2. Check opportunity progress and update stages\n"
-        "3. Confirm next steps with key contacts"
-    )
 
 
 def call_docs_rag(question: str) -> tuple[str, list[Source]]:
