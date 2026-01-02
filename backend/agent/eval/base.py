@@ -11,7 +11,7 @@ def ensure_qdrant_collections() -> None:
     Ensure Qdrant collections exist, ingesting data if needed.
     Shared by e2e_eval and flow_eval.
     """
-    from backend.agent.rag_tools import (
+    from backend.agent.rag import (
         DOCS_COLLECTION,
         PRIVATE_COLLECTION,
         QDRANT_PATH,

@@ -211,7 +211,7 @@ def call_docs_rag(question: str) -> tuple[str, list[Source]]:
         )
 
     try:
-        from backend.agent.rag_tools import tool_docs_rag
+        from backend.agent.rag import tool_docs_rag
 
         return tool_docs_rag(question)
     except Exception as e:
@@ -241,7 +241,7 @@ def call_account_rag(question: str, company_id: str) -> tuple[str, list[Source]]
         )
 
     try:
-        from backend.agent.rag_tools import tool_account_rag
+        from backend.agent.rag import tool_account_rag
 
         return tool_account_rag(question, company_id)
     except Exception as e:

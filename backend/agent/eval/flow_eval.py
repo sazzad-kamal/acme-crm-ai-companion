@@ -741,7 +741,7 @@ def _check_qdrant_access() -> bool:
         True if accessible, False if locked
     """
     try:
-        from backend.agent.rag_tools import get_qdrant_client
+        from backend.agent.rag import get_qdrant_client
 
         # Use shared client (already opened by ensure_qdrant_collections)
         client = get_qdrant_client()
@@ -796,7 +796,7 @@ async def _run_eval_async(
     # Warmup: trigger model loading by a simple query
     console.print("\n[dim]Warming up models...[/dim]")
     try:
-        from backend.agent.rag_tools import tool_docs_rag
+        from backend.agent.rag import tool_docs_rag
 
         tool_docs_rag("warmup", top_k=1)  # Trigger embedding model load
         console.print("[dim]Models loaded.[/dim]")
@@ -871,7 +871,7 @@ async def _run_eval_async(
 
     # Cleanup Qdrant client to avoid shutdown errors
     try:
-        from backend.agent.rag_tools import close_qdrant_client
+        from backend.agent.rag import close_qdrant_client
 
         close_qdrant_client()
     except Exception:
