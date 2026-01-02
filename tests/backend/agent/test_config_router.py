@@ -295,3 +295,263 @@ class TestAgentIntegration:
         
         assert "answer" in result
         assert result["meta"]["mode_used"] == "docs"
+
+
+# =============================================================================
+# Role-Based Starter Detection Tests (coverage improvement)
+# =============================================================================
+
+
+class TestDetectOwnerFromStarter:
+    """Tests for detect_owner_from_starter function."""
+
+    def test_detects_sales_rep_pipeline_starter(self):
+        """Detects Sales Rep from 'my pipeline' starter."""
+        from backend.agent.llm_router import detect_owner_from_starter
+
+        assert detect_owner_from_starter("how's my pipeline") == "jsmith"
+        assert detect_owner_from_starter("How is my pipeline?") == "jsmith"
+        assert detect_owner_from_starter("show my pipeline") == "jsmith"
+
+    def test_detects_csm_renewals_starter(self):
+        """Detects CSM from renewals starter."""
+        from backend.agent.llm_router import detect_owner_from_starter
+
+        assert detect_owner_from_starter("any renewals at risk") == "amartin"
+        assert detect_owner_from_starter("which renewals are at risk?") == "amartin"
+        assert detect_owner_from_starter("at-risk renewals") == "amartin"
+
+    def test_detects_manager_team_starter(self):
+        """Detects Manager (None) from team starter."""
+        from backend.agent.llm_router import detect_owner_from_starter
+
+        assert detect_owner_from_starter("how's the team doing") is None
+        assert detect_owner_from_starter("team performance") is None
+        assert detect_owner_from_starter("how's my team?") is None
+
+    def test_returns_none_for_non_starter(self):
+        """Returns None for non-starter questions."""
+        from backend.agent.llm_router import detect_owner_from_starter
+
+        assert detect_owner_from_starter("Tell me about Acme Corp") is None
+        assert detect_owner_from_starter("What's the weather?") is None
+
+    def test_handles_case_insensitivity(self):
+        """Handles case insensitivity."""
+        from backend.agent.llm_router import detect_owner_from_starter
+
+        assert detect_owner_from_starter("HOW'S MY PIPELINE") == "jsmith"
+        assert detect_owner_from_starter("ANY RENEWALS AT RISK") == "amartin"
+
+    def test_strips_question_marks(self):
+        """Strips trailing question marks."""
+        from backend.agent.llm_router import detect_owner_from_starter
+
+        assert detect_owner_from_starter("how's my pipeline???") == "jsmith"
+
+
+# =============================================================================
+# LLMRouterResponse Model Tests (coverage improvement)
+# =============================================================================
+
+
+class TestLLMRouterResponse:
+    """Tests for LLMRouterResponse Pydantic model."""
+
+    def test_creates_with_defaults(self):
+        """Creates model with default values."""
+        from backend.agent.llm_router import LLMRouterResponse
+
+        response = LLMRouterResponse()
+
+        assert response.mode == "data+docs"
+        assert response.intent == "general"
+        assert response.days == 30
+        assert response.company_name is None
+        assert response.confidence == 0.5
+
+    def test_creates_with_custom_values(self):
+        """Creates model with custom values."""
+        from backend.agent.llm_router import LLMRouterResponse
+
+        response = LLMRouterResponse(
+            mode="data",
+            intent="pipeline_summary",
+            company_name="Acme Corp",
+            days=90,
+            confidence=0.95,
+            key_entities=["Acme", "Q4"],
+            action_type="analyze",
+        )
+
+        assert response.mode == "data"
+        assert response.intent == "pipeline_summary"
+        assert response.company_name == "Acme Corp"
+        assert response.days == 90
+        assert response.confidence == 0.95
+        assert "Acme" in response.key_entities
+
+    def test_validates_days_range(self):
+        """Validates days must be between 1 and 365."""
+        from backend.agent.llm_router import LLMRouterResponse
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            LLMRouterResponse(days=0)
+
+        with pytest.raises(ValidationError):
+            LLMRouterResponse(days=400)
+
+    def test_validates_confidence_range(self):
+        """Validates confidence must be between 0.0 and 1.0."""
+        from backend.agent.llm_router import LLMRouterResponse
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            LLMRouterResponse(confidence=-0.1)
+
+        with pytest.raises(ValidationError):
+            LLMRouterResponse(confidence=1.5)
+
+    def test_validates_mode_literal(self):
+        """Validates mode must be a valid literal."""
+        from backend.agent.llm_router import LLMRouterResponse
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            LLMRouterResponse(mode="invalid_mode")
+
+    def test_validates_intent_literal(self):
+        """Validates intent must be a valid literal."""
+        from backend.agent.llm_router import LLMRouterResponse
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            LLMRouterResponse(intent="unknown_intent")
+
+    def test_model_dump(self):
+        """Tests model_dump serialization."""
+        from backend.agent.llm_router import LLMRouterResponse
+
+        response = LLMRouterResponse(
+            mode="docs",
+            intent="general",
+            query_expansion="Expanded query",
+        )
+
+        data = response.model_dump()
+        assert data["mode"] == "docs"
+        assert data["query_expansion"] == "Expanded query"
+
+
+# =============================================================================
+# LLMRouterError Tests (coverage improvement)
+# =============================================================================
+
+
+class TestLLMRouterError:
+    """Tests for LLMRouterError exception."""
+
+    def test_is_exception(self):
+        """LLMRouterError is an Exception."""
+        from backend.agent.llm_router import LLMRouterError
+
+        error = LLMRouterError("Router failed")
+        assert isinstance(error, Exception)
+        assert str(error) == "Router failed"
+
+    def test_can_be_raised(self):
+        """LLMRouterError can be raised and caught."""
+        from backend.agent.llm_router import LLMRouterError
+
+        with pytest.raises(LLMRouterError) as exc_info:
+            raise LLMRouterError("Test error message")
+
+        assert "Test error message" in str(exc_info.value)
+
+
+# =============================================================================
+# Extended LLM Router Tests (coverage improvement)
+# =============================================================================
+
+
+class TestLLMRouterExtended:
+    """Extended tests for LLM router coverage."""
+
+    def setup_method(self):
+        """Reset config between tests."""
+        reset_config()
+
+    def test_route_question_with_company_id(self):
+        """Tests route_question with pre-specified company_id."""
+        from backend.agent.llm_router import route_question
+
+        result = route_question(
+            "What's happening?",
+            company_id="ACME-001",
+        )
+
+        # Company ID should be passed through
+        assert result.company_id == "ACME-001"
+
+    def test_route_question_passes_owner_from_starter(self):
+        """Tests that owner is detected from starter pattern."""
+        from backend.agent.llm_router import route_question
+
+        result = route_question("how's my pipeline?")
+
+        assert result.owner == "jsmith"
+
+    def test_route_question_explicit_mode_returns_minimal_routing(self):
+        """Explicit mode returns minimal routing without LLM."""
+        from backend.agent.llm_router import route_question
+
+        result = route_question(
+            "Tell me about documents",
+            mode="docs",
+        )
+
+        assert result.mode_used == "docs"
+        assert result.intent == "general"
+
+    def test_llm_route_question_mock_mode_returns_defaults(self):
+        """In mock mode, returns default data+docs routing."""
+        from backend.agent.llm_router import llm_route_question
+
+        result = llm_route_question("Show me the forecast")
+
+        assert result.mode_used == "data+docs"
+        assert result.days == 30
+
+    def test_route_question_detects_owner_as_fallback(self):
+        """Tests owner detection as fallback in route_question."""
+        from backend.agent.llm_router import route_question
+
+        # CSM starter
+        result = route_question("any renewals at risk?")
+        assert result.owner == "amartin"
+
+        # Manager starter (None means sees all)
+        result = route_question("how's the team doing?")
+        assert result.owner is None
+
+    def test_llm_route_question_with_conversation_history(self):
+        """Tests llm_route_question with conversation history."""
+        from backend.agent.llm_router import llm_route_question
+
+        result = llm_route_question(
+            "What about their pipeline?",
+            conversation_history="User: Tell me about Acme\nAssistant: Acme is...",
+        )
+
+        # Should still return default in mock mode
+        assert result.mode_used == "data+docs"
+
+    def test_starter_owner_map_coverage(self):
+        """Tests all patterns in STARTER_OWNER_MAP."""
+        from backend.agent.llm_router import STARTER_OWNER_MAP, detect_owner_from_starter
+
+        # Test all patterns in the map
+        for pattern, expected_owner in STARTER_OWNER_MAP.items():
+            result = detect_owner_from_starter(pattern)
+            assert result == expected_owner, f"Pattern '{pattern}' should return '{expected_owner}'"

@@ -586,3 +586,350 @@ class TestSafeExtend:
         safe_extend(target, source)
         assert len(target) == 1
         assert target[0].id == "src1"
+
+
+# =============================================================================
+# handle_analytics Tests (coverage improvement)
+# =============================================================================
+
+
+class TestHandleAnalytics:
+    """Tests for handle_analytics handler."""
+
+    @patch('backend.agent.handlers.activity.tool_analytics')
+    def test_handles_analytics_request(self, mock_tool, basic_context):
+        """Handles analytics request."""
+        mock_tool.return_value.data = {
+            "metric": "activity_count",
+            "total": 50,
+            "breakdown": [{"type": "Call", "count": 20}],
+        }
+        mock_tool.return_value.sources = []
+
+        from backend.agent.handlers.activity import handle_analytics
+        result = handle_analytics(basic_context)
+
+        assert result.analytics_data is not None
+        assert result.raw_data["analytics"] is not None
+
+    @patch('backend.agent.handlers.activity.tool_analytics')
+    def test_passes_detected_metric_to_tool(self, mock_tool):
+        """Passes detected metric to analytics tool."""
+        mock_tool.return_value.data = {}
+        mock_tool.return_value.sources = []
+
+        from backend.agent.handlers.activity import handle_analytics
+        # Must include "activit" for activity_type to be returned
+        ctx = IntentContext(
+            question="how many call activities were made last month",
+            resolved_company_id=None,
+            days=30,
+        )
+        handle_analytics(ctx)
+
+        call_kwargs = mock_tool.call_args[1]
+        assert call_kwargs["metric"] == "activity_count"
+        assert call_kwargs["activity_type"] == "call"
+
+
+class TestDetectAnalyticsMetric:
+    """Tests for _detect_analytics_metric helper."""
+
+    def test_detects_count_query(self):
+        """Detects activity count queries."""
+        from backend.agent.handlers.activity import _detect_analytics_metric
+
+        metric, group_by, activity_type = _detect_analytics_metric("how many activities")
+        assert metric == "activity_count"
+
+    def test_detects_breakdown_query(self):
+        """Detects activity breakdown queries."""
+        from backend.agent.handlers.activity import _detect_analytics_metric
+
+        metric, group_by, activity_type = _detect_analytics_metric(
+            "show activity breakdown by type"
+        )
+        assert metric == "activity_breakdown"
+
+    def test_detects_contact_role_breakdown(self):
+        """Detects contact role breakdown queries."""
+        from backend.agent.handlers.activity import _detect_analytics_metric
+
+        metric, group_by, activity_type = _detect_analytics_metric(
+            "contact breakdown by role"
+        )
+        assert metric == "contact_breakdown"
+        assert group_by == "role"
+
+    def test_detects_specific_activity_type(self):
+        """Detects specific activity type in query."""
+        from backend.agent.handlers.activity import _detect_analytics_metric
+
+        # Must include "activit" for activity_type to be returned
+        metric, group_by, activity_type = _detect_analytics_metric(
+            "how many call activities were made"
+        )
+        assert activity_type == "call"
+
+    def test_detects_email_activity(self):
+        """Detects email activity type."""
+        from backend.agent.handlers.activity import _detect_analytics_metric
+
+        metric, group_by, activity_type = _detect_analytics_metric(
+            "count of email activities"
+        )
+        assert activity_type == "email"
+
+    def test_detects_meeting_activity(self):
+        """Detects meeting activity type."""
+        from backend.agent.handlers.activity import _detect_analytics_metric
+
+        # Must include "activit" for activity_type to be returned
+        metric, group_by, activity_type = _detect_analytics_metric(
+            "total number of meeting activities scheduled"
+        )
+        assert activity_type == "meeting"
+
+    def test_default_to_breakdown(self):
+        """Defaults to activity breakdown for unclear queries."""
+        from backend.agent.handlers.activity import _detect_analytics_metric
+
+        metric, group_by, activity_type = _detect_analytics_metric(
+            "show me the activity stats"
+        )
+        assert metric == "activity_breakdown"
+        assert group_by == "type"
+
+    def test_detects_comparison_keywords(self):
+        """Detects comparison keywords for breakdown."""
+        from backend.agent.handlers.activity import _detect_analytics_metric
+
+        metric, group_by, activity_type = _detect_analytics_metric(
+            "which activity type is most common"
+        )
+        assert metric == "activity_breakdown"
+
+    def test_detects_percentage_keyword(self):
+        """Detects percentage keyword for breakdown."""
+        from backend.agent.handlers.activity import _detect_analytics_metric
+
+        metric, group_by, activity_type = _detect_analytics_metric(
+            "what percentage of activities are calls"
+        )
+        assert "breakdown" in metric
+
+
+# =============================================================================
+# handle_forecast_accuracy Tests (coverage improvement)
+# =============================================================================
+
+
+class TestHandleForecastAccuracy:
+    """Tests for handle_forecast_accuracy handler."""
+
+    @patch('backend.agent.handlers.pipeline.tool_forecast_accuracy')
+    def test_fetches_forecast_accuracy(self, mock_tool, basic_context):
+        """Fetches forecast accuracy data."""
+        mock_tool.return_value.data = {
+            "overall_win_rate": 45.5,
+            "total_won": 10,
+            "total_lost": 12,
+            "by_owner": {},
+        }
+        mock_tool.return_value.sources = [Source(id="accuracy", type="pipeline", label="Accuracy")]
+
+        from backend.agent.handlers.pipeline import handle_forecast_accuracy
+        result = handle_forecast_accuracy(basic_context)
+
+        assert result.pipeline_data["overall_win_rate"] == 45.5
+        assert result.raw_data["pipeline_summary"] is not None
+        assert result.raw_data["analytics"] is not None
+        assert len(result.sources) == 1
+
+    @patch('backend.agent.handlers.pipeline.tool_forecast_accuracy')
+    def test_passes_owner_filter(self, mock_tool):
+        """Passes owner filter to tool."""
+        mock_tool.return_value.data = {"overall_win_rate": 50}
+        mock_tool.return_value.sources = []
+
+        from backend.agent.handlers.pipeline import handle_forecast_accuracy
+        ctx = IntentContext(
+            question="what is my win rate",
+            resolved_company_id=None,
+            days=90,
+            owner="John Doe",
+        )
+        handle_forecast_accuracy(ctx)
+
+        call_kwargs = mock_tool.call_args[1]
+        assert call_kwargs["owner"] == "John Doe"
+
+
+# =============================================================================
+# handle_pipeline_summary with owner Tests
+# =============================================================================
+
+
+class TestHandlePipelineSummaryWithOwner:
+    """Tests for handle_pipeline_summary with owner filter."""
+
+    @patch('backend.agent.handlers.pipeline.tool_pipeline_by_owner')
+    def test_uses_owner_filtered_tool(self, mock_tool):
+        """Uses owner-filtered pipeline tool when owner is set."""
+        mock_tool.return_value.data = {
+            "summary": {"total_count": 5, "total_value": 100000},
+            "opportunities": [{"name": "Deal 1"}, {"name": "Deal 2"}],
+        }
+        mock_tool.return_value.sources = []
+
+        ctx = IntentContext(
+            question="show my pipeline",
+            resolved_company_id=None,
+            days=90,
+            owner="Jane Smith",
+        )
+        result = handle_pipeline_summary(ctx)
+
+        mock_tool.assert_called_once_with(owner="Jane Smith")
+        assert result.pipeline_data["summary"]["total_count"] == 5
+
+
+# =============================================================================
+# handle_deals_at_risk Extended Tests
+# =============================================================================
+
+
+class TestHandleDealsAtRiskExtended:
+    """Extended tests for handle_deals_at_risk handler."""
+
+    @patch('backend.agent.handlers.pipeline.tool_accounts_needing_attention')
+    @patch('backend.agent.handlers.pipeline.tool_upcoming_renewals')
+    @patch('backend.agent.handlers.pipeline.tool_deals_at_risk')
+    def test_fetches_all_risk_data(self, mock_risk, mock_renewals, mock_accounts, basic_context):
+        """Fetches deals at risk, renewals, and accounts needing attention."""
+        mock_risk.return_value.data = {
+            "deals": [{"name": "Stalled Deal", "days_in_stage": 60}],
+            "count": 1,
+            "total_value": 50000,
+        }
+        mock_risk.return_value.sources = []
+
+        mock_renewals.return_value.data = {
+            "renewals": [{"name": "Expiring Soon"}],
+        }
+        mock_renewals.return_value.sources = []
+
+        mock_accounts.return_value.data = {
+            "accounts": [{"name": "Needs Attention Corp"}],
+            "count": 1,
+        }
+        mock_accounts.return_value.sources = []
+
+        result = handle_deals_at_risk(basic_context)
+
+        assert result.pipeline_data is not None
+        assert result.renewals_data is not None
+        assert len(result.raw_data["opportunities"]) == 1
+        assert len(result.raw_data["companies"]) == 1
+        assert result.raw_data["pipeline_summary"]["at_risk_count"] == 1
+        assert result.raw_data["pipeline_summary"]["accounts_needing_attention"] == 1
+
+    @patch('backend.agent.handlers.pipeline.tool_accounts_needing_attention')
+    @patch('backend.agent.handlers.pipeline.tool_upcoming_renewals')
+    @patch('backend.agent.handlers.pipeline.tool_deals_at_risk')
+    def test_passes_owner_filter(self, mock_risk, mock_renewals, mock_accounts):
+        """Passes owner filter to all tools."""
+        mock_risk.return_value.data = {"deals": [], "count": 0, "total_value": 0}
+        mock_risk.return_value.sources = []
+        mock_renewals.return_value.data = {"renewals": []}
+        mock_renewals.return_value.sources = []
+        mock_accounts.return_value.data = {"accounts": [], "count": 0}
+        mock_accounts.return_value.sources = []
+
+        ctx = IntentContext(
+            question="show my at-risk deals",
+            resolved_company_id=None,
+            days=90,
+            owner="Bob Wilson",
+        )
+        handle_deals_at_risk(ctx)
+
+        # Check owner was passed to deals at risk tool
+        mock_risk.assert_called_once_with(owner="Bob Wilson")
+        # Check owner was passed to renewals tool
+        mock_renewals.assert_called_once()
+        assert mock_renewals.call_args[1]["owner"] == "Bob Wilson"
+
+
+# =============================================================================
+# handle_forecast Extended Tests
+# =============================================================================
+
+
+class TestHandleForecastExtended:
+    """Extended tests for handle_forecast handler."""
+
+    @patch('backend.agent.handlers.pipeline.tool_forecast')
+    def test_passes_owner_filter(self, mock_tool):
+        """Passes owner filter to forecast tool."""
+        mock_tool.return_value.data = {
+            "total_pipeline": 100000,
+            "total_weighted": 45000,
+            "top_opportunities": [],
+        }
+        mock_tool.return_value.sources = []
+
+        ctx = IntentContext(
+            question="show my forecast",
+            resolved_company_id=None,
+            days=90,
+            owner="Alice Manager",
+        )
+        result = handle_forecast(ctx)
+
+        mock_tool.assert_called_once_with(owner="Alice Manager")
+        assert result.pipeline_data["total_weighted"] == 45000
+
+    @patch('backend.agent.handlers.pipeline.tool_forecast')
+    def test_includes_top_opportunities(self, mock_tool, basic_context):
+        """Includes top opportunities in raw data."""
+        mock_tool.return_value.data = {
+            "total_pipeline": 200000,
+            "total_weighted": 90000,
+            "top_opportunities": [
+                {"name": "Big Deal", "value": 100000},
+                {"name": "Medium Deal", "value": 50000},
+            ],
+        }
+        mock_tool.return_value.sources = []
+
+        result = handle_forecast(basic_context)
+
+        assert len(result.raw_data["opportunities"]) == 2
+
+
+# =============================================================================
+# handle_renewals with Owner Tests
+# =============================================================================
+
+
+class TestHandleRenewalsWithOwner:
+    """Tests for handle_renewals with owner filter."""
+
+    @patch('backend.agent.handlers.pipeline.tool_upcoming_renewals')
+    def test_passes_owner_filter(self, mock_tool):
+        """Passes owner filter to renewals tool."""
+        mock_tool.return_value.data = {"renewals": []}
+        mock_tool.return_value.sources = []
+
+        from backend.agent.handlers.pipeline import handle_renewals
+        ctx = IntentContext(
+            question="my renewals this quarter",
+            resolved_company_id=None,
+            days=90,
+            owner="Manager Mike",
+        )
+        handle_renewals(ctx)
+
+        call_kwargs = mock_tool.call_args[1]
+        assert call_kwargs["owner"] == "Manager Mike"
