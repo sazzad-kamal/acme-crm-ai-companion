@@ -179,3 +179,75 @@ class AgentEvalSummary(BaseModel):
     failed_slos: list[str] = []  # Which SLOs failed?
     regression_detected: bool = False  # Score worse than baseline?
     baseline_score: float | None = None  # Previous run score
+
+
+# =============================================================================
+# Flow Evaluation Models (dataclasses for performance)
+# =============================================================================
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class FlowStepResult:
+    """Result of a single question in a flow."""
+
+    question: str
+    answer: str
+    latency_ms: int
+    has_answer: bool
+    has_sources: bool
+    # LLM Judge scores
+    relevance_score: int = 0  # 0 or 1
+    grounded_score: int = 0  # 0 or 1
+    judge_explanation: str = ""
+    error: str | None = None
+
+    @property
+    def passed(self) -> bool:
+        """Question passes if has answer AND both judge scores are 1."""
+        return self.has_answer and self.relevance_score == 1 and self.grounded_score == 1
+
+
+@dataclass
+class FlowResult:
+    """Result of testing a complete conversation flow."""
+
+    path_id: int
+    questions: list[str]
+    steps: list[FlowStepResult]
+    total_latency_ms: int
+    success: bool
+    error: str | None = None
+
+
+@dataclass
+class FlowEvalResults:
+    """Aggregated results from all flow tests."""
+
+    total_paths: int
+    paths_tested: int
+    paths_passed: int
+    paths_failed: int
+    total_questions: int
+    questions_passed: int
+    questions_failed: int
+    # Judge metrics
+    avg_relevance: float = 0.0
+    avg_grounded: float = 0.0
+    total_latency_ms: int = 0
+    avg_latency_per_question_ms: float = 0.0
+    p95_latency_ms: float = 0.0  # P95 latency per question
+    wall_clock_ms: int = 0  # Total wall-clock time for the eval
+    failed_paths: list[FlowResult] = field(default_factory=list)
+    all_results: list[FlowResult] = field(default_factory=list)
+
+    @property
+    def path_pass_rate(self) -> float:
+        """Percentage of paths that passed."""
+        return self.paths_passed / self.paths_tested if self.paths_tested > 0 else 0.0
+
+    @property
+    def question_pass_rate(self) -> float:
+        """Percentage of questions that passed."""
+        return self.questions_passed / self.total_questions if self.total_questions > 0 else 0.0

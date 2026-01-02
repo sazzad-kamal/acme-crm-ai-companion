@@ -16,7 +16,6 @@ import asyncio
 import json
 import logging
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 
 # Load .env file before any other imports
@@ -61,79 +60,12 @@ from backend.agent.eval.models import (
     SLO_FLOW_GROUNDED,
     SLO_FLOW_AVG_LATENCY_MS,
     SLO_FLOW_P95_LATENCY_MS,
+    FlowFlowStepResult,
+    FlowResult,
+    FlowFlowEvalResults,
 )
 
 logger = logging.getLogger(__name__)
-
-
-# =============================================================================
-# Data Models
-# =============================================================================
-
-
-@dataclass
-class StepResult:
-    """Result of a single question in a flow."""
-
-    question: str
-    answer: str
-    latency_ms: int
-    has_answer: bool
-    has_sources: bool
-    # LLM Judge scores
-    relevance_score: int = 0  # 0 or 1
-    grounded_score: int = 0  # 0 or 1
-    judge_explanation: str = ""
-    error: str | None = None
-
-    @property
-    def passed(self) -> bool:
-        """Question passes if has answer AND both judge scores are 1."""
-        return self.has_answer and self.relevance_score == 1 and self.grounded_score == 1
-
-
-@dataclass
-class FlowResult:
-    """Result of testing a complete conversation flow."""
-
-    path_id: int
-    questions: list[str]
-    steps: list[StepResult]
-    total_latency_ms: int
-    success: bool
-    error: str | None = None
-
-
-@dataclass
-class EvalResults:
-    """Aggregated results from all flow tests."""
-
-    total_paths: int
-    paths_tested: int
-    paths_passed: int
-    paths_failed: int
-    total_questions: int
-    questions_passed: int
-    questions_failed: int
-    # Judge metrics
-    avg_relevance: float = 0.0
-    avg_grounded: float = 0.0
-    total_latency_ms: int = 0
-    avg_latency_per_question_ms: float = 0.0
-    p95_latency_ms: float = 0.0  # P95 latency per question
-    wall_clock_ms: int = 0  # Total wall-clock time for the eval
-    failed_paths: list[FlowResult] = field(default_factory=list)
-    all_results: list[FlowResult] = field(default_factory=list)
-
-    @property
-    def path_pass_rate(self) -> float:
-        """Percentage of paths that passed."""
-        return self.paths_passed / self.paths_tested if self.paths_tested > 0 else 0.0
-
-    @property
-    def question_pass_rate(self) -> float:
-        """Percentage of questions that passed."""
-        return self.questions_passed / self.total_questions if self.total_questions > 0 else 0.0
 
 
 # =============================================================================
@@ -184,7 +116,7 @@ async def test_single_question(
     history: list[dict],
     session_id: str,
     use_judge: bool = True,
-) -> StepResult:
+) -> FlowStepResult:
     """
     Test a single question with conversation history.
 
@@ -195,7 +127,7 @@ async def test_single_question(
         use_judge: Whether to run LLM-as-judge evaluation
 
     Returns:
-        StepResult with answer and metrics
+        FlowStepResult with answer and metrics
     """
     from backend.agent.graph import run_agent
 
@@ -239,7 +171,7 @@ async def test_single_question(
             grounded = judge_result.get("grounded", 0)
             explanation = judge_result.get("explanation", "")
 
-        return StepResult(
+        return FlowStepResult(
             question=question,
             answer=answer,
             latency_ms=latency_ms,
@@ -254,7 +186,7 @@ async def test_single_question(
     except Exception as e:
         latency_ms = int((time.time() - start_time) * 1000)
         logger.error(f"Error testing question '{question}': {e}")
-        return StepResult(
+        return FlowStepResult(
             question=question,
             answer="",
             latency_ms=latency_ms,
@@ -281,7 +213,7 @@ async def test_flow(path: list[str], path_id: int, use_judge: bool = True) -> Fl
     """
     session_id = f"flow_eval_{path_id}_{int(time.time())}"
     history: list[dict] = []
-    steps: list[StepResult] = []
+    steps: list[FlowStepResult] = []
     total_latency = 0
     success = True
 
@@ -317,7 +249,7 @@ async def run_flow_eval(
     verbose: bool = False,
     use_judge: bool = True,
     concurrency: int = 5,
-) -> EvalResults:
+) -> FlowEvalResults:
     """
     Run the flow evaluation on all paths.
 
@@ -328,7 +260,7 @@ async def run_flow_eval(
         concurrency: Number of flows to run in parallel (default 5)
 
     Returns:
-        EvalResults with aggregated metrics
+        FlowEvalResults with aggregated metrics
     """
     eval_start_time = time.time()
 
@@ -435,7 +367,7 @@ async def run_flow_eval(
     failed_paths = [r for r in results if not r.success]
     wall_clock_ms = int((time.time() - eval_start_time) * 1000)
 
-    eval_results = EvalResults(
+    eval_results = FlowEvalResults(
         total_paths=len(all_paths),
         paths_tested=len(results),
         paths_passed=paths_passed,
@@ -456,7 +388,7 @@ async def run_flow_eval(
     return eval_results
 
 
-def print_summary(results: EvalResults):
+def print_summary(results: FlowEvalResults):
     """Print a comprehensive summary of eval results with SLO status."""
     console.print()
 
@@ -655,7 +587,7 @@ def print_summary(results: EvalResults):
     )
 
 
-def save_results(results: EvalResults, output_path: Path):
+def save_results(results: FlowEvalResults, output_path: Path):
     """Save results to JSON file."""
     data = {
         "summary": {
