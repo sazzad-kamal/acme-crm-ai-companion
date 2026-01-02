@@ -119,7 +119,7 @@ def clear_query_cache() -> None:
 # =============================================================================
 
 
-def build_agent_graph(checkpointer=None):
+def build_agent_graph(checkpointer: Any = None) -> Any:
     """
     Build the LangGraph workflow.
 
@@ -343,7 +343,7 @@ def run_agent(
     return result
 
 
-def _build_error_response(error: str, start_time: float) -> dict:
+def _build_error_response(error: str, start_time: float) -> dict[str, Any]:
     """Build error response with consistent structure."""
     return {
         "answer": f"I'm sorry, I encountered an error: {error}",
