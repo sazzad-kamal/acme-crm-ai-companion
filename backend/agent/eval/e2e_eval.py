@@ -58,8 +58,9 @@ from backend.agent.eval.shared import (
     print_slo_result,
     calculate_p95_latency,
     determine_exit_code,
+    get_failed_slos,
+    print_overall_result_panel,
 )
-from rich.panel import Panel
 from backend.agent.eval.llm_client import call_llm
 
 
@@ -1107,38 +1108,30 @@ def main(
     )
 
     # Check core SLOs (Company Extraction and Latency are tracked, not SLOs)
-    slo_results = {
-        "Intent Classification": summary.intent_accuracy >= SLO_ROUTER_ACCURACY,
-        "Answer Relevance": summary.answer_relevance_rate >= SLO_ANSWER_RELEVANCE,
-        "Groundedness": summary.groundedness_rate >= SLO_GROUNDEDNESS,
-    }
+    slo_checks = [
+        ("Intent Classification", summary.intent_accuracy >= SLO_ROUTER_ACCURACY, "", ""),
+        ("Answer Relevance", summary.answer_relevance_rate >= SLO_ANSWER_RELEVANCE, "", ""),
+        ("Groundedness", summary.groundedness_rate >= SLO_GROUNDEDNESS, "", ""),
+    ]
 
-    failed_slos = [name for name, passed in slo_results.items() if not passed]
+    failed_slos = get_failed_slos(slo_checks)
     all_slos_passed = len(failed_slos) == 0
     exit_code = determine_exit_code(all_slos_passed, is_regression)
 
+    # Build failure reasons
+    failure_reasons = []
+    if failed_slos:
+        failure_reasons.append(f"{len(failed_slos)} SLOs failed: {', '.join(failed_slos)}")
+    if is_regression:
+        failure_reasons.append("Regression detected vs baseline")
+
     # Print overall result panel
     console.print()
-    if exit_code == 0:
-        console.print(
-            Panel(
-                "[green bold]OVERALL: PASS[/green bold]\n"
-                f"All {len(slo_results)} SLOs met, no regression detected",
-                border_style="green",
-            )
-        )
-    else:
-        failure_reasons = []
-        if failed_slos:
-            failure_reasons.append(f"{len(failed_slos)} SLOs failed: {', '.join(failed_slos)}")
-        if is_regression:
-            failure_reasons.append("Regression detected vs baseline")
-        console.print(
-            Panel(
-                f"[red bold]OVERALL: FAIL[/red bold]\n{'; '.join(failure_reasons)}",
-                border_style="red",
-            )
-        )
+    print_overall_result_panel(
+        all_passed=exit_code == 0,
+        failure_reasons=failure_reasons,
+        success_message=f"All {len(slo_checks)} SLOs met, no regression detected",
+    )
 
     raise typer.Exit(code=exit_code)
 

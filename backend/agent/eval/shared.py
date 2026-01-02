@@ -437,6 +437,85 @@ def determine_exit_code(
     return 0
 
 
+# =============================================================================
+# Result Panel Printing
+# =============================================================================
+
+
+def get_failed_slos(slo_checks: list[tuple[str, bool, str, str]]) -> list[str]:
+    """
+    Extract names of failed SLOs from slo_checks list.
+
+    Args:
+        slo_checks: List of (name, passed, actual_value, target_value) tuples
+
+    Returns:
+        List of SLO names that failed
+    """
+    return [name for name, passed, _, _ in slo_checks if not passed]
+
+
+def print_overall_result_panel(
+    all_passed: bool,
+    failure_reasons: list[str],
+    success_message: str,
+) -> None:
+    """
+    Print overall pass/fail result panel.
+
+    Args:
+        all_passed: Whether overall evaluation passed
+        failure_reasons: List of failure reason strings
+        success_message: Message to show on success
+    """
+    if all_passed:
+        console.print(
+            Panel(
+                f"[green bold]OVERALL: PASS[/green bold]\n{success_message}",
+                border_style="green",
+            )
+        )
+    else:
+        console.print(
+            Panel(
+                f"[red bold]OVERALL: FAIL[/red bold]\n{'; '.join(failure_reasons)}",
+                border_style="red",
+            )
+        )
+
+
+def print_debug_failures(
+    failures: list[dict],
+    title: str,
+    max_items: int = 10,
+    format_item: Callable[[int, dict], None] | None = None,
+) -> None:
+    """
+    Print debug output for failed items.
+
+    Args:
+        failures: List of failure dictionaries
+        title: Title for the debug section
+        max_items: Maximum number of items to show
+        format_item: Optional function to format each item (receives index, item)
+    """
+    if not failures:
+        return
+
+    console.print("\n" + "=" * 80)
+    console.print(f"[bold yellow]DEBUG: {title}[/bold yellow]")
+    console.print("=" * 80)
+
+    for i, item in enumerate(failures[:max_items]):
+        if format_item:
+            format_item(i, item)
+        else:
+            console.print(f"\n[bold cyan]--- Item {i + 1} ---[/bold cyan]")
+            for key, value in item.items():
+                console.print(f"[bold]{key}:[/bold] {value}")
+        console.print("-" * 40)
+
+
 __all__ = [
     "console",
     "create_summary_table",
@@ -448,11 +527,17 @@ __all__ = [
     "print_baseline_comparison",
     "run_parallel_evaluation",
     "REGRESSION_THRESHOLD",
-    # New shared functions
+    # LLM Judge utilities
     "parse_json_response",
     "run_llm_judge",
+    # SLO utilities
     "create_slo_table",
     "print_slo_result",
+    "get_failed_slos",
+    # Latency utilities
     "calculate_p95_latency",
+    # Exit and result utilities
     "determine_exit_code",
+    "print_overall_result_panel",
+    "print_debug_failures",
 ]

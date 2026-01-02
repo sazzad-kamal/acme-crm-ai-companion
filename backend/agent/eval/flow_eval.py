@@ -50,6 +50,8 @@ from backend.agent.eval.shared import (
     print_slo_result,
     calculate_p95_latency,
     determine_exit_code,
+    get_failed_slos,
+    print_overall_result_panel,
 )
 
 logger = logging.getLogger(__name__)
@@ -672,27 +674,21 @@ def print_summary(results: EvalResults):
     # ==========================================================================
     # Overall Result
     # ==========================================================================
+    failed_slo_names = get_failed_slos(slo_checks)
+    all_passed = all_slos_passed and results.paths_failed == 0
+
+    failure_reasons = []
+    if results.paths_failed > 0:
+        failure_reasons.append(f"{results.paths_failed} paths failed")
+    if failed_slo_names:
+        failure_reasons.append(f"{len(failed_slo_names)} SLOs not met: {', '.join(failed_slo_names)}")
+
     console.print()
-    if all_slos_passed and results.paths_failed == 0:
-        console.print(
-            Panel(
-                "[green bold]OVERALL: PASS[/green bold]\n"
-                f"All {results.paths_tested} paths passed, all SLOs met",
-                border_style="green",
-            )
-        )
-    else:
-        failure_reasons = []
-        if results.paths_failed > 0:
-            failure_reasons.append(f"{results.paths_failed} paths failed")
-        if failed_slos:
-            failure_reasons.append(f"{len(failed_slos)} SLOs not met: {', '.join(failed_slos)}")
-        console.print(
-            Panel(
-                f"[red bold]OVERALL: FAIL[/red bold]\n{'; '.join(failure_reasons)}",
-                border_style="red",
-            )
-        )
+    print_overall_result_panel(
+        all_passed=all_passed,
+        failure_reasons=failure_reasons,
+        success_message=f"All {results.paths_tested} paths passed, all SLOs met",
+    )
 
 
 def save_results(results: EvalResults, output_path: Path):
