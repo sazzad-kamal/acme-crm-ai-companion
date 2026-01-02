@@ -20,28 +20,23 @@ acme-crm-ai-companion/
 │   │   ├── chat.py          # Chat endpoint
 │   │   ├── health.py        # Health & info endpoints
 │   │   └── data.py          # Data explorer endpoints
-│   ├── agent/               # Agent orchestration & tools
+│   ├── agent/               # Agent orchestration
+│   │   ├── graph.py         # LangGraph agent definition
+│   │   ├── nodes.py         # Graph node implementations
+│   │   ├── state.py         # Agent state management
 │   │   ├── orchestrator.py  # Main agent pipeline
 │   │   ├── llm_router.py    # LLM-based query routing
 │   │   ├── datastore.py     # DuckDB CRM data store
-│   │   ├── tools.py         # Tool functions
+│   │   ├── rag_tools.py     # RAG retrieval tools
 │   │   ├── schemas.py       # Pydantic models
 │   │   ├── prompts.py       # System prompts
-│   │   ├── formatters.py    # Response formatting
-│   │   ├── llm_helpers.py   # LLM utility functions
-│   │   └── progress.py      # Progress tracking
-│   ├── rag/                 # RAG retrieval system
-│   │   ├── retrieval/       # Hybrid search modules
-│   │   ├── pipeline/        # RAG pipeline components
-│   │   ├── ingest/          # Data ingestion
-│   │   └── models.py        # Document models
-│   ├── common/              # Shared utilities
-│   │   └── llm_client.py    # OpenAI client wrapper
+│   │   ├── streaming.py     # SSE streaming
+│   │   ├── tools/           # Tool implementations
+│   │   └── eval/            # Evaluation framework
 │   ├── data/                # CRM data files
 │   │   ├── csv/             # CRM CSV data
 │   │   └── docs/            # Product documentation
 │   ├── main.py              # FastAPI app entry
-│   ├── middleware.py        # Request/response middleware
 │   ├── exceptions.py        # Custom exceptions
 │   └── config.py            # Configuration
 ├── frontend/                 # React + TypeScript frontend
@@ -50,10 +45,12 @@ acme-crm-ai-companion/
 │   │   ├── hooks/           # Custom hooks
 │   │   ├── styles/          # CSS styles
 │   │   └── types/           # TypeScript types
+│   ├── e2e/                 # Playwright E2E tests
 │   └── package.json
 ├── tests/                    # Test suites
-│   ├── backend/             # Backend unit tests
-│   └── e2e/                 # End-to-end tests
+│   └── backend/             # Backend unit & integration tests
+├── scripts/                  # Development scripts
+│   └── ci.sh                # Local CI runner
 ├── requirements.txt          # Python dependencies
 └── pyproject.toml           # Python project config
 ```
@@ -120,28 +117,31 @@ The frontend will be available at `http://localhost:5173`
 
 ## 🧪 Testing
 
-### Run All Tests
+### Local CI (Recommended)
 
 ```bash
-# Backend tests (with mock LLM)
-MOCK_LLM=1 pytest backend/ -v
+# Run all checks before pushing
+./scripts/ci.sh all
 
-# Frontend tests
-cd frontend && npm test
+# Backend only
+./scripts/ci.sh backend
 
-# E2E tests
-MOCK_LLM=1 pytest tests/e2e/ -v
+# Frontend only
+./scripts/ci.sh frontend
 ```
 
-### Test Coverage
+### Individual Test Commands
 
-| Component | Tests | Coverage |
-|-----------|-------|----------|
-| Frontend | 79 | ~95% |
-| Backend Agent | 45+ | ~90% |
-| Backend RAG | 30+ | ~85% |
-| Backend Core | 25+ | ~80% |
-| E2E | 35+ | Full flow |
+```bash
+# Backend tests
+MOCK_LLM=1 pytest tests/backend/ -v
+
+# Frontend unit tests
+cd frontend && npm test
+
+# Playwright E2E tests
+cd frontend && npx playwright test
+```
 
 ## 📡 API Reference
 
@@ -199,18 +199,16 @@ GET /api/health
 
 For testing without an API key:
 ```bash
-export MOCK_LLM=1
-pytest backend/ -v
+MOCK_LLM=1 pytest tests/backend/ -v
 ```
 
 ## 🔄 CI/CD
 
-The project includes comprehensive GitHub Actions workflows:
+GitHub Actions workflows:
 
 - **Frontend CI** (`frontend.yml`): Lint, type check, test, build
-- **Backend CI** (`backend.yml`): Lint, type check, agent tests, RAG tests, core tests
-- **E2E Tests** (`e2e.yml`): Full API and integration tests
-- **RAG Eval** (`rag-eval.yml`): RAG retrieval quality evaluation
+- **Backend CI** (`backend.yml`): Lint, type check, unit tests
+- **E2E Tests** (`e2e.yml`): Playwright browser tests (full stack)
 
 ## 🏗️ Architecture
 
