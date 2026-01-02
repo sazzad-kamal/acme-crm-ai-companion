@@ -152,7 +152,7 @@ describe("useFocusTrap", () => {
     });
 
     it("restores body overflow when deactivated", async () => {
-      const { rerender } = render(<ModalWrapper initialOpen />);
+      render(<ModalWrapper initialOpen />);
 
       await waitFor(() => {
         expect(document.body.style.overflow).toBe("hidden");

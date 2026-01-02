@@ -5,7 +5,7 @@ E2E latency profiler for agent queries.
 Runs sample queries and breaks down latency by step.
 
 Usage:
-    python -m backend.scripts.profile_e2e
+    python -m backend.agent.eval.profile
 """
 
 import os

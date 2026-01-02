@@ -243,7 +243,7 @@ describe("DataTable Pagination", () => {
         name: `Company ${i + 1}`,
         _private_texts: [{ id: `note-${i}`, text: `NestedContent${i + 1}` }],
       }));
-      const nestedFields = [{ key: "_private_texts", label: "Notes" }];
+      const nestedFields = [{ key: "_private_texts", label: "Notes", icon: "📝" }];
 
       render(
         <DataTable

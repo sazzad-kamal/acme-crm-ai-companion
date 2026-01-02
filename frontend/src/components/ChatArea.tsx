@@ -85,7 +85,6 @@ function EmptyState({ onSuggestionClick }: EmptyStateProps) {
         }
       } catch {
         // Fallback to static prompts on error (already set as default)
-        console.debug("Using fallback starter questions");
       } finally {
         setIsLoading(false);
       }
