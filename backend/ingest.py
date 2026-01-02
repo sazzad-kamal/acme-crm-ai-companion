@@ -13,20 +13,22 @@ import json
 import logging
 from pathlib import Path
 
+from backend.agent.rag_tools import (
+    QDRANT_PATH,
+    DOCS_COLLECTION,
+    PRIVATE_COLLECTION,
+    EMBEDDING_MODEL,
+)
+
 logger = logging.getLogger(__name__)
 
 # =============================================================================
-# Configuration
+# Configuration (paths specific to ingestion)
 # =============================================================================
 
 _BACKEND_ROOT = Path(__file__).parent
 DOCS_DIR = _BACKEND_ROOT / "data" / "docs"
 JSONL_PATH = _BACKEND_ROOT / "data" / "csv" / "private_texts.jsonl"
-QDRANT_PATH = _BACKEND_ROOT / "data" / "qdrant"
-
-DOCS_COLLECTION = "acme_crm_docs"
-PRIVATE_COLLECTION = "acme_crm_private"
-EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 
 
 # =============================================================================
