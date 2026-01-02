@@ -48,6 +48,54 @@ def _safe_extend(target_list: list, source_list: list | None) -> None:
         target_list.extend(source_list)
 
 
+def _apply_tool_result(
+    result: "IntentResult",
+    tool_result: object,
+    data_attr: str,
+    raw_data_key: str,
+    list_key: str | None = None,
+    limit: int = 8,
+) -> None:
+    """
+    Apply a tool result to an IntentResult, handling sources and raw_data.
+
+    Args:
+        result: The IntentResult to update
+        tool_result: The tool result object with .data and .sources
+        data_attr: Attribute name on result (e.g., 'pipeline_data')
+        raw_data_key: Key in raw_data dict (e.g., 'opportunities')
+        list_key: Key within tool_result.data to extract (e.g., 'opportunities')
+                  If None, uses raw_data_key
+        limit: Max items to include in raw_data
+    """
+    setattr(result, data_attr, tool_result.data)
+    _safe_extend(result.sources, tool_result.sources)
+
+    extract_key = list_key or raw_data_key
+    data = tool_result.data.get(extract_key, [])
+    if isinstance(data, list):
+        result.raw_data[raw_data_key] = data[:limit]
+    else:
+        result.raw_data[raw_data_key] = data
+
+
+def _lookup_company(result: "IntentResult", company_id: str) -> bool:
+    """
+    Look up a company and add to result if found.
+
+    Returns True if company was found, False otherwise.
+    """
+    company_result = tool_company_lookup(company_id)
+    if company_result.data.get("found"):
+        result.company_data = company_result.data
+        _safe_extend(result.sources, company_result.sources)
+        result.raw_data["companies"] = [result.company_data["company"]]
+        result.resolved_company_id = result.company_data["company"]["company_id"]
+        return True
+    result.company_data = company_result.data
+    return False
+
+
 @dataclass
 class IntentContext:
     """Context passed to intent handlers."""
@@ -124,17 +172,10 @@ def handle_renewals(ctx: IntentContext) -> IntentResult:
     result = IntentResult(raw_data=_empty_raw_data(), resolved_company_id=ctx.resolved_company_id)
 
     if ctx.resolved_company_id:
-        company_result = tool_company_lookup(ctx.resolved_company_id)
-        if company_result.data.get("found"):
-            result.company_data = company_result.data
-            _safe_extend(result.sources, company_result.sources)
-            result.raw_data["companies"] = [result.company_data["company"]]
+        _lookup_company(result, ctx.resolved_company_id)
 
-    # Pass owner for role-based filtering
     renewals_result = tool_upcoming_renewals(days=ctx.days, owner=ctx.owner or "")
-    result.renewals_data = renewals_result.data
-    _safe_extend(result.sources, renewals_result.sources)
-    result.raw_data["renewals"] = result.renewals_data.get("renewals", [])[:8]
+    _apply_tool_result(result, renewals_result, "renewals_data", "renewals")
     return result
 
 
@@ -144,14 +185,10 @@ def handle_contacts(ctx: IntentContext) -> IntentResult:
     result = IntentResult(raw_data=_empty_raw_data(), resolved_company_id=ctx.resolved_company_id)
 
     role = extract_role_from_question(ctx.question)
-    if ctx.resolved_company_id:
-        contacts_result = tool_search_contacts(company_id=ctx.resolved_company_id, role=role)
-    else:
-        contacts_result = tool_search_contacts(role=role)
-
-    result.contacts_data = contacts_result.data
-    _safe_extend(result.sources, contacts_result.sources)
-    result.raw_data["contacts"] = result.contacts_data.get("contacts", [])[:10]
+    contacts_result = tool_search_contacts(
+        company_id=ctx.resolved_company_id or "", role=role
+    )
+    _apply_tool_result(result, contacts_result, "contacts_data", "contacts", limit=10)
     return result
 
 
@@ -162,9 +199,7 @@ def handle_company_search(ctx: IntentContext) -> IntentResult:
 
     segment, industry = extract_company_criteria(ctx.question)
     companies_result = tool_search_companies(segment=segment, industry=industry)
-    result.company_data = companies_result.data
-    _safe_extend(result.sources, companies_result.sources)
-    result.raw_data["companies"] = result.company_data.get("companies", [])[:10]
+    _apply_tool_result(result, companies_result, "company_data", "companies", limit=10)
     return result
 
 
@@ -175,9 +210,7 @@ def handle_attachments(ctx: IntentContext) -> IntentResult:
 
     query = extract_attachment_query(ctx.question)
     attachments_result = tool_search_attachments(query=query, company_id=ctx.resolved_company_id)
-    result.attachments_data = attachments_result.data
-    _safe_extend(result.sources, attachments_result.sources)
-    result.raw_data["attachments"] = result.attachments_data.get("attachments", [])[:10]
+    _apply_tool_result(result, attachments_result, "attachments_data", "attachments", limit=10)
     return result
 
 
@@ -188,9 +221,7 @@ def handle_activities(ctx: IntentContext) -> IntentResult:
 
     activity_type = extract_activity_type(ctx.question)
     activities_result = tool_search_activities(activity_type=activity_type, days=ctx.days)
-    result.activities_data = activities_result.data
-    _safe_extend(result.sources, activities_result.sources)
-    result.raw_data["activities"] = result.activities_data.get("activities", [])[:10]
+    _apply_tool_result(result, activities_result, "activities_data", "activities", limit=10)
     return result
 
 
@@ -249,26 +280,20 @@ def handle_analytics(ctx: IntentContext) -> IntentResult:
     logger.debug("[Data] Processing analytics query")
     result = IntentResult(raw_data=_empty_raw_data(), resolved_company_id=ctx.resolved_company_id)
 
-    # Detect the metric type from the question
     metric, group_by, activity_type = _detect_analytics_metric(ctx.question)
-
-    logger.debug(
-        f"[Analytics] metric={metric}, group_by={group_by}, activity_type={activity_type}, company={ctx.resolved_company_id}"
-    )
+    logger.debug(f"[Analytics] metric={metric}, group_by={group_by}, activity_type={activity_type}")
 
     analytics_result = tool_analytics(
         metric=metric,
         group_by=group_by,
         company_id=ctx.resolved_company_id or "",
-        group_id="",  # Groups feature removed
+        group_id="",
         activity_type=activity_type,
         days=ctx.days,
     )
-
     result.analytics_data = analytics_result.data
     _safe_extend(result.sources, analytics_result.sources)
     result.raw_data["analytics"] = analytics_result.data
-
     return result
 
 
@@ -281,44 +306,31 @@ def handle_company_status(ctx: IntentContext) -> IntentResult:
         query = getattr(ctx.router_result, "company_name_query", None)
 
     logger.debug(f"[Data] Looking up company: {query}")
-    company_result = tool_company_lookup(query or "")
-
-    if company_result.data.get("found"):
-        result.company_data = company_result.data
-        _safe_extend(result.sources, company_result.sources)
-        result.resolved_company_id = result.company_data["company"]["company_id"]
-        result.raw_data["companies"] = [result.company_data["company"]]
-
-        logger.debug(f"[Data] Fetching data for {result.resolved_company_id}")
-
-        # Get activities
-        activities_result = tool_recent_activity(result.resolved_company_id, days=ctx.days)
-        result.activities_data = activities_result.data
-        _safe_extend(result.sources, activities_result.sources)
-        result.raw_data["activities"] = result.activities_data.get("activities", [])[:8]
-
-        # Get history
-        history_result = tool_recent_history(result.resolved_company_id, days=ctx.days)
-        result.history_data = history_result.data
-        _safe_extend(result.sources, history_result.sources)
-        result.raw_data["history"] = result.history_data.get("history", [])[:8]
-
-        # Get pipeline
-        pipeline_result = tool_pipeline(result.resolved_company_id)
-        result.pipeline_data = pipeline_result.data
-        _safe_extend(result.sources, pipeline_result.sources)
-        result.raw_data["opportunities"] = result.pipeline_data.get("opportunities", [])[:8]
-        result.raw_data["pipeline_summary"] = result.pipeline_data.get("summary")
-
-        logger.info(
-            f"[Data] Fetched: activities={len(result.activities_data.get('activities', []))}, "
-            f"history={len(result.history_data.get('history', []))}, "
-            f"opps={len(result.pipeline_data.get('opportunities', []))}"
-        )
-    else:
-        result.company_data = company_result.data
+    if not _lookup_company(result, query or ""):
         logger.info(f"[Data] Company not found: {query}")
+        return result
 
+    company_id = result.resolved_company_id
+    logger.debug(f"[Data] Fetching data for {company_id}")
+
+    # Fetch all company data
+    _apply_tool_result(
+        result, tool_recent_activity(company_id, days=ctx.days),
+        "activities_data", "activities"
+    )
+    _apply_tool_result(
+        result, tool_recent_history(company_id, days=ctx.days),
+        "history_data", "history"
+    )
+    pipeline_result = tool_pipeline(company_id)
+    _apply_tool_result(result, pipeline_result, "pipeline_data", "opportunities")
+    result.raw_data["pipeline_summary"] = pipeline_result.data.get("summary")
+
+    logger.info(
+        f"[Data] Fetched: activities={len(result.activities_data.get('activities', []))}, "
+        f"history={len(result.history_data.get('history', []))}, "
+        f"opps={len(result.pipeline_data.get('opportunities', []))}"
+    )
     return result
 
 
@@ -328,9 +340,7 @@ def handle_fallback(ctx: IntentContext) -> IntentResult:
     result = IntentResult(raw_data=_empty_raw_data())
 
     renewals_result = tool_upcoming_renewals(days=ctx.days)
-    result.renewals_data = renewals_result.data
-    _safe_extend(result.sources, renewals_result.sources)
-    result.raw_data["renewals"] = result.renewals_data.get("renewals", [])[:8]
+    _apply_tool_result(result, renewals_result, "renewals_data", "renewals")
     return result
 
 
@@ -339,23 +349,21 @@ def handle_deals_at_risk(ctx: IntentContext) -> IntentResult:
     logger.debug(f"[Data] Fetching at-risk deals and accounts (owner={ctx.owner})")
     result = IntentResult(raw_data=_empty_raw_data())
 
-    # Get deals at risk with owner filter
+    # Get deals at risk
     risk_result = tool_deals_at_risk(owner=ctx.owner or "")
     result.pipeline_data = risk_result.data
     _safe_extend(result.sources, risk_result.sources)
+    result.raw_data["opportunities"] = risk_result.data.get("deals", [])[:8]
 
-    # Also get upcoming renewals for context
+    # Get renewals for context
     renewals_result = tool_upcoming_renewals(days=ctx.days, owner=ctx.owner or "")
-    result.renewals_data = renewals_result.data
-    _safe_extend(result.sources, renewals_result.sources)
+    _apply_tool_result(result, renewals_result, "renewals_data", "renewals")
 
-    # Get accounts needing attention (trial, churned, at-risk)
+    # Get accounts needing attention
     accounts_result = tool_accounts_needing_attention(owner=ctx.owner or "")
     _safe_extend(result.sources, accounts_result.sources)
-
-    result.raw_data["opportunities"] = result.pipeline_data.get("deals", [])[:8]
-    result.raw_data["renewals"] = result.renewals_data.get("renewals", [])[:8]
     result.raw_data["companies"] = accounts_result.data.get("accounts", [])[:8]
+
     result.raw_data["pipeline_summary"] = {
         "at_risk_count": result.pipeline_data.get("count", 0),
         "at_risk_value": result.pipeline_data.get("total_value", 0),
@@ -369,11 +377,9 @@ def handle_forecast(ctx: IntentContext) -> IntentResult:
     logger.debug(f"[Data] Fetching pipeline forecast (owner={ctx.owner})")
     result = IntentResult(raw_data=_empty_raw_data())
 
-    # Get forecast with owner filter
     forecast_result = tool_forecast(owner=ctx.owner or "")
     result.pipeline_data = forecast_result.data
     _safe_extend(result.sources, forecast_result.sources)
-
     result.raw_data["pipeline_summary"] = forecast_result.data
     result.raw_data["opportunities"] = forecast_result.data.get("top_opportunities", [])[:8]
     return result
@@ -384,11 +390,9 @@ def handle_forecast_accuracy(ctx: IntentContext) -> IntentResult:
     logger.debug(f"[Data] Fetching forecast accuracy (owner={ctx.owner})")
     result = IntentResult(raw_data=_empty_raw_data())
 
-    # Get accuracy metrics with owner filter
     accuracy_result = tool_forecast_accuracy(owner=ctx.owner or "")
     result.pipeline_data = accuracy_result.data
     _safe_extend(result.sources, accuracy_result.sources)
-
     result.raw_data["pipeline_summary"] = accuracy_result.data
     result.raw_data["analytics"] = accuracy_result.data
     return result
