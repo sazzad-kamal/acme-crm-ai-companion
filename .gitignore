@@ -4,6 +4,10 @@ node_modules/
 __pycache__/
 *.pyc
 
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+
 # Build outputs
 dist/
 build/
@@ -32,6 +36,7 @@ backend/data/qdrant/
 backend/data/logs/
 
 # Test artifacts
+.pytest_cache/
 playwright-report/
 test-results/
 frontend/playwright-report/

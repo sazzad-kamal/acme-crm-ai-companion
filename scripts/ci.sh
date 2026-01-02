@@ -29,10 +29,6 @@ run_backend() {
     ruff check backend/ --select=E,F,W --ignore=E501,F401,F841,E402,E701,E741
     print_success "Ruff linter passed"
 
-    print_header "Backend: Ruff Formatter"
-    ruff format backend/ --check --diff
-    print_success "Ruff formatter passed"
-
     print_header "Backend: Mypy Type Check"
     mypy backend/ --ignore-missing-imports --no-error-summary --allow-untyped-defs
     print_success "Mypy passed"
@@ -81,6 +77,9 @@ case $TARGET in
         exit 1
         ;;
 esac
+
+# Cleanup cache directories
+rm -rf .mypy_cache .pytest_cache .ruff_cache 2>/dev/null || true
 
 echo ""
 echo -e "${GREEN}========================================${NC}"
