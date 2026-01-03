@@ -1,57 +1,17 @@
 """
-Shared evaluation utilities - facade module.
+Shared evaluation utilities that have complex dependencies.
 
-This module re-exports utilities from focused submodules for backward compatibility.
-New code should import directly from the submodules:
-- formatting: console, format_check_mark, format_percentage, etc.
-- baseline: compare_to_baseline, save_baseline, REGRESSION_THRESHOLD
-- parallel: run_parallel_evaluation, calculate_p95_latency
-- slo: create_slo_table, print_slo_result, get_failed_slos, determine_exit_code
-- results: parse_json_response, run_llm_judge, save_eval_results, finalize_eval_cli
+Only contains functions that depend on llm_client or have complex logic
+that doesn't fit cleanly into the focused modules.
 """
 
 import json
 from pathlib import Path
 from typing import Any, Callable
 
-# Re-export from formatting module
-from backend.agent.eval.formatting import (
-    console,
-    format_check_mark,
-    format_percentage,
-    create_summary_table,
-    print_eval_header,
-    print_overall_result_panel,
-    print_debug_failures,
-    build_eval_table,
-)
-
-# Re-export from baseline module
-from backend.agent.eval.baseline import (
-    REGRESSION_THRESHOLD,
-    compare_to_baseline,
-    save_baseline,
-    print_baseline_comparison,
-)
-
-# Re-export from parallel module
-from backend.agent.eval.parallel import (
-    run_parallel_evaluation,
-    calculate_p95_latency,
-)
-
-# Re-export from SLO module
-from backend.agent.eval.slo import (
-    create_slo_table,
-    print_slo_result,
-    get_failed_slos,
-    determine_exit_code,
-)
-
-
-# =============================================================================
-# LLM Judge Utilities (kept here for dependency on llm_client)
-# =============================================================================
+from backend.agent.eval.formatting import console, print_overall_result_panel
+from backend.agent.eval.baseline import compare_to_baseline, save_baseline, print_baseline_comparison
+from backend.agent.eval.slo import get_failed_slos, determine_exit_code
 
 
 def parse_json_response(text: str) -> dict:
@@ -67,7 +27,6 @@ def parse_json_response(text: str) -> dict:
     Raises:
         json.JSONDecodeError: If JSON parsing fails
     """
-    # Handle markdown code blocks
     if "```json" in text:
         text = text.split("```json")[1].split("```")[0]
     elif "```" in text:
@@ -115,11 +74,6 @@ def run_llm_judge(
         return {"error": str(e)}
 
 
-# =============================================================================
-# Compatibility wrappers for complex functions with different signatures
-# =============================================================================
-
-
 def save_eval_results(
     output_path: str,
     summary: Any,
@@ -158,8 +112,6 @@ def finalize_eval_cli(
     """
     Finalize evaluation CLI: handle baseline, SLOs, and exit code.
 
-    This is a shared helper for eval CLIs to avoid duplication.
-
     Args:
         primary_score: The primary score to compare against baseline
         slo_checks: List of (name, passed, actual_value, target_value) tuples
@@ -167,13 +119,12 @@ def finalize_eval_cli(
         score_key: Key for score in baseline JSON
         set_baseline: Whether to save current results as baseline
         baseline_data: Data to save as baseline (required if set_baseline=True)
-        extra_failure_check: Additional failure condition (e.g., paths_failed > 0)
+        extra_failure_check: Additional failure condition
         extra_failure_reason: Reason for extra failure
 
     Returns:
         Exit code (0 for success, 1 for failure)
     """
-    # Baseline comparison
     is_regression, baseline_score = compare_to_baseline(
         primary_score,
         baseline_path,
@@ -181,20 +132,16 @@ def finalize_eval_cli(
     )
     print_baseline_comparison(primary_score, baseline_score, is_regression)
 
-    # Save as new baseline if requested
     if set_baseline and baseline_data:
         save_baseline(baseline_data, baseline_path)
 
-    # Check SLOs
     failed_slos = get_failed_slos(slo_checks)
     all_slos_passed = len(failed_slos) == 0
     exit_code = determine_exit_code(all_slos_passed, is_regression)
 
-    # Include extra failure condition
     if extra_failure_check:
         exit_code = 1
 
-    # Build failure reasons
     failure_reasons = []
     if extra_failure_check and extra_failure_reason:
         failure_reasons.append(extra_failure_reason)
@@ -203,7 +150,6 @@ def finalize_eval_cli(
     if is_regression:
         failure_reasons.append("Regression detected vs baseline")
 
-    # Print overall result panel
     console.print()
     print_overall_result_panel(
         all_passed=exit_code == 0,
@@ -215,29 +161,6 @@ def finalize_eval_cli(
 
 
 __all__ = [
-    # Formatting
-    "console",
-    "create_summary_table",
-    "format_check_mark",
-    "format_percentage",
-    "print_eval_header",
-    "print_overall_result_panel",
-    "print_debug_failures",
-    "build_eval_table",
-    # Baseline
-    "compare_to_baseline",
-    "save_baseline",
-    "print_baseline_comparison",
-    "REGRESSION_THRESHOLD",
-    # Parallel
-    "run_parallel_evaluation",
-    "calculate_p95_latency",
-    # SLO
-    "create_slo_table",
-    "print_slo_result",
-    "get_failed_slos",
-    "determine_exit_code",
-    # Results / LLM Judge
     "parse_json_response",
     "run_llm_judge",
     "save_eval_results",

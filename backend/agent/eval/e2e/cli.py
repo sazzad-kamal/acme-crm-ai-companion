@@ -12,11 +12,8 @@ _project_root = Path(__file__).parent.parent.parent.parent.parent
 load_dotenv(_project_root / ".env")
 
 from backend.agent.eval.base import console, ensure_qdrant_collections
-from backend.agent.eval.shared import (
-    finalize_eval_cli,
-    save_eval_results,
-    print_debug_failures,
-)
+from backend.agent.eval.shared import finalize_eval_cli, save_eval_results
+from backend.agent.eval.formatting import print_debug_failures
 from backend.agent.eval.models import (
     SLO_ROUTER_ACCURACY,
     SLO_ANSWER_RELEVANCE,

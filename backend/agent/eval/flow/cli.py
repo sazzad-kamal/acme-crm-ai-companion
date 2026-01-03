@@ -15,7 +15,8 @@ load_dotenv()
 
 from backend.agent.question_tree import get_tree_stats
 from backend.agent.eval.base import console, format_percentage, ensure_qdrant_collections
-from backend.agent.eval.shared import finalize_eval_cli, print_debug_failures
+from backend.agent.eval.shared import finalize_eval_cli
+from backend.agent.eval.formatting import print_debug_failures
 from backend.agent.eval.models import (
     SLO_FLOW_PATH_PASS_RATE,
     SLO_FLOW_QUESTION_PASS_RATE,

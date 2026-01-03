@@ -5,7 +5,8 @@ from __future__ import annotations
 from rich.table import Table
 
 from backend.agent.eval.base import console, format_percentage, format_check_mark
-from backend.agent.eval.shared import print_slo_result, build_eval_table
+from backend.agent.eval.slo import print_slo_result
+from backend.agent.eval.formatting import build_eval_table
 from backend.agent.eval.models import (
     E2EEvalResult,
     E2EEvalSummary,

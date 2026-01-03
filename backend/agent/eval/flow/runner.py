@@ -10,7 +10,8 @@ from rich.table import Table
 
 from backend.agent.question_tree import generate_all_paths
 from backend.agent.eval.base import console, print_eval_header
-from backend.agent.eval.shared import calculate_p95_latency, run_llm_judge
+from backend.agent.eval.parallel import calculate_p95_latency
+from backend.agent.eval.shared import run_llm_judge
 from backend.agent.eval.models import FlowStepResult, FlowResult, FlowEvalResults
 from backend.agent.eval.prompts import FLOW_JUDGE_SYSTEM, FLOW_JUDGE_PROMPT
 

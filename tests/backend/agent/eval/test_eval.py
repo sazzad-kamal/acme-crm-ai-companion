@@ -481,21 +481,21 @@ class TestSharedFormatters:
 
     def test_format_check_mark_true(self):
         """Test format_check_mark with True."""
-        from backend.agent.eval.shared import format_check_mark
+        from backend.agent.eval.formatting import format_check_mark
 
         result = format_check_mark(True)
         assert "[green]Y[/green]" in result
 
     def test_format_check_mark_false(self):
         """Test format_check_mark with False."""
-        from backend.agent.eval.shared import format_check_mark
+        from backend.agent.eval.formatting import format_check_mark
 
         result = format_check_mark(False)
         assert "[red]X[/red]" in result
 
     def test_format_percentage_high(self):
         """Test format_percentage with high value (green)."""
-        from backend.agent.eval.shared import format_percentage
+        from backend.agent.eval.formatting import format_percentage
 
         result = format_percentage(0.95)
         assert "[green]" in result
@@ -503,7 +503,7 @@ class TestSharedFormatters:
 
     def test_format_percentage_medium(self):
         """Test format_percentage with medium value (yellow)."""
-        from backend.agent.eval.shared import format_percentage
+        from backend.agent.eval.formatting import format_percentage
 
         result = format_percentage(0.75)
         assert "[yellow]" in result
@@ -511,7 +511,7 @@ class TestSharedFormatters:
 
     def test_format_percentage_low(self):
         """Test format_percentage with low value (red)."""
-        from backend.agent.eval.shared import format_percentage
+        from backend.agent.eval.formatting import format_percentage
 
         result = format_percentage(0.50)
         assert "[red]" in result
@@ -519,7 +519,7 @@ class TestSharedFormatters:
 
     def test_format_percentage_custom_thresholds(self):
         """Test format_percentage with custom thresholds."""
-        from backend.agent.eval.shared import format_percentage
+        from backend.agent.eval.formatting import format_percentage
 
         # With custom thresholds (0.8, 0.6), 0.75 should be yellow
         result = format_percentage(0.75, thresholds=(0.8, 0.6))
@@ -531,7 +531,7 @@ class TestSharedTables:
 
     def test_create_summary_table(self):
         """Test create_summary_table creates valid table."""
-        from backend.agent.eval.shared import create_summary_table
+        from backend.agent.eval.formatting import create_summary_table
 
         table = create_summary_table("Test Summary")
         assert table.title == "Test Summary"
@@ -539,7 +539,7 @@ class TestSharedTables:
 
     def test_create_slo_table(self):
         """Test create_slo_table creates valid table."""
-        from backend.agent.eval.shared import create_slo_table
+        from backend.agent.eval.slo import create_slo_table
 
         slo_checks = [
             ("P95 Latency", True, "4.5s", "5.0s"),
@@ -557,7 +557,7 @@ class TestSharedSLOFunctions:
 
     def test_get_failed_slos_none_failed(self):
         """Test get_failed_slos with all passing."""
-        from backend.agent.eval.shared import get_failed_slos
+        from backend.agent.eval.slo import get_failed_slos
 
         slo_checks = [
             ("P95 Latency", True, "4.5s", "5.0s"),
@@ -569,7 +569,7 @@ class TestSharedSLOFunctions:
 
     def test_get_failed_slos_some_failed(self):
         """Test get_failed_slos with failures."""
-        from backend.agent.eval.shared import get_failed_slos
+        from backend.agent.eval.slo import get_failed_slos
 
         slo_checks = [
             ("P95 Latency", True, "4.5s", "5.0s"),
@@ -584,19 +584,19 @@ class TestSharedSLOFunctions:
 
     def test_determine_exit_code_all_pass(self):
         """Test determine_exit_code with all passing."""
-        from backend.agent.eval.shared import determine_exit_code
+        from backend.agent.eval.slo import determine_exit_code
 
         assert determine_exit_code(all_slos_passed=True, is_regression=False) == 0
 
     def test_determine_exit_code_slo_fail(self):
         """Test determine_exit_code with SLO failure."""
-        from backend.agent.eval.shared import determine_exit_code
+        from backend.agent.eval.slo import determine_exit_code
 
         assert determine_exit_code(all_slos_passed=False, is_regression=False) == 1
 
     def test_determine_exit_code_regression(self):
         """Test determine_exit_code with regression."""
-        from backend.agent.eval.shared import determine_exit_code
+        from backend.agent.eval.slo import determine_exit_code
 
         assert determine_exit_code(all_slos_passed=True, is_regression=True) == 1
 
@@ -606,19 +606,19 @@ class TestSharedLatency:
 
     def test_calculate_p95_latency_empty_list(self):
         """Test calculate_p95_latency with empty list."""
-        from backend.agent.eval.shared import calculate_p95_latency
+        from backend.agent.eval.parallel import calculate_p95_latency
 
         assert calculate_p95_latency([]) == 0.0
 
     def test_calculate_p95_latency_single_value(self):
         """Test calculate_p95_latency with single value."""
-        from backend.agent.eval.shared import calculate_p95_latency
+        from backend.agent.eval.parallel import calculate_p95_latency
 
         assert calculate_p95_latency([1000]) == 1000.0
 
     def test_calculate_p95_latency_multiple_values(self):
         """Test calculate_p95_latency with multiple values."""
-        from backend.agent.eval.shared import calculate_p95_latency
+        from backend.agent.eval.parallel import calculate_p95_latency
 
         latencies = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
         p95 = calculate_p95_latency(latencies)
@@ -627,7 +627,7 @@ class TestSharedLatency:
 
     def test_calculate_p95_latency_with_outliers(self):
         """Test calculate_p95_latency with outliers."""
-        from backend.agent.eval.shared import calculate_p95_latency
+        from backend.agent.eval.parallel import calculate_p95_latency
 
         # 95 values at 100ms, 5 values at 10000ms
         latencies = [100] * 95 + [10000] * 5
@@ -685,7 +685,7 @@ class TestSharedBaseline:
 
     def test_compare_to_baseline_no_file(self, tmp_path):
         """Test compare_to_baseline when file doesn't exist."""
-        from backend.agent.eval.shared import compare_to_baseline
+        from backend.agent.eval.baseline import compare_to_baseline
 
         baseline_path = tmp_path / "nonexistent.json"
         is_regression, baseline_score = compare_to_baseline(0.85, baseline_path)
@@ -695,7 +695,7 @@ class TestSharedBaseline:
 
     def test_compare_to_baseline_with_file(self, tmp_path):
         """Test compare_to_baseline with existing baseline."""
-        from backend.agent.eval.shared import compare_to_baseline
+        from backend.agent.eval.baseline import compare_to_baseline
         import json
 
         baseline_path = tmp_path / "baseline.json"
@@ -708,7 +708,7 @@ class TestSharedBaseline:
 
     def test_compare_to_baseline_regression_detected(self, tmp_path):
         """Test compare_to_baseline detects regression."""
-        from backend.agent.eval.shared import compare_to_baseline, REGRESSION_THRESHOLD
+        from backend.agent.eval.baseline import compare_to_baseline, REGRESSION_THRESHOLD
         import json
 
         baseline_path = tmp_path / "baseline.json"
@@ -722,7 +722,7 @@ class TestSharedBaseline:
 
     def test_compare_to_baseline_with_summary_structure(self, tmp_path):
         """Test compare_to_baseline with nested summary structure."""
-        from backend.agent.eval.shared import compare_to_baseline
+        from backend.agent.eval.baseline import compare_to_baseline
         import json
 
         baseline_path = tmp_path / "baseline.json"
@@ -734,7 +734,7 @@ class TestSharedBaseline:
 
     def test_compare_to_baseline_invalid_json(self, tmp_path):
         """Test compare_to_baseline with invalid JSON."""
-        from backend.agent.eval.shared import compare_to_baseline
+        from backend.agent.eval.baseline import compare_to_baseline
 
         baseline_path = tmp_path / "baseline.json"
         baseline_path.write_text("not valid json")
@@ -746,7 +746,7 @@ class TestSharedBaseline:
 
     def test_save_baseline(self, tmp_path):
         """Test save_baseline writes correct file."""
-        from backend.agent.eval.shared import save_baseline
+        from backend.agent.eval.baseline import save_baseline
         import json
 
         baseline_path = tmp_path / "subdir" / "baseline.json"
@@ -764,35 +764,35 @@ class TestSharedPrintFunctions:
 
     def test_print_eval_header(self, capsys):
         """Test print_eval_header runs without error."""
-        from backend.agent.eval.shared import print_eval_header
+        from backend.agent.eval.formatting import print_eval_header
 
         # Should not raise
         print_eval_header("Test Header", "Test Subtitle")
 
     def test_print_baseline_comparison_no_baseline(self, capsys):
         """Test print_baseline_comparison with no baseline."""
-        from backend.agent.eval.shared import print_baseline_comparison
+        from backend.agent.eval.baseline import print_baseline_comparison
 
         # Should not raise
         print_baseline_comparison(0.85, None, False)
 
     def test_print_baseline_comparison_with_baseline(self, capsys):
         """Test print_baseline_comparison with baseline."""
-        from backend.agent.eval.shared import print_baseline_comparison
+        from backend.agent.eval.baseline import print_baseline_comparison
 
         # Should not raise
         print_baseline_comparison(0.85, 0.80, False)
 
     def test_print_baseline_comparison_regression(self, capsys):
         """Test print_baseline_comparison with regression."""
-        from backend.agent.eval.shared import print_baseline_comparison
+        from backend.agent.eval.baseline import print_baseline_comparison
 
         # Should not raise
         print_baseline_comparison(0.70, 0.80, True)
 
     def test_print_slo_result_all_pass(self, capsys):
         """Test print_slo_result with all passing."""
-        from backend.agent.eval.shared import print_slo_result
+        from backend.agent.eval.slo import print_slo_result
 
         slo_checks = [
             ("P95 Latency", True, "4.5s", "5.0s"),
@@ -804,7 +804,7 @@ class TestSharedPrintFunctions:
 
     def test_print_slo_result_some_fail(self, capsys):
         """Test print_slo_result with failures."""
-        from backend.agent.eval.shared import print_slo_result
+        from backend.agent.eval.slo import print_slo_result
 
         slo_checks = [
             ("P95 Latency", True, "4.5s", "5.0s"),
@@ -816,28 +816,28 @@ class TestSharedPrintFunctions:
 
     def test_print_overall_result_panel_pass(self, capsys):
         """Test print_overall_result_panel with pass."""
-        from backend.agent.eval.shared import print_overall_result_panel
+        from backend.agent.eval.formatting import print_overall_result_panel
 
         # Should not raise
         print_overall_result_panel(True, [], "All tests passed!")
 
     def test_print_overall_result_panel_fail(self, capsys):
         """Test print_overall_result_panel with failure."""
-        from backend.agent.eval.shared import print_overall_result_panel
+        from backend.agent.eval.formatting import print_overall_result_panel
 
         # Should not raise
         print_overall_result_panel(False, ["SLO failed", "Regression detected"], "")
 
     def test_print_debug_failures_empty(self, capsys):
         """Test print_debug_failures with empty list."""
-        from backend.agent.eval.shared import print_debug_failures
+        from backend.agent.eval.formatting import print_debug_failures
 
         # Should not raise, should print nothing
         print_debug_failures([], "No Failures")
 
     def test_print_debug_failures_with_items(self, capsys):
         """Test print_debug_failures with items."""
-        from backend.agent.eval.shared import print_debug_failures
+        from backend.agent.eval.formatting import print_debug_failures
 
         failures = [
             {"id": "t1", "error": "Test error 1"},
@@ -849,7 +849,7 @@ class TestSharedPrintFunctions:
 
     def test_print_debug_failures_with_custom_formatter(self, capsys):
         """Test print_debug_failures with custom formatter."""
-        from backend.agent.eval.shared import print_debug_failures, console
+        from backend.agent.eval.formatting import print_debug_failures, console
 
         failures = [{"id": "t1", "score": 0.5}]
 
@@ -865,7 +865,7 @@ class TestSharedParallelRunner:
 
     def test_run_parallel_evaluation_basic(self):
         """Test run_parallel_evaluation with simple function."""
-        from backend.agent.eval.shared import run_parallel_evaluation
+        from backend.agent.eval.parallel import run_parallel_evaluation
 
         items = [
             {"id": "1", "value": 10},
@@ -888,7 +888,7 @@ class TestSharedParallelRunner:
 
     def test_run_parallel_evaluation_no_lock(self):
         """Test run_parallel_evaluation without lock."""
-        from backend.agent.eval.shared import run_parallel_evaluation
+        from backend.agent.eval.parallel import run_parallel_evaluation
 
         items = [{"id": "1", "value": 5}]
 
@@ -908,7 +908,7 @@ class TestSharedParallelRunner:
 
     def test_run_parallel_evaluation_custom_id_field(self):
         """Test run_parallel_evaluation with custom ID field."""
-        from backend.agent.eval.shared import run_parallel_evaluation
+        from backend.agent.eval.parallel import run_parallel_evaluation
 
         items = [
             {"test_id": "a", "value": 1},
@@ -930,7 +930,7 @@ class TestSharedParallelRunner:
 
     def test_run_parallel_evaluation_handles_errors(self, capsys):
         """Test run_parallel_evaluation handles errors gracefully."""
-        from backend.agent.eval.shared import run_parallel_evaluation
+        from backend.agent.eval.parallel import run_parallel_evaluation
 
         items = [
             {"id": "good", "value": 10},

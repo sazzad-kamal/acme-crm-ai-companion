@@ -42,13 +42,15 @@ def ensure_qdrant_collections() -> None:
         print("  Private collection created")
 
 
-# Re-export shared utilities that are actually used
-from backend.agent.eval.shared import (
+# Re-export utilities from focused modules
+from backend.agent.eval.formatting import (
     console,
     create_summary_table,
     format_check_mark,
     format_percentage,
     print_eval_header,
+)
+from backend.agent.eval.baseline import (
     compare_to_baseline,
     save_baseline,
     print_baseline_comparison,

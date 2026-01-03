@@ -9,12 +9,8 @@ from pathlib import Path
 from rich.table import Table
 
 from backend.agent.eval.base import console, format_percentage, format_check_mark
-from backend.agent.eval.shared import (
-    print_slo_result,
-    get_failed_slos,
-    print_overall_result_panel,
-    build_eval_table,
-)
+from backend.agent.eval.slo import print_slo_result, get_failed_slos
+from backend.agent.eval.formatting import print_overall_result_panel, build_eval_table
 from backend.agent.eval.models import (
     SLO_FLOW_PATH_PASS_RATE,
     SLO_FLOW_QUESTION_PASS_RATE,
