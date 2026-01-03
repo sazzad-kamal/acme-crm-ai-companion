@@ -14,34 +14,20 @@ class ActivityMixin:
 
         cutoff = self._get_date_cutoff(days)
 
-        try:
-            result = self.conn.execute(
-                f"""
-                SELECT * FROM activities
-                WHERE company_id = ?
-                AND (
-                    due_datetime >= '{cutoff}'
-                    OR created_at >= '{cutoff}'
-                    OR due_datetime IS NULL
-                )
-                ORDER BY COALESCE(due_datetime, created_at) DESC
-                LIMIT {limit}
-            """,
-                [company_id],
-            ).fetchall()
-        except Exception:
-            result = self.conn.execute(
-                f"""
-                SELECT * FROM activities
-                WHERE company_id = ?
-                ORDER BY created_at DESC
-                LIMIT {limit}
-            """,
-                [company_id],
-            ).fetchall()
-
-        columns = [desc[0] for desc in self.conn.description]
-        return [dict(zip(columns, row)) for row in result]
+        return self._fetch_all_dicts(
+            f"""
+            SELECT * FROM activities
+            WHERE company_id = ?
+            AND (
+                due_datetime >= '{cutoff}'
+                OR created_at >= '{cutoff}'
+                OR due_datetime IS NULL
+            )
+            ORDER BY COALESCE(due_datetime, created_at) DESC
+            LIMIT {limit}
+        """,
+            [company_id],
+        )
 
     def get_recent_history(self, company_id: str, days: int = 90, limit: int = 20) -> list[dict]:
         """Get recent history entries for a company, sorted by date (newest first)."""
@@ -49,30 +35,16 @@ class ActivityMixin:
 
         cutoff = self._get_date_cutoff(days)
 
-        try:
-            result = self.conn.execute(
-                f"""
-                SELECT * FROM history
-                WHERE company_id = ?
-                AND occurred_at >= '{cutoff}'
-                ORDER BY occurred_at DESC
-                LIMIT {limit}
-            """,
-                [company_id],
-            ).fetchall()
-        except Exception:
-            result = self.conn.execute(
-                f"""
-                SELECT * FROM history
-                WHERE company_id = ?
-                ORDER BY occurred_at DESC
-                LIMIT {limit}
-            """,
-                [company_id],
-            ).fetchall()
-
-        columns = [desc[0] for desc in self.conn.description]
-        return [dict(zip(columns, row)) for row in result]
+        return self._fetch_all_dicts(
+            f"""
+            SELECT * FROM history
+            WHERE company_id = ?
+            AND occurred_at >= '{cutoff}'
+            ORDER BY occurred_at DESC
+            LIMIT {limit}
+        """,
+            [company_id],
+        )
 
     def search_activities(
         self, activity_type: str = "", days: int = 30, company_id: str = "", limit: int = 30

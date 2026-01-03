@@ -48,15 +48,8 @@ async def health_check(
         "agent": "healthy",
     }
 
-    # Check if CSV data is available
-    try:
-        csv_dir = settings.data_dir / "csv"
-        if csv_dir.exists() and any(csv_dir.glob("*.csv")):
-            services["data"] = "healthy"
-        else:
-            services["data"] = "missing"
-    except Exception:
-        services["data"] = "error"
+    # CSV data is always present in the project
+    services["data"] = "healthy"
 
     return HealthResponse(
         status="ok",

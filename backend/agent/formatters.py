@@ -361,9 +361,6 @@ def format_conversation_history_section(messages: list[dict] | None, max_message
         return ""
 
     recent = messages[-max_messages:]
-    if not recent:
-        return ""
-
     lines = ["=== RECENT CONVERSATION ==="]
     for msg in recent:
         role = "User" if msg.get("role") == "user" else "Assistant"

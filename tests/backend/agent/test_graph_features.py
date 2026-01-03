@@ -1,5 +1,5 @@
 """
-Tests for graph-level features: caching, retry, per-node latencies.
+Tests for graph-level features: caching, per-node latencies.
 """
 
 import pytest
@@ -13,7 +13,6 @@ from backend.agent.cache import (
     clear_query_cache,
     _CACHE_TTL_SECONDS,
 )
-from backend.agent.graph import TransientAgentError
 
 
 class TestQueryCache:
@@ -88,20 +87,6 @@ class TestQueryCache:
         assert get_cached_result("expire-key") is None
 
 
-class TestTransientAgentError:
-    """Tests for TransientAgentError exception."""
-
-    def test_transient_error_is_exception(self):
-        """TransientAgentError should be an Exception."""
-        error = TransientAgentError("Network error")
-        assert isinstance(error, Exception)
-
-    def test_transient_error_message(self):
-        """TransientAgentError should preserve message."""
-        error = TransientAgentError("Connection timeout")
-        assert str(error) == "Connection timeout"
-
-
 class TestMetaLatencies:
     """Tests for per-node latency tracking in meta response."""
 
@@ -145,9 +130,3 @@ class TestGraphExports:
         from backend.agent.graph import __all__
 
         assert "clear_query_cache" in __all__
-
-    def test_exports_include_transient_error(self):
-        """Graph exports should include TransientAgentError."""
-        from backend.agent.graph import __all__
-
-        assert "TransientAgentError" in __all__

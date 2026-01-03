@@ -187,19 +187,4 @@ Talk to your CRM data using natural language.
 app = create_app()
 
 
-# =============================================================================
-# Development Server
-# =============================================================================
-
-if __name__ == "__main__":
-    import uvicorn
-
-    settings = get_settings()
-
-    uvicorn.run(
-        "backend.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.reload,
-        log_level=settings.log_level.lower(),
-    )
+# Development server: run with `uvicorn backend.main:app --reload`

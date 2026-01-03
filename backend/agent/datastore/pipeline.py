@@ -118,25 +118,15 @@ class PipelineMixin:
         cutoff = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
         owner_filter = f"AND account_owner = '{owner}'" if owner else ""
 
-        try:
-            result = self.conn.execute(f"""
-                SELECT * FROM companies
-                WHERE renewal_date >= '{today}'
-                AND renewal_date <= '{cutoff}'
-                AND status = 'Active'
-                {owner_filter}
-                ORDER BY renewal_date ASC
-                LIMIT {limit}
-            """).fetchall()
-        except Exception:
-            result = self.conn.execute(f"""
-                SELECT * FROM companies
-                WHERE renewal_date IS NOT NULL
-                AND status = 'Active'
-                {owner_filter}
-                ORDER BY renewal_date ASC
-                LIMIT {limit}
-            """).fetchall()
+        result = self.conn.execute(f"""
+            SELECT * FROM companies
+            WHERE renewal_date >= '{today}'
+            AND renewal_date <= '{cutoff}'
+            AND status = 'Active'
+            {owner_filter}
+            ORDER BY renewal_date ASC
+            LIMIT {limit}
+        """).fetchall()
 
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in result]

@@ -193,20 +193,17 @@ class AnalyticsMixin:
 
     def get_group(self, group_id: str) -> dict | None:
         """Get group by ID."""
-        if not self._ensure_table("groups"):
-            return None
+        self._ensure_table("groups")
         return self._fetch_one_dict("SELECT * FROM groups WHERE group_id = ?", [group_id])
 
     def get_all_groups(self) -> list[dict]:
         """Get all groups."""
-        if not self._ensure_table("groups"):
-            return []
+        self._ensure_table("groups")
         return self._fetch_all_dicts("SELECT * FROM groups ORDER BY name")
 
     def get_group_members(self, group_id: str, limit: int = 50) -> list[dict]:
         """Get companies in a group."""
-        if not self._ensure_table("group_members"):
-            return []
+        self._ensure_table("group_members")
         self._ensure_table("companies")
 
         return self._fetch_all_dicts(
@@ -221,9 +218,8 @@ class AnalyticsMixin:
 
     def get_accounts_by_group(self) -> dict:
         """Get count of accounts in each group."""
-        if not self._ensure_table("groups") or not self._ensure_table("group_members"):
-            return {"total_groups": 0, "breakdown": []}
-
+        self._ensure_table("groups")
+        self._ensure_table("group_members")
         self._ensure_table("companies")
 
         result = self.conn.execute("""
@@ -260,9 +256,8 @@ class AnalyticsMixin:
 
     def get_pipeline_by_group(self, group_id: str | None = None) -> dict:
         """Get pipeline value breakdown by group or for a specific group."""
-        if not self._ensure_table("groups") or not self._ensure_table("group_members"):
-            return {"breakdown": []}
-
+        self._ensure_table("groups")
+        self._ensure_table("group_members")
         self._ensure_table("opportunities")
 
         if group_id:
@@ -338,8 +333,7 @@ class AnalyticsMixin:
         self, query: str = "", company_id: str = "", file_type: str = "", limit: int = 20
     ) -> list[dict]:
         """Search attachments by title, company, or file type."""
-        if not self._ensure_table("attachments"):
-            return []
+        self._ensure_table("attachments")
 
         conditions = []
         params = []

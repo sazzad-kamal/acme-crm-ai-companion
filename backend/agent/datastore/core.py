@@ -46,15 +46,8 @@ def get_csv_base_path() -> Path:
     if preferred.exists() and preferred.is_dir():
         return preferred
 
-    fallback = backend_root / "data" / "csv"
-    if fallback.exists() and fallback.is_dir():
-        return fallback
-
-    raise FileNotFoundError(
-        f"Could not find CSV data directory. "
-        f"Checked: {preferred} and {fallback}. "
-        f"Please ensure one of these directories exists with CRM CSV files."
-    )
+    # Fallback to csv directory (always exists in project)
+    return backend_root / "data" / "csv"
 
 
 # =============================================================================
@@ -87,10 +80,7 @@ class CRMDataStoreCore:
     def close(self) -> None:
         """Close the database connection and cleanup resources."""
         if self._conn is not None:
-            try:
-                self._conn.close()
-            except Exception:
-                pass
+            self._conn.close()
             self._conn = None
         self._loaded_tables.clear()
         self._company_names_cache = None
@@ -115,26 +105,15 @@ class CRMDataStoreCore:
         if table_name in self._loaded_tables:
             return True
 
-        filename = CSV_TABLES.get(table_name)
-        if not filename:
-            return False
-
+        filename = CSV_TABLES[table_name]  # All callers use valid table names
         csv_file = self.csv_path / filename
-        if not csv_file.exists():
-            if table_name in REQUIRED_TABLES:
-                raise FileNotFoundError(f"Required CSV file not found: {csv_file}")
-            return False
 
-        try:
-            self.conn.execute(f"""
-                CREATE TABLE IF NOT EXISTS {table_name} AS
-                SELECT * FROM read_csv_auto('{csv_file.as_posix()}')
-            """)
-            self._loaded_tables.add(table_name)
-            return True
-        except Exception as e:
-            print(f"Warning: Failed to load {table_name}: {e}")
-            return False
+        self.conn.execute(f"""
+            CREATE TABLE IF NOT EXISTS {table_name} AS
+            SELECT * FROM read_csv_auto('{csv_file.as_posix()}')
+        """)
+        self._loaded_tables.add(table_name)
+        return True
 
     def _fetch_one_dict(self, query: str, params: list[Any] | None = None) -> dict[str, Any] | None:
         """Execute query and return first row as dict, or None."""

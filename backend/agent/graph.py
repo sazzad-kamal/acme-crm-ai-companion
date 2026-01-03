@@ -38,7 +38,6 @@ import time
 from typing import Any
 
 from langgraph.graph import StateGraph, END
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from backend.agent.state import AgentState, Message
 from backend.agent.nodes.routing import route_node
@@ -96,32 +95,9 @@ def build_agent_graph(checkpointer: Any = None) -> Any:
 agent_graph = build_agent_graph()
 
 
-# =============================================================================
-# Transient Errors for Retry
-# =============================================================================
-
-
-class TransientAgentError(Exception):
-    """Transient error that should trigger a retry."""
-    pass
-
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=0.5, min=0.5, max=4),
-    retry=retry_if_exception_type(TransientAgentError),
-    reraise=True,
-)
 def _execute_graph(initial_state: AgentState, config: dict) -> dict:
-    """Execute the graph with retry logic for transient failures."""
-    try:
-        return agent_graph.invoke(initial_state, config=config)
-    except ConnectionError as e:
-        logger.warning(f"[Agent] Transient connection error, will retry: {e}")
-        raise TransientAgentError(str(e)) from e
-    except TimeoutError as e:
-        logger.warning(f"[Agent] Transient timeout error, will retry: {e}")
-        raise TransientAgentError(str(e)) from e
+    """Execute the graph."""
+    return agent_graph.invoke(initial_state, config=config)
 
 
 # =============================================================================
@@ -193,9 +169,6 @@ def run_agent(
 
     try:
         final_state = _execute_graph(initial_state, config)
-    except TransientAgentError as e:
-        logger.error(f"[Agent] Graph execution failed after retries: {e}")
-        return _build_error_response(str(e), start_time)
     except Exception as e:
         logger.error(f"[Agent] Graph execution failed: {e}")
         return _build_error_response(str(e), start_time)
@@ -314,6 +287,4 @@ __all__ = [
     "get_session_state",
     # Re-export from cache module
     "clear_query_cache",
-    # Errors
-    "TransientAgentError",
 ]

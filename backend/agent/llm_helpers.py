@@ -298,14 +298,11 @@ def generate_follow_up_suggestions(
 
     # Try hardcoded tree first (100% reliable for demos)
     if use_hardcoded_tree:
-        try:
-            from backend.agent.question_tree import get_follow_ups, TERMINAL_FOLLOW_UPS
-            follow_ups = get_follow_ups(question)
-            if follow_ups and follow_ups != TERMINAL_FOLLOW_UPS:
-                logger.debug(f"Using hardcoded follow-ups for: {question[:50]}...")
-                return follow_ups[:3]
-        except ImportError:
-            logger.warning("Question tree not available, falling back to LLM")
+        from backend.agent.question_tree import get_follow_ups, TERMINAL_FOLLOW_UPS
+        follow_ups = get_follow_ups(question)
+        if follow_ups and follow_ups != TERMINAL_FOLLOW_UPS:
+            logger.debug(f"Using hardcoded follow-ups for: {question[:50]}...")
+            return follow_ups[:3]
 
     # Mock mode fallback
     if is_mock_mode():

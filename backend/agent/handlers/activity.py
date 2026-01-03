@@ -70,12 +70,7 @@ def _detect_analytics_metric(question: str) -> tuple[str, str, str]:
         if is_count_query:
             return "activity_count", "", ""
 
-    # Default based on query type
-    if is_count_query:
-        return "activity_count", "", ""
-    if is_breakdown_query:
-        return "activity_breakdown", "type", ""
-
+    # Default: activity breakdown by type
     return "activity_breakdown", "type", ""
 
 
