@@ -41,7 +41,7 @@ def client():
             assert response.status_code == 200
     """
     # Clear settings cache to ensure rate limit disabled setting is used
-    from backend.config import get_settings
+    from backend.core.config import get_settings
     get_settings.cache_clear()
     
     from backend.main import app

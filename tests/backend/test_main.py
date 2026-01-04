@@ -28,7 +28,7 @@ class TestSetupLogging:
 
     def test_setup_logging_configures_root_logger(self):
         """Test that setup_logging configures logging."""
-        from backend.startup import setup_logging
+        from backend.core.startup import setup_logging
 
         setup_logging()
 
@@ -37,7 +37,7 @@ class TestSetupLogging:
 
     def test_setup_logging_reduces_third_party_noise(self):
         """Test that third-party loggers are quieted."""
-        from backend.startup import setup_logging
+        from backend.core.startup import setup_logging
 
         setup_logging()
 
@@ -63,7 +63,7 @@ class TestEnsureRagCollections:
         self, mock_ingest_private, mock_ingest_docs, mock_qdrant_class
     ):
         """Test that docs collection is created when missing."""
-        from backend.startup import ensure_rag_collections_exist
+        from backend.core.startup import ensure_rag_collections_exist
 
         mock_client = MagicMock()
         mock_qdrant_class.return_value = mock_client
@@ -84,7 +84,7 @@ class TestEnsureRagCollections:
         self, mock_ingest_private, mock_ingest_docs, mock_qdrant_class
     ):
         """Test that private collection is created when missing."""
-        from backend.startup import ensure_rag_collections_exist
+        from backend.core.startup import ensure_rag_collections_exist
 
         mock_client = MagicMock()
         mock_qdrant_class.return_value = mock_client
@@ -105,7 +105,7 @@ class TestEnsureRagCollections:
         self, mock_ingest_private, mock_ingest_docs, mock_qdrant_class
     ):
         """Test that docs are ingested when collection is empty."""
-        from backend.startup import ensure_rag_collections_exist
+        from backend.core.startup import ensure_rag_collections_exist
 
         mock_client = MagicMock()
         mock_qdrant_class.return_value = mock_client
@@ -133,7 +133,7 @@ class TestEnsureRagCollections:
         self, mock_ingest_private, mock_ingest_docs, mock_qdrant_class
     ):
         """Test that private texts are ingested when collection is empty."""
-        from backend.startup import ensure_rag_collections_exist
+        from backend.core.startup import ensure_rag_collections_exist
 
         mock_client = MagicMock()
         mock_qdrant_class.return_value = mock_client
@@ -161,7 +161,7 @@ class TestEnsureRagCollections:
         self, mock_ingest_private, mock_ingest_docs, mock_qdrant_class
     ):
         """Test that ingestion is skipped when collections have data."""
-        from backend.startup import ensure_rag_collections_exist
+        from backend.core.startup import ensure_rag_collections_exist
 
         mock_client = MagicMock()
         mock_qdrant_class.return_value = mock_client
@@ -179,7 +179,7 @@ class TestEnsureRagCollections:
     @patch("qdrant_client.QdrantClient")
     def test_raises_on_error(self, mock_qdrant_class):
         """Test that errors are propagated."""
-        from backend.startup import ensure_rag_collections_exist
+        from backend.core.startup import ensure_rag_collections_exist
 
         mock_client = MagicMock()
         mock_qdrant_class.return_value = mock_client
@@ -191,7 +191,7 @@ class TestEnsureRagCollections:
     @patch("qdrant_client.QdrantClient")
     def test_closes_client_on_success(self, mock_qdrant_class):
         """Test that Qdrant client is closed on success."""
-        from backend.startup import ensure_rag_collections_exist
+        from backend.core.startup import ensure_rag_collections_exist
 
         mock_client = MagicMock()
         mock_qdrant_class.return_value = mock_client
@@ -208,7 +208,7 @@ class TestEnsureRagCollections:
     @patch("qdrant_client.QdrantClient")
     def test_closes_client_on_error(self, mock_qdrant_class):
         """Test that Qdrant client is closed even on error."""
-        from backend.startup import ensure_rag_collections_exist
+        from backend.core.startup import ensure_rag_collections_exist
 
         mock_client = MagicMock()
         mock_qdrant_class.return_value = mock_client
@@ -279,7 +279,7 @@ class TestExceptionHandlers:
     def test_app(self):
         """Create test app with exception handlers."""
         from backend.main import create_app
-        from backend.exceptions import APIError, ValidationError
+        from backend.core.exceptions import APIError, ValidationError
 
         app = create_app()
 
@@ -414,10 +414,10 @@ class TestLifespan:
     def test_lifespan_logs_startup(self):
         """Test that lifespan logs startup message."""
         import anyio
-        from backend.startup import lifespan
+        from backend.core.startup import lifespan
 
-        with patch("backend.startup.ensure_rag_collections_exist"):
-            with patch("backend.startup.logger") as mock_logger:
+        with patch("backend.core.startup.ensure_rag_collections_exist"):
+            with patch("backend.core.startup.logger") as mock_logger:
                 app = FastAPI()
 
                 async def run():
@@ -431,10 +431,10 @@ class TestLifespan:
     def test_lifespan_calls_ensure_rag(self):
         """Test that lifespan calls ensure_rag_collections_exist."""
         import anyio
-        from backend.startup import lifespan
+        from backend.core.startup import lifespan
 
-        with patch("backend.startup.ensure_rag_collections_exist") as mock_ensure_rag:
-            with patch("backend.startup.logger"):
+        with patch("backend.core.startup.ensure_rag_collections_exist") as mock_ensure_rag:
+            with patch("backend.core.startup.logger"):
                 app = FastAPI()
 
                 async def run():
@@ -448,10 +448,10 @@ class TestLifespan:
     def test_lifespan_logs_shutdown(self):
         """Test that lifespan logs shutdown message."""
         import anyio
-        from backend.startup import lifespan
+        from backend.core.startup import lifespan
 
-        with patch("backend.startup.ensure_rag_collections_exist"):
-            with patch("backend.startup.logger") as mock_logger:
+        with patch("backend.core.startup.ensure_rag_collections_exist"):
+            with patch("backend.core.startup.logger") as mock_logger:
                 app = FastAPI()
 
                 async def run():

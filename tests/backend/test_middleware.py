@@ -16,7 +16,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.testclient import TestClient
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.middleware import (
+from backend.core.middleware import (
     RequestLoggingMiddleware,
     CacheControlMiddleware,
     RateLimitMiddleware,
@@ -135,7 +135,7 @@ class TestRequestLoggingMiddleware:
     
     def test_logs_requests_when_enabled(self, logging_client):
         """Test that requests are logged when log_requests is True."""
-        with patch("backend.middleware.logger") as mock_logger:
+        with patch("backend.core.middleware.logger") as mock_logger:
             response = logging_client.get("/test")
             # Logger should have been called
             assert mock_logger.info.called or mock_logger.debug.called
@@ -406,7 +406,7 @@ class TestRateLimitMiddleware:
 
     def test_skips_when_disabled(self, app_with_rate_limit):
         """Test that rate limiting is skipped when disabled."""
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = False
             client = TestClient(app_with_rate_limit)
 
@@ -420,7 +420,7 @@ class TestRateLimitMiddleware:
         # Clear any existing rate limit state
         _rate_limit_store.requests.clear()
 
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.rate_limit_requests = 1
             mock_settings.return_value.rate_limit_window = 60
@@ -434,7 +434,7 @@ class TestRateLimitMiddleware:
         """Test that health endpoint is exempt from rate limiting."""
         _rate_limit_store.requests.clear()
 
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.rate_limit_requests = 1
             mock_settings.return_value.rate_limit_window = 60
@@ -448,7 +448,7 @@ class TestRateLimitMiddleware:
         """Test that info endpoint is exempt from rate limiting."""
         _rate_limit_store.requests.clear()
 
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.rate_limit_requests = 1
             mock_settings.return_value.rate_limit_window = 60
@@ -462,7 +462,7 @@ class TestRateLimitMiddleware:
         """Test that 429 is returned when rate limit exceeded."""
         _rate_limit_store.requests.clear()
 
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.rate_limit_requests = 2
             mock_settings.return_value.rate_limit_window = 60
@@ -482,7 +482,7 @@ class TestRateLimitMiddleware:
         """Test that 429 response includes Retry-After header."""
         _rate_limit_store.requests.clear()
 
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.rate_limit_requests = 1
             mock_settings.return_value.rate_limit_window = 30
@@ -498,7 +498,7 @@ class TestRateLimitMiddleware:
         """Test that 429 response includes rate limit headers."""
         _rate_limit_store.requests.clear()
 
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.rate_limit_requests = 1
             mock_settings.return_value.rate_limit_window = 60
@@ -515,7 +515,7 @@ class TestRateLimitMiddleware:
         """Test that 429 response body has correct format."""
         _rate_limit_store.requests.clear()
 
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.rate_limit_requests = 1
             mock_settings.return_value.rate_limit_window = 60
@@ -532,7 +532,7 @@ class TestRateLimitMiddleware:
         """Test that successful responses include rate limit headers."""
         _rate_limit_store.requests.clear()
 
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.rate_limit_requests = 10
             mock_settings.return_value.rate_limit_window = 60
@@ -548,7 +548,7 @@ class TestRateLimitMiddleware:
         """Test that middleware handles missing client IP gracefully."""
         _rate_limit_store.requests.clear()
 
-        with patch("backend.middleware.get_settings") as mock_settings:
+        with patch("backend.core.middleware.get_settings") as mock_settings:
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.rate_limit_requests = 10
             mock_settings.return_value.rate_limit_window = 60

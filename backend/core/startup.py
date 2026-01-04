@@ -10,7 +10,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 
-from backend.config import get_settings
+from backend.core.config import get_settings
 
 
 logger = logging.getLogger(__name__)

@@ -11,7 +11,7 @@ from fastapi import status
 
 os.environ["MOCK_LLM"] = "1"
 
-from backend.exceptions import (
+from backend.core.exceptions import (
     ErrorDetail,
     ErrorResponse,
     APIError,

@@ -16,7 +16,7 @@ from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.config import get_settings
+from backend.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 

@@ -39,17 +39,17 @@ load_dotenv(project_root / ".env")
 # Local Imports
 # =============================================================================
 
-from backend.config import get_settings
+from backend.core.config import get_settings
 from backend.api.chat import router as chat_router
 from backend.api.health import router as health_router
 from backend.api.data import router as data_router
-from backend.middleware import (
+from backend.core.middleware import (
     RequestLoggingMiddleware,
     CacheControlMiddleware,
     RateLimitMiddleware,
 )
-from backend.exceptions import APIError, ErrorResponse
-from backend.startup import setup_logging, lifespan
+from backend.core.exceptions import APIError, ErrorResponse
+from backend.core.startup import setup_logging, lifespan
 
 # Initialize logging
 setup_logging()
