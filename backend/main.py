@@ -49,7 +49,7 @@ from backend.core.middleware import (
     RateLimitMiddleware,
 )
 from backend.core.exceptions import APIError, ErrorResponse
-from backend.core.startup import setup_logging, lifespan
+from backend.core.lifespan import setup_logging, lifespan
 
 # Initialize logging
 setup_logging()
