@@ -56,7 +56,7 @@ async def run_llm_judge(
     Returns:
         Tuple of (passed, explanation, confidence_score)
     """
-    system_prompt = """You are an evaluation judge. Compare the generated answer 
+    system_prompt = """You are an evaluation judge. Compare the generated answer
 to the expected answer and determine if they are semantically equivalent.
 
 Respond in JSON format:

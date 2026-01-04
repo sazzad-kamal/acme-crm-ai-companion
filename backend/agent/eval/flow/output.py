@@ -105,13 +105,13 @@ def print_summary(results: FlowEvalResults) -> bool:
         (
             "Path Pass Rate",
             path_slo_pass,
-            format_percentage(path_pass_rate),
+            format_percentage(results.path_pass_rate),
             f">={format_percentage(SLO_FLOW_PATH_PASS_RATE)}",
         ),
         (
             "Question Pass Rate",
             q_slo_pass,
-            format_percentage(q_pass_rate),
+            format_percentage(results.question_pass_rate),
             f">={format_percentage(SLO_FLOW_QUESTION_PASS_RATE)}",
         ),
         (
