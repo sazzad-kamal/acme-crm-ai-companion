@@ -37,21 +37,20 @@ def _ensure_rag_collections() -> None:
     from backend.agent.rag.config import QDRANT_PATH, DOCS_COLLECTION, PRIVATE_COLLECTION
     from backend.agent.rag.ingest import ingest_docs, ingest_private_texts
 
-    qdrant = QdrantClient(path=str(QDRANT_PATH))
     for name, ingest_fn, label in [
         (DOCS_COLLECTION, ingest_docs, "docs"),
         (PRIVATE_COLLECTION, ingest_private_texts, "private"),
     ]:
+        qdrant = QdrantClient(path=str(QDRANT_PATH))
         exists = qdrant.collection_exists(name)
         count = qdrant.get_collection(name).points_count if exists else 0
+        qdrant.close()
+
         if not exists or count == 0:
             logger.info(f"Ingesting {label} collection...")
-            qdrant.close()
             ingest_fn()
-            qdrant = QdrantClient(path=str(QDRANT_PATH))
         else:
             logger.info(f"{label.capitalize()} collection ready ({count} points)")
-    qdrant.close()
 
 
 @asynccontextmanager
