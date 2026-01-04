@@ -8,7 +8,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from backend.core.config import get_settings, Settings
+from backend.config import get_settings, Settings
 
 router = APIRouter()
 

@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from backend.core.config import get_settings
+from backend.config import get_settings
 from backend.api.chat import router as chat_router
 from backend.api.data import router as data_router
 

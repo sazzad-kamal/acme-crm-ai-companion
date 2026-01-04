@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from backend.core.config import Settings, get_settings
+from backend.config import Settings, get_settings
 
 
 class TestSettings:

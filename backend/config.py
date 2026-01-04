@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     @property
     def data_dir(self) -> Path:
-        return Path(__file__).parent.parent / "data"
+        return Path(__file__).parent / "data"
 
     model_config = {"env_prefix": "ACME_", "env_file": ".env", "extra": "ignore"}
 
