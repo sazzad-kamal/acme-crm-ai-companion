@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+CSV_DIR = Path(__file__).parent.parent / "data" / "csv"
 
 
 class DataResponse(BaseModel):
@@ -19,87 +19,82 @@ class DataResponse(BaseModel):
     columns: list[str]
 
 
-def load_csv_data(csv_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
-    if not csv_path.exists():
+def load_csv(name: str) -> tuple[list[dict[str, Any]], list[str]]:
+    path = CSV_DIR / name
+    if not path.exists():
         return [], []
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(path)
     return df.to_dict("records"), df.columns.tolist()
 
 
-def load_jsonl_data(jsonl_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
-    if not jsonl_path.exists():
-        return [], []
-    df = pd.read_json(jsonl_path, lines=True)
+def load_jsonl(name: str) -> list[dict[str, Any]]:
+    path = CSV_DIR / name
+    if not path.exists():
+        return []
+    df = pd.read_json(path, lines=True)
     if "metadata" in df.columns:
         meta_df = pd.json_normalize(df["metadata"]).add_prefix("metadata_")
         df = pd.concat([df.drop(columns=["metadata"]), meta_df], axis=1)
-    return df.to_dict("records"), df.columns.tolist()
+    return df.to_dict("records")
 
 
-def _group_by_key(data: list[dict], key_field: str, extract_field: str | None = None) -> dict[str, list[dict]]:
+def _group_by(data: list[dict], key: str) -> dict[str, list[dict]]:
     result = defaultdict(list)
     for record in data:
-        if key := record.get(extract_field or key_field) or record.get(key_field):
-            result[key].append(record)
+        if k := record.get(key):
+            result[k].append(record)
     return dict(result)
-
-
-def _create_simple_data_endpoint(file_name: str, is_jsonl: bool = False):
-    async def endpoint() -> DataResponse:
-        path = DATA_DIR / "csv" / file_name
-        loader = load_jsonl_data if is_jsonl else load_csv_data
-        data, columns = loader(path)
-        return DataResponse(data=data, total=len(data), columns=columns)
-    return endpoint
 
 
 @router.get("/data/companies", response_model=DataResponse, summary="Get all companies")
 async def get_companies() -> DataResponse:
-    data, columns = load_csv_data(DATA_DIR / "csv" / "companies.csv")
-    private_texts, _ = load_jsonl_data(DATA_DIR / "csv" / "private_texts.jsonl")
-    texts_by_company = _group_by_key(private_texts, "company_id", "metadata_company_id")
-    for company in data:
-        company["_private_texts"] = texts_by_company.get(company.get("company_id", ""), [])
+    data, columns = load_csv("companies.csv")
+    texts = _group_by(load_jsonl("private_texts.jsonl"), "metadata_company_id")
+    for row in data:
+        row["_private_texts"] = texts.get(row.get("company_id", ""), [])
     return DataResponse(data=data, total=len(data), columns=columns)
 
 
 @router.get("/data/contacts", response_model=DataResponse, summary="Get all contacts")
 async def get_contacts() -> DataResponse:
-    data, columns = load_csv_data(DATA_DIR / "csv" / "contacts.csv")
-    private_texts, _ = load_jsonl_data(DATA_DIR / "csv" / "private_texts.jsonl")
-    texts_by_contact = _group_by_key(private_texts, "contact_id", "metadata_contact_id")
-    for contact in data:
-        contact["_private_texts"] = texts_by_contact.get(contact.get("contact_id", ""), [])
+    data, columns = load_csv("contacts.csv")
+    texts = _group_by(load_jsonl("private_texts.jsonl"), "metadata_contact_id")
+    for row in data:
+        row["_private_texts"] = texts.get(row.get("contact_id", ""), [])
     return DataResponse(data=data, total=len(data), columns=columns)
 
 
 @router.get("/data/opportunities", response_model=DataResponse, summary="Get all opportunities")
 async def get_opportunities() -> DataResponse:
-    data, columns = load_csv_data(DATA_DIR / "csv" / "opportunities.csv")
-    descriptions, _ = load_csv_data(DATA_DIR / "csv" / "opportunity_descriptions.csv")
-    attachments, _ = load_csv_data(DATA_DIR / "csv" / "attachments.csv")
-    desc_by_opp = _group_by_key(descriptions, "opportunity_id")
-    attach_by_opp = _group_by_key(attachments, "opportunity_id")
-    for opp in data:
-        opp_id = opp.get("opportunity_id", "")
-        opp["_descriptions"] = desc_by_opp.get(opp_id, [])
-        opp["_attachments"] = attach_by_opp.get(opp_id, [])
+    data, columns = load_csv("opportunities.csv")
+    descs = _group_by(load_csv("opportunity_descriptions.csv")[0], "opportunity_id")
+    attachs = _group_by(load_csv("attachments.csv")[0], "opportunity_id")
+    for row in data:
+        oid = row.get("opportunity_id", "")
+        row["_descriptions"] = descs.get(oid, [])
+        row["_attachments"] = attachs.get(oid, [])
     return DataResponse(data=data, total=len(data), columns=columns)
 
 
 @router.get("/data/groups", response_model=DataResponse, summary="Get all groups")
 async def get_groups() -> DataResponse:
-    data, columns = load_csv_data(DATA_DIR / "csv" / "groups.csv")
-    members, _ = load_csv_data(DATA_DIR / "csv" / "group_members.csv")
-    members_by_group = _group_by_key(members, "group_id")
-    for group in data:
-        group["_members"] = members_by_group.get(group.get("group_id", ""), [])
+    data, columns = load_csv("groups.csv")
+    members = _group_by(load_csv("group_members.csv")[0], "group_id")
+    for row in data:
+        row["_members"] = members.get(row.get("group_id", ""), [])
     return DataResponse(data=data, total=len(data), columns=columns)
 
 
-# Simple data endpoints
-router.get("/data/activities", response_model=DataResponse, summary="Get all activities")(_create_simple_data_endpoint("activities.csv"))
-router.get("/data/history", response_model=DataResponse, summary="Get all history")(_create_simple_data_endpoint("history.csv"))
+@router.get("/data/activities", response_model=DataResponse, summary="Get all activities")
+async def get_activities() -> DataResponse:
+    data, columns = load_csv("activities.csv")
+    return DataResponse(data=data, total=len(data), columns=columns)
+
+
+@router.get("/data/history", response_model=DataResponse, summary="Get all history")
+async def get_history() -> DataResponse:
+    data, columns = load_csv("history.csv")
+    return DataResponse(data=data, total=len(data), columns=columns)
 
 
 class StarterQuestionsResponse(BaseModel):

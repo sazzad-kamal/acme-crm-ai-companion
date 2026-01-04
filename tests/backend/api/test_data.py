@@ -194,17 +194,6 @@ class TestHistoryEndpoint:
         assert len(data["columns"]) > 0
 
 
-class TestCreateSimpleDataEndpoint:
-    """Tests for _create_simple_data_endpoint factory function."""
-
-    def test_jsonl_loader_branch(self, client: TestClient):
-        """Covers is_jsonl=True branch via /data/companies which loads private_texts.jsonl."""
-        from backend.api.data import _create_simple_data_endpoint, load_jsonl_data
-        # Verify the factory selects jsonl loader when is_jsonl=True
-        endpoint = _create_simple_data_endpoint("private_texts.jsonl", is_jsonl=True)
-        assert endpoint is not None
-
-
 class TestDataResponseFormat:
     """Tests for consistent response format across all endpoints."""
 
