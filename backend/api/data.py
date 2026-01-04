@@ -5,12 +5,12 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel
 
-from backend.config import get_settings, Settings
-
 router = APIRouter()
+
+DATA_DIR = Path(__file__).parent.parent / "data"
 
 
 class DataResponse(BaseModel):
@@ -45,8 +45,8 @@ def _group_by_key(data: list[dict], key_field: str, extract_field: str | None = 
 
 
 def _create_simple_data_endpoint(file_name: str, is_jsonl: bool = False):
-    async def endpoint(settings: Settings = Depends(get_settings)) -> DataResponse:
-        path = settings.data_dir / "csv" / file_name
+    async def endpoint() -> DataResponse:
+        path = DATA_DIR / "csv" / file_name
         loader = load_jsonl_data if is_jsonl else load_csv_data
         data, columns = loader(path)
         return DataResponse(data=data, total=len(data), columns=columns)
@@ -54,9 +54,9 @@ def _create_simple_data_endpoint(file_name: str, is_jsonl: bool = False):
 
 
 @router.get("/data/companies", response_model=DataResponse, summary="Get all companies")
-async def get_companies(settings: Settings = Depends(get_settings)) -> DataResponse:
-    data, columns = load_csv_data(settings.data_dir / "csv" / "companies.csv")
-    private_texts, _ = load_jsonl_data(settings.data_dir / "csv" / "private_texts.jsonl")
+async def get_companies() -> DataResponse:
+    data, columns = load_csv_data(DATA_DIR / "csv" / "companies.csv")
+    private_texts, _ = load_jsonl_data(DATA_DIR / "csv" / "private_texts.jsonl")
     texts_by_company = _group_by_key(private_texts, "company_id", "metadata_company_id")
     for company in data:
         company["_private_texts"] = texts_by_company.get(company.get("company_id", ""), [])
@@ -64,9 +64,9 @@ async def get_companies(settings: Settings = Depends(get_settings)) -> DataRespo
 
 
 @router.get("/data/contacts", response_model=DataResponse, summary="Get all contacts")
-async def get_contacts(settings: Settings = Depends(get_settings)) -> DataResponse:
-    data, columns = load_csv_data(settings.data_dir / "csv" / "contacts.csv")
-    private_texts, _ = load_jsonl_data(settings.data_dir / "csv" / "private_texts.jsonl")
+async def get_contacts() -> DataResponse:
+    data, columns = load_csv_data(DATA_DIR / "csv" / "contacts.csv")
+    private_texts, _ = load_jsonl_data(DATA_DIR / "csv" / "private_texts.jsonl")
     texts_by_contact = _group_by_key(private_texts, "contact_id", "metadata_contact_id")
     for contact in data:
         contact["_private_texts"] = texts_by_contact.get(contact.get("contact_id", ""), [])
@@ -74,10 +74,10 @@ async def get_contacts(settings: Settings = Depends(get_settings)) -> DataRespon
 
 
 @router.get("/data/opportunities", response_model=DataResponse, summary="Get all opportunities")
-async def get_opportunities(settings: Settings = Depends(get_settings)) -> DataResponse:
-    data, columns = load_csv_data(settings.data_dir / "csv" / "opportunities.csv")
-    descriptions, _ = load_csv_data(settings.data_dir / "csv" / "opportunity_descriptions.csv")
-    attachments, _ = load_csv_data(settings.data_dir / "csv" / "attachments.csv")
+async def get_opportunities() -> DataResponse:
+    data, columns = load_csv_data(DATA_DIR / "csv" / "opportunities.csv")
+    descriptions, _ = load_csv_data(DATA_DIR / "csv" / "opportunity_descriptions.csv")
+    attachments, _ = load_csv_data(DATA_DIR / "csv" / "attachments.csv")
     desc_by_opp = _group_by_key(descriptions, "opportunity_id")
     attach_by_opp = _group_by_key(attachments, "opportunity_id")
     for opp in data:
@@ -88,9 +88,9 @@ async def get_opportunities(settings: Settings = Depends(get_settings)) -> DataR
 
 
 @router.get("/data/groups", response_model=DataResponse, summary="Get all groups")
-async def get_groups(settings: Settings = Depends(get_settings)) -> DataResponse:
-    data, columns = load_csv_data(settings.data_dir / "csv" / "groups.csv")
-    members, _ = load_csv_data(settings.data_dir / "csv" / "group_members.csv")
+async def get_groups() -> DataResponse:
+    data, columns = load_csv_data(DATA_DIR / "csv" / "groups.csv")
+    members, _ = load_csv_data(DATA_DIR / "csv" / "group_members.csv")
     members_by_group = _group_by_key(members, "group_id")
     for group in data:
         group["_members"] = members_by_group.get(group.get("group_id", ""), [])

@@ -1,5 +1,6 @@
 """FastAPI backend for the CRM AI Companion."""
 
+import os
 import time
 import uuid
 import logging
@@ -15,14 +16,16 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from backend.config import get_settings
 from backend.api.chat import router as chat_router
 from backend.api.data import router as data_router
 
+# Configuration
+APP_NAME = "Acme CRM AI Companion API"
+CORS_ORIGINS = os.getenv("ACME_CORS_ORIGINS", "http://localhost:5173").split(",")
+
 # Logging setup
-settings = get_settings()
 logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper(), logging.INFO),
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 for lib in ["httpx", "httpcore", "openai", "urllib3"]:
@@ -53,7 +56,7 @@ def _ensure_rag_collections() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    logger.info(f"Starting {settings.app_name}")
+    logger.info(f"Starting {APP_NAME}")
     _ensure_rag_collections()
     yield
     logger.info("Shutting down...")
@@ -71,22 +74,21 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Response-Time"] = f"{ms}ms"
 
-        if settings.log_requests:
-            log = logger.warning if response.status_code >= 400 else logger.info
-            log(f"[{request_id}] {request.method} {request.url.path} {response.status_code} ({ms}ms)")
+        log = logger.warning if response.status_code >= 400 else logger.info
+        log(f"[{request_id}] {request.method} {request.url.path} {response.status_code} ({ms}ms)")
         return response
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title=settings.app_name,
+        title=APP_NAME,
         description="Talk to your CRM data using natural language.",
         lifespan=lifespan,
     )
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=CORS_ORIGINS,
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )
