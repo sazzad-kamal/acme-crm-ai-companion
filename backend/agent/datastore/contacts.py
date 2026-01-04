@@ -20,14 +20,12 @@ class ContactMixin(_MixinBase):
     """Mixin providing contact-related operations."""
 
     def get_contacts_for_company(self, company_id: str, limit: int = 10) -> list[dict]:
-        """Get contacts for a company."""
         self._ensure_table("contacts")
         return self._fetch_all_dicts(
             f"SELECT * FROM contacts WHERE company_id = ? LIMIT {limit}", [company_id]
         )
 
     def get_contact(self, contact_id: str) -> dict | None:
-        """Get contact by ID."""
         self._ensure_table("contacts")
         return self._fetch_one_dict("SELECT * FROM contacts WHERE contact_id = ?", [contact_id])
 
@@ -39,16 +37,6 @@ class ContactMixin(_MixinBase):
         company_id: str = "",
         limit: int = 20,
     ) -> list[dict]:
-        """
-        Search contacts by name, role, job_title, or company.
-
-        Args:
-            query: Search term for name/email
-            role: Filter by role (e.g., "Decision Maker")
-            job_title: Filter by job title (partial match)
-            company_id: Filter by company
-            limit: Max results
-        """
         self._ensure_table("contacts")
 
         conditions = []

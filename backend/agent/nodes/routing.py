@@ -17,12 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 def route_node(state: AgentState) -> AgentState:
-    """
-    Router node: Determine mode and extract parameters.
-
-    Uses LLM-based or heuristic routing based on config.
-    Passes conversation history for pronoun resolution.
-    """
     config = get_config()
     start_time = time.time()
 

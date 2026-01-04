@@ -24,7 +24,6 @@ class AnalyticsMixin(_MixinBase):
     # =========================================================================
 
     def get_contact_breakdown(self, company_id: str | None = None, group_by: str = "role") -> dict:
-        """Get breakdown of contacts by role or job_title."""
         self._ensure_table("contacts")
 
         group_field = "role" if group_by == "role" else "job_title"
@@ -77,7 +76,6 @@ class AnalyticsMixin(_MixinBase):
     def get_activity_breakdown(
         self, company_id: str | None = None, days: int = 30, group_by: str = "type"
     ) -> dict:
-        """Get breakdown of activities by type or status."""
         self._ensure_table("activities")
 
         cutoff = self._get_date_cutoff(days)
@@ -133,7 +131,6 @@ class AnalyticsMixin(_MixinBase):
         days: int = 30,
         company_id: str | None = None,
     ) -> dict:
-        """Get count of activities matching filters."""
         self._ensure_table("activities")
 
         cutoff = self._get_date_cutoff(days)
@@ -164,7 +161,6 @@ class AnalyticsMixin(_MixinBase):
     def get_accounts_needing_attention(
         self, owner: str | None = None, limit: int = 20
     ) -> list[dict]:
-        """Get accounts that need immediate attention (Trial, Churned, or at-risk)."""
         self._ensure_table("companies")
 
         conditions = []
@@ -203,17 +199,14 @@ class AnalyticsMixin(_MixinBase):
     # =========================================================================
 
     def get_group(self, group_id: str) -> dict | None:
-        """Get group by ID."""
         self._ensure_table("groups")
         return self._fetch_one_dict("SELECT * FROM groups WHERE group_id = ?", [group_id])
 
     def get_all_groups(self) -> list[dict]:
-        """Get all groups."""
         self._ensure_table("groups")
         return self._fetch_all_dicts("SELECT * FROM groups ORDER BY name")
 
     def get_group_members(self, group_id: str, limit: int = 50) -> list[dict]:
-        """Get companies in a group."""
         self._ensure_table("group_members")
         self._ensure_table("companies")
 
@@ -228,7 +221,6 @@ class AnalyticsMixin(_MixinBase):
         )
 
     def get_accounts_by_group(self) -> dict:
-        """Get count of accounts in each group."""
         self._ensure_table("groups")
         self._ensure_table("group_members")
         self._ensure_table("companies")
@@ -266,7 +258,6 @@ class AnalyticsMixin(_MixinBase):
         }
 
     def get_pipeline_by_group(self, group_id: str | None = None) -> dict:
-        """Get pipeline value breakdown by group or for a specific group."""
         self._ensure_table("groups")
         self._ensure_table("group_members")
         self._ensure_table("opportunities")
@@ -343,7 +334,6 @@ class AnalyticsMixin(_MixinBase):
     def search_attachments(
         self, query: str = "", company_id: str = "", file_type: str = "", limit: int = 20
     ) -> list[dict]:
-        """Search attachments by title, company, or file type."""
         self._ensure_table("attachments")
 
         conditions = []

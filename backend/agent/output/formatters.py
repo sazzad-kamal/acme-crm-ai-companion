@@ -82,7 +82,7 @@ def _truncate(text: str, max_len: int = 100) -> str:
     if not text:
         return ""
     text = str(text)
-    return text[:max_len] + "..." if len(text) > max_len else text
+    return f"{text[:max_len]}..." if len(text) > max_len else text
 
 
 # =============================================================================
@@ -366,7 +366,7 @@ def format_conversation_history_section(messages: list[dict] | None, max_message
         role = "User" if msg.get("role") == "user" else "Assistant"
         content = msg.get("content", "")
         if len(content) > 150:
-            content = content[:150] + "..."
+            content = f"{content[:150]}..."
         lines.append(f"{role}: {content}")
 
     return "\n".join(lines)

@@ -102,7 +102,6 @@ class CRMDataStoreBase:
         return False
 
     def close(self) -> None:
-        """Close the database connection and cleanup resources."""
         if self._conn is not None:
             self._conn.close()
             self._conn = None
@@ -112,20 +111,17 @@ class CRMDataStoreBase:
 
     @property
     def csv_path(self) -> Path:
-        """Get the CSV base path (lazy resolved)."""
         if self._csv_path is None:
             self._csv_path = get_csv_base_path()
         return self._csv_path
 
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:
-        """Get the DuckDB connection (lazy created)."""
         if self._conn is None:
             self._conn = duckdb.connect(":memory:")
         return self._conn
 
     def _ensure_table(self, table_name: str) -> bool:
-        """Ensure a table is loaded into DuckDB."""
         if table_name in self._loaded_tables:
             return True
 
@@ -140,14 +136,12 @@ class CRMDataStoreBase:
         return True
 
     def _fetch_one_dict(self, query: str, params: list[Any] | None = None) -> dict[str, Any] | None:
-        """Execute query and return first row as dict, or None."""
         result = self.conn.execute(query, params or []).fetchone()
         if not result:
             return None
         return dict(zip([d[0] for d in self.conn.description], result))
 
     def _fetch_all_dicts(self, query: str, params: list[Any] | None = None) -> list[dict[str, Any]]:
-        """Execute query and return all rows as list of dicts."""
         result = self.conn.execute(query, params or []).fetchall()
         if not result:
             return []
@@ -155,12 +149,10 @@ class CRMDataStoreBase:
         return [dict(zip(columns, row)) for row in result]
 
     def _ensure_core_tables(self) -> None:
-        """Load all required core tables."""
         for table in REQUIRED_TABLES:
             self._ensure_table(table)
 
     def _build_company_cache(self) -> None:
-        """Build the company name -> ID cache."""
         if self._company_names_cache is not None:
             return
 
@@ -170,7 +162,6 @@ class CRMDataStoreBase:
         self._company_ids_cache = {cid for cid, _ in result}
 
     def _get_date_cutoff(self, days: int) -> str:
-        """Get ISO date string for N days ago."""
         cutoff = datetime.now() - timedelta(days=days)
         return cutoff.isoformat()
 
@@ -183,7 +174,6 @@ _thread_local = threading.local()
 
 
 def _get_datastore_instance(datastore_class: type) -> Any:
-    """Get a thread-local datastore instance of the given class."""
     if not hasattr(_thread_local, "datastore"):
         _thread_local.datastore = datastore_class()
     return _thread_local.datastore

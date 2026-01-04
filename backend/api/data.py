@@ -20,7 +20,6 @@ class DataResponse(BaseModel):
 
 
 def load_csv_data(csv_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
-    """Load data from a CSV file."""
     if not csv_path.exists():
         return [], []
     df = pd.read_csv(csv_path)
@@ -28,7 +27,6 @@ def load_csv_data(csv_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
 
 
 def load_jsonl_data(jsonl_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
-    """Load data from a JSONL file, flattening metadata if present."""
     if not jsonl_path.exists():
         return [], []
     df = pd.read_json(jsonl_path, lines=True)
@@ -39,7 +37,6 @@ def load_jsonl_data(jsonl_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
 
 
 def _group_by_key(data: list[dict], key_field: str, extract_field: str | None = None) -> dict[str, list[dict]]:
-    """Group records by a key field."""
     result = defaultdict(list)
     for record in data:
         if key := record.get(extract_field or key_field) or record.get(key_field):
@@ -48,7 +45,6 @@ def _group_by_key(data: list[dict], key_field: str, extract_field: str | None = 
 
 
 def _create_simple_data_endpoint(file_name: str, is_jsonl: bool = False):
-    """Factory for simple data endpoints."""
     async def endpoint(settings: Settings = Depends(get_settings)) -> DataResponse:
         path = settings.data_dir / "csv" / file_name
         loader = load_jsonl_data if is_jsonl else load_csv_data
@@ -59,7 +55,6 @@ def _create_simple_data_endpoint(file_name: str, is_jsonl: bool = False):
 
 @router.get("/data/companies", response_model=DataResponse, summary="Get all companies")
 async def get_companies(settings: Settings = Depends(get_settings)) -> DataResponse:
-    """Get all company data with nested private texts."""
     data, columns = load_csv_data(settings.data_dir / "csv" / "companies.csv")
     private_texts, _ = load_jsonl_data(settings.data_dir / "csv" / "private_texts.jsonl")
     texts_by_company = _group_by_key(private_texts, "company_id", "metadata_company_id")
@@ -70,7 +65,6 @@ async def get_companies(settings: Settings = Depends(get_settings)) -> DataRespo
 
 @router.get("/data/contacts", response_model=DataResponse, summary="Get all contacts")
 async def get_contacts(settings: Settings = Depends(get_settings)) -> DataResponse:
-    """Get all contact data with nested private texts."""
     data, columns = load_csv_data(settings.data_dir / "csv" / "contacts.csv")
     private_texts, _ = load_jsonl_data(settings.data_dir / "csv" / "private_texts.jsonl")
     texts_by_contact = _group_by_key(private_texts, "contact_id", "metadata_contact_id")
@@ -81,7 +75,6 @@ async def get_contacts(settings: Settings = Depends(get_settings)) -> DataRespon
 
 @router.get("/data/opportunities", response_model=DataResponse, summary="Get all opportunities")
 async def get_opportunities(settings: Settings = Depends(get_settings)) -> DataResponse:
-    """Get all opportunity data with descriptions and attachments."""
     data, columns = load_csv_data(settings.data_dir / "csv" / "opportunities.csv")
     descriptions, _ = load_csv_data(settings.data_dir / "csv" / "opportunity_descriptions.csv")
     attachments, _ = load_csv_data(settings.data_dir / "csv" / "attachments.csv")
@@ -96,7 +89,6 @@ async def get_opportunities(settings: Settings = Depends(get_settings)) -> DataR
 
 @router.get("/data/groups", response_model=DataResponse, summary="Get all groups")
 async def get_groups(settings: Settings = Depends(get_settings)) -> DataResponse:
-    """Get all group data with nested members."""
     data, columns = load_csv_data(settings.data_dir / "csv" / "groups.csv")
     members, _ = load_csv_data(settings.data_dir / "csv" / "group_members.csv")
     members_by_group = _group_by_key(members, "group_id")
@@ -116,6 +108,5 @@ class StarterQuestionsResponse(BaseModel):
 
 @router.get("/data/starter-questions", response_model=StarterQuestionsResponse, summary="Get starter questions")
 async def get_starter_questions() -> StarterQuestionsResponse:
-    """Return starter questions for the chat interface."""
     from backend.agent.question_tree import get_starters
     return StarterQuestionsResponse(questions=get_starters())

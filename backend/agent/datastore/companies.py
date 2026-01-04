@@ -21,15 +21,7 @@ class CompanyMixin(_MixinBase):
     """Mixin providing company-related operations."""
 
     def resolve_company_id(self, name_or_id: str) -> str | None:
-        """
-        Resolve a company name or ID to a company_id.
-
-        Args:
-            name_or_id: Either a company_id or a company name
-
-        Returns:
-            The company_id if found, else None
-        """
+        """Resolve a company name or ID to a company_id, or None if not found."""
         if not name_or_id:
             return None
 
@@ -53,11 +45,7 @@ class CompanyMixin(_MixinBase):
         return None
 
     def get_company_name_matches(self, partial_name: str, limit: int = 5) -> list[dict]:
-        """
-        Get companies matching a partial name (fuzzy match).
-
-        Returns list of company dicts.
-        """
+        """Get companies matching a partial name (fuzzy match)."""
         if not partial_name:
             return []
 
@@ -76,7 +64,6 @@ class CompanyMixin(_MixinBase):
         return results
 
     def get_company(self, company_id: str) -> dict | None:
-        """Get company details by ID."""
         self._ensure_table("companies")
         return self._fetch_one_dict("SELECT * FROM companies WHERE company_id = ?", [company_id])
 
@@ -89,17 +76,6 @@ class CompanyMixin(_MixinBase):
         region: str = "",
         limit: int = 20,
     ) -> list[dict]:
-        """
-        Search companies by various criteria.
-
-        Args:
-            query: Search term for name
-            industry: Filter by industry
-            segment: Filter by segment (SMB, Mid-market, Enterprise)
-            status: Filter by status (Active, Churned, etc.)
-            region: Filter by region
-            limit: Max results
-        """
         self._ensure_table("companies")
 
         conditions = []

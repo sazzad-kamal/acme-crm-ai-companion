@@ -20,20 +20,12 @@ def make_sources(
     source_id: str,
     label: str,
 ) -> list[Source]:
-    """Create a source list if data is non-empty."""
     if data:
         return [Source(type=source_type, id=source_id, label=label)]
     return []
 
 
 def with_datastore(func: Callable[..., ToolResult]) -> Callable[..., ToolResult]:
-    """
-    Decorator that injects datastore if not provided.
-
-    Allows tools to accept an optional `datastore` parameter for testing,
-    while using the singleton in production.
-    """
-
     @wraps(func)
     def wrapper(*args, datastore: CRMDataStore | None = None, **kwargs) -> ToolResult:
         ds = datastore or get_datastore()

@@ -32,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 
 def mock_llm_response(prompt: str) -> str:
-    """Generate a mock response for testing."""
     if "couldn't find an exact match" in prompt:
         return (
             "I couldn't find an exact match for that company in the CRM. "
@@ -105,19 +104,6 @@ def _create_chain(
     temperature: float | None = None,
     max_tokens: int | None = None,
 ) -> Any:
-    """
-    Generic chain factory - eliminates duplicate chain creation.
-
-    Args:
-        prompt_template: LangChain prompt template
-        model_key: "fast" for router model, "main" for primary model
-        structured_output: Optional Pydantic model for structured output
-        temperature: Override temperature (uses config default if None)
-        max_tokens: Override max tokens (uses config default if None)
-
-    Returns:
-        LCEL chain: prompt | llm [| parser]
-    """
     config = get_config()
 
     # Select model based on key
@@ -149,7 +135,6 @@ _chains_cache: dict[str, Any] = {}
 
 
 def _get_chain(chain_type: str) -> Any:
-    """Get or create a cached chain."""
     if chain_type in _chains_cache:
         return _chains_cache[chain_type]
 
@@ -200,7 +185,6 @@ def call_answer_chain(
     groups_section: str = "",
     attachments_section: str = "",
 ) -> tuple[str, int]:
-    """Call the answer synthesis chain. Returns (answer_text, latency_ms)."""
     if is_mock_mode():
         return mock_llm_response(question), 100
 
@@ -228,7 +212,6 @@ def call_answer_chain(
 
 
 def call_not_found_chain(question: str, query: str, matches: str) -> tuple[str, int]:
-    """Call the company not found chain. Returns (answer_text, latency_ms)."""
     if is_mock_mode():
         return mock_llm_response("company not found"), 100
 
@@ -243,7 +226,6 @@ def call_not_found_chain(question: str, query: str, matches: str) -> tuple[str, 
 
 
 def call_docs_rag(question: str) -> tuple[str, list[Source]]:
-    """Call the docs RAG tool. Returns (context_text, doc_sources)."""
     if is_mock_mode():
         return (
             "According to the documentation, you can find this feature "
@@ -260,7 +242,6 @@ def call_docs_rag(question: str) -> tuple[str, list[Source]]:
 
 
 def call_account_rag(question: str, company_id: str) -> tuple[str, list[Source]]:
-    """Call the account RAG tool. Returns (context_text, account_sources)."""
     if is_mock_mode():
         return (
             "Based on the account notes, the customer mentioned concerns about "
@@ -285,12 +266,6 @@ def generate_follow_up_suggestions(
     available_data: dict | None = None,
     use_hardcoded_tree: bool = True,
 ) -> list[str]:
-    """
-    Generate follow-up question suggestions.
-
-    For demo reliability, uses hardcoded question tree by default.
-    Falls back to LLM generation if question not in tree.
-    """
     config = get_config()
 
     if not config.enable_follow_up_suggestions:
@@ -330,7 +305,6 @@ def generate_follow_up_suggestions(
 
 
 def _get_mock_suggestions(company_name: str | None, available_data: dict | None) -> list[str]:
-    """Return context-aware mock suggestions: 2 grounded + 1 exploratory."""
     suggestions = []
     name = company_name or "the account"
 
@@ -350,7 +324,6 @@ def _get_mock_suggestions(company_name: str | None, available_data: dict | None)
 
 
 def _format_available_data(data: dict | None, company_name: str | None) -> str:
-    """Format available data counts into a readable string for the prompt."""
     if not data:
         return "No specific data available. Suggest general CRM questions."
 

@@ -61,15 +61,6 @@ STARTER_OWNER_MAP = {
 
 
 def detect_owner_from_starter(question: str) -> str | None:
-    """
-    Detect if question is a role-based starter and return owner.
-
-    Args:
-        question: The user's question
-
-    Returns:
-        Owner ID (e.g., "jsmith") or None if not a starter or Manager role
-    """
     q = question.lower().strip().rstrip("?")
 
     for pattern, owner in STARTER_OWNER_MAP.items():
@@ -145,7 +136,6 @@ _router_chain = None
 
 
 def _get_router_chain():
-    """Get or create the cached router chain with structured output."""
     global _router_chain
     if _router_chain is not None:
         return _router_chain
@@ -178,7 +168,6 @@ def _get_router_chain():
     reraise=True,
 )
 def _call_llm_router(question: str, conversation_history: str = "") -> dict:
-    """Call LLM for routing using LCEL chain with structured output."""
     logger.debug(f"LLM Router: Analyzing question: {question[:50]}...")
 
     # Build conversation context section
@@ -212,19 +201,6 @@ def llm_route_question(
     datastore: CRMDataStore | None = None,
     conversation_history: str = "",
 ) -> RouterResult:
-    """
-    Route a question using LLM intelligence.
-
-    Args:
-        question: The user's question
-        mode: Explicit mode override ("auto" for LLM decision)
-        company_id: Pre-specified company ID
-        datastore: Optional datastore instance
-        conversation_history: Formatted conversation history for context
-
-    Returns:
-        RouterResult with routing decision and extracted parameters
-    """
     ds = datastore or get_datastore()
 
     # If mode is explicitly set, return minimal routing
@@ -295,19 +271,6 @@ def route_question(
     datastore: CRMDataStore | None = None,
     conversation_history: str = "",
 ) -> RouterResult:
-    """
-    Main routing function - uses LLM for intelligent routing.
-
-    This is the recommended entry point for routing questions.
-    Merges routing + query understanding into a single LLM call.
-
-    Args:
-        question: The user's question
-        mode: Explicit mode override ("auto" for LLM decision)
-        company_id: Pre-specified company ID
-        datastore: Optional datastore instance
-        conversation_history: Formatted conversation history for context
-    """
     result = llm_route_question(question, mode, company_id, datastore, conversation_history)
 
     # Ensure owner is detected for role-based starters

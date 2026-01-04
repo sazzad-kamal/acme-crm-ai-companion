@@ -34,11 +34,6 @@ logger = logging.getLogger(__name__)
 
 
 def answer_node(state: AgentState) -> AgentState:
-    """
-    Answer node: Synthesize final answer using LCEL chains.
-
-    Uses LangChain LCEL chains (prompt | llm | parser) for answer synthesis.
-    """
     config = get_config()
     start_time = time.time()
 
@@ -177,11 +172,6 @@ def answer_node(state: AgentState) -> AgentState:
 
 
 def followup_node(state: AgentState) -> AgentState:
-    """
-    Follow-up node: Generate suggested follow-up questions.
-
-    Uses conversation history and available data for grounded suggestions.
-    """
     config = get_config()
     start_time = time.time()
 

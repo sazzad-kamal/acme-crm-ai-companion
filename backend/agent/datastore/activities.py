@@ -20,7 +20,6 @@ class ActivityMixin(_MixinBase):
     """Mixin providing activity and history operations."""
 
     def get_recent_activities(self, company_id: str, days: int = 90, limit: int = 20) -> list[dict]:
-        """Get recent activities for a company, sorted by date (newest first)."""
         self._ensure_table("activities")
 
         cutoff = self._get_date_cutoff(days)
@@ -41,7 +40,6 @@ class ActivityMixin(_MixinBase):
         )
 
     def get_recent_history(self, company_id: str, days: int = 90, limit: int = 20) -> list[dict]:
-        """Get recent history entries for a company, sorted by date (newest first)."""
         self._ensure_table("history")
 
         cutoff = self._get_date_cutoff(days)
@@ -60,15 +58,6 @@ class ActivityMixin(_MixinBase):
     def search_activities(
         self, activity_type: str = "", days: int = 30, company_id: str = "", limit: int = 30
     ) -> list[dict]:
-        """
-        Search activities by type, date range, or company.
-
-        Args:
-            activity_type: Filter by type (e.g., "Demo", "Meeting")
-            days: Look back N days
-            company_id: Filter by company
-            limit: Max results
-        """
         self._ensure_table("activities")
 
         conditions = []

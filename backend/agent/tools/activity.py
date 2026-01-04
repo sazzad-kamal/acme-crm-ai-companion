@@ -97,12 +97,10 @@ def tool_search_activities(
 
 
 def _analytics_result(ds: CRMDataStore, data: dict, source_id: str, label: str) -> ToolResult:
-    """Helper to build analytics ToolResult."""
     return ToolResult(data=data, sources=[Source(type="analytics", id=source_id, label=label)])
 
 
 def _resolve_company_name(ds: CRMDataStore, company_id: str) -> tuple[str | None, str]:
-    """Resolve company ID and get name. Returns (resolved_id, name)."""
     if not company_id:
         return None, ""
     resolved = ds.resolve_company_id(company_id)

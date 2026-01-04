@@ -21,7 +21,6 @@ class SystemInfo(BaseModel):
 
 @router.get("/health", response_model=HealthResponse, summary="Health check")
 async def health_check(settings: Settings = Depends(get_settings)) -> HealthResponse:
-    """Check if the API and dependent services are healthy."""
     return HealthResponse(
         status="ok",
         services={"api": "healthy", "agent": "healthy", "data": "healthy"},
@@ -30,7 +29,6 @@ async def health_check(settings: Settings = Depends(get_settings)) -> HealthResp
 
 @router.get("/info", response_model=SystemInfo, summary="System information")
 async def system_info(settings: Settings = Depends(get_settings)) -> SystemInfo:
-    """Get information about the API configuration."""
     return SystemInfo(
         app_name=settings.app_name,
         debug=settings.debug,

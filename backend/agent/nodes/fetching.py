@@ -41,11 +41,6 @@ def _fetch_crm_data(
     router_result: object | None,
     owner: str | None = None,
 ) -> dict:
-    """
-    Fetch CRM data based on intent.
-
-    Extracted to module level for testability.
-    """
     try:
         ctx = IntentContext(
             question=question.lower(),
@@ -74,11 +69,6 @@ def _fetch_crm_data(
 
 
 def _fetch_docs(question: str) -> dict:
-    """
-    Fetch documentation via RAG.
-
-    Extracted to module level for testability.
-    """
     try:
         docs_answer, docs_sources = call_docs_rag(question)
         return {
@@ -91,11 +81,6 @@ def _fetch_docs(question: str) -> dict:
 
 
 def _fetch_account_context(question: str, company_id: str) -> dict:
-    """
-    Fetch account context via Account RAG.
-
-    Extracted to module level for testability.
-    """
     try:
         account_answer, account_sources = call_account_rag(
             question=question,
@@ -116,16 +101,6 @@ def _fetch_account_context(question: str, company_id: str) -> dict:
 
 
 def fetch_node(state: AgentState) -> AgentState:
-    """
-    Unified fetch node: Fetch CRM data, docs, and account context in parallel.
-
-    Always fetches both CRM data and documentation concurrently using
-    ThreadPoolExecutor. For company-specific intents, also fetches
-    Account RAG (notes, attachments) in parallel.
-
-    This unified approach simplifies the graph while maintaining
-    the same latency characteristics (LLM synthesis dominates).
-    """
     config = get_config()
     start_time = time.time()
 

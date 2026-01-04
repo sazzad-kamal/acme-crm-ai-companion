@@ -21,7 +21,6 @@ class PipelineMixin(_MixinBase):
     """Mixin providing pipeline and opportunity operations."""
 
     def get_open_opportunities(self, company_id: str, limit: int = 20) -> list[dict]:
-        """Get open opportunities for a company (filters out closed stages)."""
         self._ensure_table("opportunities")
 
         result = self.conn.execute(
@@ -39,11 +38,6 @@ class PipelineMixin(_MixinBase):
         return [dict(zip(columns, row)) for row in result]
 
     def get_pipeline_summary(self, company_id: str) -> dict:
-        """
-        Get pipeline summary for a company.
-
-        Returns dict with stages, total_count, and total_value.
-        """
         self._ensure_table("opportunities")
 
         result = self.conn.execute(
@@ -71,7 +65,6 @@ class PipelineMixin(_MixinBase):
         }
 
     def get_all_pipeline_summary(self) -> dict:
-        """Get pipeline summary across ALL companies."""
         self._ensure_table("opportunities")
 
         overall = self.conn.execute("""
@@ -121,7 +114,6 @@ class PipelineMixin(_MixinBase):
     def get_upcoming_renewals(
         self, days: int = 90, limit: int = 20, owner: str | None = None
     ) -> list[dict]:
-        """Get companies with upcoming renewals within the date window."""
         self._ensure_table("companies")
 
         today = datetime.now().strftime("%Y-%m-%d")
@@ -142,7 +134,6 @@ class PipelineMixin(_MixinBase):
         return [dict(zip(columns, row)) for row in result]
 
     def get_pipeline_by_owner(self, owner: str | None = None) -> dict:
-        """Get pipeline grouped by owner."""
         self._ensure_table("opportunities")
 
         conditions = ["LOWER(stage) NOT LIKE '%closed%'"]
@@ -195,7 +186,6 @@ class PipelineMixin(_MixinBase):
     def get_deals_at_risk(
         self, owner: str | None = None, days_threshold: int = 45, limit: int = 20
     ) -> list[dict]:
-        """Get deals at risk (stale in stage for too long)."""
         self._ensure_table("opportunities")
 
         conditions = [
@@ -221,7 +211,6 @@ class PipelineMixin(_MixinBase):
         )
 
     def get_forecast(self, owner: str | None = None) -> dict:
-        """Get weighted pipeline forecast using stage probabilities."""
         self._ensure_table("opportunities")
 
         stage_probs = {
@@ -287,7 +276,6 @@ class PipelineMixin(_MixinBase):
         }
 
     def get_forecast_accuracy(self, owner: str | None = None) -> dict:
-        """Get forecast accuracy metrics based on historical closed deals."""
         self._ensure_table("opportunities")
 
         conditions = ["LOWER(stage) LIKE '%closed%'"]

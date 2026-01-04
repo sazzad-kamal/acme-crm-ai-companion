@@ -15,7 +15,6 @@ router = APIRouter()
 
 
 def _validate_question(question: str) -> None:
-    """Validate question is present and within length limit."""
     if not question or not question.strip():
         raise ValidationError("Question cannot be empty", field="question")
     if len(question) > 2000:
@@ -28,7 +27,6 @@ async def chat_stream_endpoint(
     request: Request,
     settings: Settings = Depends(get_settings),
 ) -> StreamingResponse:
-    """Stream chat response as Server-Sent Events."""
     request_id = getattr(request.state, "request_id", "unknown")
     _validate_question(payload.question)
 
