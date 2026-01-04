@@ -5,7 +5,7 @@
 Standardized error responses for the API.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from typing_extensions import override
 from fastapi import HTTPException, status
@@ -23,7 +23,7 @@ class ErrorDetail(BaseModel):
     code: str
     message: str
     field: str | None = None
-    details: Optional[dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 
 
 class ErrorResponse(BaseModel):
@@ -32,7 +32,7 @@ class ErrorResponse(BaseModel):
     error: bool = True
     status_code: int
     message: str
-    details: Optional[list[ErrorDetail]] = None
+    details: list[ErrorDetail] | None = None
     request_id: str | None = None
 
 
@@ -49,7 +49,7 @@ class APIError(HTTPException):
         status_code: int,
         message: str,
         code: str = "API_ERROR",
-        details: Optional[list[ErrorDetail]] = None,
+        details: list[ErrorDetail] | None = None,
     ):
         self.code = code
         self.details = details

@@ -1,7 +1,7 @@
 """
-Application startup utilities.
+Application lifespan management.
 
-Contains logging setup, RAG collection initialization, and lifespan management.
+Contains logging setup, RAG collection initialization, and FastAPI lifespan handler.
 """
 
 import logging
@@ -56,8 +56,8 @@ def ensure_rag_collections_exist() -> None:
     qdrant = QdrantClient(path=str(QDRANT_PATH))
 
     try:
-        _ensure_docs_collection(qdrant, DOCS_COLLECTION, ingest_docs, QDRANT_PATH)
-        _ensure_private_collection(qdrant, PRIVATE_COLLECTION, ingest_private_texts, QDRANT_PATH)
+        _ensure_collection(qdrant, DOCS_COLLECTION, ingest_docs, "docs")
+        _ensure_collection(qdrant, PRIVATE_COLLECTION, ingest_private_texts, "private")
         qdrant.close()
     except Exception as e:
         qdrant.close()
@@ -65,40 +65,20 @@ def ensure_rag_collections_exist() -> None:
         raise
 
 
-def _ensure_docs_collection(qdrant, collection_name: str, ingest_fn, qdrant_path) -> None:
-    """Ensure docs collection exists and has data."""
-    from qdrant_client import QdrantClient
-
+def _ensure_collection(qdrant, collection_name: str, ingest_fn, label: str) -> None:
+    """Ensure a collection exists and has data."""
     if not qdrant.collection_exists(collection_name):
-        logger.info(f"Collection '{collection_name}' not found, ingesting docs...")
+        logger.info(f"Collection '{collection_name}' not found, ingesting {label}...")
         qdrant.close()
         ingest_fn()
     else:
         info = qdrant.get_collection(collection_name)
         if info.points_count == 0:
-            logger.info(f"Collection '{collection_name}' is empty, ingesting docs...")
+            logger.info(f"Collection '{collection_name}' is empty, ingesting {label}...")
             qdrant.close()
             ingest_fn()
         else:
-            logger.info(f"Docs collection ready with {info.points_count} points")
-
-
-def _ensure_private_collection(qdrant, collection_name: str, ingest_fn, qdrant_path) -> None:
-    """Ensure private collection exists and has data."""
-    from qdrant_client import QdrantClient
-
-    if not qdrant.collection_exists(collection_name):
-        logger.info(f"Collection '{collection_name}' not found, ingesting private texts...")
-        qdrant.close()
-        ingest_fn()
-    else:
-        info = qdrant.get_collection(collection_name)
-        if info.points_count == 0:
-            logger.info(f"Collection '{collection_name}' is empty, ingesting private texts...")
-            qdrant.close()
-            ingest_fn()
-        else:
-            logger.info(f"Private collection ready with {info.points_count} points")
+            logger.info(f"{label.capitalize()} collection ready with {info.points_count} points")
 
 
 # =============================================================================

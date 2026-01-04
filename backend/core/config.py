@@ -63,12 +63,14 @@ class Settings(BaseSettings):
     @property
     def project_root(self) -> Path:
         """Get the project root directory."""
-        return Path(__file__).parent.parent
+        # backend/core/config.py -> backend/core -> backend -> project_root
+        return Path(__file__).parent.parent.parent
 
     @property
     def data_dir(self) -> Path:
         """Get the data directory (backend/data)."""
-        return Path(__file__).parent / "data"
+        # backend/core/config.py -> backend/core -> backend -> backend/data
+        return Path(__file__).parent.parent / "data"
 
     model_config = {
         "env_prefix": "ACME_",

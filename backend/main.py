@@ -55,12 +55,6 @@ from backend.core.lifespan import setup_logging, lifespan
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# Combined API router
-router = APIRouter(prefix="/api")
-router.include_router(chat_router, tags=["chat"])
-router.include_router(health_router, tags=["health"])
-router.include_router(data_router, tags=["data"])
-
 
 # =============================================================================
 # Application Factory
@@ -169,6 +163,12 @@ Talk to your CRM data using natural language.
     # ==========================================================================
     # Routes
     # ==========================================================================
+
+    # Combined API router
+    router = APIRouter(prefix="/api")
+    router.include_router(chat_router, tags=["chat"])
+    router.include_router(health_router, tags=["health"])
+    router.include_router(data_router, tags=["data"])
 
     app.include_router(router)
 
