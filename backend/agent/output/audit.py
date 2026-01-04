@@ -15,9 +15,8 @@ import logging
 from dataclasses import dataclass, asdict
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Optional
 
-from backend.agent.config import get_config
+from backend.agent.core.config import get_config
 
 
 # Configure module logger
@@ -91,8 +90,6 @@ class AgentAuditLogger:
             session_id: Session identifier (if available)
             error: Error message (if query failed)
         """
-        config = get_config()
-
         entry = AgentAuditEntry(
             timestamp=datetime.now(UTC).isoformat(),
             question=question[:500],  # Truncate long questions
@@ -123,3 +120,10 @@ def get_audit_logger() -> AgentAuditLogger:
     if _logger_instance is None:
         _logger_instance = AgentAuditLogger()
     return _logger_instance
+
+
+__all__ = [
+    "AgentAuditEntry",
+    "AgentAuditLogger",
+    "get_audit_logger",
+]

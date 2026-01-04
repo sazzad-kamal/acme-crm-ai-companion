@@ -9,7 +9,7 @@ import logging
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import StreamingResponse
 
-from backend.agent.schemas import (
+from backend.agent.core.schemas import (
     ChatRequest,
     ChatResponse,
     Source,
@@ -18,7 +18,7 @@ from backend.agent.schemas import (
     MetaInfo,
 )
 from backend.agent.graph import answer_question
-from backend.agent.streaming import stream_agent
+from backend.agent.output.streaming import stream_agent
 from backend.core.config import get_settings, Settings
 from backend.core.exceptions import AgentError, ValidationError
 

@@ -4,7 +4,7 @@ Company-related intent handlers.
 Handles company_status, company_search, contacts, and attachments intents.
 """
 
-from backend.agent.extractors import (
+from backend.agent.output.extractors import (
     extract_role_from_question,
     extract_company_criteria,
     extract_attachment_query,

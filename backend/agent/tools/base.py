@@ -8,7 +8,7 @@ from functools import wraps
 from typing import Callable, ParamSpec, TypeVar
 
 from backend.agent.datastore import get_datastore, CRMDataStore
-from backend.agent.schemas import Source, ToolResult
+from backend.agent.core.schemas import Source, ToolResult
 
 P = ParamSpec("P")
 T = TypeVar("T")

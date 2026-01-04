@@ -8,7 +8,6 @@ Import from this module instead of defining constants in individual files.
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,7 +17,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 logger = logging.getLogger(__name__)
 
 # Resolve backend root directory (for default paths)
-_BACKEND_ROOT = Path(__file__).parent.parent.resolve()
+# backend/agent/core/config.py -> core -> agent -> backend
+_BACKEND_ROOT = Path(__file__).parent.parent.parent.resolve()
 _DEFAULT_CSV_DIR = _BACKEND_ROOT / "data" / "csv"
 _DEFAULT_AUDIT_LOG = _BACKEND_ROOT / "data" / "logs" / "agent_audit.jsonl"
 
@@ -132,3 +132,11 @@ def reset_config() -> None:
 def is_mock_mode() -> bool:
     """Check if we're in mock mode (for testing)."""
     return os.environ.get("MOCK_LLM", "0") == "1"
+
+
+__all__ = [
+    "AgentConfig",
+    "get_config",
+    "reset_config",
+    "is_mock_mode",
+]

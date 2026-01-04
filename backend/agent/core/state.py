@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, TypedDict, Annotated
 from operator import add
 
-from backend.agent.schemas import Source, RouterResult, Step
+from backend.agent.core.schemas import Source, RouterResult, Step
 
 
 logger = logging.getLogger(__name__)

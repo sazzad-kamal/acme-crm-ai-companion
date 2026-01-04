@@ -14,9 +14,9 @@ from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 
-from backend.agent.config import get_config, is_mock_mode
-from backend.agent.schemas import Source
-from backend.agent.prompts import (
+from backend.agent.core.config import get_config, is_mock_mode
+from backend.agent.core.schemas import Source
+from backend.agent.llm.prompts import (
     FOLLOW_UP_PROMPT_TEMPLATE,
     DATA_ANSWER_TEMPLATE,
     COMPANY_NOT_FOUND_TEMPLATE,

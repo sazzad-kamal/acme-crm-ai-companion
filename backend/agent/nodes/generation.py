@@ -7,10 +7,10 @@ Handles answer synthesis and follow-up suggestion generation.
 import logging
 import time
 
-from backend.agent.state import AgentState
-from backend.agent.config import get_config
-from backend.agent.memory import format_history_for_prompt
-from backend.agent.formatters import (
+from backend.agent.core.state import AgentState
+from backend.agent.core.config import get_config
+from backend.agent.session.memory import format_history_for_prompt
+from backend.agent.output.formatters import (
     format_company_section,
     format_activities_section,
     format_history_section,
@@ -23,7 +23,7 @@ from backend.agent.formatters import (
     format_account_context_section,
     format_conversation_history_section,
 )
-from backend.agent.llm_helpers import (
+from backend.agent.llm.helpers import (
     generate_follow_up_suggestions,
     call_answer_chain,
     call_not_found_chain,

@@ -22,10 +22,10 @@ from tenacity import (
 )
 from langchain_openai import ChatOpenAI
 
-from backend.agent.config import get_config, is_mock_mode
-from backend.agent.schemas import RouterResult
+from backend.agent.core.config import get_config, is_mock_mode
+from backend.agent.core.schemas import RouterResult
 from backend.agent.datastore import get_datastore, CRMDataStore
-from backend.agent.prompts import ROUTER_EXAMPLES, ROUTER_PROMPT_TEMPLATE
+from backend.agent.llm.prompts import ROUTER_EXAMPLES, ROUTER_PROMPT_TEMPLATE
 
 
 # Configure module logger
@@ -315,3 +315,12 @@ def route_question(
         result.owner = detect_owner_from_starter(question)
 
     return result
+
+
+__all__ = [
+    "route_question",
+    "llm_route_question",
+    "detect_owner_from_starter",
+    "LLMRouterError",
+    "LLMRouterResponse",
+]

@@ -4,7 +4,7 @@ Activity-related intent handlers.
 Handles activities, analytics, and fallback intents.
 """
 
-from backend.agent.extractors import extract_activity_type
+from backend.agent.output.extractors import extract_activity_type
 from backend.agent.tools.activity import tool_search_activities, tool_analytics
 from backend.agent.tools.pipeline import tool_upcoming_renewals
 

@@ -8,9 +8,9 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
-from backend.agent.state import AgentState
-from backend.agent.config import get_config
-from backend.agent.llm_helpers import call_docs_rag, call_account_rag
+from backend.agent.core.state import AgentState
+from backend.agent.core.config import get_config
+from backend.agent.llm.helpers import call_docs_rag, call_account_rag
 from backend.agent.handlers import IntentContext, dispatch_intent
 
 

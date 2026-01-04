@@ -7,10 +7,10 @@ Handles question routing and parameter extraction.
 import logging
 import time
 
-from backend.agent.state import AgentState
-from backend.agent.config import get_config
-from backend.agent.llm_router import route_question
-from backend.agent.memory import format_history_for_prompt
+from backend.agent.core.state import AgentState
+from backend.agent.core.config import get_config
+from backend.agent.llm.router import route_question
+from backend.agent.session.memory import format_history_for_prompt
 
 
 logger = logging.getLogger(__name__)

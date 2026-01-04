@@ -3,7 +3,7 @@ Activity, history, and analytics tools.
 """
 
 from backend.agent.datastore import CRMDataStore, get_datastore
-from backend.agent.schemas import Source, ToolResult
+from backend.agent.core.schemas import Source, ToolResult
 from backend.agent.tools.base import make_sources, with_datastore
 
 

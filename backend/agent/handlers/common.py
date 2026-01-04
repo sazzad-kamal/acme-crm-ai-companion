@@ -7,7 +7,7 @@ Shared by all handler modules to avoid duplication.
 import logging
 from dataclasses import dataclass, field
 
-from backend.agent.schemas import Source
+from backend.agent.core.schemas import Source
 from backend.agent.tools.company import tool_company_lookup
 
 
