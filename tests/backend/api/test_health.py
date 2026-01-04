@@ -6,7 +6,7 @@ from fastapi import FastAPI, APIRouter
 from fastapi.testclient import TestClient
 
 from backend.api.chat import router as chat_router
-from backend.api.health import router as health_router, HealthResponse, SystemInfo
+from backend.api.health import router as health_router, HealthResponse
 from backend.api.data import router as data_router, DataResponse, load_csv_data, load_jsonl_data
 
 # Combined API router (same as main.py)
@@ -52,21 +52,6 @@ class TestHealthResponse:
         services = {"api": "healthy", "data": "healthy"}
         response = HealthResponse(status="ok", services=services)
         assert response.services["api"] == "healthy"
-
-
-class TestSystemInfo:
-    """Tests for SystemInfo model."""
-
-    def test_system_info_creation(self):
-        """Test SystemInfo with all fields."""
-        info = SystemInfo(
-            app_name="Test App",
-            debug=False,
-            cors_origins=["http://localhost:3000"],
-        )
-        assert info.app_name == "Test App"
-        assert info.debug is False
-        assert len(info.cors_origins) == 1
 
 
 class TestDataResponse:
@@ -163,40 +148,6 @@ class TestHealthEndpoint:
         data = response.json()
         assert "services" in data
         assert isinstance(data["services"], dict)
-
-
-# =============================================================================
-# Info Endpoint Tests
-# =============================================================================
-
-class TestInfoEndpoint:
-    """Tests for /api/info endpoint."""
-
-    def test_info_returns_200(self, client):
-        """Test info endpoint returns 200."""
-        response = client.get("/api/info")
-        assert response.status_code == 200
-
-    def test_info_returns_app_name(self, client):
-        """Test info endpoint returns app_name."""
-        response = client.get("/api/info")
-        data = response.json()
-        assert "app_name" in data
-        assert isinstance(data["app_name"], str)
-
-    def test_info_returns_debug(self, client):
-        """Test info endpoint returns debug flag."""
-        response = client.get("/api/info")
-        data = response.json()
-        assert "debug" in data
-        assert isinstance(data["debug"], bool)
-
-    def test_info_returns_cors_origins(self, client):
-        """Test info endpoint returns cors_origins."""
-        response = client.get("/api/info")
-        data = response.json()
-        assert "cors_origins" in data
-        assert isinstance(data["cors_origins"], list)
 
 
 # =============================================================================

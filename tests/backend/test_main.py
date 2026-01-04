@@ -190,14 +190,6 @@ class TestAppInstance:
         response = client.get("/api/health")
         assert response.status_code == 200
 
-    def test_app_has_info_endpoint(self):
-        """Test that app has info endpoint."""
-        from backend.main import app
-
-        client = TestClient(app)
-        response = client.get("/api/info")
-        assert response.status_code == 200
-
 
 # =============================================================================
 # Middleware Configuration Tests

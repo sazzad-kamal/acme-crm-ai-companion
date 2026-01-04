@@ -46,14 +46,6 @@ class TestHealthEndpoints:
         data = response.json()
         assert "services" in data
         assert isinstance(data["services"], dict)
-    
-    def test_system_info_endpoint(self, client):
-        """Test system info endpoint returns app information."""
-        response = client.get("/api/info")
-        assert response.status_code == 200
-        data = response.json()
-        assert "app_name" in data
-        assert "debug" in data
 
 
 # =============================================================================
