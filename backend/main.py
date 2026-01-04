@@ -10,24 +10,12 @@ from typing import AsyncGenerator, Callable
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from pydantic import BaseModel
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from backend.core.config import get_settings
-
-
-class ErrorResponse(BaseModel):
-    """Standardized error response."""
-
-    error: bool = True
-    status_code: int
-    message: str
-    request_id: str | None = None
-
-
 from backend.api.chat import router as chat_router
 from backend.api.data import router as data_router
 
@@ -103,19 +91,6 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type"],
     )
     app.add_middleware(RequestLoggingMiddleware)
-
-    @app.exception_handler(Exception)
-    async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        request_id = getattr(request.state, "request_id", None)
-        logger.error(f"[{request_id}] Unhandled exception: {exc}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content=ErrorResponse(
-                status_code=500,
-                message=str(exc) if settings.debug else "Internal server error",
-                request_id=request_id,
-            ).model_dump(),
-        )
 
     router = APIRouter(prefix="/api")
     router.include_router(chat_router, tags=["chat"])

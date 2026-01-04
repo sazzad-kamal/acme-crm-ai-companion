@@ -8,7 +8,6 @@ Run with:
 """
 
 import os
-import pytest
 
 os.environ["MOCK_LLM"] = "1"
 
@@ -61,45 +60,6 @@ class TestCreateApp:
 
         app = create_app()
         assert app.openapi_url == "/openapi.json"
-
-
-# =============================================================================
-# Exception Handler Tests
-# =============================================================================
-
-
-class TestExceptionHandlers:
-    """Tests for exception handlers defined in create_app."""
-
-    @pytest.fixture
-    def test_app(self):
-        """Create test app with exception handlers."""
-        from backend.main import create_app
-
-        app = create_app()
-
-        @app.get("/test/general-error")
-        async def raise_general_error():
-            raise RuntimeError("Unexpected error")
-
-        return app
-
-    @pytest.fixture
-    def test_client(self, test_app):
-        """Create test client."""
-        return TestClient(test_app, raise_server_exceptions=False)
-
-    def test_general_exception_handler_returns_500(self, test_client):
-        """Test that general exceptions return 500."""
-        response = test_client.get("/test/general-error")
-        assert response.status_code == 500
-
-    def test_general_exception_returns_json(self, test_client):
-        """Test that general exception handler returns JSON."""
-        response = test_client.get("/test/general-error")
-        data = response.json()
-        assert "error" in data
-        assert data["error"] is True
 
 
 # =============================================================================
