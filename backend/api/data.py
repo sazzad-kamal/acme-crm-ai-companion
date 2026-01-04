@@ -1,5 +1,6 @@
 """Data explorer endpoints for CRM tables."""
 
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -39,12 +40,11 @@ def load_jsonl_data(jsonl_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
 
 def _group_by_key(data: list[dict], key_field: str, extract_field: str | None = None) -> dict[str, list[dict]]:
     """Group records by a key field."""
-    result: dict[str, list[dict]] = {}
+    result = defaultdict(list)
     for record in data:
-        key = record.get(extract_field or key_field) or record.get(key_field, "")
-        if key:
-            result.setdefault(key, []).append(record)
-    return result
+        if key := record.get(extract_field or key_field) or record.get(key_field):
+            result[key].append(record)
+    return dict(result)
 
 
 def _create_simple_data_endpoint(file_name: str, is_jsonl: bool = False):
