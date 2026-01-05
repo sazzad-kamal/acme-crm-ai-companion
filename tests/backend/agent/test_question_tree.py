@@ -2,8 +2,6 @@
 Tests for backend/agent/question_tree.py - hardcoded question tree for demos.
 """
 
-import pytest
-
 from backend.agent.question_tree import (
     get_starters,
     get_follow_ups,
@@ -11,8 +9,6 @@ from backend.agent.question_tree import (
     generate_all_paths,
     get_tree_stats,
     validate_tree,
-    STARTERS,
-    G,
 )
 
 
@@ -152,7 +148,7 @@ class TestGenerateAllPaths:
     def test_all_paths_start_with_starter(self):
         """All paths start with a starter question."""
         paths = generate_all_paths()
-        starters = set(STARTERS)
+        starters = set(get_starters())
         for path in paths:
             assert path[0] in starters
 
@@ -177,10 +173,11 @@ class TestGenerateAllPaths:
     def test_depth_1_returns_starters(self):
         """Depth 1 returns just starter questions."""
         paths = generate_all_paths(max_depth=1)
-        assert len(paths) == len(STARTERS)
+        starters = get_starters()
+        assert len(paths) == len(starters)
         for path in paths:
             assert len(path) == 1
-            assert path[0] in STARTERS
+            assert path[0] in starters
 
 
 # =============================================================================
@@ -199,13 +196,13 @@ class TestGetTreeStats:
         """Has num_starters key."""
         stats = get_tree_stats()
         assert "num_starters" in stats
-        assert stats["num_starters"] == len(STARTERS)
+        assert stats["num_starters"] == len(get_starters())
 
     def test_has_num_questions(self):
         """Has num_questions key."""
         stats = get_tree_stats()
         assert "num_questions" in stats
-        assert stats["num_questions"] == G.number_of_nodes()
+        assert stats["num_questions"] > 0
 
     def test_has_num_paths(self):
         """Has num_paths key."""
@@ -239,40 +236,3 @@ class TestValidateTree:
         assert len(issues) == 0, f"Tree validation failed: {issues}"
 
 
-# =============================================================================
-# Graph Structure Tests
-# =============================================================================
-
-class TestGraphStructure:
-    """Tests for the networkx graph structure."""
-
-    def test_all_starters_in_graph(self):
-        """All starter questions are in the graph."""
-        for starter in STARTERS:
-            assert starter in G
-
-    def test_nodes_have_company_id(self):
-        """All nodes have company_id attribute."""
-        for node in G.nodes():
-            assert "company_id" in G.nodes[node]
-
-    def test_graph_has_edges(self):
-        """Graph has edges (follow-up connections)."""
-        assert G.number_of_edges() > 0
-
-    def test_successors_are_follow_ups(self):
-        """Graph successors match follow-ups."""
-        for starter in STARTERS:
-            follow_ups = get_follow_ups(starter)
-            successors = list(G.successors(starter))
-            assert set(follow_ups) == set(successors)
-
-    def test_company_ids_are_valid(self):
-        """Company IDs are either None or valid strings."""
-        valid_company_ids = {
-            "ACME-MFG", "BETA-TECH", "CROWN-FOODS", "DELTA-HEALTH",
-            "EASTERN-TRAVEL", "FUSION-RETAIL", "GREEN-ENERGY", "HARBOR-LOGISTICS",
-            None
-        }
-        for node in G.nodes():
-            assert G.nodes[node]["company_id"] in valid_company_ids

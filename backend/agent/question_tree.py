@@ -36,7 +36,6 @@ from pathlib import Path
 import networkx as nx
 
 __all__ = [
-    # Functions
     "get_starters",
     "get_follow_ups",
     "get_company_id",
@@ -44,10 +43,6 @@ __all__ = [
     "get_tree_stats",
     "validate_tree",
     "to_mermaid",
-    # Constants
-    "STARTERS",
-    # Graph
-    "G",
 ]
 
 # =============================================================================

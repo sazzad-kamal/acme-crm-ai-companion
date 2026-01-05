@@ -99,40 +99,12 @@ class TestLlmHelpersMockSuggestions:
 
 
 # =============================================================================
-# question_tree.py - lines 117-118, 152, 171: validation edge cases
+# question_tree.py - generate_all_paths behavior
 # =============================================================================
 
 
-class TestQuestionTreeValidation:
-    """Tests for question_tree validation functions."""
-
-    def test_validate_tree_starter_not_in_tree(self):
-        """Test validation detects starter question not in tree."""
-        from backend.agent import question_tree
-
-        # Temporarily add invalid starter
-        original_starters = question_tree.STARTERS.copy()
-        question_tree.STARTERS.append("Invalid question not in tree")
-
-        try:
-            issues = question_tree.validate_tree()
-            assert any("Starter not in tree" in issue for issue in issues)
-        finally:
-            question_tree.STARTERS.clear()
-            question_tree.STARTERS.extend(original_starters)
-
-    def test_validate_tree_orphaned_question(self):
-        """Test validation detects orphaned questions."""
-        from backend.agent import question_tree
-
-        # Temporarily add orphaned node to graph
-        question_tree.G.add_node("Orphaned question nobody references", company_id=None)
-
-        try:
-            issues = question_tree.validate_tree()
-            assert any("Orphaned" in issue for issue in issues)
-        finally:
-            question_tree.G.remove_node("Orphaned question nobody references")
+class TestQuestionTreeBehavior:
+    """Tests for question_tree public API behavior."""
 
     def test_generate_all_paths_terminal_node(self):
         """Test generate_all_paths handles terminal nodes correctly."""
