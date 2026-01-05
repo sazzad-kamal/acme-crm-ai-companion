@@ -172,7 +172,7 @@ def _get_chain(chain_type: str) -> Any:
 # =============================================================================
 
 
-def call_answer_chain(
+async def call_answer_chain(
     question: str,
     conversation_history_section: str,
     company_section: str,
@@ -192,7 +192,7 @@ def call_answer_chain(
     chain = _get_chain("answer")
     start_time = time.time()
 
-    answer = chain.invoke({
+    answer = await chain.ainvoke({
         "question": question,
         "conversation_history_section": conversation_history_section,
         "company_section": company_section,
@@ -212,14 +212,14 @@ def call_answer_chain(
     return answer, latency_ms
 
 
-def call_not_found_chain(question: str, query: str, matches: str) -> tuple[str, int]:
+async def call_not_found_chain(question: str, query: str, matches: str) -> tuple[str, int]:
     if is_mock_mode():
         return mock_llm_response("company not found"), 100
 
     chain = _get_chain("not_found")
     start_time = time.time()
 
-    answer = chain.invoke({"question": question, "query": query, "matches": matches})
+    answer = await chain.ainvoke({"question": question, "query": query, "matches": matches})
 
     latency_ms = int((time.time() - start_time) * 1000)
     logger.info(f"Not-found chain completed in {latency_ms}ms")
