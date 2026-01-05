@@ -6,13 +6,11 @@ ensuring 100% reliability for demos - no LLM generation variability.
 
 Structure:
 - 3 role-based starter questions:
-  * Sales Rep (jsmith): "How's my pipeline?" - Pipeline focus
-  * CSM (amartin): "Any renewals at risk?" - Retention focus
-  * Manager (all): "How's the team doing?" - Aggregate view
-- Each leads to 3 follow-ups (layer 2)
-- Each leads to 3 follow-ups (layer 3)
-- Each leads to 3 follow-ups (layer 4)
-- Total: 81 paths (3 * 3 * 3 * 3)
+  * Sales Rep: "How's my pipeline?" - Pipeline focus
+  * CSM: "Any renewals at risk?" - Retention focus
+  * Manager: "How's the team doing?" - Aggregate view
+- Each question has 3 follow-ups, with varying depths (4-6 levels)
+- Run `python -m backend.agent.question_tree stats` for current metrics
 
 Usage:
     from backend.agent.question_tree import get_follow_ups, get_starters, generate_all_paths
@@ -125,12 +123,25 @@ def generate_all_paths(max_depth: int = 4) -> list[list[str]]:
 
 def get_tree_stats() -> dict:
     """Get statistics about the question tree."""
-    paths = generate_all_paths()
+    # Compute actual max depth from graph
+    max_depth = 0
+    for starter in _STARTERS:
+        if starter in _G:
+            for node in nx.descendants(_G, starter):
+                try:
+                    path_len = nx.shortest_path_length(_G, starter, node) + 1
+                    max_depth = max(max_depth, path_len)
+                except nx.NetworkXNoPath:
+                    pass
+
+    # Generate all paths using actual max depth
+    paths = generate_all_paths(max_depth=max_depth) if max_depth > 0 else []
     return {
         "num_starters": len(_STARTERS),
         "num_questions": _G.number_of_nodes(),
         "num_edges": _G.number_of_edges(),
         "num_paths": len(paths),
+        "max_depth": max_depth,
         "path_lengths": {
             "min": min(len(p) for p in paths) if paths else 0,
             "max": max(len(p) for p in paths) if paths else 0,

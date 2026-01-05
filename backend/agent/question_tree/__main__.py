@@ -50,6 +50,7 @@ def stats() -> None:
     table.add_row("Starter questions", str(s["num_starters"]))
     table.add_row("Total questions", str(s["num_questions"]))
     table.add_row("Edges (follow-up links)", str(s["num_edges"]))
+    table.add_row("Max depth", str(s["max_depth"]))
     table.add_row("Total paths", str(s["num_paths"]))
     table.add_row("Min path length", str(s["path_lengths"]["min"]))
     table.add_row("Max path length", str(s["path_lengths"]["max"]))
