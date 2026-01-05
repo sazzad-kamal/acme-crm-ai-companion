@@ -21,12 +21,6 @@ describe("FollowUpSuggestions", () => {
     expect(screen.getByText("Question 3?")).toBeInTheDocument();
   });
 
-  it("renders label", () => {
-    render(<FollowUpSuggestions {...defaultProps} />);
-
-    expect(screen.getByText("Ask:")).toBeInTheDocument();
-  });
-
   it("renders null when suggestions is empty", () => {
     const { container } = render(
       <FollowUpSuggestions suggestions={[]} onSuggestionClick={vi.fn()} />
@@ -59,13 +53,6 @@ describe("FollowUpSuggestions", () => {
 
     const group = screen.getByRole("group");
     expect(group).toHaveAccessibleName("Suggested follow-up questions");
-  });
-
-  it("label is aria-hidden", () => {
-    const { container } = render(<FollowUpSuggestions {...defaultProps} />);
-
-    const label = container.querySelector(".follow-up-container__label");
-    expect(label).toHaveAttribute("aria-hidden", "true");
   });
 
   // =========================================================================
@@ -192,20 +179,18 @@ describe("FollowUpSuggestions", () => {
   it("buttons have CSS class", () => {
     const { container } = render(<FollowUpSuggestions {...defaultProps} />);
 
-    const buttons = container.querySelectorAll(".follow-up-chip");
+    const buttons = container.querySelectorAll(".follow-up-btn");
     expect(buttons).toHaveLength(3);
   });
 
-  it("buttons have ARIA labels", () => {
-    render(<FollowUpSuggestions {...defaultProps} />);
+  it("buttons have arrow indicator", () => {
+    const { container } = render(<FollowUpSuggestions {...defaultProps} />);
 
-    expect(
-      screen.getByRole("button", { name: "Ask follow-up: Question 1?" })
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("button", { name: "Ask follow-up: Question 2?" })
-    ).toBeInTheDocument();
+    const arrows = container.querySelectorAll(".follow-up-btn__arrow");
+    expect(arrows).toHaveLength(3);
+    arrows.forEach((arrow) => {
+      expect(arrow).toHaveTextContent("→");
+    });
   });
 
   it("buttons are keyboard focusable", () => {

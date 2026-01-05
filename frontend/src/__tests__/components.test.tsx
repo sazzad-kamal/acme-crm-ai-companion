@@ -155,9 +155,10 @@ describe("FollowUpSuggestions", () => {
     expect(screen.getByText("Question 2?")).toBeInTheDocument();
   });
 
-  it("renders Ask label", () => {
-    render(<FollowUpSuggestions suggestions={suggestions} onSuggestionClick={() => {}} />);
-    expect(screen.getByText("Ask:")).toBeInTheDocument();
+  it("renders arrow indicator", () => {
+    const { container } = render(<FollowUpSuggestions suggestions={suggestions} onSuggestionClick={() => {}} />);
+    const arrows = container.querySelectorAll(".follow-up-btn__arrow");
+    expect(arrows.length).toBe(2);
   });
 
   it("calls onSuggestionClick when clicked", () => {

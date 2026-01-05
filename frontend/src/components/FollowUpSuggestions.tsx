@@ -23,23 +23,20 @@ export function FollowUpSuggestions({
 
   return (
     <div
-      className="flex-row follow-up-container"
+      className="follow-up-container"
       role="group"
       aria-label="Suggested follow-up questions"
     >
-      <span className="follow-up-container__label" aria-hidden="true">
-        Ask:
-      </span>
       {suggestions.map((suggestion, idx) => (
         <button
           key={idx}
-          className="follow-up-chip"
+          className="follow-up-btn"
           onClick={() => onSuggestionClick(suggestion)}
           onKeyDown={(e) => handleKeyDown(e, suggestion)}
           type="button"
-          aria-label={`Ask follow-up: ${suggestion}`}
         >
-          {suggestion}
+          <span className="follow-up-btn__text">{suggestion}</span>
+          <span className="follow-up-btn__arrow" aria-hidden="true">→</span>
         </button>
       ))}
     </div>
