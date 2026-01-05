@@ -11,9 +11,8 @@ from backend.agent.question_tree import (
     generate_all_paths,
     get_tree_stats,
     validate_tree,
-    QUESTION_TREE,
-    STARTER_QUESTIONS,
-    TERMINAL_FOLLOW_UPS,
+    STARTERS,
+    G,
 )
 
 
@@ -74,10 +73,10 @@ class TestGetFollowUps:
         assert len(follow_ups) == 3
         assert "Show me Acme Manufacturing's opportunities" in follow_ups
 
-    def test_returns_terminal_for_unknown_question(self):
-        """Returns terminal follow-ups for unknown question."""
+    def test_returns_empty_for_unknown_question(self):
+        """Returns empty list for unknown question."""
         follow_ups = get_follow_ups("Unknown question that's not in the tree")
-        assert follow_ups == TERMINAL_FOLLOW_UPS
+        assert follow_ups == []
 
     def test_returns_copy(self):
         """Returns a copy, not the original list."""
@@ -153,7 +152,7 @@ class TestGenerateAllPaths:
     def test_all_paths_start_with_starter(self):
         """All paths start with a starter question."""
         paths = generate_all_paths()
-        starters = set(STARTER_QUESTIONS)
+        starters = set(STARTERS)
         for path in paths:
             assert path[0] in starters
 
@@ -178,10 +177,10 @@ class TestGenerateAllPaths:
     def test_depth_1_returns_starters(self):
         """Depth 1 returns just starter questions."""
         paths = generate_all_paths(max_depth=1)
-        assert len(paths) == len(STARTER_QUESTIONS)
+        assert len(paths) == len(STARTERS)
         for path in paths:
             assert len(path) == 1
-            assert path[0] in STARTER_QUESTIONS
+            assert path[0] in STARTERS
 
 
 # =============================================================================
@@ -200,13 +199,13 @@ class TestGetTreeStats:
         """Has num_starters key."""
         stats = get_tree_stats()
         assert "num_starters" in stats
-        assert stats["num_starters"] == len(STARTER_QUESTIONS)
+        assert stats["num_starters"] == len(STARTERS)
 
     def test_has_num_questions(self):
         """Has num_questions key."""
         stats = get_tree_stats()
         assert "num_questions" in stats
-        assert stats["num_questions"] == len(QUESTION_TREE)
+        assert stats["num_questions"] == G.number_of_nodes()
 
     def test_has_num_paths(self):
         """Has num_paths key."""
@@ -241,57 +240,39 @@ class TestValidateTree:
 
 
 # =============================================================================
-# QUESTION_TREE Structure Tests
+# Graph Structure Tests
 # =============================================================================
 
-class TestQuestionTreeStructure:
-    """Tests for QUESTION_TREE structure."""
+class TestGraphStructure:
+    """Tests for the networkx graph structure."""
 
-    def test_all_starters_in_tree(self):
-        """All starter questions are in the tree."""
-        for starter in STARTER_QUESTIONS:
-            assert starter in QUESTION_TREE
+    def test_all_starters_in_graph(self):
+        """All starter questions are in the graph."""
+        for starter in STARTERS:
+            assert starter in G
 
     def test_nodes_have_company_id(self):
-        """All nodes have company_id field."""
-        for question, node in QUESTION_TREE.items():
-            assert "company_id" in node
+        """All nodes have company_id attribute."""
+        for node in G.nodes():
+            assert "company_id" in G.nodes[node]
 
-    def test_nodes_have_follow_ups(self):
-        """All nodes have follow_ups field."""
-        for question, node in QUESTION_TREE.items():
-            assert "follow_ups" in node
-            assert isinstance(node["follow_ups"], list)
+    def test_graph_has_edges(self):
+        """Graph has edges (follow-up connections)."""
+        assert G.number_of_edges() > 0
 
-    def test_follow_ups_are_strings(self):
-        """All follow-ups are strings."""
-        for question, node in QUESTION_TREE.items():
-            for follow_up in node["follow_ups"]:
-                assert isinstance(follow_up, str)
+    def test_successors_are_follow_ups(self):
+        """Graph successors match follow-ups."""
+        for starter in STARTERS:
+            follow_ups = get_follow_ups(starter)
+            successors = list(G.successors(starter))
+            assert set(follow_ups) == set(successors)
 
     def test_company_ids_are_valid(self):
         """Company IDs are either None or valid strings."""
-        # All 8 companies in the CRM plus None for global queries
         valid_company_ids = {
             "ACME-MFG", "BETA-TECH", "CROWN-FOODS", "DELTA-HEALTH",
             "EASTERN-TRAVEL", "FUSION-RETAIL", "GREEN-ENERGY", "HARBOR-LOGISTICS",
             None
         }
-        for question, node in QUESTION_TREE.items():
-            assert node["company_id"] in valid_company_ids
-
-
-# =============================================================================
-# TERMINAL_FOLLOW_UPS Tests
-# =============================================================================
-
-class TestTerminalFollowUps:
-    """Tests for TERMINAL_FOLLOW_UPS constant."""
-
-    def test_is_empty_list(self):
-        """Terminal follow-ups is an empty list."""
-        assert TERMINAL_FOLLOW_UPS == []
-
-    def test_is_list(self):
-        """Terminal follow-ups is a list."""
-        assert isinstance(TERMINAL_FOLLOW_UPS, list)
+        for node in G.nodes():
+            assert G.nodes[node]["company_id"] in valid_company_ids

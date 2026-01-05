@@ -35,6 +35,21 @@ from pathlib import Path
 
 import networkx as nx
 
+__all__ = [
+    # Functions
+    "get_starters",
+    "get_follow_ups",
+    "get_company_id",
+    "generate_all_paths",
+    "get_tree_stats",
+    "validate_tree",
+    "to_mermaid",
+    # Constants
+    "STARTERS",
+    # Graph
+    "G",
+]
+
 # =============================================================================
 # Load JSON and Build Graph
 # =============================================================================
@@ -55,10 +70,11 @@ for question, node in _raw_data.items():
     for follow_up in node["follow_ups"]:
         G.add_edge(question, follow_up)
 
-# Backwards-compatible exports
-STARTER_QUESTIONS = STARTERS
-QUESTION_TREE = {q: {"company_id": G.nodes[q].get("company_id"), "follow_ups": list(G.successors(q))} for q in G.nodes()}
-TERMINAL_FOLLOW_UPS: list[str] = []
+# Ensure all nodes have company_id attribute (edges may create nodes without it)
+for node in G.nodes():
+    if "company_id" not in G.nodes[node]:
+        G.nodes[node]["company_id"] = None
+
 
 
 # =============================================================================
