@@ -41,11 +41,11 @@ export function ChatArea({
         <EmptyState onSuggestionClick={onSuggestionClick} />
       ) : (
         <div className="message-list" role="list">
-          {messages.map((msg) => (
+          {messages.map((msg, index) => (
             <MessageBlock
               key={msg.id}
               message={msg}
-              onFollowUpClick={onFollowUpClick}
+              onFollowUpClick={index === messages.length - 1 ? onFollowUpClick : undefined}
             />
           ))}
           {/* Step progress pills during streaming */}

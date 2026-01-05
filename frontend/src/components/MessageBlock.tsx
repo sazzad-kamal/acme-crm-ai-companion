@@ -51,7 +51,7 @@ export const MessageBlock = memo(function MessageBlock({
             Assistant
           </div>
 
-          {response ? (
+          {response?.answer ? (
             <div className="message__response">
               {/* Answer Text with Copy Button */}
               <div className="message__answer-wrapper">

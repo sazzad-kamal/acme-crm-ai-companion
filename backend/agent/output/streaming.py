@@ -79,10 +79,7 @@ def format_sse(event: str, data: dict[str, Any]) -> str:
 
 NODE_MESSAGES = {
     "route": "Understanding your question...",
-    "data": "Fetching CRM data...",
-    "docs": "Searching documentation...",
-    "skip_data": "Skipping data (docs-only query)...",
-    "skip_docs": "Skipping docs (data-only query)...",
+    "fetch": "Fetching data and documentation...",
     "answer": "Generating answer...",
     "followup": "Generating suggestions...",
 }
