@@ -95,6 +95,11 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestLoggingMiddleware)
 
     router = APIRouter(prefix="/api")
+
+    @router.get("/health", tags=["health"])
+    async def health() -> dict:
+        return {"status": "ok"}
+
     router.include_router(chat_router, tags=["chat"])
     router.include_router(data_router, tags=["data"])
     app.include_router(router)
