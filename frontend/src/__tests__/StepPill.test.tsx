@@ -412,10 +412,11 @@ describe("StepsRow", () => {
   // Edge Cases
   // =========================================================================
 
-  it("returns null for empty steps array", () => {
-    const { container } = render(<StepsRow steps={[]} />);
+  it("shows loading indicator for empty steps array", () => {
+    render(<StepsRow steps={[]} />);
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Processing...")).toBeInTheDocument();
   });
 
   it("handles single step", () => {

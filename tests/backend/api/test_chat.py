@@ -173,8 +173,7 @@ class TestStreamingModule:
         from backend.agent.output.streaming import NODE_MESSAGES
 
         assert "route" in NODE_MESSAGES
-        assert "data" in NODE_MESSAGES
-        assert "docs" in NODE_MESSAGES
+        assert "fetch" in NODE_MESSAGES
         assert "answer" in NODE_MESSAGES
         assert "followup" in NODE_MESSAGES
 

@@ -54,10 +54,22 @@ interface StepsRowProps {
 
 /**
  * Displays a row of step pills showing workflow progress.
+ * Shows a loading indicator when no steps have arrived yet.
  * Memoized to prevent re-renders when steps haven't changed.
  */
 export const StepsRow = memo(function StepsRow({ steps }: StepsRowProps) {
-  if (!steps || steps.length === 0) return null;
+  // Show loading indicator when no steps have arrived yet
+  if (!steps || steps.length === 0) {
+    return (
+      <div
+        className="steps-row steps-row--loading"
+        role="status"
+        aria-label="Loading response"
+      >
+        <span className="steps-row__loading-text">Processing...</span>
+      </div>
+    );
+  }
 
   const completedCount = steps.filter((s) => s.status === "done").length;
 

@@ -161,8 +161,8 @@ class TestNodeMessages:
 
     def test_all_nodes_have_messages(self):
         """Should have messages for all pipeline nodes."""
-        expected_nodes = ["route", "data", "docs", "skip_data", "skip_docs", "answer", "followup"]
-        
+        expected_nodes = ["route", "fetch", "answer", "followup"]
+
         for node in expected_nodes:
             assert node in NODE_MESSAGES
             assert isinstance(NODE_MESSAGES[node], str)
@@ -171,9 +171,65 @@ class TestNodeMessages:
     def test_messages_are_user_friendly(self):
         """Messages should be descriptive and user-friendly."""
         assert "question" in NODE_MESSAGES["route"].lower() or "understanding" in NODE_MESSAGES["route"].lower()
-        assert "data" in NODE_MESSAGES["data"].lower() or "crm" in NODE_MESSAGES["data"].lower()
-        assert "doc" in NODE_MESSAGES["docs"].lower()
+        assert "fetch" in NODE_MESSAGES["fetch"].lower() or "data" in NODE_MESSAGES["fetch"].lower()
         assert "answer" in NODE_MESSAGES["answer"].lower() or "generating" in NODE_MESSAGES["answer"].lower()
+
+
+class TestStreamAnswerChain:
+    """Tests for the stream_answer_chain function."""
+
+    def test_stream_answer_chain_mock_mode(self):
+        """Should yield complete answer in mock mode."""
+        import os
+        import asyncio
+
+        async def run_test():
+            with patch.dict(os.environ, {"MOCK_LLM": "1"}):
+                from backend.agent.llm.helpers import stream_answer_chain
+
+                tokens = []
+                async for token in stream_answer_chain(
+                    question="What is Acme's status?",
+                    conversation_history_section="",
+                    company_section="",
+                    activities_section="",
+                    history_section="",
+                    pipeline_section="",
+                    renewals_section="",
+                    docs_section="",
+                ):
+                    tokens.append(token)
+
+                # Should yield at least one token (the mock response)
+                assert len(tokens) >= 1
+                # Combined should form a complete answer
+                full_answer = "".join(tokens)
+                assert len(full_answer) > 0
+
+        asyncio.run(run_test())
+
+    def test_stream_answer_chain_yields_strings(self):
+        """All yielded tokens should be strings."""
+        import os
+        import asyncio
+
+        async def run_test():
+            with patch.dict(os.environ, {"MOCK_LLM": "1"}):
+                from backend.agent.llm.helpers import stream_answer_chain
+
+                async for token in stream_answer_chain(
+                    question="Test",
+                    conversation_history_section="",
+                    company_section="",
+                    activities_section="",
+                    history_section="",
+                    pipeline_section="",
+                    renewals_section="",
+                    docs_section="",
+                ):
+                    assert isinstance(token, str)
+
+        asyncio.run(run_test())
 
 
 class TestStreamAgentIntegration:

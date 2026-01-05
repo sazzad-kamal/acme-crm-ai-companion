@@ -8,13 +8,28 @@ as the agent progresses through nodes.
 import json
 import logging
 import time
-import uuid
 from typing import AsyncGenerator, Any
 from datetime import datetime, date
 
-from backend.agent.graph import agent_graph
 from backend.agent.core.state import AgentState
+from backend.agent.core.config import get_config
 from backend.agent.output.audit import AgentAuditLogger
+from backend.agent.output.formatters import (
+    format_company_section,
+    format_activities_section,
+    format_history_section,
+    format_pipeline_section,
+    format_renewals_section,
+    format_contacts_section,
+    format_groups_section,
+    format_attachments_section,
+    format_docs_section,
+    format_account_context_section,
+    format_conversation_history_section,
+)
+from backend.agent.llm.helpers import stream_answer_chain, generate_follow_up_suggestions
+from backend.agent.nodes.routing import route_node
+from backend.agent.nodes.fetching import fetch_node
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +122,7 @@ async def stream_agent(
         - step: Step completion with status
         - sources: Sources discovered during data/docs fetch
         - answer_start: Answer generation begins
-        - answer_chunk: Incremental answer text (if LLM supports streaming)
+        - answer_chunk: Incremental answer text (token-by-token streaming)
         - answer_end: Full answer available
         - followup: Follow-up suggestions
         - done: Final complete response
@@ -141,109 +156,159 @@ async def stream_agent(
     # Track accumulated state for final response
     final_state = initial_state.copy()
     seen_steps = set()
-    answer_started = False
-    accumulated_answer = ""
-
-    # Build config with thread_id for LangGraph checkpointing
-    thread_id = session_id or str(uuid.uuid4())
-    config = {"configurable": {"thread_id": thread_id}}
 
     try:
-        # Stream events from the graph
-        async for event in agent_graph.astream_events(initial_state, config=config, version="v2"):
-            event_type = event.get("event")
-            event_name = event.get("name")
-            event_data = event.get("data", {})
+        # Phase 1: Route the question
+        yield format_sse(StreamEvent.STATUS, {"node": "route", "message": NODE_MESSAGES["route"]})
+        # Note: Frontend shows "router" running immediately, so we just send done after
 
-            # Node starting
-            if event_type == "on_chain_start" and event_name in NODE_MESSAGES:
-                yield format_sse(
-                    StreamEvent.STATUS,
-                    {
-                        "node": event_name,
-                        "message": NODE_MESSAGES[event_name],
-                    },
-                )
+        route_result = route_node(final_state)
+        for key, value in route_result.items():
+            final_state[key] = value
 
-            # LLM token streaming - emit tokens as they arrive
-            elif event_type == "on_llm_stream":
-                chunk = event_data.get("chunk")
-                if chunk:
-                    # Extract token content from AIMessageChunk
-                    token = ""
-                    if hasattr(chunk, "content"):
-                        token = chunk.content
-                    elif isinstance(chunk, dict):
-                        token = chunk.get("content", "")
+        for step in route_result.get("steps", []):
+            step_id = step.get("id")
+            if step_id and step_id not in seen_steps:
+                seen_steps.add(step_id)
+                yield format_sse(StreamEvent.STEP, step)
 
-                    if token:
-                        # Emit answer_start on first token
-                        if not answer_started:
-                            answer_started = True
-                            yield format_sse(StreamEvent.ANSWER_START, {})
+        # Phase 2: Fetch data - send running step first
+        yield format_sse(StreamEvent.STATUS, {"node": "fetch", "message": NODE_MESSAGES["fetch"]})
+        yield format_sse(StreamEvent.STEP, {
+            "id": "fetch",
+            "label": "Fetching data",
+            "status": "running",
+        })
 
-                        accumulated_answer += token
-                        yield format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": token})
+        fetch_start_time = time.time()
+        fetch_result = fetch_node(final_state)
+        fetch_latency_ms = int((time.time() - fetch_start_time) * 1000)
 
-            # Node completed - extract output
-            elif event_type == "on_chain_end" and event_name in NODE_MESSAGES:
-                output = event_data.get("output", {})
+        for key, value in fetch_result.items():
+            if key == "sources" and isinstance(value, list):
+                final_state["sources"] = final_state.get("sources", []) + value
+            elif key == "steps" and isinstance(value, list):
+                final_state["steps"] = final_state.get("steps", []) + value
+            else:
+                final_state[key] = value
 
-                # Merge output into final state
-                if isinstance(output, dict):
-                    for key, value in output.items():
-                        if key == "sources" and isinstance(value, list):
-                            # Append sources
-                            if "sources" not in final_state:
-                                final_state["sources"] = []
-                            final_state["sources"].extend(value)
-                        elif key == "steps" and isinstance(value, list):
-                            # Append steps
-                            if "steps" not in final_state:
-                                final_state["steps"] = []
-                            final_state["steps"].extend(value)
-                        else:
-                            final_state[key] = value
+        # Send fetch done step (skip individual fetch sub-steps to keep UI clean)
+        yield format_sse(StreamEvent.STEP, {
+            "id": "fetch",
+            "label": "Fetching data",
+            "status": "done",
+            "latency_ms": fetch_latency_ms,
+        })
 
-                # Emit steps that are new
-                steps = output.get("steps", [])
-                for step in steps:
-                    step_id = step.get("id")
-                    if step_id and step_id not in seen_steps:
-                        seen_steps.add(step_id)
-                        yield format_sse(StreamEvent.STEP, step)
+        # Emit sources
+        sources = fetch_result.get("sources", [])
+        if sources:
+            yield format_sse(StreamEvent.SOURCES, {"sources": sources})
 
-                # Emit sources if any
-                sources = output.get("sources", [])
-                if sources:
-                    yield format_sse(
-                        StreamEvent.SOURCES,
-                        {
-                            "sources": sources  # format_sse handles serialization
-                        },
-                    )
+        # Phase 3: Stream the answer - send running step first
+        yield format_sse(StreamEvent.STATUS, {"node": "answer", "message": NODE_MESSAGES["answer"]})
+        yield format_sse(StreamEvent.STEP, {
+            "id": "answer",
+            "label": "Generating answer",
+            "status": "running",
+        })
+        yield format_sse(StreamEvent.ANSWER_START, {})
 
-                # Special handling for answer node
-                if event_name == "answer":
-                    # Use accumulated_answer if we streamed tokens, otherwise use output
-                    answer = accumulated_answer if accumulated_answer else output.get("answer", "")
-                    if answer:
-                        # If we didn't stream (mock mode), emit the full answer
-                        if not answer_started:
-                            yield format_sse(StreamEvent.ANSWER_START, {})
-                            yield format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": answer})
-                        # Always emit answer_end with the complete answer
-                        yield format_sse(StreamEvent.ANSWER_END, {"answer": answer})
-                        # Update final_state with the answer
-                        final_state["answer"] = answer
+        answer_start_time = time.time()
+        accumulated_answer = ""
 
-                # Follow-up suggestions
-                if event_name == "followup":
-                    suggestions = output.get("follow_up_suggestions", [])
-                    if suggestions:
-                        yield format_sse(StreamEvent.FOLLOWUP, {"suggestions": suggestions})
+        # Build context sections from fetched data
+        company_data = final_state.get("company_data")
 
-        # Calculate latency
+        # Check if company was not found
+        if company_data and not company_data.get("found"):
+            # For not-found case, use a simple message
+            close_matches = company_data.get("close_matches", [])[:3]
+            answer = (
+                "I couldn't find an exact match for that company in the CRM. "
+                "Could you clarify which company you're asking about?"
+            )
+            if close_matches:
+                answer += " Here are some similar companies I found: "
+                answer += ", ".join(m.get("name", "") for m in close_matches)
+            yield format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": answer})
+            accumulated_answer = answer
+        else:
+            # Stream answer tokens from LLM
+            async for token in stream_answer_chain(
+                question=question,
+                conversation_history_section=format_conversation_history_section(final_state.get("messages", [])),
+                company_section=format_company_section(company_data),
+                contacts_section=format_contacts_section(final_state.get("contacts_data")),
+                activities_section=format_activities_section(final_state.get("activities_data")),
+                history_section=format_history_section(final_state.get("history_data")),
+                pipeline_section=format_pipeline_section(final_state.get("pipeline_data")),
+                renewals_section=format_renewals_section(final_state.get("renewals_data")),
+                groups_section=format_groups_section(final_state.get("groups_data")),
+                attachments_section=format_attachments_section(final_state.get("attachments_data")),
+                docs_section=format_docs_section(final_state.get("docs_answer", "")),
+                account_context_section=format_account_context_section(final_state.get("account_context_answer", "")),
+            ):
+                accumulated_answer += token
+                yield format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": token})
+
+        answer_latency_ms = int((time.time() - answer_start_time) * 1000)
+        final_state["answer"] = accumulated_answer
+
+        yield format_sse(StreamEvent.ANSWER_END, {"answer": accumulated_answer})
+        yield format_sse(StreamEvent.STEP, {
+            "id": "answer",
+            "label": "Generating answer",
+            "status": "done",
+            "latency_ms": answer_latency_ms,
+        })
+
+        # Phase 4: Generate follow-up suggestions - send running step first
+        yield format_sse(StreamEvent.STATUS, {"node": "followup", "message": NODE_MESSAGES["followup"]})
+        yield format_sse(StreamEvent.STEP, {
+            "id": "followup",
+            "label": "Generating suggestions",
+            "status": "running",
+        })
+
+        followup_start = time.time()
+        config = get_config()
+
+        if config.enable_follow_up_suggestions:
+            company_name = None
+            if company_data and company_data.get("found"):
+                company_name = company_data.get("company", {}).get("name")
+
+            raw_data = final_state.get("raw_data", {})
+            available_data = {
+                "contacts": len(raw_data.get("contacts", [])) if isinstance(raw_data, dict) else 0,
+                "activities": len(raw_data.get("activities", [])) if isinstance(raw_data, dict) else 0,
+                "opportunities": len(raw_data.get("opportunities", [])) if isinstance(raw_data, dict) else 0,
+                "history": len(raw_data.get("history", [])) if isinstance(raw_data, dict) else 0,
+                "renewals": len(raw_data.get("renewals", [])) if isinstance(raw_data, dict) else 0,
+            }
+
+            suggestions = generate_follow_up_suggestions(
+                question=question,
+                mode=final_state.get("mode_used", "auto"),
+                company_id=final_state.get("resolved_company_id"),
+                company_name=company_name,
+                available_data=available_data,
+            )
+            final_state["follow_up_suggestions"] = suggestions
+
+            if suggestions:
+                yield format_sse(StreamEvent.FOLLOWUP, {"suggestions": suggestions})
+
+        followup_latency_ms = int((time.time() - followup_start) * 1000)
+        yield format_sse(StreamEvent.STEP, {
+            "id": "followup",
+            "label": "Generating suggestions",
+            "status": "done",
+            "latency_ms": followup_latency_ms,
+        })
+
+        # Calculate total latency
         latency_ms = int((time.time() - start_time) * 1000)
 
         # Audit logging
@@ -263,7 +328,7 @@ async def stream_agent(
             StreamEvent.DONE,
             {
                 "answer": final_state.get("answer", ""),
-                "sources": final_state.get("sources", []),  # format_sse handles serialization
+                "sources": final_state.get("sources", []),
                 "steps": final_state.get("steps", []),
                 "raw_data": final_state.get("raw_data", {}),
                 "follow_up_suggestions": final_state.get("follow_up_suggestions", []),

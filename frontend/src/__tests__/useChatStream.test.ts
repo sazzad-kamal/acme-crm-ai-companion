@@ -91,7 +91,7 @@ describe("useChatStream", () => {
 
     expect(result.current.isLoading).toBe(true);
     expect(result.current.isStreaming).toBe(true);
-    expect(result.current.currentStatus).toBe("Starting...");
+    expect(result.current.currentStatus).toBe("Thinking...");
   });
 
   it("adds message optimistically", async () => {
@@ -110,6 +110,7 @@ describe("useChatStream", () => {
 
     expect(result.current.messages).toHaveLength(1);
     expect(result.current.messages[0].question).toBe("Test question");
+    // Message starts with null response (shows thinking indicator)
     expect(result.current.messages[0].response).toBeNull();
   });
 

@@ -117,7 +117,7 @@ describe("MessageBlock", () => {
     expect(screen.getByLabelText(/conversation about/i)).toBeInTheDocument();
   });
 
-  it("shows loading state when no response", () => {
+  it("shows thinking indicator when no response", () => {
     const loadingMessage: ChatMessage = {
       id: "msg-2",
       question: "Loading question",
@@ -125,7 +125,7 @@ describe("MessageBlock", () => {
       timestamp: new Date(),
     };
     render(<MessageBlock message={loadingMessage} />);
-    expect(screen.getByRole("status", { name: /loading/i })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /thinking/i })).toBeInTheDocument();
   });
 
   it("renders sources when present (collapsed by default)", () => {

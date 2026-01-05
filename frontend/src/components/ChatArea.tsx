@@ -1,16 +1,13 @@
 import type { Ref } from "react";
 import { useId, useState, useEffect } from "react";
-import type { ChatMessage, Step } from "../types";
+import type { ChatMessage } from "../types";
 import { MessageBlock } from "./MessageBlock";
-import { StepsRow } from "./StepPill";
 import { EXAMPLE_PROMPTS, endpoints } from "../config";
 
 interface ChatAreaProps {
   messages: ChatMessage[];
   onSuggestionClick: (prompt: string) => void;
   onFollowUpClick: (question: string) => void;
-  streamingStatus?: string | null;
-  streamingSteps?: Step[];
   /** Ref for scroll management (React 19 - ref as prop) */
   ref?: Ref<HTMLDivElement>;
 }
@@ -23,8 +20,6 @@ export function ChatArea({
   messages,
   onSuggestionClick,
   onFollowUpClick,
-  streamingStatus,
-  streamingSteps = [],
   ref,
 }: ChatAreaProps) {
   const isEmpty = messages.length === 0;
@@ -41,24 +36,16 @@ export function ChatArea({
         <EmptyState onSuggestionClick={onSuggestionClick} />
       ) : (
         <div className="message-list" role="list">
-          {messages.map((msg, index) => (
-            <MessageBlock
-              key={msg.id}
-              message={msg}
-              onFollowUpClick={index === messages.length - 1 ? onFollowUpClick : undefined}
-            />
-          ))}
-          {/* Step progress pills during streaming */}
-          {streamingSteps.length > 0 && (
-            <StepsRow steps={streamingSteps} />
-          )}
-          {/* Streaming status indicator */}
-          {streamingStatus && (
-            <div className="streaming-status" role="status" aria-live="polite">
-              <span className="streaming-status__dot" />
-              <span className="streaming-status__text">{streamingStatus}</span>
-            </div>
-          )}
+          {messages.map((msg, index) => {
+            const isLastMessage = index === messages.length - 1;
+            return (
+              <MessageBlock
+                key={msg.id}
+                message={msg}
+                onFollowUpClick={isLastMessage ? onFollowUpClick : undefined}
+              />
+            );
+          })}
         </div>
       )}
     </div>

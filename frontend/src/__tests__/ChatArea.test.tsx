@@ -167,96 +167,6 @@ describe("ChatArea", () => {
   });
 
   // =========================================================================
-  // Streaming Status
-  // =========================================================================
-
-  it("renders streaming status when provided", () => {
-    const messages: ChatMessage[] = [
-      {
-        id: "msg1",
-        question: "Test",
-        response: null,
-        timestamp: new Date(),
-      },
-    ];
-
-    render(<ChatArea {...defaultProps} messages={messages} streamingStatus="Fetching data..." />);
-
-    expect(screen.getByText("Fetching data...")).toBeInTheDocument();
-  });
-
-  it("renders streaming status with correct role", () => {
-    const messages: ChatMessage[] = [
-      {
-        id: "msg1",
-        question: "Test",
-        response: null,
-        timestamp: new Date(),
-      },
-    ];
-
-    render(<ChatArea {...defaultProps} messages={messages} streamingStatus="Processing..." />);
-
-    const status = screen.getByRole("status");
-    expect(status).toBeInTheDocument();
-    expect(status).toHaveTextContent("Processing...");
-  });
-
-  it("does not render streaming status when null", () => {
-    const messages: ChatMessage[] = [
-      {
-        id: "msg1",
-        question: "Test",
-        response: { answer: "Answer" },
-        timestamp: new Date(),
-      },
-    ];
-
-    render(<ChatArea {...defaultProps} messages={messages} streamingStatus={null} />);
-
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-  });
-
-  it("does not render streaming status when undefined", () => {
-    const messages: ChatMessage[] = [
-      {
-        id: "msg1",
-        question: "Test",
-        response: { answer: "Answer" },
-        timestamp: new Date(),
-      },
-    ];
-
-    render(<ChatArea {...defaultProps} messages={messages} />);
-
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-  });
-
-  it("updates streaming status", () => {
-    const messages: ChatMessage[] = [
-      {
-        id: "msg1",
-        question: "Test",
-        response: null,
-        timestamp: new Date(),
-      },
-    ];
-
-    const { rerender } = render(
-      <ChatArea {...defaultProps} messages={messages} streamingStatus="Routing question..." />
-    );
-
-    expect(screen.getByText("Routing question...")).toBeInTheDocument();
-
-    rerender(
-      <ChatArea {...defaultProps} messages={messages} streamingStatus="Fetching data..." />
-    );
-
-    expect(screen.queryByText("Routing question...")).not.toBeInTheDocument();
-    expect(screen.getByText("Fetching data...")).toBeInTheDocument();
-  });
-
-  // =========================================================================
   // Accessibility
   // =========================================================================
 
@@ -304,22 +214,6 @@ describe("ChatArea", () => {
       /Ask: How's my pipeline/
     ));
     expect(firstPrompt).toBeInTheDocument();
-  });
-
-  it("streaming status has proper ARIA live region", () => {
-    const messages: ChatMessage[] = [
-      {
-        id: "msg1",
-        question: "Test",
-        response: null,
-        timestamp: new Date(),
-      },
-    ];
-
-    render(<ChatArea {...defaultProps} messages={messages} streamingStatus="Loading..." />);
-
-    const status = screen.getByRole("status");
-    expect(status).toHaveAttribute("aria-live", "polite");
   });
 
   // =========================================================================

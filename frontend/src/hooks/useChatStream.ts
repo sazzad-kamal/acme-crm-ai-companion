@@ -111,12 +111,12 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
       setError(null);
       setIsLoading(true);
       setIsStreaming(true);
-      setCurrentStatus("Starting...");
+      setCurrentStatus("Thinking...");
       setCurrentSteps([]);
 
       const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      
-      // Initialize message with empty response (will be built up)
+
+      // Initialize message with null response (shows thinking indicator)
       const newMessage: ChatMessage = {
         id: messageId,
         question: trimmedQuestion,

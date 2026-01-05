@@ -1,13 +1,26 @@
 import { memo } from "react";
 import type { ChatMessage } from "../types";
 import { config } from "../config";
-import { LoadingState } from "./LoadingDots";
 import { SourcesRow } from "./SourceChip";
 import { DataTables } from "./DataTables";
 import { FollowUpSuggestions } from "./FollowUpSuggestions";
 import { Avatar } from "./Avatar";
 import { CopyButton } from "./CopyButton";
 import { MarkdownText } from "./MarkdownText";
+
+/**
+ * Simple thinking indicator shown while waiting for response.
+ * Just animated dots - clean and minimal.
+ */
+function ThinkingIndicator() {
+  return (
+    <div className="message__thinking" role="status" aria-label="Assistant is thinking">
+      <span className="message__thinking-dot" />
+      <span className="message__thinking-dot" />
+      <span className="message__thinking-dot" />
+    </div>
+  );
+}
 
 interface MessageBlockProps {
   message: ChatMessage;
@@ -88,7 +101,7 @@ export const MessageBlock = memo(function MessageBlock({
               )}
             </div>
           ) : (
-            <LoadingState text="Assistant is thinking..." />
+            <ThinkingIndicator />
           )}
         </div>
       </div>

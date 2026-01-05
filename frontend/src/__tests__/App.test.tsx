@@ -93,7 +93,7 @@ describe("App", () => {
     });
   });
 
-  it("shows loading state while fetching", async () => {
+  it("shows thinking indicator while fetching", async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url.includes("/api/data/")) {
         return Promise.resolve(mockDataResponse);
@@ -103,12 +103,13 @@ describe("App", () => {
 
     render(<App />);
     const input = screen.getByPlaceholderText(/Ask a question/i);
-    
+
     fireEvent.change(input, { target: { value: "Test" } });
     fireEvent.submit(input.closest("form")!);
 
     await waitFor(() => {
-      expect(screen.getByRole("status", { name: /loading/i })).toBeInTheDocument();
+      // Should show thinking indicator while waiting for response
+      expect(screen.getByRole("status", { name: /thinking/i })).toBeInTheDocument();
     });
   });
 

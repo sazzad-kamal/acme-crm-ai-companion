@@ -4,10 +4,6 @@ import { MessageBlock } from "../components/MessageBlock";
 import type { ChatMessage } from "../types";
 
 // Mock child components to isolate MessageBlock testing
-vi.mock("../components/LoadingDots", () => ({
-  LoadingState: ({ text }: { text: string }) => <div data-testid="loading-state">{text}</div>,
-}));
-
 vi.mock("../components/SourceChip", () => ({
   SourcesRow: ({ sources }: { sources: Array<{ id: string }> }) => (
     <div data-testid="sources-row">{sources.length} sources</div>
@@ -102,7 +98,7 @@ describe("MessageBlock", () => {
   // Response States
   // =========================================================================
 
-  it("shows loading state when response is null", () => {
+  it("shows thinking indicator when response is null", () => {
     const message: ChatMessage = {
       id: "msg1",
       question: "Test question",
@@ -112,8 +108,7 @@ describe("MessageBlock", () => {
 
     render(<MessageBlock message={message} />);
 
-    expect(screen.getByTestId("loading-state")).toBeInTheDocument();
-    expect(screen.getByText("Assistant is thinking...")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /thinking/i })).toBeInTheDocument();
   });
 
   it("renders answer when response is available", () => {
@@ -555,10 +550,10 @@ describe("MessageBlock", () => {
     };
 
     const { rerender } = render(<MessageBlock message={message1} />);
-    expect(screen.getByTestId("loading-state")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /thinking/i })).toBeInTheDocument();
 
     rerender(<MessageBlock message={message2} />);
-    expect(screen.queryByTestId("loading-state")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: /thinking/i })).not.toBeInTheDocument();
     expect(screen.getByText("Answer arrived")).toBeInTheDocument();
   });
 });
