@@ -88,11 +88,15 @@ export default function App() {
     [isLoading, sendMessage]
   );
 
-  // Handle clicking a follow-up suggestion - fills input for review
-  const handleFollowUpClick = useCallback((question: string) => {
-    setCurrentQuestion(question);
-    inputRef.current?.focus();
-  }, []);
+  // Handle clicking a follow-up suggestion - auto-sends like starter questions
+  const handleFollowUpClick = useCallback(
+    (question: string) => {
+      if (!isLoading) {
+        sendMessage(question);
+      }
+    },
+    [isLoading, sendMessage]
+  );
 
   // Handle onChange with stable reference
   const handleInputChange = useCallback((value: string) => {
