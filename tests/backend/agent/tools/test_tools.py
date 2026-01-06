@@ -3,17 +3,16 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from backend.agent.tools.base import make_sources
-from backend.agent.tools.company import tool_company_lookup
-from backend.agent.tools.activity import (
+from backend.agent.handlers import (
+    make_sources,
+    tool_company_lookup,
     tool_recent_activity,
     tool_recent_history,
-)
-from backend.agent.tools.pipeline import (
     tool_pipeline,
     tool_upcoming_renewals,
+    ToolResult,
 )
-from backend.agent.core.schemas import Source, ToolResult
+from backend.agent.core.schemas import Source
 
 
 class TestMakeSources:

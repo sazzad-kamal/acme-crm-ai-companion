@@ -15,36 +15,16 @@ test.describe('Streaming Chat', () => {
     await page.goto('/');
   });
 
-  test('shows streaming status indicator while processing', async ({ page }) => {
+  test('shows thinking indicator while processing', async ({ page }) => {
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
     await input.fill('What is going on with Acme Manufacturing?');
     await sendButton.click();
 
-    // Should show streaming status with pulsing dot and status text
-    const streamingStatus = page.locator('.streaming-status');
-    await expect(streamingStatus).toBeVisible({ timeout: 5000 });
-
-    // Status text should exist within the streaming status
-    const statusText = streamingStatus.locator('.streaming-status__text');
-    await expect(statusText).toBeVisible();
-  });
-
-  test('streaming status text updates during processing', async ({ page }) => {
-    const input = page.getByRole('textbox', { name: /ask a question/i });
-    const sendButton = page.getByRole('button', { name: /send/i });
-
-    await input.fill('What renewals are coming up?');
-    await sendButton.click();
-
-    // Status text should be visible and contain progress message
-    const statusText = page.locator('.streaming-status__text');
-    await expect(statusText).toBeVisible({ timeout: 5000 });
-    
-    // Text should contain something meaningful (not empty)
-    const text = await statusText.textContent();
-    expect(text).toBeTruthy();
+    // Should show thinking indicator with animated dots
+    const thinkingIndicator = page.locator('.message__thinking');
+    await expect(thinkingIndicator).toBeVisible({ timeout: 5000 });
   });
 
   test('streaming completes with final answer', async ({ page }) => {
@@ -64,7 +44,7 @@ test.describe('Streaming Chat', () => {
     expect(answerText!.length).toBeGreaterThan(10);
   });
 
-  test('streaming status disappears after completion', async ({ page }) => {
+  test('thinking indicator disappears after completion', async ({ page }) => {
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
@@ -75,9 +55,9 @@ test.describe('Streaming Chat', () => {
     const answer = page.locator('.message__answer');
     await expect(answer).toBeVisible({ timeout: 30000 });
 
-    // Streaming status should be gone
-    const streamingStatus = page.locator('.streaming-status');
-    await expect(streamingStatus).not.toBeVisible();
+    // Thinking indicator should be gone
+    const thinkingIndicator = page.locator('.message__thinking');
+    await expect(thinkingIndicator).not.toBeVisible();
   });
 
   test('can send multiple questions with streaming', async ({ page }) => {
@@ -131,21 +111,21 @@ test.describe('Streaming Error Handling', () => {
 });
 
 test.describe('Streaming Performance', () => {
-  test('streaming starts within 2 seconds', async ({ page }) => {
+  test('thinking indicator appears within 2 seconds', async ({ page }) => {
     await page.goto('/');
-    
+
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
     const startTime = Date.now();
-    
+
     await input.fill('What is the total pipeline value?');
     await sendButton.click();
 
-    // Status indicator should appear within 2 seconds
-    const streamingStatus = page.locator('.streaming-status');
-    await expect(streamingStatus).toBeVisible({ timeout: 2000 });
-    
+    // Thinking indicator should appear within 2 seconds
+    const thinkingIndicator = page.locator('.message__thinking');
+    await expect(thinkingIndicator).toBeVisible({ timeout: 2000 });
+
     const elapsedTime = Date.now() - startTime;
     expect(elapsedTime).toBeLessThan(2500);
   });
@@ -209,9 +189,9 @@ test.describe('Streaming UI Elements', () => {
     await page.waitForTimeout(2000);
   });
 
-  test('time indicator appears after completion', async ({ page }) => {
+  test('copy button appears after completion', async ({ page }) => {
     await page.goto('/');
-    
+
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
@@ -221,12 +201,8 @@ test.describe('Streaming UI Elements', () => {
     // Wait for completion
     await expect(page.locator('.message__answer')).toBeVisible({ timeout: 30000 });
 
-    // Time indicator should show (e.g., "2.1s")
-    const timeIndicator = page.locator('.message__time');
-    await expect(timeIndicator).toBeVisible({ timeout: 5000 });
-    
-    // Should contain a number followed by 's'
-    const timeText = await timeIndicator.textContent();
-    expect(timeText).toMatch(/\d+\.?\d*s/);
+    // Copy button should be available
+    const copyButton = page.locator('.message__copy');
+    await expect(copyButton).toBeVisible({ timeout: 5000 });
   });
 });

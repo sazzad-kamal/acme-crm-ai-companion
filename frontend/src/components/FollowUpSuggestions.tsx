@@ -35,8 +35,7 @@ export function FollowUpSuggestions({
           onKeyDown={(e) => handleKeyDown(e, suggestion)}
           type="button"
         >
-          <span className="follow-up-btn__text">{suggestion}</span>
-          <span className="follow-up-btn__arrow" aria-hidden="true">→</span>
+          {suggestion}
         </button>
       ))}
     </div>

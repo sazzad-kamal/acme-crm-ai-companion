@@ -85,27 +85,11 @@ def run_profiled_query(question: str, expected_mode: str):
     result = run_agent(question, session_id=f"profile-{int(time.time())}")
     total_ms = int((time.time() - start) * 1000)
 
-    # Extract step timings from the response
-    steps = result.get("steps", [])
     meta = result.get("meta", {})
 
     print(f"   Mode used: {meta.get('mode_used', 'unknown')}")
     print(f"   Company: {meta.get('company_id', 'None')}")
     print(f"   Sources: {len(result.get('sources', []))}")
-    print()
-
-    # Print step breakdown
-    print("   Steps:")
-    for step in steps:
-        status_icon = (
-            "[OK]"
-            if step.get("status") == "done"
-            else "[--]"
-            if step.get("status") == "skipped"
-            else "[!!]"
-        )
-        print(f"      {status_icon} {step.get('id', '?'):15} - {step.get('label', '')}")
-
     print()
     print(f"   TOTAL LATENCY: {total_ms}ms ({meta.get('latency_ms', 0)}ms reported)")
     print()
@@ -118,7 +102,6 @@ def run_profiled_query(question: str, expected_mode: str):
         "question": question,
         "mode": meta.get("mode_used"),
         "latency_ms": total_ms,
-        "steps": len(steps),
         "sources": len(result.get("sources", [])),
     }
 

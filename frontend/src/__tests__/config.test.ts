@@ -23,26 +23,17 @@ describe("config", () => {
   it("has all feature flags defined", () => {
     expect(config.features).toBeDefined();
     expect(config.features.showDataTables).toBeDefined();
-    expect(config.features.showSteps).toBeDefined();
     expect(config.features.showFollowUpSuggestions).toBeDefined();
-    expect(config.features.showSources).toBeDefined();
-    expect(config.features.showLatency).toBeDefined();
   });
 
   it("all feature flags are booleans", () => {
     expect(typeof config.features.showDataTables).toBe("boolean");
-    expect(typeof config.features.showSteps).toBe("boolean");
     expect(typeof config.features.showFollowUpSuggestions).toBe("boolean");
-    expect(typeof config.features.showSources).toBe("boolean");
-    expect(typeof config.features.showLatency).toBe("boolean");
   });
 
   it("has expected feature flags enabled by default", () => {
     expect(config.features.showDataTables).toBe(true);
-    expect(config.features.showSteps).toBe(true);
     expect(config.features.showFollowUpSuggestions).toBe(true);
-    expect(config.features.showSources).toBe(true);
-    expect(config.features.showLatency).toBe(true);
   });
 
   // =========================================================================
@@ -157,10 +148,7 @@ describe("config", () => {
   it("features object has expected keys", () => {
     const featureKeys = Object.keys(config.features);
     expect(featureKeys).toContain("showDataTables");
-    expect(featureKeys).toContain("showSteps");
     expect(featureKeys).toContain("showFollowUpSuggestions");
-    expect(featureKeys).toContain("showSources");
-    expect(featureKeys).toContain("showLatency");
   });
 
   it("ui object has expected keys", () => {

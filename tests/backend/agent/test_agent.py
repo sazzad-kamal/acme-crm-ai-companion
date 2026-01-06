@@ -12,12 +12,10 @@ import pytest
 os.environ["MOCK_LLM"] = "1"
 
 from backend.agent.datastore import CRMDataStore, get_csv_base_path
-from backend.agent.tools.company import tool_company_lookup
-from backend.agent.tools.activity import (
+from backend.agent.handlers import (
+    tool_company_lookup,
     tool_recent_activity,
     tool_recent_history,
-)
-from backend.agent.tools.pipeline import (
     tool_pipeline,
     tool_upcoming_renewals,
     tool_deals_at_risk,
@@ -284,8 +282,6 @@ class TestAgent:
 
         # Check all required keys exist
         assert "answer" in result
-        assert "sources" in result
-        assert "steps" in result
         assert "raw_data" in result
         assert "meta" in result
 
@@ -316,35 +312,6 @@ class TestAgent:
         assert "answer" in result
         assert "raw_data" in result
         assert "opportunities" in result["raw_data"]
-    
-    def test_run_agent_steps(self):
-        """Test that steps are returned correctly."""
-        result = run_agent("What's going on with Acme Manufacturing?")
-        
-        steps = result["steps"]
-        step_ids = [s["id"] for s in steps]
-        
-        # Should have router step
-        assert "router" in step_ids
-        
-        # Should have answer step
-        assert "answer" in step_ids
-        
-        # All steps should have status
-        for step in steps:
-            assert "status" in step
-            assert step["status"] in ["done", "error", "skipped"]
-    
-    def test_run_agent_sources_non_empty(self):
-        """Test that sources are returned."""
-        result = run_agent("What's going on with Acme Manufacturing?")
-        
-        assert len(result["sources"]) > 0
-        
-        for source in result["sources"]:
-            assert "type" in source
-            assert "id" in source
-            assert "label" in source
     
     def test_run_agent_company_not_found(self):
         """Test handling of unknown company."""

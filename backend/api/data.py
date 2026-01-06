@@ -67,11 +67,9 @@ async def get_contacts() -> DataResponse:
 @router.get("/data/opportunities", response_model=DataResponse, summary="Get all opportunities")
 async def get_opportunities() -> DataResponse:
     data, columns = load_csv("opportunities.csv")
-    descs = _group_by(load_csv("opportunity_descriptions.csv")[0], "opportunity_id")
     attachs = _group_by(load_csv("attachments.csv")[0], "opportunity_id")
     for row in data:
         oid = row.get("opportunity_id", "")
-        row["_descriptions"] = descs.get(oid, [])
         row["_attachments"] = attachs.get(oid, [])
     return DataResponse(data=data, total=len(data), columns=columns)
 

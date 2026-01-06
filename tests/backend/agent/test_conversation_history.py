@@ -9,7 +9,7 @@ Run with: pytest backend/agent/tests/test_conversation_history.py -v
 import pytest
 
 from backend.agent.core.state import AgentState, Message
-from backend.agent.session.memory import (
+from backend.agent.shared.memory import (
     clear_session,
     _memory_store,
 )

@@ -183,15 +183,16 @@ class TestHandleRenewals:
         assert result.renewals_data is not None
         assert len(result.raw_data["renewals"]) == 1
 
-    @patch('backend.agent.handlers.common.tool_company_lookup')
+    @patch('backend.agent.handlers.pipeline.lookup_company')
     @patch('backend.agent.handlers.pipeline.tool_upcoming_renewals')
-    def test_includes_company_when_resolved(self, mock_renewals, mock_company):
+    def test_includes_company_when_resolved(self, mock_renewals, mock_lookup):
         """Includes company data when company_id is resolved."""
-        mock_company.return_value.data = {
-            "found": True,
-            "company": {"company_id": "ACME-001", "name": "Acme Corp"},
-        }
-        mock_company.return_value.sources = []
+        # lookup_company modifies result and returns bool
+        def side_effect(result, company_id):
+            result.company_data = {"found": True, "company": {"company_id": company_id}}
+            result.resolved_company_id = company_id
+            return True
+        mock_lookup.side_effect = side_effect
         mock_renewals.return_value.data = {"renewals": []}
         mock_renewals.return_value.sources = []
 
@@ -202,8 +203,9 @@ class TestHandleRenewals:
         )
         result = handle_renewals(ctx)
 
-        assert result.company_data is not None
-        assert result.company_data["found"] is True
+        # lookup_company was called with the resolved company ID
+        mock_lookup.assert_called_once()
+        assert mock_lookup.call_args[0][1] == "ACME-001"
 
 
 # =============================================================================
@@ -363,19 +365,20 @@ class TestHandleActivities:
 class TestHandleCompanyStatus:
     """Tests for handle_company_status handler."""
 
-    @patch('backend.agent.handlers.company.tool_pipeline')
-    @patch('backend.agent.handlers.company.tool_recent_history')
-    @patch('backend.agent.handlers.company.tool_recent_activity')
-    @patch('backend.agent.handlers.common.tool_company_lookup')
+    @patch('backend.agent.handlers.pipeline.tool_pipeline')
+    @patch('backend.agent.handlers.activity.tool_recent_history')
+    @patch('backend.agent.handlers.activity.tool_recent_activity')
+    @patch('backend.agent.handlers.company.lookup_company')
     def test_fetches_full_company_data(
         self, mock_lookup, mock_activity, mock_history, mock_pipeline
     ):
         """Fetches all company data when found."""
-        mock_lookup.return_value.data = {
-            "found": True,
-            "company": {"company_id": "ACME-001", "name": "Acme Corp"},
-        }
-        mock_lookup.return_value.sources = []
+        # lookup_company modifies result and returns bool
+        def side_effect(result, company_id):
+            result.company_data = {"found": True, "company": {"company_id": "ACME-001", "name": "Acme Corp"}}
+            result.resolved_company_id = "ACME-001"
+            return True
+        mock_lookup.side_effect = side_effect
 
         mock_activity.return_value.data = {"activities": [{"type": "Call"}]}
         mock_activity.return_value.sources = []
@@ -402,11 +405,14 @@ class TestHandleCompanyStatus:
         assert result.pipeline_data is not None
         assert result.resolved_company_id == "ACME-001"
 
-    @patch('backend.agent.handlers.common.tool_company_lookup')
+    @patch('backend.agent.handlers.company.lookup_company')
     def test_handles_company_not_found(self, mock_lookup):
         """Handles company not found."""
-        mock_lookup.return_value.data = {"found": False}
-        mock_lookup.return_value.sources = []
+        # lookup_company returns False and sets company_data with found=False
+        def side_effect(result, company_id):
+            result.company_data = {"found": False, "query": company_id}
+            return False
+        mock_lookup.side_effect = side_effect
 
         ctx = IntentContext(
             question="what about xyz corp",
@@ -802,7 +808,7 @@ class TestHandlePipelineSummaryWithOwner:
 class TestHandleDealsAtRiskExtended:
     """Extended tests for handle_deals_at_risk handler."""
 
-    @patch('backend.agent.handlers.pipeline.tool_accounts_needing_attention')
+    @patch('backend.agent.handlers.company.tool_accounts_needing_attention')
     @patch('backend.agent.handlers.pipeline.tool_upcoming_renewals')
     @patch('backend.agent.handlers.pipeline.tool_deals_at_risk')
     def test_fetches_all_risk_data(self, mock_risk, mock_renewals, mock_accounts, basic_context):
@@ -834,7 +840,7 @@ class TestHandleDealsAtRiskExtended:
         assert result.raw_data["pipeline_summary"]["at_risk_count"] == 1
         assert result.raw_data["pipeline_summary"]["accounts_needing_attention"] == 1
 
-    @patch('backend.agent.handlers.pipeline.tool_accounts_needing_attention')
+    @patch('backend.agent.handlers.company.tool_accounts_needing_attention')
     @patch('backend.agent.handlers.pipeline.tool_upcoming_renewals')
     @patch('backend.agent.handlers.pipeline.tool_deals_at_risk')
     def test_passes_owner_filter(self, mock_risk, mock_renewals, mock_accounts):

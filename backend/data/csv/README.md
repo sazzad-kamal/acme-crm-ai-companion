@@ -3,8 +3,23 @@
 Drop this folder into your repo as `data/crm/`.
 
 ## Files
-- `companies.csv`, `contacts.csv`, `activities.csv`, `history.csv`, `opportunities.csv`, `group_members.csv`: from your current dataset.
-- `groups.csv`: group definitions for the group_ids referenced in `group_members.csv`.
-- `opportunity_descriptions.csv`: **private text** notes per opportunity (for RAG ingestion).
-- `attachments.csv`: **private text** attachment metadata + summaries (for RAG ingestion).
-- `private_texts.jsonl`: convenience file combining history + opp notes + attachment summaries.
+
+### Core Tables
+- `companies.csv`: Company records
+- `contacts.csv`: Contact records linked to companies
+- `opportunities.csv`: Sales opportunities (includes `notes` column)
+- `activities.csv`: Scheduled tasks and activities
+- `history.csv`: Completed interactions (calls, emails, meetings, notes)
+- `groups.csv`: Account group definitions
+- `group_members.csv`: Links companies/contacts to groups
+- `attachments.csv`: Document metadata and summaries
+
+### Generated File
+- `private_texts.jsonl`: Combined text content for RAG search (generated from opportunities, history, activities, attachments, groups)
+
+## Regenerating private_texts.jsonl
+
+Run from the backend/data directory:
+```bash
+python generate_private_texts.py
+```

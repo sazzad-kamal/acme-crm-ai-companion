@@ -22,7 +22,7 @@ from tenacity import (
 )
 from langchain_openai import ChatOpenAI
 
-from backend.agent.core.config import get_config, is_mock_mode
+from backend.agent.core.config import get_config
 from backend.agent.core.schemas import RouterResult
 from backend.agent.datastore import get_datastore, CRMDataStore
 from backend.agent.llm.prompts import ROUTER_EXAMPLES, ROUTER_PROMPT_TEMPLATE
@@ -208,17 +208,6 @@ def llm_route_question(
         logger.debug(f"Mode explicitly set to '{mode}'")
         return RouterResult(
             mode_used=mode,
-            company_id=company_id,
-            days=30,
-            intent="general",
-            owner=detect_owner_from_starter(question),
-        )
-
-    # Mock mode returns default routing (for testing without API)
-    if is_mock_mode():
-        logger.debug("Mock mode: returning default routing")
-        return RouterResult(
-            mode_used="data+docs",
             company_id=company_id,
             days=30,
             intent="general",

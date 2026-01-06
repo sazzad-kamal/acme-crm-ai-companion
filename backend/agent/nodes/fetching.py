@@ -175,28 +175,6 @@ def fetch_node(state: AgentState) -> AgentState:
 
     latency_ms = int((time.time() - start_time) * 1000)
 
-    steps = [
-        {
-            "id": "data",
-            "label": "Fetching CRM data",
-            "status": "done" if "error" not in data_result else "error",
-        },
-        {
-            "id": "docs",
-            "label": "Checking documentation",
-            "status": "done" if "error" not in docs_result else "error",
-        },
-    ]
-
-    if should_fetch_account_context:
-        steps.append(
-            {
-                "id": "account_context",
-                "label": "Searching account notes",
-                "status": "done" if "error" not in account_result else "error",
-            }
-        )
-
     merged = {
         # Data results
         "company_data": data_result.get("company_data"),
@@ -219,8 +197,6 @@ def fetch_node(state: AgentState) -> AgentState:
         "sources": all_sources,
         # Latency
         "fetch_latency_ms": latency_ms,
-        # Steps
-        "steps": steps,
     }
 
     if errors:

@@ -5,7 +5,6 @@ Tests the new production-grade features:
 - Centralized configuration
 - LLM-based routing (with mock)
 - Audit logging
-- Progress tracking
 """
 
 import os
@@ -24,7 +23,6 @@ from backend.agent.core.config import (
     is_mock_mode,
 )
 from backend.agent.output.audit import AgentAuditLogger, AgentAuditEntry
-from backend.agent.core.state import AgentProgress
 
 
 # =============================================================================
@@ -148,48 +146,6 @@ class TestAgentAudit:
                 log_path.unlink()
     
 # =============================================================================
-# Progress Tracking Tests
-# =============================================================================
-
-class TestAgentProgress:
-    """Tests for AgentProgress tracking."""
-    
-    def test_progress_add_step(self):
-        """Test adding steps to progress."""
-        progress = AgentProgress()
-        
-        progress.add_step("router", "Understanding question")
-        progress.add_step("data", "Fetching data")
-        
-        steps = progress.to_list()
-        assert len(steps) == 2
-        assert steps[0]["id"] == "router"
-        assert steps[1]["id"] == "data"
-    
-    def test_progress_step_status(self):
-        """Test step status is recorded."""
-        progress = AgentProgress()
-        
-        progress.add_step("router", "Understanding question", status="done")
-        progress.add_step("error", "Failed", status="error")
-        
-        steps = progress.to_list()
-        assert steps[0]["status"] == "done"
-        assert steps[1]["status"] == "error"
-    
-    def test_progress_elapsed_time(self):
-        """Test elapsed time calculation."""
-        import time
-        
-        progress = AgentProgress()
-        time.sleep(0.05)  # 50ms
-        elapsed = progress.get_elapsed_ms()
-        
-        assert elapsed >= 50
-        assert elapsed < 1000  # Shouldn't take a second
-
-
-# =============================================================================
 # LLM Router Tests (Mock Mode)
 # =============================================================================
 
@@ -252,22 +208,6 @@ class TestAgentIntegration:
         """Reset config between tests."""
         reset_config()
     
-    def test_agent_uses_progress_tracking(self):
-        """Test that agent uses progress tracking."""
-        from backend.agent.graph import run_agent
-
-        result = run_agent("Which accounts have renewals?")
-
-        # Should have steps array
-        assert "steps" in result
-        assert len(result["steps"]) > 0
-
-        # Steps should have expected structure
-        step = result["steps"][0]
-        assert "id" in step
-        assert "label" in step
-        assert "status" in step
-
     def test_agent_returns_meta_info(self):
         """Test that agent returns metadata."""
         from backend.agent.graph import run_agent

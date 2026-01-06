@@ -146,8 +146,6 @@ class TestStreamEvent:
     def test_event_types_defined(self):
         """Should have all expected event types."""
         assert StreamEvent.STATUS == "status"
-        assert StreamEvent.STEP == "step"
-        assert StreamEvent.SOURCES == "sources"
         assert StreamEvent.ANSWER_START == "answer_start"
         assert StreamEvent.ANSWER_CHUNK == "answer_chunk"
         assert StreamEvent.ANSWER_END == "answer_end"

@@ -1,7 +1,24 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { ChatMessage, ChatResponse, ChatRequest, Source, Step } from "../types";
+import type { ChatMessage, ChatResponse, ChatRequest } from "../types";
 import { config } from "../config";
-import { checkHttpResponse, isAbortError, CONNECTION_ERROR_MESSAGE } from "../utils/http";
+
+// =============================================================================
+// HTTP Helpers (inlined - single use)
+// =============================================================================
+
+const CONNECTION_ERROR_MESSAGE =
+  "Unable to reach the assistant. Please check that the backend is running.";
+
+async function checkHttpResponse(response: Response): Promise<void> {
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`HTTP ${response.status}: ${errorText}`);
+  }
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
 
 // =============================================================================
 // Types
@@ -23,7 +40,6 @@ interface UseChatStreamReturn {
   isStreaming: boolean;
   error: string | null;
   currentStatus: string | null;
-  currentSteps: Step[];
   sendMessage: (question: string, options?: Partial<ChatRequest>) => Promise<void>;
   clearMessages: () => void;
   clearError: () => void;
@@ -76,7 +92,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentStatus, setCurrentStatus] = useState<string | null>(null);
-  const [currentSteps, setCurrentSteps] = useState<Step[]>([]);
   
   const abortControllerRef = useRef<AbortController | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
@@ -95,7 +110,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
     setIsStreaming(false);
     setIsLoading(false);
     setCurrentStatus(null);
-    setCurrentSteps([]);
   }, []);
 
   const sendMessage = useCallback(
@@ -112,7 +126,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
       setIsLoading(true);
       setIsStreaming(true);
       setCurrentStatus("Thinking...");
-      setCurrentSteps([]);
 
       const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -129,23 +142,14 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
 
       // Build up the response as events arrive
       let accumulatedAnswer = "";
-      let accumulatedSources: Source[] = [];
-      const accumulatedSteps: Step[] = [];
       let finalResponse: ChatResponse | null = null;
 
-      // Helper to update message with current accumulated state (DRY)
+      // Helper to update message with current accumulated answer
       const updateMessageResponse = () => {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === messageId
-              ? {
-                  ...msg,
-                  response: {
-                    answer: accumulatedAnswer,
-                    sources: accumulatedSources,
-                    steps: [...accumulatedSteps],
-                  },
-                }
+              ? { ...msg, response: { answer: accumulatedAnswer } }
               : msg
           )
         );
@@ -203,52 +207,31 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
                 setCurrentStatus(event.data.message as string);
                 options.onStatusUpdate?.(event.data.message as string);
                 break;
-                
-              case "step": {
-                const step = event.data as unknown as Step;
-                // Update existing step or add new one
-                const existingIndex = accumulatedSteps.findIndex(s => s.id === step.id);
-                if (existingIndex >= 0) {
-                  accumulatedSteps[existingIndex] = step;
-                } else {
-                  accumulatedSteps.push(step);
-                }
-                setCurrentSteps([...accumulatedSteps]);
-                updateMessageResponse();
-                break;
-              }
-                
-              case "sources": {
-                const newSources = (event.data.sources as Source[]) || [];
-                accumulatedSources = [...accumulatedSources, ...newSources];
-                updateMessageResponse();
-                break;
-              }
-                
+
               case "answer_start":
                 setCurrentStatus("Generating answer...");
                 break;
-                
+
               case "answer_chunk":
                 accumulatedAnswer += event.data.chunk as string;
                 updateMessageResponse();
                 break;
-                
+
               case "answer_end":
                 accumulatedAnswer = event.data.answer as string;
                 break;
-                
-              case "followup":
-                // Will be included in final done event
-                break;
-                
+
               case "done":
                 finalResponse = event.data as unknown as ChatResponse;
                 setCurrentStatus(null);
                 break;
-                
+
               case "error":
                 throw new Error(event.data.message as string);
+
+              // Ignore step, sources, followup events (not displayed in UI)
+              default:
+                break;
             }
           }
         }
@@ -288,7 +271,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
     setMessages([]);
     setError(null);
     setCurrentStatus(null);
-    setCurrentSteps([]);
   }, []);
 
   const clearError = useCallback(() => {
@@ -301,7 +283,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
     isStreaming,
     error,
     currentStatus,
-    currentSteps,
     sendMessage,
     clearMessages,
     clearError,

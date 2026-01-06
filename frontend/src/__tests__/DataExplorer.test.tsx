@@ -56,13 +56,7 @@ const mockOpportunitiesResponse = {
       name: "Enterprise Deal",
       stage: "Proposal",
       value: "50000",
-      _descriptions: [
-        {
-          title: "Deal Notes",
-          text: "High priority customer",
-          created_at: "2025-01-15",
-        },
-      ],
+      notes: "High priority customer",
       _attachments: [
         {
           file_name: "proposal.pdf",
@@ -72,7 +66,7 @@ const mockOpportunitiesResponse = {
     },
   ],
   total: 1,
-  columns: ["opportunity_id", "name", "stage", "value"],
+  columns: ["opportunity_id", "name", "stage", "value", "notes"],
 };
 
 const mockGroupsResponse = {
@@ -428,25 +422,6 @@ describe("DataExplorer", () => {
   });
 
   describe("Nested Data Types", () => {
-    it("displays opportunity descriptions correctly", async () => {
-      render(<DataExplorer />);
-
-      const oppTab = screen.getByRole("tab", { name: /opportunities/i });
-      fireEvent.click(oppTab);
-
-      await waitFor(() => {
-        expect(screen.getByText("Enterprise Deal")).toBeInTheDocument();
-      });
-
-      const expandButton = screen.getByRole("button", { name: /expand/i });
-      fireEvent.click(expandButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("Description")).toBeInTheDocument();
-        expect(screen.getByText(/High priority customer/i)).toBeInTheDocument();
-      });
-    });
-
     it("displays opportunity attachments correctly", async () => {
       render(<DataExplorer />);
 
@@ -551,6 +526,103 @@ describe("DataExplorer", () => {
       await waitFor(() => {
         expect(expandButton).toHaveAttribute("aria-expanded", "true");
       });
+    });
+  });
+
+  describe("Ask AI Button - Different Data Types", () => {
+    it("generates question for contacts", async () => {
+      const mockOnAskAbout = vi.fn();
+      render(<DataExplorer onAskAbout={mockOnAskAbout} />);
+
+      const contactsTab = screen.getByRole("tab", { name: /contacts/i });
+      fireEvent.click(contactsTab);
+
+      await waitFor(() => {
+        expect(screen.getByText("John")).toBeInTheDocument();
+      });
+
+      const askButtons = screen.getAllByTitle(/ask ai about this record/i);
+      fireEvent.click(askButtons[0]);
+
+      expect(mockOnAskAbout).toHaveBeenCalledWith(
+        expect.stringContaining("John Doe")
+      );
+    });
+
+    it("generates question for opportunities", async () => {
+      const mockOnAskAbout = vi.fn();
+      render(<DataExplorer onAskAbout={mockOnAskAbout} />);
+
+      const oppTab = screen.getByRole("tab", { name: /opportunities/i });
+      fireEvent.click(oppTab);
+
+      await waitFor(() => {
+        expect(screen.getByText("Enterprise Deal")).toBeInTheDocument();
+      });
+
+      const askButtons = screen.getAllByTitle(/ask ai about this record/i);
+      fireEvent.click(askButtons[0]);
+
+      expect(mockOnAskAbout).toHaveBeenCalledWith(
+        expect.stringContaining("Enterprise Deal")
+      );
+    });
+
+    it("generates question for activities", async () => {
+      const mockOnAskAbout = vi.fn();
+      render(<DataExplorer onAskAbout={mockOnAskAbout} />);
+
+      const activitiesTab = screen.getByRole("tab", { name: /activities/i });
+      fireEvent.click(activitiesTab);
+
+      await waitFor(() => {
+        expect(screen.getByText("Call")).toBeInTheDocument();
+      });
+
+      const askButtons = screen.getAllByTitle(/ask ai about this record/i);
+      fireEvent.click(askButtons[0]);
+
+      expect(mockOnAskAbout).toHaveBeenCalledWith(
+        expect.stringContaining("ACME-001")
+      );
+    });
+
+    it("generates question for groups", async () => {
+      const mockOnAskAbout = vi.fn();
+      render(<DataExplorer onAskAbout={mockOnAskAbout} />);
+
+      const groupsTab = screen.getByRole("tab", { name: /groups/i });
+      fireEvent.click(groupsTab);
+
+      await waitFor(() => {
+        expect(screen.getByText("VIP Customers")).toBeInTheDocument();
+      });
+
+      const askButtons = screen.getAllByTitle(/ask ai about this record/i);
+      fireEvent.click(askButtons[0]);
+
+      expect(mockOnAskAbout).toHaveBeenCalledWith(
+        expect.stringContaining("VIP Customers")
+      );
+    });
+
+    it("generates question for history", async () => {
+      const mockOnAskAbout = vi.fn();
+      render(<DataExplorer onAskAbout={mockOnAskAbout} />);
+
+      const historyTab = screen.getByRole("tab", { name: /history/i });
+      fireEvent.click(historyTab);
+
+      await waitFor(() => {
+        expect(screen.getByText("Email sent")).toBeInTheDocument();
+      });
+
+      const askButtons = screen.getAllByTitle(/ask ai about this record/i);
+      fireEvent.click(askButtons[0]);
+
+      expect(mockOnAskAbout).toHaveBeenCalledWith(
+        expect.stringContaining("ACME-001")
+      );
     });
   });
 });

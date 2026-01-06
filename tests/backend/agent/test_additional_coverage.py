@@ -1,573 +1,656 @@
 """
-Additional coverage tests for tools/company.py and nodes/fetching.py.
+Additional coverage tests targeting specific uncovered lines.
 
-Covers edge cases and error paths not hit by existing tests.
+Covers edge cases in:
+- handlers/common.py: lookup_company, _load_private_texts, _load_attachments, enrich_raw_data
+- question_tree: unknown role, print_tree, validate_tree
+- llm/router.py: auto mode routing paths
+- output/streaming.py: error handling
+- session.py: checkpoint state with messages
+- datastore modules: edge cases
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, mock_open
+import json
 
 
 # =============================================================================
-# Tests for tools/company.py
+# handlers/common.py - lookup_company found path
 # =============================================================================
 
 
-class TestToolContactLookup:
-    """Tests for tool_contact_lookup function."""
+class TestLookupCompanyFound:
+    """Tests for lookup_company when company is found."""
 
-    def test_contact_lookup_not_found(self):
-        """Test contact lookup when contact doesn't exist."""
-        from backend.agent.tools.company import tool_contact_lookup
+    def test_lookup_company_found_with_contacts(self):
+        """Test lookup_company returns True and populates data when found."""
+        from backend.agent.handlers.common import lookup_company, IntentResult, empty_raw_data
 
-        mock_ds = MagicMock()
-        mock_ds.get_contact.return_value = None
+        result = IntentResult(raw_data=empty_raw_data())
 
-        # Pass datastore directly (decorator accepts it)
-        result = tool_contact_lookup("NONEXISTENT", datastore=mock_ds)
+        with patch("backend.agent.handlers.common.get_datastore") as mock_get_ds:
+            mock_ds = MagicMock()
+            mock_ds.resolve_company_id.return_value = "COMP001"
+            mock_ds.get_company.return_value = {
+                "company_id": "COMP001",
+                "name": "Test Company",
+                "industry": "Technology",
+            }
+            mock_ds.get_contacts_for_company.return_value = [
+                {"name": "John Doe", "email": "john@test.com"},
+            ]
+            mock_get_ds.return_value = mock_ds
 
-        assert result.data["found"] is False
-        assert result.data["contact_id"] == "NONEXISTENT"
-        assert "not found" in result.error
+            found = lookup_company(result, "Test Company")
 
-    def test_contact_lookup_found_with_company(self):
-        """Test contact lookup with associated company."""
-        from backend.agent.tools.company import tool_contact_lookup
+            assert found is True
+            assert result.company_data["found"] is True
+            assert result.company_data["company"]["name"] == "Test Company"
+            assert len(result.company_data["contacts"]) == 1
+            assert result.resolved_company_id == "COMP001"
+            assert len(result.sources) == 1
+            assert result.raw_data["companies"] == [result.company_data["company"]]
 
-        mock_contact = {
-            "contact_id": "CONT001",
-            "first_name": "John",
-            "last_name": "Doe",
-            "company_id": "COMP001",
-        }
-        mock_company = {"company_id": "COMP001", "name": "Acme Corp"}
+    def test_lookup_company_not_found_with_matches(self):
+        """Test lookup_company when ID not resolved."""
+        from backend.agent.handlers.common import lookup_company, IntentResult, empty_raw_data
 
-        mock_ds = MagicMock()
-        mock_ds.get_contact.return_value = mock_contact
-        mock_ds.get_company.return_value = mock_company
+        result = IntentResult(raw_data=empty_raw_data())
 
-        result = tool_contact_lookup("CONT001", datastore=mock_ds)
+        with patch("backend.agent.handlers.common.get_datastore") as mock_get_ds:
+            mock_ds = MagicMock()
+            mock_ds.resolve_company_id.return_value = None
+            mock_ds.get_company_name_matches.return_value = [
+                {"name": "Similar Company"},
+            ]
+            mock_get_ds.return_value = mock_ds
 
-        assert result.data["found"] is True
-        assert result.data["contact"]["first_name"] == "John"
-        assert result.data["company"]["name"] == "Acme Corp"
-        assert len(result.sources) == 1
-        assert result.sources[0].type == "contact"
+            found = lookup_company(result, "Unknown")
 
+            assert found is False
+            assert result.company_data["found"] is False
+            assert "close_matches" in result.company_data
 
-class TestToolGroupMembers:
-    """Tests for tool_group_members function."""
+    def test_lookup_company_id_resolved_but_no_data(self):
+        """Test lookup_company when ID resolved but get_company returns None."""
+        from backend.agent.handlers.common import lookup_company, IntentResult, empty_raw_data
 
-    def test_group_members_not_found(self):
-        """Test group members when group doesn't exist."""
-        from backend.agent.tools.company import tool_group_members
+        result = IntentResult(raw_data=empty_raw_data())
 
-        mock_ds = MagicMock()
-        mock_ds.get_group.return_value = None
-        mock_ds.get_all_groups.return_value = [
-            {"group_id": "GRP1", "name": "Group 1"},
-            {"group_id": "GRP2", "name": "Group 2"},
-        ]
+        with patch("backend.agent.handlers.common.get_datastore") as mock_get_ds:
+            mock_ds = MagicMock()
+            mock_ds.resolve_company_id.return_value = "COMP001"
+            mock_ds.get_company.return_value = None
+            mock_get_ds.return_value = mock_ds
 
-        result = tool_group_members("NONEXISTENT", datastore=mock_ds)
+            found = lookup_company(result, "Ghost Company")
 
-        assert result.data["found"] is False
-        assert result.data["group_id"] == "NONEXISTENT"
-        assert len(result.data["available_groups"]) == 2
-        assert "not found" in result.error
-
-    def test_group_members_found_with_members(self):
-        """Test group members with existing group."""
-        from backend.agent.tools.company import tool_group_members
-
-        mock_group = {"group_id": "GRP1", "name": "Enterprise"}
-        mock_members = [
-            {"company_id": "COMP1", "name": "Company 1"},
-            {"company_id": "COMP2", "name": "Company 2"},
-        ]
-
-        mock_ds = MagicMock()
-        mock_ds.get_group.return_value = mock_group
-        mock_ds.get_group_members.return_value = mock_members
-
-        result = tool_group_members("GRP1", datastore=mock_ds)
-
-        assert result.data["found"] is True
-        assert result.data["count"] == 2
-        assert len(result.sources) == 1
-        assert result.sources[0].type == "group"
-
-    def test_group_members_found_empty(self):
-        """Test group members when group exists but has no members."""
-        from backend.agent.tools.company import tool_group_members
-
-        mock_group = {"group_id": "GRP1", "name": "Empty Group"}
-
-        mock_ds = MagicMock()
-        mock_ds.get_group.return_value = mock_group
-        mock_ds.get_group_members.return_value = []
-
-        result = tool_group_members("GRP1", datastore=mock_ds)
-
-        assert result.data["found"] is True
-        assert result.data["count"] == 0
-        assert result.sources == []  # No sources when no members
-
-
-class TestToolAccountsNeedingAttention:
-    """Tests for tool_accounts_needing_attention function."""
-
-    def test_accounts_needing_attention_no_filter(self):
-        """Test getting accounts needing attention without owner filter."""
-        from backend.agent.tools.company import tool_accounts_needing_attention
-
-        mock_accounts = [
-            {"company_id": "COMP1", "name": "At Risk Corp", "status": "at_risk"},
-            {"company_id": "COMP2", "name": "Trial Co", "status": "trial"},
-        ]
-
-        mock_ds = MagicMock()
-        mock_ds.get_accounts_needing_attention.return_value = mock_accounts
-
-        result = tool_accounts_needing_attention(datastore=mock_ds)
-
-        assert result.data["count"] == 2
-        assert result.data["owner_filter"] is None
-        mock_ds.get_accounts_needing_attention.assert_called_once_with(owner=None, limit=20)
-
-    def test_accounts_needing_attention_with_owner(self):
-        """Test getting accounts needing attention with owner filter."""
-        from backend.agent.tools.company import tool_accounts_needing_attention
-
-        mock_accounts = [{"company_id": "COMP1", "name": "At Risk Corp"}]
-
-        mock_ds = MagicMock()
-        mock_ds.get_accounts_needing_attention.return_value = mock_accounts
-
-        result = tool_accounts_needing_attention(owner="John Smith", limit=10, datastore=mock_ds)
-
-        assert result.data["count"] == 1
-        assert result.data["owner_filter"] == "John Smith"
-        mock_ds.get_accounts_needing_attention.assert_called_once_with(owner="John Smith", limit=10)
-
-
-class TestToolSearchAttachmentsEdgeCases:
-    """Tests for tool_search_attachments edge cases."""
-
-    def test_search_attachments_with_file_type(self):
-        """Test searching attachments by file type."""
-        from backend.agent.tools.company import tool_search_attachments
-
-        mock_attachments = [
-            {"attachment_id": "ATT1", "file_name": "proposal.pdf", "file_type": "pdf"},
-        ]
-
-        mock_ds = MagicMock()
-        mock_ds.search_attachments.return_value = mock_attachments
-
-        result = tool_search_attachments(file_type="pdf", datastore=mock_ds)
-
-        assert result.data["count"] == 1
-        assert result.data["filters"]["file_type"] == "pdf"
+            assert found is False
+            assert result.company_data["found"] is False
 
 
 # =============================================================================
-# Tests for nodes/fetching.py
+# handlers/common.py - _load_private_texts and _load_attachments
 # =============================================================================
 
 
-class TestFetchCrmData:
-    """Tests for _fetch_crm_data function."""
+class TestDataLoading:
+    """Tests for private texts and attachments loading."""
 
-    def test_fetch_crm_data_success(self):
-        """Test successful CRM data fetch."""
-        from backend.agent.nodes.fetching import _fetch_crm_data
+    def test_load_private_texts_file_not_exists(self):
+        """Test _load_private_texts returns empty dict when file doesn't exist."""
+        from backend.agent.handlers.common import _load_private_texts
 
-        mock_result = MagicMock()
-        mock_result.company_data = {"name": "Acme"}
-        mock_result.activities_data = []
-        mock_result.history_data = []
-        mock_result.pipeline_data = {}
-        mock_result.renewals_data = []
-        mock_result.contacts_data = []
-        mock_result.groups_data = []
-        mock_result.attachments_data = []
-        mock_result.resolved_company_id = "COMP001"
-        mock_result.sources = []
-        mock_result.raw_data = {}
+        # Clear cache first
+        _load_private_texts.cache_clear()
 
-        with patch("backend.agent.nodes.fetching.dispatch_intent", return_value=mock_result):
-            result = _fetch_crm_data(
-                question="What is Acme status?",
-                intent="company_status",
-                resolved_company_id="COMP001",
-                days=30,
-                router_result=None,
-                owner=None,
-            )
+        with patch("backend.agent.handlers.common._get_csv_path") as mock_path:
+            mock_p = MagicMock()
+            mock_p.__truediv__ = MagicMock(return_value=MagicMock(exists=MagicMock(return_value=False)))
+            mock_path.return_value = mock_p
 
-        assert result["company_data"]["name"] == "Acme"
-        assert result["resolved_company_id"] == "COMP001"
+            result = _load_private_texts()
+            assert result == {}
 
-    def test_fetch_crm_data_exception(self):
-        """Test CRM data fetch handles exceptions."""
-        from backend.agent.nodes.fetching import _fetch_crm_data
+        _load_private_texts.cache_clear()
 
-        with patch(
-            "backend.agent.nodes.fetching.dispatch_intent",
-            side_effect=Exception("Database error"),
-        ):
-            result = _fetch_crm_data(
-                question="What is Acme status?",
-                intent="company_status",
-                resolved_company_id="COMP001",
-                days=30,
-                router_result=None,
-            )
+    def test_load_attachments_file_not_exists(self):
+        """Test _load_attachments returns empty dict when file doesn't exist."""
+        from backend.agent.handlers.common import _load_attachments
 
-        assert "error" in result
-        assert "Database error" in result["error"]
+        _load_attachments.cache_clear()
 
+        with patch("backend.agent.handlers.common._get_csv_path") as mock_path:
+            mock_p = MagicMock()
+            mock_p.__truediv__ = MagicMock(return_value=MagicMock(exists=MagicMock(return_value=False)))
+            mock_path.return_value = mock_p
 
-class TestFetchNode:
-    """Tests for fetch_node function."""
+            result = _load_attachments()
+            assert result == {}
 
-    def test_fetch_node_basic(self):
-        """Test basic fetch node execution."""
-        from backend.agent.nodes.fetching import fetch_node
-
-        state = {
-            "question": "What is pipeline status?",
-            "intent": "pipeline",
-            "resolved_company_id": None,
-            "days": 30,
-            "router_result": None,
-        }
-
-        mock_crm_result = {
-            "company_data": None,
-            "activities_data": [],
-            "history_data": [],
-            "pipeline_data": {"total": 100000},
-            "renewals_data": [],
-            "contacts_data": [],
-            "groups_data": [],
-            "attachments_data": [],
-            "resolved_company_id": None,
-            "sources": [],
-            "raw_data": {},
-        }
-
-        mock_docs_result = {
-            "docs_answer": "Pipeline documentation",
-            "docs_sources": [],
-        }
-
-        with patch("backend.agent.nodes.fetching._fetch_crm_data", return_value=mock_crm_result), \
-             patch("backend.agent.nodes.fetching._fetch_docs", return_value=mock_docs_result), \
-             patch("backend.agent.nodes.fetching.get_config") as mock_config:
-            mock_config.return_value.default_days = 30
-            mock_config.return_value.fetch_timeout_seconds = 30
-
-            result = fetch_node(state)
-
-        assert result["pipeline_data"]["total"] == 100000
-        assert result["docs_answer"] == "Pipeline documentation"
-        assert "fetch_latency_ms" in result
-
-    def test_fetch_node_with_account_context(self):
-        """Test fetch node with account context RAG."""
-        from backend.agent.nodes.fetching import fetch_node
-
-        state = {
-            "question": "What is company status?",
-            "intent": "company_status",  # In ACCOUNT_RAG_INTENTS
-            "resolved_company_id": "COMP001",
-            "days": 30,
-            "router_result": None,
-        }
-
-        mock_crm_result = {
-            "company_data": {"name": "Acme"},
-            "activities_data": [],
-            "history_data": [],
-            "pipeline_data": {},
-            "renewals_data": [],
-            "contacts_data": [],
-            "groups_data": [],
-            "attachments_data": [],
-            "resolved_company_id": "COMP001",
-            "sources": [],
-            "raw_data": {},
-        }
-
-        mock_docs_result = {"docs_answer": "", "docs_sources": []}
-
-        mock_account_result = {
-            "account_context_answer": "Recent notes about Acme",
-            "account_context_sources": [],
-        }
-
-        with patch("backend.agent.nodes.fetching._fetch_crm_data", return_value=mock_crm_result), \
-             patch("backend.agent.nodes.fetching._fetch_docs", return_value=mock_docs_result), \
-             patch("backend.agent.nodes.fetching._fetch_account_context", return_value=mock_account_result), \
-             patch("backend.agent.nodes.fetching.get_config") as mock_config:
-            mock_config.return_value.default_days = 30
-            mock_config.return_value.fetch_timeout_seconds = 30
-
-            result = fetch_node(state)
-
-        assert result["company_data"]["name"] == "Acme"
-        assert result["account_context_answer"] == "Recent notes about Acme"
-        # Should have 3 steps (data, docs, account_context)
-        assert len(result["steps"]) == 3
-
-    def test_fetch_node_with_timeout(self):
-        """Test fetch node handles timeout."""
-        from backend.agent.nodes.fetching import fetch_node
-        from concurrent.futures import TimeoutError as FuturesTimeoutError
-
-        state = {
-            "question": "What is pipeline?",
-            "intent": "pipeline",
-            "resolved_company_id": None,
-            "days": 30,
-            "router_result": None,
-        }
-
-        def slow_fetch(*args, **kwargs):
-            raise FuturesTimeoutError()
-
-        with patch("backend.agent.nodes.fetching._fetch_crm_data", side_effect=slow_fetch), \
-             patch("backend.agent.nodes.fetching._fetch_docs", return_value={"docs_answer": "", "docs_sources": []}), \
-             patch("backend.agent.nodes.fetching.get_config") as mock_config:
-            mock_config.return_value.default_days = 30
-            mock_config.return_value.fetch_timeout_seconds = 1
-
-            result = fetch_node(state)
-
-        assert "error" in result
-        assert "timeout" in result["error"]
-
-    def test_fetch_node_with_router_owner(self):
-        """Test fetch node extracts owner from router result."""
-        from backend.agent.nodes.fetching import fetch_node
-
-        mock_router = MagicMock()
-        mock_router.owner = "John Smith"
-
-        state = {
-            "question": "What is my pipeline?",
-            "intent": "pipeline",
-            "resolved_company_id": None,
-            "days": 30,
-            "router_result": mock_router,
-        }
-
-        mock_crm_result = {
-            "company_data": None,
-            "activities_data": [],
-            "history_data": [],
-            "pipeline_data": {},
-            "renewals_data": [],
-            "contacts_data": [],
-            "groups_data": [],
-            "attachments_data": [],
-            "resolved_company_id": None,
-            "sources": [],
-            "raw_data": {},
-        }
-
-        with patch("backend.agent.nodes.fetching._fetch_crm_data", return_value=mock_crm_result) as mock_fetch, \
-             patch("backend.agent.nodes.fetching._fetch_docs", return_value={"docs_answer": "", "docs_sources": []}), \
-             patch("backend.agent.nodes.fetching.get_config") as mock_config:
-            mock_config.return_value.default_days = 30
-            mock_config.return_value.fetch_timeout_seconds = 30
-
-            fetch_node(state)
-
-        # Verify owner was passed to _fetch_crm_data
-        call_kwargs = mock_fetch.call_args[1]
-        assert call_kwargs["owner"] == "John Smith"
-
-    def test_fetch_node_error_in_results(self):
-        """Test fetch node handles errors in individual fetch results."""
-        from backend.agent.nodes.fetching import fetch_node
-
-        state = {
-            "question": "What is pipeline?",
-            "intent": "pipeline",
-            "resolved_company_id": None,
-            "days": 30,
-            "router_result": None,
-        }
-
-        mock_crm_result = {
-            "error": "CRM fetch failed",
-            "sources": [],
-        }
-
-        mock_docs_result = {
-            "docs_answer": "",
-            "docs_sources": [],
-            "error": "Docs fetch failed",
-        }
-
-        with patch("backend.agent.nodes.fetching._fetch_crm_data", return_value=mock_crm_result), \
-             patch("backend.agent.nodes.fetching._fetch_docs", return_value=mock_docs_result), \
-             patch("backend.agent.nodes.fetching.get_config") as mock_config:
-            mock_config.return_value.default_days = 30
-            mock_config.return_value.fetch_timeout_seconds = 30
-
-            result = fetch_node(state)
-
-        # Check steps show error status
-        data_step = next(s for s in result["steps"] if s["id"] == "data")
-        docs_step = next(s for s in result["steps"] if s["id"] == "docs")
-        assert data_step["status"] == "error"
-        assert docs_step["status"] == "error"
+        _load_attachments.cache_clear()
 
 
 # =============================================================================
-# Additional Branch Coverage Tests
+# handlers/common.py - enrich_raw_data
 # =============================================================================
 
 
-class TestDatastoreSearchBranches:
-    """Tests for datastore search filter branches."""
+class TestEnrichRawData:
+    """Tests for enrich_raw_data function."""
 
-    def test_search_contacts_with_job_title(self):
-        """Test search_contacts with job_title filter (lines 61-62)."""
-        from backend.agent.datastore import CRMDataStore
+    def test_enrich_raw_data_adds_private_texts(self):
+        """Test enrich_raw_data adds _private_texts to companies."""
+        from backend.agent.handlers.common import enrich_raw_data, _load_private_texts, _load_attachments
 
-        ds = CRMDataStore()
-        # This should exercise the job_title branch
-        contacts = ds.search_contacts(job_title="Engineer", limit=5)
-        assert isinstance(contacts, list)
+        _load_private_texts.cache_clear()
+        _load_attachments.cache_clear()
 
-    def test_search_contacts_get_contact(self):
-        """Test get_contact method (lines 20-21)."""
-        from backend.agent.datastore import CRMDataStore
+        with patch("backend.agent.handlers.common._load_private_texts") as mock_texts, \
+             patch("backend.agent.handlers.common._load_attachments") as mock_attach:
+            mock_texts.return_value = {"COMP001": [{"text": "Private note"}]}
+            mock_attach.return_value = {}
 
-        ds = CRMDataStore()
-        # Try to get a non-existent contact
-        contact = ds.get_contact("NONEXISTENT_CONTACT")
-        assert contact is None
+            raw_data = {
+                "companies": [{"company_id": "COMP001", "name": "Test"}],
+                "opportunities": [],
+            }
 
-    def test_search_companies_with_region(self):
-        """Test search_companies with region filter (lines 115-116)."""
-        from backend.agent.datastore import CRMDataStore
+            result = enrich_raw_data(raw_data)
 
-        ds = CRMDataStore()
-        companies = ds.search_companies(region="West", limit=5)
-        assert isinstance(companies, list)
+            assert result["companies"][0]["_private_texts"] == [{"text": "Private note"}]
 
-    def test_search_activities_with_company(self):
-        """Test search_activities with company_id filter (lines 74-75)."""
-        from backend.agent.datastore import CRMDataStore
+    def test_enrich_raw_data_adds_attachments(self):
+        """Test enrich_raw_data adds _attachments to opportunities."""
+        from backend.agent.handlers.common import enrich_raw_data
 
-        ds = CRMDataStore()
-        activities = ds.search_activities(company_id="COMP001", limit=5)
-        assert isinstance(activities, list)
+        with patch("backend.agent.handlers.common._load_private_texts") as mock_texts, \
+             patch("backend.agent.handlers.common._load_attachments") as mock_attach:
+            mock_texts.return_value = {}
+            mock_attach.return_value = {"OPP001": [{"filename": "proposal.pdf"}]}
+
+            raw_data = {
+                "companies": [],
+                "opportunities": [{"opportunity_id": "OPP001", "name": "Big Deal"}],
+            }
+
+            result = enrich_raw_data(raw_data)
+
+            assert result["opportunities"][0]["_attachments"] == [{"filename": "proposal.pdf"}]
+
+    def test_enrich_raw_data_empty_matches(self):
+        """Test enrich_raw_data handles no matching private texts or attachments."""
+        from backend.agent.handlers.common import enrich_raw_data
+
+        with patch("backend.agent.handlers.common._load_private_texts") as mock_texts, \
+             patch("backend.agent.handlers.common._load_attachments") as mock_attach:
+            mock_texts.return_value = {}
+            mock_attach.return_value = {}
+
+            raw_data = {
+                "companies": [{"company_id": "UNKNOWN", "name": "No Match"}],
+                "opportunities": [{"opportunity_id": "UNKNOWN", "name": "No Match"}],
+            }
+
+            result = enrich_raw_data(raw_data)
+
+            assert result["companies"][0]["_private_texts"] == []
+            assert result["opportunities"][0]["_attachments"] == []
 
 
-class TestToolBranches:
-    """Tests for tool function branches."""
+# =============================================================================
+# question_tree - unknown role and print_tree
+# =============================================================================
 
-    def test_search_activities_with_type_filter(self):
-        """Test tool_search_activities with activity_type filter (line 84)."""
-        from backend.agent.tools.activity import tool_search_activities
 
-        mock_ds = MagicMock()
-        mock_ds.search_activities.return_value = [
-            {"activity_id": "ACT001", "type": "Call"}
-        ]
+class TestQuestionTreeEdgeCases:
+    """Tests for question_tree edge cases."""
 
-        result = tool_search_activities(activity_type="Call", datastore=mock_ds)
-        assert "type='Call'" in result.sources[0].label
+    def test_get_starters_for_role_unknown(self):
+        """Test _get_starters_for_role raises ValueError for unknown role."""
+        from backend.agent.question_tree import _get_starters_for_role
 
-    def test_resolve_company_name_not_found(self):
-        """Test _resolve_company_name when company not resolved (line 110)."""
-        from backend.agent.tools.activity import _resolve_company_name
+        with pytest.raises(ValueError, match="Unknown role"):
+            _get_starters_for_role("invalid_role")
 
-        mock_ds = MagicMock()
-        mock_ds.resolve_company_id.return_value = None
+    def test_print_tree_single_role(self):
+        """Test print_tree for a single role."""
+        from backend.agent.question_tree import print_tree
 
-        resolved_id, name = _resolve_company_name(mock_ds, "UNKNOWN")
-        assert resolved_id is None
-        assert name == ""
+        tree = print_tree("sales")
+        assert tree is not None
+        # Tree should have nodes
+        assert hasattr(tree, "label")
 
-    def test_analytics_accounts_by_group(self):
-        """Test tool_analytics with accounts_by_group metric (line 160)."""
-        from backend.agent.tools.activity import tool_analytics
+    def test_print_tree_all_roles(self):
+        """Test print_tree for all roles."""
+        from backend.agent.question_tree import print_tree
 
-        mock_ds = MagicMock()
-        mock_ds.get_accounts_by_group.return_value = {"total_groups": 5, "breakdown": []}
-        mock_ds.resolve_company_id.return_value = None
+        tree = print_tree()
+        assert tree is not None
 
-        result = tool_analytics(metric="accounts_by_group", datastore=mock_ds)
-        assert result.data["total_groups"] == 5
+    def test_print_tree_with_max_depth(self):
+        """Test print_tree with max_depth limit."""
+        from backend.agent.question_tree import print_tree
 
-    def test_analytics_pipeline_by_group(self):
-        """Test tool_analytics with pipeline_by_group metric (lines 173-174)."""
-        from backend.agent.tools.activity import tool_analytics
+        tree = print_tree("csm", max_depth=2)
+        assert tree is not None
 
-        mock_ds = MagicMock()
-        mock_ds.get_pipeline_by_group.return_value = {"breakdown": []}
-        mock_ds.resolve_company_id.return_value = None
+    def test_print_tree_unknown_role(self):
+        """Test print_tree handles unknown role."""
+        from backend.agent.question_tree import print_tree
 
-        result = tool_analytics(metric="pipeline_by_group", group_id="GRP001", datastore=mock_ds)
-        assert "pipeline_GRP001" in result.sources[0].id
+        tree = print_tree("invalid")
+        # Should return tree with error message
+        assert "error" in str(tree.label).lower() or "unknown" in str(tree.label).lower()
 
-    def test_search_companies_with_all_filters(self):
-        """Test tool_search_companies with industry, segment, status, region (lines 62,68,70,139)."""
-        from backend.agent.tools.company import tool_search_companies
+    def test_validate_tree_all_roles(self):
+        """Test validate_tree for all roles."""
+        from backend.agent.question_tree import validate_tree
 
-        mock_ds = MagicMock()
-        mock_ds.search_companies.return_value = [{"company_id": "COMP001", "name": "Test"}]
+        issues = validate_tree()
+        # May or may not have issues depending on tree structure
+        assert isinstance(issues, list)
 
-        result = tool_search_companies(
-            industry="Tech",
-            segment="Enterprise",
-            status="Active",
-            region="West",
-            datastore=mock_ds,
+    def test_validate_tree_single_role(self):
+        """Test validate_tree for a single role."""
+        from backend.agent.question_tree import validate_tree
+
+        issues = validate_tree("sales")
+        assert isinstance(issues, list)
+
+    def test_get_tree_stats(self):
+        """Test get_tree_stats returns expected structure."""
+        from backend.agent.question_tree import get_tree_stats
+
+        stats = get_tree_stats()
+
+        assert "role" in stats
+        assert "num_starters" in stats
+        assert "num_questions" in stats
+        assert "num_paths" in stats
+        assert "max_depth" in stats
+
+    def test_get_tree_stats_single_role(self):
+        """Test get_tree_stats for a single role."""
+        from backend.agent.question_tree import get_tree_stats
+
+        stats = get_tree_stats("manager")
+
+        assert stats["role"] == "manager"
+        assert stats["num_starters"] == 1
+
+
+# =============================================================================
+# llm/router.py - auto mode LLM routing
+# =============================================================================
+
+
+class TestLlmRouterAutoMode:
+    """Tests for LLM router auto mode."""
+
+    def test_llm_route_question_explicit_mode(self):
+        """Test llm_route_question with explicit mode bypasses LLM."""
+        from backend.agent.llm.router import llm_route_question
+
+        # Explicit mode should not call LLM
+        result = llm_route_question("What's Acme's pipeline?", mode="data")
+
+        assert result.mode_used == "data"
+        assert result.intent == "general"
+
+    def test_llm_route_question_with_company_id(self):
+        """Test llm_route_question passes company_id through."""
+        from backend.agent.llm.router import llm_route_question
+
+        result = llm_route_question(
+            "What's the pipeline?",
+            mode="data",
+            company_id="ACME-001",
         )
 
-        # Check all filters appear in the label
-        label = result.sources[0].label
-        assert "industry='Tech'" in label
-        assert "segment='Enterprise'" in label
-        assert "status='Active'" in label
-        assert "region='West'" in label
+        assert result.company_id == "ACME-001"
 
-    def test_forecast_accuracy_tool(self):
-        """Test tool_forecast_accuracy (lines 151-157)."""
-        from backend.agent.tools.pipeline import tool_forecast_accuracy
+    def test_detect_owner_from_starter_sales(self):
+        """Test detect_owner_from_starter detects sales rep."""
+        from backend.agent.llm.router import detect_owner_from_starter
 
-        mock_ds = MagicMock()
-        mock_ds.get_forecast_accuracy.return_value = {
-            "overall_win_rate": 65.5,
-            "total_won": 100,
-            "total_lost": 50,
-            "total_closed": 150,  # Needed for sources to be generated
+        owner = detect_owner_from_starter("How's my pipeline?")
+        assert owner == "jsmith"
+
+    def test_detect_owner_from_starter_csm(self):
+        """Test detect_owner_from_starter detects CSM."""
+        from backend.agent.llm.router import detect_owner_from_starter
+
+        owner = detect_owner_from_starter("Any renewals at risk?")
+        assert owner == "amartin"
+
+    def test_detect_owner_from_starter_manager(self):
+        """Test detect_owner_from_starter detects manager (None owner)."""
+        from backend.agent.llm.router import detect_owner_from_starter
+
+        owner = detect_owner_from_starter("How's the team doing?")
+        assert owner is None
+
+    def test_detect_owner_from_starter_no_match(self):
+        """Test detect_owner_from_starter returns None for non-starter."""
+        from backend.agent.llm.router import detect_owner_from_starter
+
+        owner = detect_owner_from_starter("Random question")
+        assert owner is None
+
+
+# =============================================================================
+# output/streaming.py - serialize_for_json edge cases
+# =============================================================================
+
+
+class TestSerializeForJson:
+    """Tests for serialize_for_json edge cases."""
+
+    def test_serialize_pydantic_v1_model(self):
+        """Test serialize_for_json handles Pydantic v1 models."""
+        from backend.agent.output.streaming import serialize_for_json
+
+        class MockPydanticV1:
+            def dict(self):
+                return {"key": "value"}
+
+        obj = MockPydanticV1()
+        result = serialize_for_json(obj)
+
+        assert result == {"key": "value"}
+
+    def test_serialize_unknown_type(self):
+        """Test serialize_for_json converts unknown types to string."""
+        from backend.agent.output.streaming import serialize_for_json
+
+        class CustomClass:
+            def __str__(self):
+                return "custom_string"
+
+        obj = CustomClass()
+        result = serialize_for_json(obj)
+
+        assert result == "custom_string"
+
+    def test_serialize_nested_structures(self):
+        """Test serialize_for_json handles nested lists and dicts."""
+        from backend.agent.output.streaming import serialize_for_json
+        from datetime import datetime
+
+        data = {
+            "items": [
+                {"timestamp": datetime(2024, 1, 15)},
+                {"values": [1, 2, 3]},
+            ],
+            "nested": {"deep": {"value": True}},
         }
 
-        result = tool_forecast_accuracy(owner="John", datastore=mock_ds)
-        assert result.data["overall_win_rate"] == 65.5
-        assert len(result.sources) == 1
-        assert "John" in result.sources[0].label
+        result = serialize_for_json(data)
 
-    def test_forecast_accuracy_tool_no_data(self):
-        """Test tool_forecast_accuracy with no closed deals."""
-        from backend.agent.tools.pipeline import tool_forecast_accuracy
+        assert result["items"][0]["timestamp"] == "2024-01-15T00:00:00"
+        assert result["items"][1]["values"] == [1, 2, 3]
+        assert result["nested"]["deep"]["value"] is True
 
-        mock_ds = MagicMock()
-        mock_ds.get_forecast_accuracy.return_value = {
-            "overall_win_rate": 0,
-            "total_closed": 0,
-        }
 
-        result = tool_forecast_accuracy(datastore=mock_ds)
-        assert result.sources == []  # No sources when no data
+# =============================================================================
+# session.py - checkpoint with messages
+# =============================================================================
 
+
+class TestSessionCheckpointMessages:
+    """Tests for session checkpoint with messages."""
+
+    def test_get_session_state_with_checkpoint(self):
+        """Test get_session_state returns channel_values from checkpoint."""
+        from backend.agent import session
+
+        original = session._checkpointer
+
+        with patch.object(session, "_checkpointer") as mock_cp:
+            mock_cp.get.return_value = {
+                "channel_values": {
+                    "messages": [{"role": "user", "content": "Hello"}],
+                    "answer": "Hi there!",
+                }
+            }
+
+            result = session.get_session_state("test-session")
+
+            assert result is not None
+            assert "messages" in result
+            assert len(result["messages"]) == 1
+
+        session._checkpointer = original
+
+
+# =============================================================================
+# datastore edge cases
+# =============================================================================
+
+
+class TestDatastoreEdgeCases:
+    """Tests for datastore edge cases."""
+
+    def test_analytics_get_activity_count_with_filters(self):
+        """Test get_activity_count_by_filter with filters."""
+        from backend.agent.datastore import get_datastore
+
+        ds = get_datastore()
+
+        result = ds.get_activity_count_by_filter(
+            days=30,
+            activity_type="call",
+            company_id="ACME-MFG",
+        )
+
+        assert "count" in result
+        assert isinstance(result["count"], int)
+
+    def test_datastore_search_with_empty_query(self):
+        """Test search functions handle empty query."""
+        from backend.agent.datastore import get_datastore
+
+        ds = get_datastore()
+
+        # Empty query should return empty results
+        result = ds.search_companies(query="")
+        assert isinstance(result, list)
+
+
+
+# =============================================================================
+# main.py - health endpoint and RAG collections
+# =============================================================================
+
+
+class TestMainAppCoverage:
+    """Tests for main.py coverage."""
+
+    def test_health_endpoint(self):
+        """Test health endpoint returns ok."""
+        from fastapi.testclient import TestClient
+        from backend.main import app
+
+        client = TestClient(app)
+        response = client.get("/api/health")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+
+    def test_ensure_rag_collections_already_exists(self):
+        """Test _ensure_rag_collections when collections already exist."""
+        from backend.main import _ensure_rag_collections
+
+        with patch("qdrant_client.QdrantClient") as mock_qdrant_class:
+            mock_client = MagicMock()
+            mock_client.collection_exists.return_value = True
+            mock_collection = MagicMock()
+            mock_collection.points_count = 100
+            mock_client.get_collection.return_value = mock_collection
+            mock_qdrant_class.return_value = mock_client
+
+            # Should not raise
+            _ensure_rag_collections()
+
+            # Should check both collections
+            assert mock_client.collection_exists.call_count == 2
+
+    def test_ensure_rag_collections_empty_count(self):
+        """Test _ensure_rag_collections when collection exists but empty."""
+        from backend.main import _ensure_rag_collections
+
+        with patch("qdrant_client.QdrantClient") as mock_qdrant_class, \
+             patch("backend.agent.rag.ingest.ingest_docs") as mock_ingest_docs, \
+             patch("backend.agent.rag.ingest.ingest_private_texts") as mock_ingest_private:
+
+            mock_client = MagicMock()
+            # Collection exists but is empty
+            mock_client.collection_exists.return_value = True
+            mock_collection = MagicMock()
+            mock_collection.points_count = 0
+            mock_client.get_collection.return_value = mock_collection
+            mock_qdrant_class.return_value = mock_client
+
+            _ensure_rag_collections()
+
+            # Should call ingest for both empty collections
+            mock_ingest_docs.assert_called_once()
+            mock_ingest_private.assert_called_once()
+
+
+# =============================================================================
+# handlers/company.py - search with multiple filters
+# =============================================================================
+
+
+class TestCompanyHandlerFilters:
+    """Tests for company handler filter combinations."""
+
+    def test_search_companies_with_segment_filter(self):
+        """Test search_companies with segment filter."""
+        from backend.agent.handlers import tool_search_companies
+
+        result = tool_search_companies(segment="Enterprise")
+
+        assert "filters" in result.data
+        assert result.data["filters"]["segment"] == "Enterprise"
+
+    def test_search_contacts_with_company_filter(self):
+        """Test search_contacts with company_id filter."""
+        from backend.agent.handlers import tool_search_contacts
+
+        result = tool_search_contacts(company_id="ACME-MFG")
+
+        assert "filters" in result.data
+        assert result.data["filters"]["company_id"] == "ACME-MFG"
+
+
+# =============================================================================
+# nodes/fetching.py - error handling
+# =============================================================================
+
+
+class TestFetchingNodeErrors:
+    """Tests for fetching node error handling."""
+
+    def test_fetch_docs_handles_exceptions(self):
+        """Test _fetch_docs returns empty on exception."""
+        from backend.agent.nodes.fetching import _fetch_docs
+
+        with patch("backend.agent.nodes.fetching.call_docs_rag") as mock_rag:
+            mock_rag.side_effect = Exception("RAG failed")
+
+            result = _fetch_docs("test question")
+
+            assert result["docs_answer"] == ""
+            assert result["docs_sources"] == []
+            assert "error" in result
+
+
+# =============================================================================
+# make_sources helper
+# =============================================================================
+
+
+class TestMakeSourcesHelper:
+    """Tests for make_sources helper function."""
+
+    def test_make_sources_with_data(self):
+        """Test make_sources returns Source when data exists."""
+        from backend.agent.handlers.common import make_sources
+
+        sources = make_sources(
+            data=[{"id": "1"}],
+            source_type="activity",
+            source_id="act-001",
+            label="Activity Search",
+        )
+
+        assert len(sources) == 1
+        assert sources[0].type == "activity"
+        assert sources[0].id == "act-001"
+
+    def test_make_sources_empty_data(self):
+        """Test make_sources returns empty list when no data."""
+        from backend.agent.handlers.common import make_sources
+
+        sources = make_sources(
+            data=[],
+            source_type="activity",
+            source_id="act-001",
+            label="Activity Search",
+        )
+
+        assert sources == []
+
+    def test_make_sources_none_data(self):
+        """Test make_sources returns empty list when data is None."""
+        from backend.agent.handlers.common import make_sources
+
+        sources = make_sources(
+            data=None,
+            source_type="activity",
+            source_id="act-001",
+            label="Activity Search",
+        )
+
+        assert sources == []
+
+
+# =============================================================================
+# safe_extend helper
+# =============================================================================
+
+
+class TestSafeExtendHelper:
+    """Tests for safe_extend helper function."""
+
+    def test_safe_extend_with_list(self):
+        """Test safe_extend extends list."""
+        from backend.agent.handlers.common import safe_extend
+
+        target = [1, 2]
+        safe_extend(target, [3, 4])
+
+        assert target == [1, 2, 3, 4]
+
+    def test_safe_extend_with_none(self):
+        """Test safe_extend handles None source."""
+        from backend.agent.handlers.common import safe_extend
+
+        target = [1, 2]
+        safe_extend(target, None)
+
+        assert target == [1, 2]
+
+    def test_safe_extend_with_empty_list(self):
+        """Test safe_extend handles empty source list."""
+        from backend.agent.handlers.common import safe_extend
+
+        target = [1, 2]
+        safe_extend(target, [])
+
+        assert target == [1, 2]

@@ -8,12 +8,24 @@ Usage:
     from backend.agent.handlers import dispatch_intent, IntentContext, IntentResult
 """
 
-from backend.agent.handlers.common import IntentContext, IntentResult
+from backend.agent.handlers.common import (
+    IntentContext,
+    IntentResult,
+    make_sources,
+    with_datastore,
+    ToolResult,
+)
 from backend.agent.handlers.company import (
     handle_company_status,
     handle_company_search,
     handle_contacts,
     handle_attachments,
+    # Tools
+    tool_company_lookup,
+    tool_search_companies,
+    tool_search_contacts,
+    tool_search_attachments,
+    tool_accounts_needing_attention,
 )
 from backend.agent.handlers.pipeline import (
     handle_pipeline_summary,
@@ -21,11 +33,24 @@ from backend.agent.handlers.pipeline import (
     handle_deals_at_risk,
     handle_forecast,
     handle_forecast_accuracy,
+    # Tools
+    tool_pipeline,
+    tool_pipeline_summary,
+    tool_pipeline_by_owner,
+    tool_upcoming_renewals,
+    tool_deals_at_risk,
+    tool_forecast,
+    tool_forecast_accuracy,
 )
 from backend.agent.handlers.activity import (
     handle_activities,
     handle_analytics,
     handle_fallback,
+    # Tools
+    tool_recent_activity,
+    tool_recent_history,
+    tool_search_activities,
+    tool_analytics,
 )
 
 
@@ -83,8 +108,32 @@ def dispatch_intent(intent: str, ctx: IntentContext) -> IntentResult:
 
 
 __all__ = [
+    # Core
     "IntentContext",
     "IntentResult",
     "dispatch_intent",
     "INTENT_HANDLERS",
+    # Helpers
+    "make_sources",
+    "with_datastore",
+    "ToolResult",
+    # Company tools
+    "tool_company_lookup",
+    "tool_search_companies",
+    "tool_search_contacts",
+    "tool_search_attachments",
+    "tool_accounts_needing_attention",
+    # Pipeline tools
+    "tool_pipeline",
+    "tool_pipeline_summary",
+    "tool_pipeline_by_owner",
+    "tool_upcoming_renewals",
+    "tool_deals_at_risk",
+    "tool_forecast",
+    "tool_forecast_accuracy",
+    # Activity tools
+    "tool_recent_activity",
+    "tool_recent_history",
+    "tool_search_activities",
+    "tool_analytics",
 ]

@@ -91,7 +91,7 @@ def _truncate(text: str, max_len: int = 100) -> str:
 
 
 def _format_activity(act: dict) -> str:
-    due = _format_date(act.get("due_datetime", act.get("created_at")))
+    due = _format_date(act.get("due_datetime") or act.get("created_at") or "")
     return (
         f"- [{act.get('type', 'N/A')}] {act.get('subject', 'N/A')} "
         f"(Owner: {act.get('owner', 'N/A')}, Due: {due}, Status: {act.get('status', 'N/A')})"
@@ -99,7 +99,7 @@ def _format_activity(act: dict) -> str:
 
 
 def _format_history(h: dict) -> str:
-    occurred = _format_date(h.get("occurred_at"))
+    occurred = _format_date(h.get("occurred_at") or "")
     lines = [
         f"- [{h.get('type', 'N/A')}] {h.get('subject', 'N/A')} "
         f"(Date: {occurred}, Owner: {h.get('owner', 'N/A')})"

@@ -22,19 +22,6 @@ class Source(BaseModel):
 
 
 # =============================================================================
-# Step Models
-# =============================================================================
-
-
-class Step(BaseModel):
-    """A processing step for UI progress display."""
-
-    id: str
-    label: str
-    status: str = "done"  # "done", "error", "skipped"
-
-
-# =============================================================================
 # Raw Data Models (flexible for UI)
 # =============================================================================
 
@@ -88,11 +75,8 @@ class ChatResponse(BaseModel):
     """Response to the frontend."""
 
     answer: str
-    sources: list[Source]
-    steps: list[Step]
     raw_data: RawData
-    meta: MetaInfo
-    follow_up_suggestions: list[str] = Field(default_factory=list)  # Suggested next questions
+    follow_up_suggestions: list[str] = Field(default_factory=list)
 
 
 # =============================================================================
@@ -132,7 +116,6 @@ class ToolResult(BaseModel):
 
 __all__ = [
     "Source",
-    "Step",
     "RawData",
     "MetaInfo",
     "ChatRequest",

@@ -239,10 +239,10 @@ class PipelineMixin(_MixinBase):
             params,
         )
 
-        by_stage = {}
-        by_owner = {}
-        total_pipeline = 0
-        total_weighted = 0
+        by_stage: dict[str, dict] = {}
+        by_owner: dict[str, dict] = {}
+        total_pipeline: float = 0.0
+        total_weighted: float = 0.0
 
         for opp in opps:
             stage = (opp.get("stage") or "").lower()
@@ -256,13 +256,13 @@ class PipelineMixin(_MixinBase):
             total_weighted += weighted
 
             if stage not in by_stage:
-                by_stage[stage] = {"count": 0, "pipeline": 0, "weighted": 0, "probability": prob}
+                by_stage[stage] = {"count": 0, "pipeline": 0.0, "weighted": 0.0, "probability": prob}
             by_stage[stage]["count"] += 1
             by_stage[stage]["pipeline"] += value
             by_stage[stage]["weighted"] += weighted
 
             if owner_id not in by_owner:
-                by_owner[owner_id] = {"count": 0, "pipeline": 0, "weighted": 0}
+                by_owner[owner_id] = {"count": 0, "pipeline": 0.0, "weighted": 0.0}
             by_owner[owner_id]["count"] += 1
             by_owner[owner_id]["pipeline"] += value
             by_owner[owner_id]["weighted"] += weighted
@@ -296,11 +296,11 @@ class PipelineMixin(_MixinBase):
             params,
         )
 
-        by_owner = {}
+        by_owner: dict[str, dict] = {}
         total_won = 0
         total_lost = 0
-        total_won_value = 0
-        total_lost_value = 0
+        total_won_value: float = 0.0
+        total_lost_value: float = 0.0
 
         for opp in closed:
             stage = (opp.get("stage") or "").lower()
@@ -310,7 +310,7 @@ class PipelineMixin(_MixinBase):
             is_won = "won" in stage
 
             if owner_id not in by_owner:
-                by_owner[owner_id] = {"won": 0, "lost": 0, "won_value": 0, "lost_value": 0}
+                by_owner[owner_id] = {"won": 0, "lost": 0, "won_value": 0.0, "lost_value": 0.0}
 
             if is_won:
                 total_won += 1

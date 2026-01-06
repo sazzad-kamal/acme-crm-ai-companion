@@ -42,9 +42,10 @@ class AnalyticsMixin(_MixinBase):
                 [company_id],
             ).fetchall()
 
-            total = self.conn.execute(
+            total_row = self.conn.execute(
                 "SELECT COUNT(*) FROM contacts WHERE company_id = ?", [company_id]
-            ).fetchone()[0]
+            ).fetchone()
+            total = total_row[0] if total_row else 0
         else:
             result = self.conn.execute(f"""
                 SELECT
@@ -55,7 +56,8 @@ class AnalyticsMixin(_MixinBase):
                 ORDER BY count DESC
             """).fetchall()
 
-            total = self.conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
+            total_row = self.conn.execute("SELECT COUNT(*) FROM contacts").fetchone()
+            total = total_row[0] if total_row else 0
 
         breakdown = [
             {
@@ -198,28 +200,6 @@ class AnalyticsMixin(_MixinBase):
     # Group Methods
     # =========================================================================
 
-    def get_group(self, group_id: str) -> dict | None:
-        self._ensure_table("groups")
-        return self._fetch_one_dict("SELECT * FROM groups WHERE group_id = ?", [group_id])
-
-    def get_all_groups(self) -> list[dict]:
-        self._ensure_table("groups")
-        return self._fetch_all_dicts("SELECT * FROM groups ORDER BY name")
-
-    def get_group_members(self, group_id: str, limit: int = 50) -> list[dict]:
-        self._ensure_table("group_members")
-        self._ensure_table("companies")
-
-        return self._fetch_all_dicts(
-            f"""
-            SELECT c.* FROM companies c
-            INNER JOIN group_members gm ON c.company_id = gm.company_id
-            WHERE gm.group_id = ?
-            LIMIT {limit}
-        """,
-            [group_id],
-        )
-
     def get_accounts_by_group(self) -> dict:
         self._ensure_table("groups")
         self._ensure_table("group_members")
@@ -263,7 +243,7 @@ class AnalyticsMixin(_MixinBase):
         self._ensure_table("opportunities")
 
         if group_id:
-            result = self.conn.execute(
+            row = self.conn.execute(
                 """
                 SELECT
                     g.group_id,
@@ -281,17 +261,17 @@ class AnalyticsMixin(_MixinBase):
                 [group_id],
             ).fetchone()
 
-            if result:
+            if row:
                 return {
-                    "group_id": result[0],
-                    "group_name": result[1],
-                    "company_count": result[2],
-                    "deal_count": result[3],
-                    "total_value": float(result[4] or 0),
+                    "group_id": row[0],
+                    "group_name": row[1],
+                    "company_count": row[2],
+                    "deal_count": row[3],
+                    "total_value": float(row[4] or 0),
                 }
             return {"error": f"Group '{group_id}' not found"}
 
-        result = self.conn.execute("""
+        rows = self.conn.execute("""
             SELECT
                 g.group_id,
                 g.name as group_name,
@@ -306,7 +286,7 @@ class AnalyticsMixin(_MixinBase):
             ORDER BY total_value DESC
         """).fetchall()
 
-        total_value = sum(float(row[4] or 0) for row in result)
+        total_value = sum(float(r[4] or 0) for r in rows)
 
         breakdown = [
             {
@@ -319,7 +299,7 @@ class AnalyticsMixin(_MixinBase):
                 if total_value > 0
                 else 0,
             }
-            for gid, name, company_count, deal_count, value in result
+            for gid, name, company_count, deal_count, value in rows
         ]
 
         return {

@@ -50,24 +50,12 @@ class TestHandlersCommon:
 
 
 # =============================================================================
-# llm_helpers.py - lines 345, 373, 375: mock suggestions and format_available_data
+# llm_helpers.py - _format_available_data
 # =============================================================================
 
 
-class TestLlmHelpersMockSuggestions:
-    """Tests for _get_mock_suggestions and _format_available_data."""
-
-    def test_mock_suggestions_with_renewals(self):
-        """Test mock suggestions include renewal question when renewals exist."""
-        from backend.agent.llm.helpers import _get_mock_suggestions
-
-        suggestions = _get_mock_suggestions(
-            company_name="Acme Corp",
-            available_data={"renewals": 1}
-        )
-
-        assert any("renewal" in s.lower() for s in suggestions)
-        assert len(suggestions) <= 3
+class TestLlmHelpersFormatAvailableData:
+    """Tests for _format_available_data."""
 
     def test_format_available_data_with_pipeline_and_docs(self):
         """Test _format_available_data includes pipeline and docs."""
@@ -130,7 +118,7 @@ class TestToolsActivityEdgeCases:
 
     def test_search_activities_with_company_id(self):
         """Test search_activities includes company in search description."""
-        from backend.agent.tools.activity import tool_search_activities
+        from backend.agent.handlers import tool_search_activities
 
         # Use real datastore - this exercises the company_id filter path
         result = tool_search_activities(company_id="ACME-MFG")
@@ -140,7 +128,7 @@ class TestToolsActivityEdgeCases:
 
     def test_analytics_activity_count_with_activity_type(self):
         """Test activity_count metric with activity_type filter."""
-        from backend.agent.tools.activity import tool_analytics
+        from backend.agent.handlers import tool_analytics
 
         mock_ds = MagicMock()
         mock_ds.resolve_company_id.return_value = None
@@ -159,7 +147,7 @@ class TestToolsActivityEdgeCases:
 
     def test_analytics_unknown_metric(self):
         """Test analytics returns error for unknown metric."""
-        from backend.agent.tools.activity import tool_analytics
+        from backend.agent.handlers import tool_analytics
 
         mock_ds = MagicMock()
         mock_ds.resolve_company_id.return_value = None
@@ -184,7 +172,7 @@ class TestToolsCompanyEdgeCases:
 
     def test_search_companies_with_industry_filter(self):
         """Test search_companies includes industry in filters."""
-        from backend.agent.tools.company import tool_search_companies
+        from backend.agent.handlers import tool_search_companies
 
         # Use real datastore - this exercises the industry filter path
         result = tool_search_companies(industry="Technology")
@@ -194,7 +182,7 @@ class TestToolsCompanyEdgeCases:
 
     def test_search_contacts_with_job_title_filter(self):
         """Test search_contacts includes job_title in filters."""
-        from backend.agent.tools.company import tool_search_contacts
+        from backend.agent.handlers import tool_search_contacts
 
         # Use real datastore - this exercises the job_title filter path
         result = tool_search_contacts(job_title="Engineer")
@@ -294,9 +282,9 @@ class TestConversationMessageExtraction:
 
     def test_get_session_messages_with_messages(self):
         """Test get_session_messages returns messages from checkpoint state."""
-        from backend.agent.session.conversation import get_session_messages
+        from backend.agent.session import get_session_messages
 
-        with patch("backend.agent.session.conversation.get_session_state") as mock_get_state:
+        with patch("backend.agent.session.get_session_state") as mock_get_state:
             mock_get_state.return_value = {
                 "messages": [
                     {"role": "user", "content": "Hello"},
@@ -312,9 +300,9 @@ class TestConversationMessageExtraction:
 
     def test_get_session_messages_empty_messages_list(self):
         """Test get_session_messages with empty messages in state."""
-        from backend.agent.session.conversation import get_session_messages
+        from backend.agent.session import get_session_messages
 
-        with patch("backend.agent.session.conversation.get_session_state") as mock_get_state:
+        with patch("backend.agent.session.get_session_state") as mock_get_state:
             mock_get_state.return_value = {"messages": []}
 
             messages = get_session_messages("test-session-456")
@@ -372,7 +360,7 @@ class TestActivityTypeLabel:
 
     def test_analytics_activity_count_label_includes_type(self):
         """Test that activity_count with activity_type includes it in source label."""
-        from backend.agent.tools.activity import tool_analytics
+        from backend.agent.handlers import tool_analytics
 
         # Use real datastore to hit the actual code path
         result = tool_analytics(
@@ -387,7 +375,7 @@ class TestActivityTypeLabel:
 
     def test_analytics_activity_count_with_company_name(self):
         """Test that activity_count with company includes company name in label (line 160)."""
-        from backend.agent.tools.activity import tool_analytics
+        from backend.agent.handlers import tool_analytics
 
         # Use real company that exists in the datastore
         result = tool_analytics(
@@ -412,7 +400,7 @@ class TestCompanyIndustryLabel:
 
     def test_search_companies_label_includes_industry(self):
         """Test that search_companies with industry includes it in source label."""
-        from backend.agent.tools.company import tool_search_companies
+        from backend.agent.handlers import tool_search_companies
 
         # Use real datastore to hit the actual code path
         result = tool_search_companies(industry="Manufacturing")

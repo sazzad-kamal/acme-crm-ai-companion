@@ -37,7 +37,7 @@ class TestMemoryEdgeCases:
 
     def test_format_history_for_prompt_empty(self):
         """Test format_history_for_prompt with empty messages."""
-        from backend.agent.session.memory import format_history_for_prompt
+        from backend.agent.shared.memory import format_history_for_prompt
 
         result = format_history_for_prompt([])
         assert result == ""
@@ -48,28 +48,28 @@ class TestCacheEviction:
 
     def test_set_cached_result_eviction(self):
         """Test that cache evicts oldest entry when full."""
-        from backend.agent.session import cache
+        from backend.agent import session
 
         # Clear and set small max size
-        cache.clear_query_cache()
-        original_max = cache._CACHE_MAX_SIZE
-        cache._CACHE_MAX_SIZE = 2
+        session.clear_query_cache()
+        original_max = session._CACHE_MAX_SIZE
+        session._CACHE_MAX_SIZE = 2
 
         try:
             # Fill cache
-            cache.set_cached_result("key1", {"data": 1})
-            cache.set_cached_result("key2", {"data": 2})
+            session.set_cached_result("key1", {"data": 1})
+            session.set_cached_result("key2", {"data": 2})
 
             # This should trigger eviction
-            cache.set_cached_result("key3", {"data": 3})
+            session.set_cached_result("key3", {"data": 3})
 
             # key1 should be evicted
-            assert cache.get_cached_result("key1") is None
-            assert cache.get_cached_result("key2") is not None
-            assert cache.get_cached_result("key3") is not None
+            assert session.get_cached_result("key1") is None
+            assert session.get_cached_result("key2") is not None
+            assert session.get_cached_result("key3") is not None
         finally:
-            cache._CACHE_MAX_SIZE = original_max
-            cache.clear_query_cache()
+            session._CACHE_MAX_SIZE = original_max
+            session.clear_query_cache()
 
 
 class TestAuditLoggerEdgeCases:

@@ -2,16 +2,48 @@
 Common utilities and data classes for intent handlers.
 
 Shared by all handler modules to avoid duplication.
+Includes tool helpers merged from tools/base.py.
 """
 
+import json
 import logging
+from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import lru_cache, wraps
+from pathlib import Path
+from typing import Callable, Any
 
-from backend.agent.core.schemas import Source
-from backend.agent.tools.company import tool_company_lookup
+from backend.agent.core.schemas import Source, ToolResult
+from backend.agent.datastore import CRMDataStore, get_datastore
 
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Tool Helpers (merged from tools/base.py)
+# =============================================================================
+
+
+def make_sources(
+    data: list | dict | None,
+    source_type: str,
+    source_id: str,
+    label: str,
+) -> list[Source]:
+    """Create a Source list if data exists."""
+    if data:
+        return [Source(type=source_type, id=source_id, label=label)]
+    return []
+
+
+def with_datastore(func: Callable[..., ToolResult]) -> Callable[..., ToolResult]:
+    """Decorator that injects a datastore instance if not provided."""
+    @wraps(func)
+    def wrapper(*args: Any, datastore: CRMDataStore | None = None, **kwargs: Any) -> ToolResult:
+        ds = datastore or get_datastore()
+        return func(*args, datastore=ds, **kwargs)
+    return wrapper
 
 
 @dataclass
@@ -66,7 +98,7 @@ def safe_extend(target_list: list, source_list: list | None) -> None:
 
 def apply_tool_result(
     result: IntentResult,
-    tool_result: object,
+    tool_result: ToolResult,
     data_attr: str,
     raw_data_key: str,
     list_key: str | None = None,
@@ -101,15 +133,100 @@ def lookup_company(result: IntentResult, company_id: str) -> bool:
 
     Returns True if company was found, False otherwise.
     """
-    company_result = tool_company_lookup(company_id)
-    if company_result.data.get("found"):
-        result.company_data = company_result.data
-        safe_extend(result.sources, company_result.sources)
-        result.raw_data["companies"] = [result.company_data["company"]]
-        result.resolved_company_id = result.company_data["company"]["company_id"]
-        return True
-    result.company_data = company_result.data
-    return False
+    ds = get_datastore()
+    resolved_id = ds.resolve_company_id(company_id)
+
+    if not resolved_id:
+        matches = ds.get_company_name_matches(company_id, limit=5)
+        result.company_data = {"found": False, "query": company_id, "close_matches": matches}
+        return False
+
+    company = ds.get_company(resolved_id)
+    if not company:
+        result.company_data = {"found": False, "query": company_id}
+        return False
+
+    contacts = ds.get_contacts_for_company(resolved_id, limit=5)
+    result.company_data = {"found": True, "company": company, "contacts": contacts}
+    result.sources.append(Source(type="company", id=resolved_id, label=company.get("name", resolved_id)))
+    result.raw_data["companies"] = [company]
+    result.resolved_company_id = resolved_id
+    return True
+
+
+# =============================================================================
+# Nested Data Enrichment
+# =============================================================================
+
+
+def _get_csv_path() -> Path:
+    """Get the path to the CSV data directory."""
+    return Path(__file__).parent.parent.parent / "data" / "csv"
+
+
+@lru_cache(maxsize=1)
+def _load_private_texts() -> dict[str, list[dict[str, Any]]]:
+    """Load and cache private_texts.jsonl grouped by company_id."""
+    jsonl_path = _get_csv_path() / "private_texts.jsonl"
+    if not jsonl_path.exists():
+        return {}
+
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    with open(jsonl_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+                company_id = record.get("company_id", "")
+                if company_id:
+                    grouped[company_id].append(record)
+            except json.JSONDecodeError:
+                continue
+    return dict(grouped)
+
+
+@lru_cache(maxsize=1)
+def _load_attachments() -> dict[str, list[dict[str, Any]]]:
+    """Load and cache attachments.csv grouped by opportunity_id."""
+    import csv
+
+    csv_path = _get_csv_path() / "attachments.csv"
+    if not csv_path.exists():
+        return {}
+
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    with open(csv_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            opp_id = row.get("opportunity_id", "")
+            if opp_id:
+                grouped[opp_id].append(dict(row))
+    return dict(grouped)
+
+
+def enrich_raw_data(raw_data: dict) -> dict:
+    """
+    Enrich raw_data with nested fields for display in DataTables.
+
+    Adds:
+    - _private_texts to companies (from private_texts.jsonl)
+    - _attachments to opportunities (from attachments.csv)
+    """
+    private_texts = _load_private_texts()
+    attachments = _load_attachments()
+
+    # Enrich companies with _private_texts
+    for company in raw_data.get("companies", []):
+        company_id = company.get("company_id", "")
+        company["_private_texts"] = private_texts.get(company_id, [])
+
+    # Enrich opportunities with _attachments
+    for opp in raw_data.get("opportunities", []):
+        opp_id = opp.get("opportunity_id", "")
+        opp["_attachments"] = attachments.get(opp_id, [])
+
+    return raw_data
 
 
 __all__ = [
@@ -119,5 +236,12 @@ __all__ = [
     "safe_extend",
     "apply_tool_result",
     "lookup_company",
+    "enrich_raw_data",
+    "make_sources",
+    "with_datastore",
+    "ToolResult",
+    "CRMDataStore",
+    "get_datastore",
+    "Source",
     "logger",
 ]

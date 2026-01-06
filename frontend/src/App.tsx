@@ -41,7 +41,7 @@ export default function App() {
   );
 
   // Chat hook with streaming
-  const { messages, isLoading, isStreaming, error, currentSteps, sendMessage, clearError } = useChatStream(chatOptions);
+  const { messages, isLoading, error, sendMessage, clearError } = useChatStream(chatOptions);
 
   // Scroll to bottom when messages change
   useEffect(() => {

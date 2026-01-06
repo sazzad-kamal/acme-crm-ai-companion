@@ -55,8 +55,6 @@ function NestedItem({ item, fieldKey }: NestedItemProps) {
   switch (fieldKey) {
     case "_private_texts":
       return <PrivateTextItem item={item} />;
-    case "_descriptions":
-      return <DescriptionItem item={item} />;
     case "_attachments":
       return <AttachmentItem item={item} />;
     case "_members":
@@ -80,20 +78,6 @@ function PrivateTextItem({ item }: { item: Record<string, unknown> }) {
         {item.metadata_created_at ? (
           <span>🕐 {String(item.metadata_created_at)}</span>
         ) : null}
-      </div>
-    </div>
-  );
-}
-
-function DescriptionItem({ item }: { item: Record<string, unknown> }) {
-  return (
-    <div className="nested-item nested-item--description">
-      <div className="nested-item__title">
-        {String(item.title || "Opportunity Notes")}
-      </div>
-      <div className="nested-item__content">{String(item.text || "")}</div>
-      <div className="nested-item__meta">
-        {item.created_at ? <span>Created: {String(item.created_at)}</span> : null}
       </div>
     </div>
   );

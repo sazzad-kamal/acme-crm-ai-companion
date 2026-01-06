@@ -49,7 +49,6 @@ CSV_TABLES = {
     "groups": "groups.csv",
     "group_members": "group_members.csv",
     "attachments": "attachments.csv",
-    "opportunity_descriptions": "opportunity_descriptions.csv",
 }
 
 REQUIRED_TABLES = {"companies", "contacts", "activities", "history", "opportunities"}
@@ -97,9 +96,8 @@ class CRMDataStoreBase:
     def __enter__(self) -> "CRMDataStoreBase":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
         self.close()
-        return False
 
     def close(self) -> None:
         if self._conn is not None:

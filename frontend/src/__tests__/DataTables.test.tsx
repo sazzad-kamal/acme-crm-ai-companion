@@ -491,4 +491,306 @@ describe("DataTables", () => {
     rerender(<DataTables rawData={rawData} />);
     expect(screen.getByText("Data used (1 table)")).toBeInTheDocument();
   });
+
+  // =========================================================================
+  // Nested Items - Private Texts
+  // =========================================================================
+
+  describe("NestedItems - private_texts", () => {
+    it("renders private texts in companies table", () => {
+      const rawData: RawData = {
+        companies: [
+          {
+            company_id: "1",
+            name: "Acme Corp",
+            plan: "Pro",
+            renewal_date: "2024-12-31",
+            _private_texts: [
+              { id: "1", type: "note", title: "Important meeting notes", text: "Details here" },
+            ],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByText("note")).toBeInTheDocument();
+      expect(screen.getByText("Important meeting notes")).toBeInTheDocument();
+    });
+
+    it("shows type badge for private text", () => {
+      const rawData: RawData = {
+        companies: [
+          {
+            company_id: "1",
+            name: "Test",
+            plan: "Pro",
+            renewal_date: "2024-12-31",
+            _private_texts: [
+              { id: "1", type: "history", title: "History entry", text: "" },
+            ],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByText("history")).toBeInTheDocument();
+    });
+
+    it("falls back to text when title is empty", () => {
+      const rawData: RawData = {
+        companies: [
+          {
+            company_id: "1",
+            name: "Test",
+            plan: "Pro",
+            renewal_date: "2024-12-31",
+            _private_texts: [
+              { id: "1", type: "note", title: "", text: "Fallback text content" },
+            ],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByText("Fallback text content")).toBeInTheDocument();
+    });
+
+    it("truncates long text to 100 characters", () => {
+      const longText = "A".repeat(150);
+      const rawData: RawData = {
+        companies: [
+          {
+            company_id: "1",
+            name: "Test",
+            plan: "Pro",
+            renewal_date: "2024-12-31",
+            _private_texts: [
+              { id: "1", type: "note", title: longText, text: "" },
+            ],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      // Should show truncated text (100 chars)
+      expect(screen.getByText("A".repeat(100))).toBeInTheDocument();
+    });
+
+    it("shows +X more when more than 5 items", () => {
+      const rawData: RawData = {
+        companies: [
+          {
+            company_id: "1",
+            name: "Test",
+            plan: "Pro",
+            renewal_date: "2024-12-31",
+            _private_texts: [
+              { id: "1", type: "note", title: "Note 1", text: "" },
+              { id: "2", type: "note", title: "Note 2", text: "" },
+              { id: "3", type: "note", title: "Note 3", text: "" },
+              { id: "4", type: "note", title: "Note 4", text: "" },
+              { id: "5", type: "note", title: "Note 5", text: "" },
+              { id: "6", type: "note", title: "Note 6", text: "" },
+              { id: "7", type: "note", title: "Note 7", text: "" },
+            ],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByText("+2 more")).toBeInTheDocument();
+      expect(screen.getByText("Note 5")).toBeInTheDocument();
+      expect(screen.queryByText("Note 6")).not.toBeInTheDocument();
+    });
+
+    it("renders nothing for empty private_texts", () => {
+      const rawData: RawData = {
+        companies: [
+          {
+            company_id: "1",
+            name: "Test",
+            plan: "Pro",
+            renewal_date: "2024-12-31",
+            _private_texts: [],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.queryByText("note")).not.toBeInTheDocument();
+    });
+  });
+
+  // =========================================================================
+  // Nested Items - Attachments
+  // =========================================================================
+
+  describe("NestedItems - attachments", () => {
+    it("renders attachments in opportunities table", () => {
+      const rawData: RawData = {
+        opportunities: [
+          {
+            opportunity_id: "1",
+            name: "Big Deal",
+            stage: "Negotiation",
+            expected_close_date: "2024-06-30",
+            value: 100000,
+            _attachments: [
+              { attachment_id: "1", title: "Proposal.pdf", file_type: "pdf", summary: "", created_at: "" },
+            ],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByText("📎")).toBeInTheDocument();
+      expect(screen.getByText("Proposal.pdf")).toBeInTheDocument();
+      expect(screen.getByText("pdf")).toBeInTheDocument();
+    });
+
+    it("falls back to file_name when title is empty", () => {
+      const rawData: RawData = {
+        opportunities: [
+          {
+            opportunity_id: "1",
+            name: "Deal",
+            stage: "Open",
+            expected_close_date: "2024-06-30",
+            value: 50000,
+            _attachments: [
+              { attachment_id: "1", title: "", file_name: "contract.docx", file_type: "docx", summary: "", created_at: "" },
+            ],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByText("contract.docx")).toBeInTheDocument();
+    });
+
+    it("shows default Attachment when no title or file_name", () => {
+      const rawData: RawData = {
+        opportunities: [
+          {
+            opportunity_id: "1",
+            name: "Deal",
+            stage: "Open",
+            expected_close_date: "2024-06-30",
+            value: 50000,
+            _attachments: [
+              { attachment_id: "1", title: "", file_type: "", summary: "", created_at: "" },
+            ],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByText("Attachment")).toBeInTheDocument();
+    });
+
+    it("shows +X more for attachments when more than 5", () => {
+      const rawData: RawData = {
+        opportunities: [
+          {
+            opportunity_id: "1",
+            name: "Deal",
+            stage: "Open",
+            expected_close_date: "2024-06-30",
+            value: 50000,
+            _attachments: [
+              { attachment_id: "1", title: "File 1", file_type: "pdf", summary: "", created_at: "" },
+              { attachment_id: "2", title: "File 2", file_type: "pdf", summary: "", created_at: "" },
+              { attachment_id: "3", title: "File 3", file_type: "pdf", summary: "", created_at: "" },
+              { attachment_id: "4", title: "File 4", file_type: "pdf", summary: "", created_at: "" },
+              { attachment_id: "5", title: "File 5", file_type: "pdf", summary: "", created_at: "" },
+              { attachment_id: "6", title: "File 6", file_type: "pdf", summary: "", created_at: "" },
+              { attachment_id: "7", title: "File 7", file_type: "pdf", summary: "", created_at: "" },
+              { attachment_id: "8", title: "File 8", file_type: "pdf", summary: "", created_at: "" },
+            ],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByText("+3 more")).toBeInTheDocument();
+      expect(screen.getByText("File 5")).toBeInTheDocument();
+      expect(screen.queryByText("File 6")).not.toBeInTheDocument();
+    });
+
+    it("renders nothing for empty attachments", () => {
+      const rawData: RawData = {
+        opportunities: [
+          {
+            opportunity_id: "1",
+            name: "Deal",
+            stage: "Open",
+            expected_close_date: "2024-06-30",
+            value: 50000,
+            _attachments: [],
+          },
+        ],
+      };
+
+      render(<DataTables rawData={rawData} />);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.queryByText("📎")).not.toBeInTheDocument();
+    });
+  });
+
+  // =========================================================================
+  // Table Headers with Nested Columns
+  // =========================================================================
+
+  it("companies table has Notes header for nested data", () => {
+    const rawData: RawData = {
+      companies: [
+        { company_id: "1", name: "Test", plan: "Basic", renewal_date: "2024-12-31" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByText("Notes")).toBeInTheDocument();
+  });
+
+  it("opportunities table has Attachments header", () => {
+    const rawData: RawData = {
+      opportunities: [
+        {
+          opportunity_id: "1",
+          name: "Deal",
+          stage: "Open",
+          expected_close_date: "2024-06-30",
+          value: 50000,
+        },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByText("Attachments")).toBeInTheDocument();
+  });
 });

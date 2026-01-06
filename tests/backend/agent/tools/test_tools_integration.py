@@ -9,12 +9,11 @@ Tests each agent tool for correctness:
 - upcoming_renewals: Does it return correct renewals?
 - search_contacts: Does it find contacts correctly?
 - search_companies: Does it find companies correctly?
-- list_groups / group_members: Does it handle groups?
 - pipeline_summary: Does it aggregate pipeline data?
 - search_attachments: Does it find attachments?
 - search_activities: Does it search activities?
 
-Run with: pytest backend/agent/tests/test_tools_integration.py -v
+Run with: pytest tests/backend/agent/tools/test_tools_integration.py -v
 """
 
 import pytest
@@ -22,21 +21,14 @@ import pytest
 pytestmark = pytest.mark.integration
 
 from backend.agent.datastore import get_datastore
-from backend.agent.tools.company import (
+from backend.agent.handlers import (
     tool_company_lookup,
-    tool_contact_lookup,
-    tool_group_members,
-    tool_list_groups,
     tool_search_attachments,
     tool_search_companies,
     tool_search_contacts,
-)
-from backend.agent.tools.pipeline import (
     tool_pipeline,
     tool_pipeline_summary,
     tool_upcoming_renewals,
-)
-from backend.agent.tools.activity import (
     tool_analytics,
     tool_recent_activity,
     tool_recent_history,
@@ -222,28 +214,6 @@ class TestSearchCompanies:
         result = tool_search_companies()
         companies = result.data.get("companies", [])
         assert len(companies) >= 5
-
-
-# =============================================================================
-# Groups Tests
-# =============================================================================
-
-
-class TestGroups:
-    """Tests for list_groups and group_members tools."""
-
-    def test_list_groups(self, datastore):
-        """Test listing all groups."""
-        result = tool_list_groups()
-        groups = result.data.get("groups", [])
-        assert len(groups) >= 3
-
-    @pytest.mark.parametrize("group_id", ["GRP-AT-RISK", "GRP-CHAMPIONS"])
-    def test_group_members(self, datastore, group_id: str):
-        """Test getting group members (group exists, may have members)."""
-        result = tool_group_members(group_id=group_id)
-        # Group should be found
-        assert result.data.get("found", False) or result.data.get("group") is not None
 
 
 # =============================================================================

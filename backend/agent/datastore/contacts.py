@@ -25,10 +25,6 @@ class ContactMixin(_MixinBase):
             f"SELECT * FROM contacts WHERE company_id = ? LIMIT {limit}", [company_id]
         )
 
-    def get_contact(self, contact_id: str) -> dict | None:
-        self._ensure_table("contacts")
-        return self._fetch_one_dict("SELECT * FROM contacts WHERE contact_id = ?", [contact_id])
-
     def search_contacts(
         self,
         query: str = "",

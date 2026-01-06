@@ -73,22 +73,12 @@ class TestStreamingEndpoint:
         """Test that streaming includes status update events."""
         payload = {"question": "How do I create a contact?"}
         response = client.post("/api/chat/stream", json=payload)
-        
+
         content = response.text
-        
+
         # Should have status events
         assert "event: status" in content
-    
-    def test_streaming_includes_step_events(self, client):
-        """Test that streaming includes step completion events."""
-        payload = {"question": "What renewals are coming up?"}
-        response = client.post("/api/chat/stream", json=payload)
-        
-        content = response.text
-        
-        # Should have step events
-        assert "event: step" in content
-    
+
     def test_streaming_ends_with_done_event(self, client):
         """Test that streaming ends with done event."""
         payload = {"question": "What is Acme CRM?"}
@@ -102,12 +92,12 @@ class TestStreamingEndpoint:
     def test_streaming_done_event_has_complete_response(self, client):
         """Test that done event contains complete response."""
         import json
-        
+
         payload = {"question": "Show me enterprise accounts"}
         response = client.post("/api/chat/stream", json=payload)
-        
+
         content = response.text
-        
+
         # Find done event and parse its data
         lines = content.split("\n")
         done_data = None
@@ -118,12 +108,11 @@ class TestStreamingEndpoint:
                 if data_line.startswith("data: "):
                     done_data = json.loads(data_line[6:])
                     break
-        
+
         assert done_data is not None
         assert "answer" in done_data
-        assert "sources" in done_data
-        assert "steps" in done_data
-        assert "meta" in done_data
+        assert "raw_data" in done_data
+        assert "follow_up_suggestions" in done_data
     
     def test_streaming_rejects_empty_question(self, client):
         """Test that empty question is rejected."""

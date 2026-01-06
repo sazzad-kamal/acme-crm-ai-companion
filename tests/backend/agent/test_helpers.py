@@ -5,7 +5,6 @@ Tests the extracted modules from orchestrator.py refactoring.
 """
 
 import os
-import time
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -240,120 +239,8 @@ class TestFormatDocsSection:
 
 
 # =============================================================================
-# Progress Tests
-# =============================================================================
-
-class TestAgentProgress:
-    """Tests for AgentProgress class."""
-    
-    def test_starts_with_empty_steps(self):
-        """Starts with no steps."""
-        from backend.agent.core.state import AgentProgress
-        
-        progress = AgentProgress()
-        assert progress.steps == []
-    
-    def test_add_step(self):
-        """Can add a step."""
-        from backend.agent.core.state import AgentProgress
-        
-        progress = AgentProgress()
-        progress.add_step("route", "Analyzing question", "done")
-        
-        assert len(progress.steps) == 1
-        assert progress.steps[0].id == "route"
-        assert progress.steps[0].label == "Analyzing question"
-        assert progress.steps[0].status == "done"
-    
-    def test_add_multiple_steps(self):
-        """Can add multiple steps."""
-        from backend.agent.core.state import AgentProgress
-        
-        progress = AgentProgress()
-        progress.add_step("step1", "First step")
-        progress.add_step("step2", "Second step")
-        progress.add_step("step3", "Third step")
-        
-        assert len(progress.steps) == 3
-    
-    def test_default_status_is_done(self):
-        """Default status is 'done'."""
-        from backend.agent.core.state import AgentProgress
-        
-        progress = AgentProgress()
-        progress.add_step("test", "Test step")
-        
-        assert progress.steps[0].status == "done"
-    
-    def test_get_elapsed_ms(self):
-        """Tracks elapsed time."""
-        from backend.agent.core.state import AgentProgress
-        
-        progress = AgentProgress()
-        time.sleep(0.05)  # 50ms
-        elapsed = progress.get_elapsed_ms()
-        
-        assert elapsed >= 40  # Allow some variance
-        assert elapsed < 200  # But not too much
-    
-    def test_to_list(self):
-        """Converts steps to list of dicts."""
-        from backend.agent.core.state import AgentProgress
-        
-        progress = AgentProgress()
-        progress.add_step("s1", "Step 1", "done")
-        progress.add_step("s2", "Step 2", "pending")
-        
-        result = progress.to_list()
-        
-        assert isinstance(result, list)
-        assert len(result) == 2
-        assert result[0]["id"] == "s1"
-        assert result[1]["status"] == "pending"
-
-
-# =============================================================================
 # LLM Helpers Tests
 # =============================================================================
-
-class TestMockLlmResponse:
-    """Tests for mock_llm_response."""
-    
-    def test_returns_string(self):
-        """Returns a string response."""
-        from backend.agent.llm.helpers import mock_llm_response
-        
-        result = mock_llm_response("Test prompt")
-        assert isinstance(result, str)
-        assert len(result) > 0
-    
-    def test_handles_unknown_company_prompt(self):
-        """Returns appropriate response for unknown company."""
-        from backend.agent.llm.helpers import mock_llm_response
-        
-        result = mock_llm_response("couldn't find an exact match for company")
-        assert "couldn't find" in result.lower() or "clarify" in result.lower()
-    
-    def test_handles_renewal_prompt(self):
-        """Returns renewal-related response."""
-        from backend.agent.llm.helpers import mock_llm_response
-        
-        result = mock_llm_response("Show me upcoming renewals for Q1")
-        assert "renewal" in result.lower()
-    
-    def test_handles_pipeline_prompt(self):
-        """Returns pipeline-related response."""
-        from backend.agent.llm.helpers import mock_llm_response
-        
-        result = mock_llm_response("What's in the pipeline?")
-        assert "pipeline" in result.lower()
-    
-    def test_default_response(self):
-        """Returns default response for other prompts."""
-        from backend.agent.llm.helpers import mock_llm_response
-        
-        result = mock_llm_response("Tell me about the account")
-        assert "account" in result.lower() or "summary" in result.lower()
 
 
 class TestCallAnswerChainMockMode:

@@ -112,19 +112,19 @@ test.describe('Chat Interaction - Enhanced', () => {
     await expect(messages).toHaveCount(2, { timeout: 30000 });
   });
 
-  test('shows step-by-step progress pills during processing', async ({ page }) => {
+  test('shows thinking indicator during processing', async ({ page }) => {
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
     await input.fill('What is going on with Acme Manufacturing?');
     await sendButton.click();
 
-    // Should show progress steps or message block (steps may complete quickly)
-    const stepsOrMessage = page.locator('.step-pill, .steps-row, .message-block');
-    await expect(stepsOrMessage.first()).toBeVisible({ timeout: 15000 });
+    // Should show thinking indicator or message block (processing may complete quickly)
+    const thinkingOrMessage = page.locator('.message__thinking, .message-block');
+    await expect(thinkingOrMessage.first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('displays source citations after response', async ({ page }) => {
+  test('displays answer after response', async ({ page }) => {
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
@@ -134,7 +134,7 @@ test.describe('Chat Interaction - Enhanced', () => {
     // Wait for response
     await expect(page.locator('.message__answer')).toBeVisible({ timeout: 30000 });
 
-    // Verify answer received (sources may or may not be present depending on query)
+    // Verify answer received
     const answer = await page.locator('.message__answer').textContent();
     expect(answer).toBeTruthy();
   });
@@ -192,7 +192,7 @@ test.describe('Chat Interaction - Enhanced', () => {
     }
   });
 
-  test('time indicator shows response time', async ({ page }) => {
+  test('copy button available after response', async ({ page }) => {
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
@@ -202,12 +202,9 @@ test.describe('Chat Interaction - Enhanced', () => {
     // Wait for completion
     await expect(page.locator('.message__answer')).toBeVisible({ timeout: 30000 });
 
-    // Time should be displayed (e.g., "2.3s")
-    const timeIndicator = page.locator('.message__time, [class*="time"]');
-    await expect(timeIndicator.first()).toBeVisible();
-
-    const timeText = await timeIndicator.first().textContent();
-    expect(timeText).toMatch(/\d+\.?\d*s/);
+    // Copy button should be available
+    const copyButton = page.locator('.message__copy');
+    await expect(copyButton).toBeVisible();
   });
 });
 

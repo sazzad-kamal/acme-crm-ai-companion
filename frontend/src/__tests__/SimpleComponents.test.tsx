@@ -2,9 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Avatar } from "../components/Avatar";
 import { LoadingDots, LoadingState } from "../components/LoadingDots";
-import { MetaInfo } from "../components/MetaInfo";
 import { ErrorBanner } from "../components/ErrorBanner";
-import type { Meta } from "../types";
 
 // =========================================================================
 // Avatar Component
@@ -170,109 +168,6 @@ describe("LoadingState", () => {
 });
 
 // =========================================================================
-// MetaInfo Component
-// =========================================================================
-
-describe("MetaInfo", () => {
-  it("renders latency info", () => {
-    const meta: Meta = {
-      latency_ms: 1234,
-    };
-
-    render(<MetaInfo meta={meta} />);
-
-    expect(screen.getByText(/1234ms/)).toBeInTheDocument();
-  });
-
-  it("renders mode info", () => {
-    const meta: Meta = {
-      mode_used: "data",
-    };
-
-    render(<MetaInfo meta={meta} />);
-
-    expect(screen.getByText(/Mode: data/)).toBeInTheDocument();
-  });
-
-  it("renders company ID", () => {
-    const meta: Meta = {
-      company_id: "comp123",
-    };
-
-    render(<MetaInfo meta={meta} />);
-
-    expect(screen.getByText(/Company: comp123/)).toBeInTheDocument();
-  });
-
-  it("renders all metadata with separator", () => {
-    const meta: Meta = {
-      latency_ms: 500,
-      mode_used: "docs",
-      company_id: "acme",
-    };
-
-    render(<MetaInfo meta={meta} />);
-
-    const content = screen.getByRole("contentinfo");
-    expect(content.textContent).toBe("500ms · Mode: docs · Company: acme");
-  });
-
-  it("returns null for empty metadata", () => {
-    const meta: Meta = {};
-
-    const { container } = render(<MetaInfo meta={meta} />);
-
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("handles partial metadata", () => {
-    const meta: Meta = {
-      latency_ms: 100,
-      mode_used: "auto",
-    };
-
-    render(<MetaInfo meta={meta} />);
-
-    const content = screen.getByRole("contentinfo");
-    expect(content.textContent).toBe("100ms · Mode: auto");
-  });
-
-  it("has proper ARIA attributes", () => {
-    const meta: Meta = {
-      latency_ms: 500,
-      mode_used: "data",
-    };
-
-    render(<MetaInfo meta={meta} />);
-
-    const contentinfo = screen.getByRole("contentinfo");
-    expect(contentinfo).toHaveAttribute("aria-label", "Response metadata: 500ms, Mode: data");
-  });
-
-  it("has correct class name", () => {
-    const meta: Meta = {
-      latency_ms: 100,
-    };
-
-    const { container } = render(<MetaInfo meta={meta} />);
-
-    const metaLine = container.querySelector(".meta-line");
-    expect(metaLine).toBeInTheDocument();
-  });
-
-  it("memoizes correctly", () => {
-    const meta: Meta = {
-      latency_ms: 100,
-    };
-
-    const { rerender } = render(<MetaInfo meta={meta} />);
-
-    rerender(<MetaInfo meta={meta} />);
-    expect(screen.getByText(/100ms/)).toBeInTheDocument();
-  });
-});
-
-// =========================================================================
 // ErrorBanner Component
 // =========================================================================
 
@@ -367,5 +262,33 @@ describe("ErrorBanner", () => {
 
     const button = screen.getByRole("button");
     expect(button).toHaveAttribute("type", "button");
+  });
+});
+
+// =========================================================================
+// SkipLink Component
+// =========================================================================
+
+import { SkipLink } from "../components/SkipLink";
+
+describe("SkipLink", () => {
+  it("renders with default text", () => {
+    render(<SkipLink />);
+    expect(screen.getByText("Skip to main content")).toBeInTheDocument();
+  });
+
+  it("renders with custom text", () => {
+    render(<SkipLink>Skip to chat</SkipLink>);
+    expect(screen.getByText("Skip to chat")).toBeInTheDocument();
+  });
+
+  it("links to correct target ID", () => {
+    render(<SkipLink targetId="custom-target" />);
+    expect(screen.getByRole("link")).toHaveAttribute("href", "#custom-target");
+  });
+
+  it("has correct default target ID", () => {
+    render(<SkipLink />);
+    expect(screen.getByRole("link")).toHaveAttribute("href", "#main-content");
   });
 });

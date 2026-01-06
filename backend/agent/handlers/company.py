@@ -1,7 +1,8 @@
 """
-Company-related intent handlers.
+Company-related intent handlers and tools.
 
 Handles company_status, company_search, contacts, and attachments intents.
+Includes tool functions merged from tools/company.py.
 """
 
 from backend.agent.output.extractors import (
@@ -9,26 +10,225 @@ from backend.agent.output.extractors import (
     extract_company_criteria,
     extract_attachment_query,
 )
-from backend.agent.tools.company import (
-    tool_search_contacts,
-    tool_search_companies,
-    tool_search_attachments,
-)
-from backend.agent.tools.pipeline import tool_pipeline
-from backend.agent.tools.activity import tool_recent_activity, tool_recent_history
-
 from backend.agent.handlers.common import (
     IntentContext,
     IntentResult,
     empty_raw_data,
     apply_tool_result,
     lookup_company,
+    make_sources,
+    with_datastore,
+    ToolResult,
+    CRMDataStore,
+    Source,
     logger,
 )
 
 
+# =============================================================================
+# Tool Functions (merged from tools/company.py)
+# =============================================================================
+
+
+@with_datastore
+def tool_company_lookup(
+    company_id_or_name: str, datastore: CRMDataStore | None = None
+) -> ToolResult:
+    """Look up company information by ID or name."""
+    ds = datastore
+    assert ds is not None  # Guaranteed by @with_datastore
+
+    company_id = ds.resolve_company_id(company_id_or_name)
+
+    if not company_id:
+        matches = ds.get_company_name_matches(company_id_or_name, limit=5)
+        return ToolResult(
+            data={"found": False, "query": company_id_or_name, "close_matches": matches},
+            sources=[],
+            error=f"Company '{company_id_or_name}' not found",
+        )
+
+    company = ds.get_company(company_id)
+    if not company:
+        return ToolResult(
+            data={"found": False, "query": company_id_or_name},
+            sources=[],
+            error=f"Company '{company_id}' not found in database",
+        )
+
+    contacts = ds.get_contacts_for_company(company_id, limit=5)
+
+    return ToolResult(
+        data={"found": True, "company": company, "contacts": contacts},
+        sources=[Source(type="company", id=company_id, label=company.get("name", company_id))],
+    )
+
+
+@with_datastore
+def tool_search_companies(
+    query: str = "",
+    industry: str = "",
+    segment: str = "",
+    status: str = "",
+    region: str = "",
+    limit: int = 20,
+    datastore: CRMDataStore | None = None,
+) -> ToolResult:
+    """Search companies by various criteria."""
+    ds = datastore
+    assert ds is not None  # Guaranteed by @with_datastore
+
+    companies = ds.search_companies(
+        query=query, industry=industry, segment=segment, status=status, region=region, limit=limit
+    )
+
+    search_desc = []
+    if query:
+        search_desc.append(f"name='{query}'")
+    if industry:
+        search_desc.append(f"industry='{industry}'")
+    if segment:
+        search_desc.append(f"segment='{segment}'")
+    if status:
+        search_desc.append(f"status='{status}'")
+    if region:
+        search_desc.append(f"region='{region}'")
+
+    label = f"Companies: {', '.join(search_desc)}" if search_desc else "All companies"
+
+    return ToolResult(
+        data={
+            "count": len(companies),
+            "companies": companies,
+            "filters": {
+                "query": query,
+                "industry": industry,
+                "segment": segment,
+                "status": status,
+                "region": region,
+            },
+        },
+        sources=make_sources(companies, "companies", "search", label),
+    )
+
+
+@with_datastore
+def tool_search_contacts(
+    query: str = "",
+    role: str = "",
+    job_title: str = "",
+    company_id: str = "",
+    limit: int = 20,
+    datastore: CRMDataStore | None = None,
+) -> ToolResult:
+    """Search contacts by name, role, job title, or company."""
+    ds = datastore
+    assert ds is not None  # Guaranteed by @with_datastore
+
+    contacts = ds.search_contacts(
+        query=query, role=role, job_title=job_title, company_id=company_id, limit=limit
+    )
+
+    search_desc = []
+    if query:
+        search_desc.append(f"name/email='{query}'")
+    if role:
+        search_desc.append(f"role='{role}'")
+    if job_title:
+        search_desc.append(f"title='{job_title}'")
+    if company_id:
+        search_desc.append(f"company='{company_id}'")
+
+    label = f"Contacts: {', '.join(search_desc)}" if search_desc else "All contacts"
+
+    return ToolResult(
+        data={
+            "count": len(contacts),
+            "contacts": contacts,
+            "filters": {
+                "query": query,
+                "role": role,
+                "job_title": job_title,
+                "company_id": company_id,
+            },
+        },
+        sources=make_sources(contacts, "contacts", "search", label),
+    )
+
+
+@with_datastore
+def tool_search_attachments(
+    query: str = "",
+    company_id: str = "",
+    file_type: str = "",
+    limit: int = 20,
+    datastore: CRMDataStore | None = None,
+) -> ToolResult:
+    """Search attachments/documents by title, company, or file type."""
+    ds = datastore
+    assert ds is not None  # Guaranteed by @with_datastore
+
+    attachments = ds.search_attachments(
+        query=query, company_id=company_id, file_type=file_type, limit=limit
+    )
+
+    search_desc = []
+    if query:
+        search_desc.append(f"title='{query}'")
+    if company_id:
+        search_desc.append(f"company='{company_id}'")
+    if file_type:
+        search_desc.append(f"type='{file_type}'")
+
+    label = f"Attachments: {', '.join(search_desc)}" if search_desc else "All attachments"
+
+    return ToolResult(
+        data={
+            "count": len(attachments),
+            "attachments": attachments,
+            "filters": {"query": query, "company_id": company_id, "file_type": file_type},
+        },
+        sources=make_sources(attachments, "attachments", "search", label),
+    )
+
+
+@with_datastore
+def tool_accounts_needing_attention(
+    owner: str = "", limit: int = 20, datastore: CRMDataStore | None = None
+) -> ToolResult:
+    """Get accounts that need immediate attention (trial, churned, at-risk)."""
+    ds = datastore
+    assert ds is not None  # Guaranteed by @with_datastore
+
+    accounts = ds.get_accounts_needing_attention(owner=owner or None, limit=limit)
+
+    label = (
+        f"Accounts needing attention for {owner}"
+        if owner
+        else "Accounts needing immediate attention"
+    )
+
+    return ToolResult(
+        data={
+            "count": len(accounts),
+            "owner_filter": owner or None,
+            "accounts": accounts,
+        },
+        sources=make_sources(accounts, "companies", "attention", label),
+    )
+
+
+# =============================================================================
+# Intent Handlers
+# =============================================================================
+
+
 def handle_company_status(ctx: IntentContext) -> IntentResult:
     """Handle company_status and company-specific intents."""
+    # Import here to avoid circular imports
+    from backend.agent.handlers.activity import tool_recent_activity, tool_recent_history
+    from backend.agent.handlers.pipeline import tool_pipeline
+
     result = IntentResult(raw_data=empty_raw_data())
 
     query = ctx.resolved_company_id
@@ -57,9 +257,9 @@ def handle_company_status(ctx: IntentContext) -> IntentResult:
     result.raw_data["pipeline_summary"] = pipeline_result.data.get("summary")
 
     logger.info(
-        f"[Data] Fetched: activities={len(result.activities_data.get('activities', []))}, "
-        f"history={len(result.history_data.get('history', []))}, "
-        f"opps={len(result.pipeline_data.get('opportunities', []))}"
+        f"[Data] Fetched: activities={len((result.activities_data or {}).get('activities', []))}, "
+        f"history={len((result.history_data or {}).get('history', []))}, "
+        f"opps={len((result.pipeline_data or {}).get('opportunities', []))}"
     )
     return result
 
@@ -100,8 +300,15 @@ def handle_attachments(ctx: IntentContext) -> IntentResult:
 
 
 __all__ = [
+    # Handlers
     "handle_company_status",
     "handle_company_search",
     "handle_contacts",
     "handle_attachments",
+    # Tools (for backward compatibility)
+    "tool_company_lookup",
+    "tool_search_companies",
+    "tool_search_contacts",
+    "tool_search_attachments",
+    "tool_accounts_needing_attention",
 ]

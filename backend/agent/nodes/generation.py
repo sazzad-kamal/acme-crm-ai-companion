@@ -9,7 +9,7 @@ import time
 
 from backend.agent.core.state import AgentState
 from backend.agent.core.config import get_config
-from backend.agent.session.memory import format_history_for_prompt
+from backend.agent.shared.memory import format_history_for_prompt
 from backend.agent.output.formatters import (
     format_company_section,
     format_activities_section,
@@ -33,7 +33,7 @@ from backend.agent.llm.helpers import (
 logger = logging.getLogger(__name__)
 
 
-async def answer_node(state: AgentState) -> AgentState:
+def answer_node(state: AgentState) -> AgentState:
     config = get_config()
     start_time = time.time()
 
@@ -52,7 +52,7 @@ async def answer_node(state: AgentState) -> AgentState:
             )
 
             # Use LCEL chain for company not found
-            answer, llm_latency = await call_not_found_chain(
+            answer, llm_latency = call_not_found_chain(
                 question=state["question"],
                 query=company_data.get("query", "unknown"),
                 matches=matches_text,
@@ -77,7 +77,7 @@ async def answer_node(state: AgentState) -> AgentState:
             )
 
             # Use LCEL chain for answer synthesis
-            answer, llm_latency = await call_answer_chain(
+            answer, llm_latency = call_answer_chain(
                 question=state["question"],
                 conversation_history_section=conversation_history_section,
                 company_section=company_section,

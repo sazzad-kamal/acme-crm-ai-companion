@@ -24,10 +24,7 @@ export const config = {
   // Feature flags
   features: {
     showDataTables: true,
-    showSteps: true,
     showFollowUpSuggestions: true,
-    showSources: true,
-    showLatency: true,
   },
   
   // UI configuration
@@ -48,7 +45,7 @@ export const endpoints = {
 
 /**
  * Example prompts shown to new users (fallback if API unavailable).
- * Should match the starters in backend/agent/data/question_tree.json
+ * Should match the starters in backend/agent/question_tree/
  */
 export const EXAMPLE_PROMPTS = [
   "How's my pipeline?",

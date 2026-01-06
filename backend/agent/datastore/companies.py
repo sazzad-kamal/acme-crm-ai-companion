@@ -26,6 +26,8 @@ class CompanyMixin(_MixinBase):
             return None
 
         self._build_company_cache()
+        assert self._company_ids_cache is not None
+        assert self._company_names_cache is not None
 
         # Check exact ID match
         if name_or_id in self._company_ids_cache:
@@ -50,6 +52,7 @@ class CompanyMixin(_MixinBase):
             return []
 
         self._build_company_cache()
+        assert self._company_names_cache is not None
 
         all_names = list(self._company_names_cache.keys())
         matches = get_close_matches(partial_name.lower(), all_names, n=limit, cutoff=0.4)

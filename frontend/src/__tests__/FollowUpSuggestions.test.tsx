@@ -183,15 +183,6 @@ describe("FollowUpSuggestions", () => {
     expect(buttons).toHaveLength(3);
   });
 
-  it("buttons have arrow indicator", () => {
-    const { container } = render(<FollowUpSuggestions {...defaultProps} />);
-
-    const arrows = container.querySelectorAll(".follow-up-btn__arrow");
-    expect(arrows).toHaveLength(3);
-    arrows.forEach((arrow) => {
-      expect(arrow).toHaveTextContent("→");
-    });
-  });
 
   it("buttons are keyboard focusable", () => {
     render(<FollowUpSuggestions {...defaultProps} />);

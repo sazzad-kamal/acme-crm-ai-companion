@@ -13,7 +13,6 @@ from backend.agent.core.config import (
 )
 from backend.agent.core.schemas import (
     Source,
-    Step,
     RawData,
     MetaInfo,
     ChatRequest,
@@ -24,7 +23,6 @@ from backend.agent.core.schemas import (
 from backend.agent.core.state import (
     AgentState,
     Message,
-    AgentProgress,
 )
 
 __all__ = [
@@ -35,7 +33,6 @@ __all__ = [
     "is_mock_mode",
     # Schemas
     "Source",
-    "Step",
     "RawData",
     "MetaInfo",
     "ChatRequest",
@@ -45,5 +42,4 @@ __all__ = [
     # State
     "AgentState",
     "Message",
-    "AgentProgress",
 ]

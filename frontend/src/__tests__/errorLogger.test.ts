@@ -96,6 +96,33 @@ describe("errorLogger", () => {
       expect(console.error).toHaveBeenCalledWith(expect.any(Error));
     });
 
+    it("converts non-string, non-Error values to Error objects", () => {
+      // Pass a number - should be converted via String()
+      logger.error("Error occurred", 42);
+      expect(console.error).toHaveBeenCalledWith(expect.any(Error));
+    });
+
+    it("converts object errors to Error objects", () => {
+      // Pass an object - should be converted via String()
+      logger.error("Error occurred", { code: 500 });
+      expect(console.error).toHaveBeenCalledWith(expect.any(Error));
+    });
+
+    it("handles null error gracefully (skips formatError)", () => {
+      // null is falsy, so the error ternary evaluates to undefined
+      logger.error("Error occurred", null);
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining("Error occurred"),
+        ""
+      );
+    });
+
+    it("handles array as error (converts to string)", () => {
+      // Arrays are truthy and get converted via String()
+      logger.error("Error occurred", [1, 2, 3]);
+      expect(console.error).toHaveBeenCalledWith(expect.any(Error));
+    });
+
     it("captureException extracts message from error", () => {
       const testError = new Error("Captured error message");
       logger.captureException(testError);
@@ -104,6 +131,25 @@ describe("errorLogger", () => {
         expect.stringContaining("Captured error message"),
         ""
       );
+    });
+  });
+
+  describe("warning with errors", () => {
+    it("logs warning with error object", () => {
+      const testError = new Error("Warning error");
+      logger.warn("Warning occurred", testError);
+
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining("Warning occurred"),
+        ""
+      );
+      // In dev mode, should also log the error with stack trace
+      expect(console.warn).toHaveBeenCalledWith(testError);
+    });
+
+    it("logs warning with string error", () => {
+      logger.warn("Warning occurred", "string warning");
+      expect(console.warn).toHaveBeenCalledWith(expect.any(Error));
     });
   });
 

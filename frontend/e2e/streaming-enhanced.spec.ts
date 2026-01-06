@@ -31,14 +31,18 @@ test.describe('Streaming Chat - Enhanced', () => {
     expect(answer).toBeTruthy();
   });
 
-  test('step pills show correct status icons', async ({ page }) => {
+  test('thinking indicator shows while processing', async ({ page }) => {
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
     await input.fill('What renewals are coming up?');
     await sendButton.click();
 
-    // Wait for answer to appear (steps may complete too fast to catch)
+    // Thinking indicator should appear while processing
+    const thinkingIndicator = page.locator('.message__thinking');
+    await expect(thinkingIndicator).toBeVisible({ timeout: 5000 });
+
+    // Wait for answer to appear
     await expect(page.locator('.message__answer')).toBeVisible({ timeout: 30000 });
 
     // Verify the response was received
@@ -46,20 +50,20 @@ test.describe('Streaming Chat - Enhanced', () => {
     expect(answer).toBeTruthy();
   });
 
-  test('streaming indicator has pulsing animation', async ({ page }) => {
+  test('thinking indicator has animated dots', async ({ page }) => {
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
     await input.fill('How do I create an opportunity?');
     await sendButton.click();
 
-    // Streaming dot should be visible
-    const pulsingDot = page.locator('.streaming-status__dot');
-    await expect(pulsingDot).toBeVisible({ timeout: 5000 });
+    // Thinking indicator with dots should be visible
+    const thinkingIndicator = page.locator('.message__thinking');
+    await expect(thinkingIndicator).toBeVisible({ timeout: 5000 });
 
-    // Dot should exist with the streaming-status__dot class (animation is CSS-based)
-    const className = await pulsingDot.getAttribute('class');
-    expect(className).toContain('streaming-status__dot');
+    // Should have animated dots
+    const dots = thinkingIndicator.locator('.message__thinking-dot');
+    await expect(dots).toHaveCount(3);
   });
 
   test('streaming preserves answer formatting', async ({ page }) => {
@@ -131,15 +135,21 @@ test.describe('Streaming Progress Tracking', () => {
     expect(answer).toBeTruthy();
   });
 
-  test('step pills transition from pending to done', async ({ page }) => {
+  test('thinking indicator transitions to answer', async ({ page }) => {
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
     await input.fill('What accounts have upcoming renewals?');
     await sendButton.click();
 
-    // Wait for answer to appear (steps complete fast with mock LLM)
+    // Thinking indicator should appear first
+    await expect(page.locator('.message__thinking')).toBeVisible({ timeout: 5000 });
+
+    // Wait for answer to appear
     await expect(page.locator('.message__answer')).toBeVisible({ timeout: 30000 });
+
+    // Thinking indicator should be gone
+    await expect(page.locator('.message__thinking')).not.toBeVisible();
 
     // Verify answer content
     const answer = await page.locator('.message__answer').textContent();
@@ -251,36 +261,26 @@ test.describe('Streaming Error Handling - Enhanced', () => {
 });
 
 test.describe('Streaming Performance - Enhanced', () => {
-  test('measures first byte time (TTFB)', async ({ page }) => {
+  test('measures time to thinking indicator', async ({ page }) => {
     await page.goto('/');
 
     const input = page.getByRole('textbox', { name: /ask a question/i });
     const sendButton = page.getByRole('button', { name: /send/i });
 
     const startTime = Date.now();
-    let firstEventTime = 0;
-
-    // Listen for first SSE event
-    page.on('response', response => {
-      if (response.url().includes('/api/chat/stream') && !firstEventTime) {
-        firstEventTime = Date.now();
-      }
-    });
 
     await input.fill('What is the pipeline?');
     await sendButton.click();
 
-    // Wait for streaming to start
-    await expect(page.locator('.streaming-status')).toBeVisible({ timeout: 5000 });
+    // Wait for thinking indicator to appear
+    await expect(page.locator('.message__thinking')).toBeVisible({ timeout: 5000 });
 
-    if (firstEventTime > 0) {
-      const ttfb = firstEventTime - startTime;
-      console.log(`Time to First Byte: ${ttfb}ms`);
-      expect(ttfb).toBeLessThan(3000);
-    }
+    const elapsed = Date.now() - startTime;
+    console.log(`Time to thinking indicator: ${elapsed}ms`);
+    expect(elapsed).toBeLessThan(3000);
   });
 
-  test('streaming shows progress within 1 second', async ({ page }) => {
+  test('thinking indicator appears within 1 second', async ({ page }) => {
     await page.goto('/');
 
     const input = page.getByRole('textbox', { name: /ask a question/i });
@@ -291,8 +291,8 @@ test.describe('Streaming Performance - Enhanced', () => {
     await input.fill('What renewals are coming up?');
     await sendButton.click();
 
-    // Streaming indicator should appear within 1 second
-    await expect(page.locator('.streaming-status')).toBeVisible({ timeout: 1000 });
+    // Thinking indicator should appear within 1 second
+    await expect(page.locator('.message__thinking')).toBeVisible({ timeout: 1000 });
 
     const elapsed = Date.now() - startTime;
     expect(elapsed).toBeLessThan(1500);
@@ -321,7 +321,7 @@ test.describe('Streaming Performance - Enhanced', () => {
 });
 
 test.describe('Streaming Visual States', () => {
-  test('streaming status has correct visual styling', async ({ page }) => {
+  test('thinking indicator has correct visual styling', async ({ page }) => {
     await page.goto('/');
 
     const input = page.getByRole('textbox', { name: /ask a question/i });
@@ -329,6 +329,10 @@ test.describe('Streaming Visual States', () => {
 
     await input.fill('What is going on with Acme?');
     await sendButton.click();
+
+    // Thinking indicator should be visible with proper styling
+    const thinkingIndicator = page.locator('.message__thinking');
+    await expect(thinkingIndicator).toBeVisible({ timeout: 5000 });
 
     // Wait for answer to appear
     await expect(page.locator('.message__answer')).toBeVisible({ timeout: 30000 });
@@ -338,7 +342,7 @@ test.describe('Streaming Visual States', () => {
     expect(answer).toBeTruthy();
   });
 
-  test('step pills have correct visual states', async ({ page }) => {
+  test('answer displays with proper formatting', async ({ page }) => {
     await page.goto('/');
 
     const input = page.getByRole('textbox', { name: /ask a question/i });
@@ -350,8 +354,11 @@ test.describe('Streaming Visual States', () => {
     // Wait for answer to appear
     await expect(page.locator('.message__answer')).toBeVisible({ timeout: 30000 });
 
-    // Verify answer received
+    // Verify answer received and has content
     const answer = await page.locator('.message__answer').textContent();
     expect(answer).toBeTruthy();
+
+    // Copy button should be available
+    await expect(page.locator('.message__copy')).toBeVisible();
   });
 });

@@ -5,7 +5,6 @@ from pydantic import ValidationError
 
 from backend.agent.core.schemas import (
     Source,
-    Step,
     RawData,
     MetaInfo,
     ChatRequest,
@@ -35,28 +34,6 @@ class TestSource:
         """Test Source requires type, id, and label."""
         with pytest.raises(ValidationError):
             Source(type="company", id="123")  # missing label
-
-
-class TestStep:
-    """Tests for Step model."""
-
-    def test_step_creation(self):
-        """Test basic Step creation."""
-        step = Step(id="routing", label="Routing query")
-        assert step.id == "routing"
-        assert step.label == "Routing query"
-        assert step.status == "done"  # default
-
-    def test_step_status_values(self):
-        """Test Step with different status values."""
-        for status in ["done", "error", "skipped"]:
-            step = Step(id="test", label="Test", status=status)
-            assert step.status == status
-
-    def test_step_default_status_is_done(self):
-        """Test Step defaults to done status."""
-        step = Step(id="test", label="Test")
-        assert step.status == "done"
 
 
 class TestRawData:
@@ -153,24 +130,16 @@ class TestChatResponse:
         """Test ChatResponse with required fields."""
         response = ChatResponse(
             answer="Acme is a company.",
-            sources=[Source(type="company", id="C001", label="Acme")],
-            steps=[Step(id="route", label="Routing")],
             raw_data=RawData(),
-            meta=MetaInfo(mode_used="data", latency_ms=100),
         )
         assert response.answer == "Acme is a company."
-        assert len(response.sources) == 1
-        assert len(response.steps) == 1
         assert response.follow_up_suggestions == []  # default
 
     def test_chat_response_with_suggestions(self):
         """Test ChatResponse with follow-up suggestions."""
         response = ChatResponse(
             answer="Test answer",
-            sources=[],
-            steps=[],
             raw_data=RawData(),
-            meta=MetaInfo(mode_used="docs", latency_ms=50),
             follow_up_suggestions=["What else?", "Tell me more"],
         )
         assert len(response.follow_up_suggestions) == 2

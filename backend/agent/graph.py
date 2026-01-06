@@ -44,8 +44,16 @@ from backend.agent.nodes.routing import route_node
 from backend.agent.nodes.fetching import fetch_node
 from backend.agent.nodes.generation import answer_node, followup_node
 from backend.agent.output.audit import AgentAuditLogger
-from backend.agent.session.cache import make_cache_key, get_cached_result, set_cached_result, clear_query_cache
-from backend.agent.session.conversation import get_checkpointer, get_session_state, get_session_messages, build_thread_config
+from backend.agent.session import (
+    make_cache_key,
+    get_cached_result,
+    set_cached_result,
+    clear_query_cache,
+    get_checkpointer,
+    get_session_state,
+    get_session_messages,
+    build_thread_config,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -193,7 +201,6 @@ def run_agent(
             s.model_dump() if hasattr(s, "model_dump") else s
             for s in final_state.get("sources", [])
         ],
-        "steps": final_state.get("steps", []),
         "raw_data": final_state.get("raw_data", {}),
         "follow_up_suggestions": final_state.get("follow_up_suggestions", []),
         "meta": {

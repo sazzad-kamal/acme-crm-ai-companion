@@ -79,7 +79,6 @@ class TestRunAgent:
 
         assert "answer" in result
         assert "sources" in result
-        assert "steps" in result
         assert "raw_data" in result
         assert "follow_up_suggestions" in result
         assert "meta" in result
@@ -179,7 +178,7 @@ class TestGraphIntegration:
     @pytest.mark.integration
     @patch("backend.agent.llm.helpers.call_answer_chain")
     @patch("backend.agent.llm.router.route_question")
-    @patch("backend.agent.handlers.common.tool_company_lookup")
+    @patch("backend.agent.handlers.company.tool_company_lookup")
     def test_graph_execution_data_mode(self, mock_company, mock_route, mock_answer_chain):
         """Test graph execution in data mode."""
         from backend.agent.core.schemas import RouterResult, ToolResult, Source

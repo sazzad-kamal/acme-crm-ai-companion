@@ -264,6 +264,146 @@ More content here.`;
   });
 
   // =========================================================================
+  // Links
+  // =========================================================================
+
+  it("renders links with correct attributes", () => {
+    const { container } = render(
+      <MarkdownText text="Visit [Google](https://google.com) for search" />
+    );
+    const link = container.querySelector("a");
+    expect(link).toHaveAttribute("href", "https://google.com");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveClass("md-link");
+    expect(link).toHaveTextContent("Google");
+  });
+
+  it("renders multiple links", () => {
+    const { container } = render(
+      <MarkdownText text="[Link1](https://a.com) and [Link2](https://b.com)" />
+    );
+    const links = container.querySelectorAll("a");
+    expect(links).toHaveLength(2);
+  });
+
+  // =========================================================================
+  // Blockquotes
+  // =========================================================================
+
+  it("renders blockquotes", () => {
+    const { container } = render(
+      <MarkdownText text="> This is a quote" />
+    );
+    const blockquote = container.querySelector("blockquote");
+    expect(blockquote).toHaveClass("md-blockquote");
+    expect(blockquote).toHaveTextContent("This is a quote");
+  });
+
+  it("renders nested blockquotes", () => {
+    const { container } = render(
+      <MarkdownText text="> Outer quote\n>> Nested quote" />
+    );
+    const blockquotes = container.querySelectorAll("blockquote");
+    expect(blockquotes.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // =========================================================================
+  // Tables (GFM)
+  // =========================================================================
+
+  it("renders tables with proper structure", () => {
+    const tableMarkdown = `| Header 1 | Header 2 |
+| --- | --- |
+| Cell 1 | Cell 2 |
+| Cell 3 | Cell 4 |`;
+
+    const { container } = render(<MarkdownText text={tableMarkdown} />);
+
+    expect(container.querySelector(".md-table-wrapper")).toBeInTheDocument();
+    expect(container.querySelector("table")).toHaveClass("md-table");
+    expect(container.querySelector("thead")).toHaveClass("md-thead");
+    expect(container.querySelector("tbody")).toHaveClass("md-tbody");
+
+    const headers = container.querySelectorAll("th");
+    expect(headers).toHaveLength(2);
+    expect(headers[0]).toHaveClass("md-th");
+    expect(headers[0]).toHaveAttribute("scope", "col");
+
+    const cells = container.querySelectorAll("td");
+    expect(cells).toHaveLength(4);
+    expect(cells[0]).toHaveClass("md-td");
+
+    const rows = container.querySelectorAll("tr");
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    expect(rows[0]).toHaveClass("md-tr");
+  });
+
+  it("renders table wrapper with accessibility attributes", () => {
+    const tableMarkdown = `| A | B |
+| - | - |
+| 1 | 2 |`;
+
+    const { container } = render(<MarkdownText text={tableMarkdown} />);
+    const wrapper = container.querySelector(".md-table-wrapper");
+    expect(wrapper).toHaveAttribute("role", "region");
+    expect(wrapper).toHaveAttribute("aria-label", "Data table");
+  });
+
+  // =========================================================================
+  // Horizontal Rules
+  // =========================================================================
+
+  it("renders horizontal rules with dashes", () => {
+    const text = "Before\n\n---\n\nAfter";
+    const { container } = render(<MarkdownText text={text} />);
+    const hr = container.querySelector("hr");
+    expect(hr).toHaveClass("md-hr");
+  });
+
+  it("renders horizontal rules with underscores", () => {
+    const text = "Before\n\n___\n\nAfter";
+    const { container } = render(<MarkdownText text={text} />);
+    expect(container.querySelector("hr")).toBeInTheDocument();
+  });
+
+  // =========================================================================
+  // Code Blocks with Language
+  // =========================================================================
+
+  it("renders pre element for code blocks", () => {
+    // react-markdown wraps fenced code blocks in pre
+    const codeBlock = "```\ncode here\n```";
+    const { container } = render(<MarkdownText text={codeBlock} />);
+    const pre = container.querySelector("pre");
+    expect(pre).toHaveClass("md-pre");
+  });
+
+  it("renders code blocks with language identifier", () => {
+    const codeBlock = "```js\nconst x = 1;\n```";
+    const { container } = render(<MarkdownText text={codeBlock} />);
+    // Verify code block renders with content
+    expect(container.textContent).toContain("const x = 1");
+    expect(container.querySelector("pre")).toBeInTheDocument();
+  });
+
+  // =========================================================================
+  // Strong and Em with custom classes
+  // =========================================================================
+
+  it("renders strong with md-strong class", () => {
+    const { container } = render(<MarkdownText text="**bold text**" />);
+    const strong = container.querySelector("strong");
+    expect(strong).toHaveClass("md-strong");
+  });
+
+  it("renders em with md-em class", () => {
+    const { container } = render(<MarkdownText text="*italic text*" />);
+    const em = container.querySelector("em");
+    expect(em).toHaveClass("md-em");
+  });
+
+  // =========================================================================
   // Edge Cases
   // =========================================================================
 

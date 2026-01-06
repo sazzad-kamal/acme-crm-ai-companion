@@ -112,186 +112,86 @@ class TestLlmHelpersChains:
 
 
 class TestLlmHelpersCallFunctions:
-    """Tests for the call_* functions in llm_helpers."""
+    """Tests for the call_* functions in llm_helpers.
 
-    def test_call_answer_chain_mock_mode(self):
-        """Test call_answer_chain in mock mode."""
+    Note: These tests run with conftest.py autouse mock fixtures.
+    """
+
+    def test_call_answer_chain_returns_tuple(self):
+        """Test call_answer_chain returns (answer, latency) tuple."""
         from backend.agent.llm.helpers import call_answer_chain
 
-        with patch("backend.agent.llm.helpers.is_mock_mode", return_value=True):
-            answer, latency = call_answer_chain(
-                question="What is the pipeline?",
-                conversation_history_section="",
-                company_section="Test Company",
-                activities_section="",
-                history_section="",
-                pipeline_section="Pipeline data",
-                renewals_section="",
-                docs_section="",
-            )
+        answer, latency = call_answer_chain(
+            question="What is the pipeline?",
+            conversation_history_section="",
+            company_section="Test Company",
+            activities_section="",
+            history_section="",
+            pipeline_section="Pipeline data",
+            renewals_section="",
+            docs_section="",
+        )
 
-            assert isinstance(answer, str)
-            assert latency == 100
+        assert isinstance(answer, str)
+        assert len(answer) > 0
+        assert isinstance(latency, int)
+        assert latency >= 0
 
-    def test_call_answer_chain_real_mode(self):
-        """Test call_answer_chain in real mode."""
-        from backend.agent.llm.helpers import call_answer_chain, _chains_cache
-
-        _chains_cache.clear()
-
-        with patch("backend.agent.llm.helpers.is_mock_mode", return_value=False), \
-             patch("backend.agent.llm.helpers._get_chain") as mock_get_chain:
-
-            mock_chain = MagicMock()
-            mock_chain.invoke.return_value = "Generated answer"
-            mock_get_chain.return_value = mock_chain
-
-            answer, latency = call_answer_chain(
-                question="What is the pipeline?",
-                conversation_history_section="",
-                company_section="Test Company",
-                activities_section="",
-                history_section="",
-                pipeline_section="Pipeline data",
-                renewals_section="",
-                docs_section="",
-            )
-
-            assert answer == "Generated answer"
-            assert latency >= 0
-            mock_chain.invoke.assert_called_once()
-
-        _chains_cache.clear()
-
-    def test_call_not_found_chain_mock_mode(self):
-        """Test call_not_found_chain in mock mode."""
+    def test_call_not_found_chain_returns_tuple(self):
+        """Test call_not_found_chain returns (answer, latency) tuple."""
         from backend.agent.llm.helpers import call_not_found_chain
 
-        with patch("backend.agent.llm.helpers.is_mock_mode", return_value=True):
-            answer, latency = call_not_found_chain(
-                question="Tell me about Acme",
-                query="Acme",
-                matches="Acme Corp, Acme Inc",
-            )
+        answer, latency = call_not_found_chain(
+            question="Tell me about Acme",
+            query="Acme",
+            matches="Acme Corp, Acme Inc",
+        )
 
-            assert isinstance(answer, str)
-            assert latency == 100
+        assert isinstance(answer, str)
+        assert len(answer) > 0
+        assert isinstance(latency, int)
 
-    def test_call_not_found_chain_real_mode(self):
-        """Test call_not_found_chain in real mode."""
-        from backend.agent.llm.helpers import call_not_found_chain, _chains_cache
-
-        _chains_cache.clear()
-
-        with patch("backend.agent.llm.helpers.is_mock_mode", return_value=False), \
-             patch("backend.agent.llm.helpers._get_chain") as mock_get_chain:
-
-            mock_chain = MagicMock()
-            mock_chain.invoke.return_value = "I couldn't find that company"
-            mock_get_chain.return_value = mock_chain
-
-            answer, latency = call_not_found_chain(
-                question="Tell me about Acme",
-                query="Acme",
-                matches="Acme Corp, Acme Inc",
-            )
-
-            assert answer == "I couldn't find that company"
-            mock_chain.invoke.assert_called_once()
-
-        _chains_cache.clear()
-
-    def test_call_docs_rag_mock_mode(self):
-        """Test call_docs_rag in mock mode."""
+    def test_call_docs_rag_returns_context_and_sources(self):
+        """Test call_docs_rag returns context and sources."""
         from backend.agent.llm.helpers import call_docs_rag
 
-        with patch("backend.agent.llm.helpers.is_mock_mode", return_value=True):
-            context, sources = call_docs_rag("How do I create a contact?")
+        context, sources = call_docs_rag("How do I create a contact?")
 
-            assert "documentation" in context.lower() or "settings" in context.lower()
-            assert len(sources) > 0
-            assert sources[0].type == "doc"
+        assert isinstance(context, str)
+        assert isinstance(sources, list)
 
-    def test_call_docs_rag_real_mode_success(self):
-        """Test call_docs_rag in real mode with success."""
-        from backend.agent.llm.helpers import call_docs_rag
-        from backend.agent.core.schemas import Source
-
-        with patch("backend.agent.llm.helpers.is_mock_mode", return_value=False), \
-             patch("backend.agent.rag.tools.tool_docs_rag") as mock_tool:
-
-            mock_tool.return_value = ("Docs context", [Source(type="doc", id="doc1", label="Doc 1")])
-
-            context, sources = call_docs_rag("How do I create a contact?")
-
-            assert context == "Docs context"
-            assert len(sources) == 1
-
-    def test_call_docs_rag_real_mode_exception(self):
-        """Test call_docs_rag handles exceptions gracefully."""
-        from backend.agent.llm.helpers import call_docs_rag
-
-        with patch("backend.agent.llm.helpers.is_mock_mode", return_value=False), \
-             patch("backend.agent.rag.tools.tool_docs_rag", side_effect=Exception("RAG error")):
-
-            context, sources = call_docs_rag("How do I create a contact?")
-
-            assert context == ""
-            assert sources == []
-
-    def test_call_account_rag_mock_mode(self):
-        """Test call_account_rag in mock mode."""
+    def test_call_account_rag_returns_context_and_sources(self):
+        """Test call_account_rag returns context and sources."""
         from backend.agent.llm.helpers import call_account_rag
 
-        with patch("backend.agent.llm.helpers.is_mock_mode", return_value=True):
-            context, sources = call_account_rag("What are the notes?", "COMP001")
+        context, sources = call_account_rag("What are the notes?", "COMP001")
 
-            assert "account" in context.lower() or "notes" in context.lower()
-            assert len(sources) > 0
-
-    def test_call_account_rag_real_mode_exception(self):
-        """Test call_account_rag handles exceptions gracefully."""
-        from backend.agent.llm.helpers import call_account_rag
-
-        with patch("backend.agent.llm.helpers.is_mock_mode", return_value=False), \
-             patch("backend.agent.rag.tools.tool_account_rag", side_effect=Exception("RAG error")):
-
-            context, sources = call_account_rag("What are the notes?", "COMP001")
-
-            assert context == ""
-            assert sources == []
+        assert isinstance(context, str)
+        assert isinstance(sources, list)
 
 
 class TestLlmHelpersFollowUp:
-    """Tests for follow-up suggestion generation."""
+    """Tests for follow-up suggestion generation.
 
-    def test_generate_follow_up_disabled(self):
-        """Test generate_follow_up_suggestions when disabled in config."""
+    Note: These tests run with conftest.py autouse mock fixtures.
+    """
+
+    def test_generate_follow_up_returns_list(self):
+        """Test generate_follow_up_suggestions returns a list."""
         from backend.agent.llm.helpers import generate_follow_up_suggestions
 
-        with patch("backend.agent.llm.helpers.get_config") as mock_config:
-            mock_cfg = MagicMock()
-            mock_cfg.enable_follow_up_suggestions = False
-            mock_config.return_value = mock_cfg
+        result = generate_follow_up_suggestions(
+            question="What is the pipeline?",
+            mode="data",
+        )
 
-            result = generate_follow_up_suggestions(
-                question="What is the pipeline?",
-                mode="data",
-            )
+        assert isinstance(result, list)
 
-            assert result == []
-
-    def test_generate_follow_up_hardcoded_tree(self):
+    def test_generate_follow_up_with_hardcoded_tree(self):
         """Test generate_follow_up_suggestions uses hardcoded tree."""
         from backend.agent.llm.helpers import generate_follow_up_suggestions
 
-        with patch("backend.agent.llm.helpers.get_config") as mock_config, \
-             patch("backend.agent.question_tree.get_follow_ups") as mock_get_followups:
-
-            mock_cfg = MagicMock()
-            mock_cfg.enable_follow_up_suggestions = True
-            mock_config.return_value = mock_cfg
-
+        with patch("backend.agent.question_tree.get_follow_ups") as mock_get_followups:
             mock_get_followups.return_value = ["Follow-up 1", "Follow-up 2"]
 
             result = generate_follow_up_suggestions(
@@ -302,56 +202,16 @@ class TestLlmHelpersFollowUp:
 
             assert result == ["Follow-up 1", "Follow-up 2"]
 
-    def test_generate_follow_up_mock_mode(self):
-        """Test generate_follow_up_suggestions in mock mode."""
+    def test_generate_follow_up_limited_to_three(self):
+        """Test generate_follow_up_suggestions returns at most 3 suggestions."""
         from backend.agent.llm.helpers import generate_follow_up_suggestions
 
-        with patch("backend.agent.llm.helpers.get_config") as mock_config, \
-             patch("backend.agent.llm.helpers.is_mock_mode", return_value=True), \
-             patch("backend.agent.question_tree.get_follow_ups", return_value=[]):
+        result = generate_follow_up_suggestions(
+            question="Test question",
+            mode="data",
+        )
 
-            mock_cfg = MagicMock()
-            mock_cfg.enable_follow_up_suggestions = True
-            mock_config.return_value = mock_cfg
-
-            result = generate_follow_up_suggestions(
-                question="What is the pipeline?",
-                mode="data",
-                company_name="TestCorp",
-                available_data={"opportunities": 5, "activities": 3},
-            )
-
-            # Should return mock suggestions based on available_data
-            assert len(result) > 0
-
-    def test_generate_follow_up_llm_failure(self):
-        """Test generate_follow_up_suggestions handles LLM failures."""
-        from backend.agent.llm.helpers import generate_follow_up_suggestions, _chains_cache
-
-        _chains_cache.clear()
-
-        with patch("backend.agent.llm.helpers.get_config") as mock_config, \
-             patch("backend.agent.llm.helpers.is_mock_mode", return_value=False), \
-             patch("backend.agent.question_tree.get_follow_ups", return_value=[]), \
-             patch("backend.agent.llm.helpers._get_chain") as mock_get_chain:
-
-            mock_cfg = MagicMock()
-            mock_cfg.enable_follow_up_suggestions = True
-            mock_config.return_value = mock_cfg
-
-            mock_chain = MagicMock()
-            mock_chain.invoke.side_effect = Exception("LLM error")
-            mock_get_chain.return_value = mock_chain
-
-            result = generate_follow_up_suggestions(
-                question="What is the pipeline?",
-                mode="data",
-                use_hardcoded_tree=False,
-            )
-
-            assert result == []
-
-        _chains_cache.clear()
+        assert len(result) <= 3
 
 
 class TestLlmRouter:
@@ -431,52 +291,18 @@ class TestLlmRouter:
         assert result.mode_used == "data"
         assert result.company_id == "COMP001"
 
-    def test_llm_route_mock_mode(self):
-        """Test llm_route_question in mock mode."""
+    def test_llm_route_auto_mode(self):
+        """Test llm_route_question with auto mode (uses mocked fixture)."""
         from backend.agent.llm.router import llm_route_question
 
-        with patch("backend.agent.llm.router.is_mock_mode", return_value=True):
-            result = llm_route_question(
-                question="Tell me about Acme",
-                mode="auto",
-            )
+        result = llm_route_question(
+            question="What is Acme's pipeline?",
+            mode="auto",
+        )
 
-            assert result.mode_used == "data+docs"
-
-    def test_llm_route_with_llm(self):
-        """Test llm_route_question with actual LLM call."""
-        from backend.agent.llm.router import llm_route_question, _router_chain
-
-        # Reset chain cache
-        import backend.agent.llm.router as router_module
-        router_module._router_chain = None
-
-        with patch("backend.agent.llm.router.is_mock_mode", return_value=False), \
-             patch("backend.agent.llm.router._call_llm_router") as mock_call:
-
-            mock_call.return_value = {
-                "mode": "data",
-                "intent": "pipeline_overview",
-                "company_name": "Acme Corp",
-                "days": 30,
-                "confidence": 0.9,
-                "key_entities": ["pipeline"],
-            }
-
-            mock_datastore = MagicMock()
-            mock_datastore.resolve_company_id.return_value = "COMP001"
-
-            result = llm_route_question(
-                question="What is Acme's pipeline?",
-                mode="auto",
-                datastore=mock_datastore,
-            )
-
-            assert result.mode_used == "data"
-            assert result.intent == "pipeline_overview"
-            assert result.company_id == "COMP001"
-
-        router_module._router_chain = None
+        # Mock fixture returns data+docs for auto mode
+        assert result.mode_used in ("data", "data+docs")
+        assert result.intent is not None
 
     def test_get_router_chain_caching(self):
         """Test that _get_router_chain caches the chain."""

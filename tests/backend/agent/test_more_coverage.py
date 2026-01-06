@@ -11,56 +11,56 @@ class TestConversationCheckpointer:
 
     def test_get_checkpointer_returns_saver(self):
         """Test get_checkpointer returns MemorySaver."""
-        from backend.agent.session.conversation import get_checkpointer
+        from backend.agent.session import get_checkpointer
 
         checkpointer = get_checkpointer()
         assert checkpointer is not None
 
     def test_get_session_state_not_found(self):
         """Test get_session_state returns None when not found."""
-        from backend.agent.session.conversation import get_session_state
+        from backend.agent.session import get_session_state
 
         result = get_session_state("nonexistent-session-id")
         assert result is None
 
     def test_get_session_state_exception(self):
         """Test get_session_state handles exceptions."""
-        from backend.agent.session import conversation
+        from backend.agent import session
 
-        original_checkpointer = conversation._checkpointer
+        original_checkpointer = session._checkpointer
 
-        with patch.object(conversation, "_checkpointer") as mock_cp:
+        with patch.object(session, "_checkpointer") as mock_cp:
             mock_cp.get.side_effect = Exception("Checkpointer error")
 
-            result = conversation.get_session_state("test-session")
+            result = session.get_session_state("test-session")
             assert result is None
 
-        conversation._checkpointer = original_checkpointer
+        session._checkpointer = original_checkpointer
 
     def test_get_session_messages_not_found(self):
         """Test get_session_messages returns empty list when not found."""
-        from backend.agent.session.conversation import get_session_messages
+        from backend.agent.session import get_session_messages
 
         result = get_session_messages("nonexistent-session-id")
         assert result == []
 
     def test_get_session_messages_exception(self):
         """Test get_session_messages handles exceptions."""
-        from backend.agent.session import conversation
+        from backend.agent import session
 
-        original_checkpointer = conversation._checkpointer
+        original_checkpointer = session._checkpointer
 
-        with patch.object(conversation, "_checkpointer") as mock_cp:
+        with patch.object(session, "_checkpointer") as mock_cp:
             mock_cp.get.side_effect = Exception("Checkpointer error")
 
-            result = conversation.get_session_messages("test-session")
+            result = session.get_session_messages("test-session")
             assert result == []
 
-        conversation._checkpointer = original_checkpointer
+        session._checkpointer = original_checkpointer
 
     def test_build_thread_config_with_session(self):
         """Test build_thread_config with session ID."""
-        from backend.agent.session.conversation import build_thread_config
+        from backend.agent.session import build_thread_config
 
         config = build_thread_config("my-session")
 
@@ -69,7 +69,7 @@ class TestConversationCheckpointer:
 
     def test_build_thread_config_without_session(self):
         """Test build_thread_config without session ID generates UUID."""
-        from backend.agent.session.conversation import build_thread_config
+        from backend.agent.session import build_thread_config
 
         config = build_thread_config(None)
 
@@ -84,7 +84,7 @@ class TestCompanyTools:
 
     def test_tool_company_lookup_not_found(self):
         """Test tool_company_lookup when company not found."""
-        from backend.agent.tools.company import tool_company_lookup
+        from backend.agent.handlers import tool_company_lookup
 
         mock_ds = MagicMock()
         mock_ds.resolve_company_id.return_value = None
@@ -98,7 +98,7 @@ class TestCompanyTools:
 
     def test_tool_company_lookup_found_no_data(self):
         """Test tool_company_lookup when ID resolved but no data."""
-        from backend.agent.tools.company import tool_company_lookup
+        from backend.agent.handlers import tool_company_lookup
 
         mock_ds = MagicMock()
         mock_ds.resolve_company_id.return_value = "COMP001"
@@ -111,7 +111,7 @@ class TestCompanyTools:
 
     def test_tool_search_contacts_empty_results(self):
         """Test tool_search_contacts with no results."""
-        from backend.agent.tools.company import tool_search_contacts
+        from backend.agent.handlers import tool_search_contacts
 
         mock_ds = MagicMock()
         mock_ds.search_contacts.return_value = []

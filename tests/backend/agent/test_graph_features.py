@@ -6,13 +6,15 @@ import pytest
 import time
 from unittest.mock import patch, MagicMock
 
-from backend.agent.session.cache import (
+from backend.agent.session import (
     make_cache_key,
     get_cached_result,
     set_cached_result,
     clear_query_cache,
-    _CACHE_TTL_SECONDS,
 )
+from backend.agent import session as session_module
+
+_CACHE_TTL_SECONDS = session_module._CACHE_TTL_SECONDS
 
 
 class TestQueryCache:
@@ -81,8 +83,8 @@ class TestQueryCache:
         set_cached_result("expire-key", test_result)
 
         # Manually expire the entry
-        from backend.agent.session import cache
-        cache._query_cache["expire-key"] = (test_result, time.time() - _CACHE_TTL_SECONDS - 1)
+        from backend.agent import session
+        session._query_cache["expire-key"] = (test_result, time.time() - _CACHE_TTL_SECONDS - 1)
 
         assert get_cached_result("expire-key") is None
 

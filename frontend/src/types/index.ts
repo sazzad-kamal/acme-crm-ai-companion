@@ -2,16 +2,33 @@
 // TypeScript Types for Acme CRM AI Companion
 // =============================================================================
 
-export interface Source {
-  type: "company" | "doc" | "activity" | "opportunity" | "history";
+// Nested data types
+interface PrivateText {
   id: string;
-  label: string;
+  type: string;
+  title: string;
+  text: string;
+  company_id?: string;
+  contact_id?: string;
+  opportunity_id?: string;
+  metadata?: {
+    created_at?: string;
+    file_type?: string;
+    history_type?: string;
+    [key: string]: unknown;
+  };
 }
 
-export interface Step {
-  id: string;
-  label: string;
-  status: "done" | "pending" | "running" | "error" | "skipped";
+interface Attachment {
+  attachment_id: string;
+  title: string;
+  summary: string;
+  file_type: string;
+  created_at: string;
+  file_name?: string;
+  company_id?: string;
+  contact_id?: string;
+  opportunity_id?: string;
 }
 
 // Internal types for RawData (not exported - only used within this module)
@@ -20,6 +37,7 @@ interface Company {
   name: string;
   plan: string;
   renewal_date: string;
+  _private_texts?: PrivateText[];
 }
 
 interface Activity {
@@ -37,6 +55,8 @@ interface Opportunity {
   stage: string;
   expected_close_date: string;
   value: number;
+  notes?: string;
+  _attachments?: Attachment[];
 }
 
 interface HistoryEntry {
@@ -64,20 +84,9 @@ export interface RawData {
   };
 }
 
-export interface Meta {
-  mode_used?: string;
-  latency_ms?: number;
-  model?: string;
-  company_id?: string;
-  days?: number;
-}
-
 export interface ChatResponse {
   answer: string;
-  sources?: Source[];
-  steps?: Step[];
   raw_data?: RawData;
-  meta?: Meta;
   follow_up_suggestions?: string[];
 }
 

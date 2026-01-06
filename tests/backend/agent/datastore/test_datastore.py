@@ -761,35 +761,6 @@ class TestCRMDataStoreAccountsNeedingAttention:
         assert len(result) <= 5
 
 
-class TestCRMDataStoreGroups:
-    """Tests for group methods."""
-
-    def test_get_group_returns_dict_or_none(self):
-        """Test get_group returns dict or None."""
-        store = CRMDataStore()
-        result = store.get_group("nonexistent")
-        # Either finds group or returns None
-        assert result is None or isinstance(result, dict)
-
-    def test_get_all_groups_returns_list(self):
-        """Test get_all_groups returns list."""
-        store = CRMDataStore()
-        result = store.get_all_groups()
-        assert isinstance(result, list)
-
-    def test_get_group_members_returns_list(self):
-        """Test get_group_members returns list."""
-        store = CRMDataStore()
-        result = store.get_group_members("G001")
-        assert isinstance(result, list)
-
-    def test_get_group_members_respects_limit(self):
-        """Test get_group_members respects limit."""
-        store = CRMDataStore()
-        result = store.get_group_members("G001", limit=5)
-        assert len(result) <= 5
-
-
 class TestCRMDataStoreAccountsByGroup:
     """Tests for get_accounts_by_group method."""
 
