@@ -12,7 +12,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from backend.agent.nodes.state import AgentState
 from backend.agent.nodes.routing import route_node
 from backend.agent.nodes.fetching import fetch_node
-from backend.agent.nodes.generation import answer_node, followup_node
+from backend.agent.nodes.answer import answer_node
+from backend.agent.nodes.followup import followup_node
 
 _checkpointer = MemorySaver()
 

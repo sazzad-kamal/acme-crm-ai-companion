@@ -54,7 +54,8 @@ class TestGraphStructure:
             _fetch_docs,
             _fetch_account_context,
         )
-        from backend.agent.nodes.generation import answer_node, followup_node
+        from backend.agent.nodes.answer import answer_node
+        from backend.agent.nodes.followup import followup_node
 
         # Verify all functions are callable
         assert callable(route_node)
