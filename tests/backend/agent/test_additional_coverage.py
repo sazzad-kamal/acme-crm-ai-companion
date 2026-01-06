@@ -294,11 +294,12 @@ class TestLlmRouterAutoMode:
         """Test llm_route_question with explicit mode bypasses LLM."""
         from backend.agent.llm.router import llm_route_question
 
-        # Explicit mode should not call LLM
+        # Explicit mode should not call LLM but mock detects intent from keywords
         result = llm_route_question("What's Acme's pipeline?", mode="data")
 
         assert result.mode_used == "data"
-        assert result.intent == "general"
+        # Mock now detects company_status intent from "acme" keyword
+        assert result.intent == "company_status"
 
     def test_llm_route_question_with_company_id(self):
         """Test llm_route_question passes company_id through."""

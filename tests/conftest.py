@@ -214,11 +214,34 @@ def mock_llm():
         conversation_history: str = "",
     ) -> RouterResult:
         from backend.agent.llm.router import detect_owner_from_starter
+
+        # Detect intent based on question keywords
+        q = question.lower()
+        intent = "general"
+
+        # Team/aggregate queries -> pipeline_summary
+        if any(kw in q for kw in ["team", "how's my pipeline", "hows my pipeline", "pipeline summary"]):
+            intent = "pipeline_summary"
+        elif "forecast" in q:
+            intent = "forecast"
+        elif any(kw in q for kw in ["at risk", "at-risk", "stalled", "deals at risk"]):
+            intent = "deals_at_risk"
+        elif "renewal" in q:
+            intent = "renewals"
+        elif "pipeline" in q and company_id:
+            intent = "pipeline"
+        elif any(kw in q for kw in ["contact", "who"]):
+            intent = "contact_search" if not company_id else "contact_lookup"
+        elif any(kw in q for kw in ["activit", "recent"]):
+            intent = "activities" if not company_id else "history"
+        elif company_id or any(name in q for name in ["acme", "beta", "crown", "delta", "echo"]):
+            intent = "company_status"
+
         return RouterResult(
             mode_used="data+docs" if mode == "auto" else mode,
             company_id=company_id,
             days=30,
-            intent="general",
+            intent=intent,
             owner=detect_owner_from_starter(question),
         )
 

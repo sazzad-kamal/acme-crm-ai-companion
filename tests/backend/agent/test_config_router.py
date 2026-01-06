@@ -162,9 +162,9 @@ class TestLLMRouter:
 
         result = route_question("What's going on with Acme Corp?")
 
-        # In mock mode, returns data+docs with general intent
+        # In mock mode, returns data+docs with company_status (detected from "acme")
         assert result.mode_used == "data+docs"
-        assert result.intent == "general"
+        assert result.intent == "company_status"
 
     def test_router_returns_default_days_in_mock(self):
         """Test that router returns default days in mock mode."""

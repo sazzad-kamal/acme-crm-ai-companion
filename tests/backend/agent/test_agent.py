@@ -239,9 +239,10 @@ class TestRouter:
         assert result.mode_used == "data+docs"
 
     def test_route_returns_default_intent_in_mock(self):
-        """Test that mock mode returns general intent."""
+        """Test that mock mode detects intent from keywords."""
         result = route_question("What's going on with Acme Manufacturing?")
-        assert result.intent == "general"
+        # Mock detects company_status from "acme" keyword
+        assert result.intent == "company_status"
 
     def test_route_returns_default_days_in_mock(self):
         """Test that mock mode returns default 30 days."""
