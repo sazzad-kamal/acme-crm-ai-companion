@@ -22,7 +22,7 @@ from backend.agent.fetch.handlers import (
     tool_forecast,
     tool_pipeline_by_owner,
 )
-from backend.agent.llm.router import route_question
+from backend.agent.route.router import route_question
 from backend.agent.graph import agent_graph, build_thread_config
 
 

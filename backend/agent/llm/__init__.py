@@ -1,11 +1,13 @@
 """
 LLM interaction module.
 
-Contains routing logic, helper functions, and prompt templates
-for LLM-based operations.
+Contains helper functions and prompt templates for LLM-based operations.
+
+Note: Router functions have moved to backend.agent.route.router
 """
 
-from backend.agent.llm.router import (
+# Re-export router functions for backward compatibility
+from backend.agent.route.router import (
     route_question,
     llm_route_question,
     detect_owner_from_starter,
@@ -21,16 +23,19 @@ from backend.agent.llm.helpers import (
 )
 from backend.agent.llm.prompts import (
     AGENT_SYSTEM_PROMPT,
-    ROUTER_SYSTEM_PROMPT,
-    ROUTER_EXAMPLES,
-    ROUTER_PROMPT_TEMPLATE,
     COMPANY_NOT_FOUND_TEMPLATE,
     DATA_ANSWER_TEMPLATE,
     FOLLOW_UP_PROMPT_TEMPLATE,
 )
+# Re-export router prompts for backward compatibility
+from backend.agent.route.prompts import (
+    ROUTER_SYSTEM_PROMPT,
+    ROUTER_EXAMPLES,
+    ROUTER_PROMPT_TEMPLATE,
+)
 
 __all__ = [
-    # Router
+    # Router (re-exported from route/)
     "route_question",
     "llm_route_question",
     "detect_owner_from_starter",

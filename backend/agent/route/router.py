@@ -25,7 +25,7 @@ from langchain_openai import ChatOpenAI
 from backend.agent.core.config import get_config
 from backend.agent.core.schemas import RouterResult
 from backend.agent.datastore import get_datastore, CRMDataStore
-from backend.agent.llm.prompts import ROUTER_EXAMPLES, ROUTER_PROMPT_TEMPLATE
+from backend.agent.route.prompts import ROUTER_EXAMPLES, ROUTER_PROMPT_TEMPLATE
 
 
 # Configure module logger

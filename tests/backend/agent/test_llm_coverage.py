@@ -219,12 +219,12 @@ class TestLlmRouter:
 
     def test_call_llm_router_direct(self):
         """Test _call_llm_router directly with mocked chain."""
-        from backend.agent.llm.router import _call_llm_router, LLMRouterResponse
-        import backend.agent.llm.router as router_module
+        from backend.agent.route.router import _call_llm_router, LLMRouterResponse
+        import backend.agent.route.router as router_module
 
         router_module._router_chain = None
 
-        with patch("backend.agent.llm.router._get_router_chain") as mock_get_chain:
+        with patch("backend.agent.route.router._get_router_chain") as mock_get_chain:
             mock_chain = MagicMock()
             mock_response = LLMRouterResponse(
                 mode="data",
@@ -251,12 +251,12 @@ class TestLlmRouter:
 
     def test_call_llm_router_no_history(self):
         """Test _call_llm_router without conversation history."""
-        from backend.agent.llm.router import _call_llm_router, LLMRouterResponse
-        import backend.agent.llm.router as router_module
+        from backend.agent.route.router import _call_llm_router, LLMRouterResponse
+        import backend.agent.route.router as router_module
 
         router_module._router_chain = None
 
-        with patch("backend.agent.llm.router._get_router_chain") as mock_get_chain:
+        with patch("backend.agent.route.router._get_router_chain") as mock_get_chain:
             mock_chain = MagicMock()
             mock_response = LLMRouterResponse(
                 mode="docs",
@@ -280,7 +280,7 @@ class TestLlmRouter:
 
     def test_llm_route_auto_mode(self):
         """Test llm_route_question (uses mocked fixture)."""
-        from backend.agent.llm.router import llm_route_question
+        from backend.agent.route.router import llm_route_question
 
         result = llm_route_question(question="What is Acme's pipeline?")
 
@@ -290,13 +290,13 @@ class TestLlmRouter:
 
     def test_get_router_chain_caching(self):
         """Test that _get_router_chain caches the chain."""
-        import backend.agent.llm.router as router_module
-        from backend.agent.llm.router import _get_router_chain
+        import backend.agent.route.router as router_module
+        from backend.agent.route.router import _get_router_chain
 
         router_module._router_chain = None
 
-        with patch("backend.agent.llm.router.ChatOpenAI") as mock_chat, \
-             patch("backend.agent.llm.router.get_config") as mock_config, \
+        with patch("backend.agent.route.router.ChatOpenAI") as mock_chat, \
+             patch("backend.agent.route.router.get_config") as mock_config, \
              patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
 
             mock_cfg = MagicMock()

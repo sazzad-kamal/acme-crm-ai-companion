@@ -10,7 +10,7 @@ import time
 from backend.agent.core.state import AgentState
 from backend.agent.core.config import get_config
 from backend.agent.core.memory import format_history_for_prompt
-from backend.agent.llm.router import route_question
+from backend.agent.route.router import route_question
 
 
 logger = logging.getLogger(__name__)

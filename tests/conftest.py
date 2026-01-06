@@ -211,7 +211,7 @@ def mock_llm():
         datastore=None,
         conversation_history: str = "",
     ) -> RouterResult:
-        from backend.agent.llm.router import detect_owner_from_starter
+        from backend.agent.route.router import detect_owner_from_starter
 
         # Detect intent based on question keywords
         q = question.lower()
@@ -249,7 +249,7 @@ def mock_llm():
          patch("backend.agent.llm.helpers.call_docs_rag", mock_call_docs_rag), \
          patch("backend.agent.llm.helpers.call_account_rag", mock_call_account_rag), \
          patch("backend.agent.llm.helpers.generate_follow_up_suggestions", mock_generate_follow_up_suggestions), \
-         patch("backend.agent.llm.router.llm_route_question", mock_llm_route_question):
+         patch("backend.agent.route.router.llm_route_question", mock_llm_route_question):
         yield
 
 

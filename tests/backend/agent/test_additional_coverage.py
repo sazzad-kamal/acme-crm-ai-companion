@@ -292,28 +292,28 @@ class TestLlmRouterAutoMode:
 
     def test_detect_owner_from_starter_sales(self):
         """Test detect_owner_from_starter detects sales rep."""
-        from backend.agent.llm.router import detect_owner_from_starter
+        from backend.agent.route.router import detect_owner_from_starter
 
         owner = detect_owner_from_starter("How's my pipeline?")
         assert owner == "jsmith"
 
     def test_detect_owner_from_starter_csm(self):
         """Test detect_owner_from_starter detects CSM."""
-        from backend.agent.llm.router import detect_owner_from_starter
+        from backend.agent.route.router import detect_owner_from_starter
 
         owner = detect_owner_from_starter("Any renewals at risk?")
         assert owner == "amartin"
 
     def test_detect_owner_from_starter_manager(self):
         """Test detect_owner_from_starter detects manager (None owner)."""
-        from backend.agent.llm.router import detect_owner_from_starter
+        from backend.agent.route.router import detect_owner_from_starter
 
         owner = detect_owner_from_starter("How's the team doing?")
         assert owner is None
 
     def test_detect_owner_from_starter_no_match(self):
         """Test detect_owner_from_starter returns None for non-starter."""
-        from backend.agent.llm.router import detect_owner_from_starter
+        from backend.agent.route.router import detect_owner_from_starter
 
         owner = detect_owner_from_starter("Random question")
         assert owner is None
