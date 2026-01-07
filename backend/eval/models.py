@@ -120,6 +120,7 @@ SLO_COMPANY_EXTRACTION = 0.90  # 90% company extraction accuracy
 SLO_FAITHFULNESS = 0.90  # 90% - critical for CRM, no hallucination allowed
 SLO_ANSWER_RELEVANCE = 0.85  # 85% - answers should address the question
 SLO_CONTEXT_PRECISION = 0.80  # 80% - good retrieval quality
+SLO_CONTEXT_RECALL = 0.70  # 70% - retrieved contexts should cover the answer
 SLO_ANSWER_CORRECTNESS = 0.70  # 70% - hardest metric, flexible answer formats
 SLO_SECURITY_PASS_RATE = 1.0  # 100% - all security tests must pass
 
@@ -128,10 +129,16 @@ SLO_FLOW_PATH_PASS_RATE = 0.85  # 85% of conversation paths should pass
 SLO_FLOW_QUESTION_PASS_RATE = 0.90  # 90% of individual questions should pass
 SLO_FLOW_FAITHFULNESS = 0.90  # 90% - critical for CRM, no hallucination allowed
 SLO_FLOW_RELEVANCE = 0.85  # 85% - answers should address the question
-SLO_FLOW_CONTEXT_PRECISION = 0.80  # 80% - good retrieval quality
+SLO_FLOW_CONTEXT_PRECISION = 0.80  # 80% - good retrieval quality (legacy combined)
 SLO_FLOW_ANSWER_CORRECTNESS = 0.70  # 70% - hardest metric, flexible answer formats
 SLO_FLOW_AVG_LATENCY_MS = 4000  # 4s average per question
 SLO_FLOW_P95_LATENCY_MS = 8000  # 8s P95 per question (flow has multi-turn overhead)
+
+# RAG source-specific SLOs (separate precision/recall for docs vs account)
+SLO_DOC_PRECISION = 0.80  # 80% - doc retrieval precision
+SLO_DOC_RECALL = 0.70  # 70% - doc retrieval recall
+SLO_ACCOUNT_PRECISION = 0.80  # 80% - account retrieval precision
+SLO_ACCOUNT_RECALL = 0.70  # 70% - account retrieval recall
 
 
 # =============================================================================
@@ -157,11 +164,16 @@ class FlowStepResult:
     expected_intent: str | None = None
     actual_intent: str | None = None
     intent_correct: bool = True
-    # RAGAS metrics (0.0-1.0)
+    # RAGAS metrics (0.0-1.0) - answer quality
     relevance_score: float = 0.0  # RAGAS answer_relevancy
     faithfulness_score: float = 0.0  # RAGAS faithfulness
-    context_precision_score: float = 0.0  # RAGAS context_precision
     answer_correctness_score: float = 0.0  # RAGAS answer_correctness
+    # RAGAS metrics (0.0-1.0) - retrieval quality by source
+    context_precision_score: float = 0.0  # Legacy combined (deprecated)
+    doc_precision_score: float = 0.0  # Doc RAG precision
+    doc_recall_score: float = 0.0  # Doc RAG recall
+    account_precision_score: float = 0.0  # Account RAG precision
+    account_recall_score: float = 0.0  # Account RAG recall
     judge_explanation: str = ""
     error: str | None = None
 
@@ -201,11 +213,16 @@ class FlowEvalResults:
     # Routing metrics
     company_extraction_accuracy: float = 0.0
     intent_accuracy: float = 0.0
-    # RAGAS metrics (0.0-1.0)
+    # RAGAS metrics (0.0-1.0) - answer quality
     avg_relevance: float = 0.0  # RAGAS answer_relevancy
     avg_faithfulness: float = 0.0  # RAGAS faithfulness
-    avg_context_precision: float = 0.0  # RAGAS context_precision
     avg_answer_correctness: float = 0.0  # RAGAS answer_correctness
+    # RAGAS metrics (0.0-1.0) - retrieval quality by source
+    avg_context_precision: float = 0.0  # Legacy combined (deprecated)
+    avg_doc_precision: float = 0.0  # Doc RAG precision
+    avg_doc_recall: float = 0.0  # Doc RAG recall
+    avg_account_precision: float = 0.0  # Account RAG precision
+    avg_account_recall: float = 0.0  # Account RAG recall
     # Latency
     total_latency_ms: int = 0
     avg_latency_per_question_ms: float = 0.0

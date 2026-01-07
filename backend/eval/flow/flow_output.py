@@ -11,9 +11,12 @@ from rich.table import Table
 from backend.eval.base import console, format_percentage
 from backend.eval.formatting import build_eval_table
 from backend.eval.models import (
+    SLO_ACCOUNT_PRECISION,
+    SLO_ACCOUNT_RECALL,
     SLO_COMPANY_EXTRACTION,
+    SLO_DOC_PRECISION,
+    SLO_DOC_RECALL,
     SLO_FLOW_ANSWER_CORRECTNESS,
-    SLO_FLOW_CONTEXT_PRECISION,
     SLO_FLOW_FAITHFULNESS,
     SLO_FLOW_PATH_PASS_RATE,
     SLO_FLOW_QUESTION_PASS_RATE,
@@ -43,10 +46,15 @@ def print_summary(results: FlowEvalResults) -> bool:
     q_slo_pass = results.question_pass_rate >= SLO_FLOW_QUESTION_PASS_RATE
     company_slo_pass = results.company_extraction_accuracy >= SLO_COMPANY_EXTRACTION
     intent_slo_pass = results.intent_accuracy >= SLO_ROUTER_ACCURACY
-    ctx_precision_slo_pass = results.avg_context_precision >= SLO_FLOW_CONTEXT_PRECISION
     relevance_slo_pass = results.avg_relevance >= SLO_FLOW_RELEVANCE
     faithfulness_slo_pass = results.avg_faithfulness >= SLO_FLOW_FAITHFULNESS
     answer_correctness_slo_pass = results.avg_answer_correctness >= SLO_FLOW_ANSWER_CORRECTNESS
+
+    # RAG source-specific SLOs
+    doc_precision_slo_pass = results.avg_doc_precision >= SLO_DOC_PRECISION
+    doc_recall_slo_pass = results.avg_doc_recall >= SLO_DOC_RECALL
+    account_precision_slo_pass = results.avg_account_precision >= SLO_ACCOUNT_PRECISION
+    account_recall_slo_pass = results.avg_account_recall >= SLO_ACCOUNT_RECALL
 
     # Compute latency SLO pass/fail
     routing_latency_pass = results.latency_routing_pct <= SLO_LATENCY_ROUTING_PCT
@@ -82,10 +90,28 @@ def print_summary(results: FlowEvalResults) -> bool:
             "Retrieval",
             [
                 (
-                    "  Context Precision",
-                    format_percentage(results.avg_context_precision),
-                    f">={format_percentage(SLO_FLOW_CONTEXT_PRECISION)}",
-                    ctx_precision_slo_pass,
+                    "  Doc Precision",
+                    format_percentage(results.avg_doc_precision),
+                    f">={format_percentage(SLO_DOC_PRECISION)}",
+                    doc_precision_slo_pass,
+                ),
+                (
+                    "  Doc Recall",
+                    format_percentage(results.avg_doc_recall),
+                    f">={format_percentage(SLO_DOC_RECALL)}",
+                    doc_recall_slo_pass,
+                ),
+                (
+                    "  Account Precision",
+                    format_percentage(results.avg_account_precision),
+                    f">={format_percentage(SLO_ACCOUNT_PRECISION)}",
+                    account_precision_slo_pass,
+                ),
+                (
+                    "  Account Recall",
+                    format_percentage(results.avg_account_recall),
+                    f">={format_percentage(SLO_ACCOUNT_RECALL)}",
+                    account_recall_slo_pass,
                 ),
                 (
                     "  latency",
@@ -141,7 +167,10 @@ def print_summary(results: FlowEvalResults) -> bool:
         and q_slo_pass
         and company_slo_pass
         and intent_slo_pass
-        and ctx_precision_slo_pass
+        and doc_precision_slo_pass
+        and doc_recall_slo_pass
+        and account_precision_slo_pass
+        and account_recall_slo_pass
         and relevance_slo_pass
         and faithfulness_slo_pass
         and answer_correctness_slo_pass
@@ -163,9 +192,16 @@ def _count_ragas_failures(step: FlowStepResult) -> int:
         count += 1
     if step.faithfulness_score < SLO_FLOW_FAITHFULNESS:
         count += 1
-    if step.context_precision_score < SLO_FLOW_CONTEXT_PRECISION:
-        count += 1
     if step.answer_correctness_score < SLO_FLOW_ANSWER_CORRECTNESS:
+        count += 1
+    # Count source-specific RAG failures (only if that source was used)
+    if step.doc_precision_score > 0 and step.doc_precision_score < SLO_DOC_PRECISION:
+        count += 1
+    if step.doc_recall_score > 0 and step.doc_recall_score < SLO_DOC_RECALL:
+        count += 1
+    if step.account_precision_score > 0 and step.account_precision_score < SLO_ACCOUNT_PRECISION:
+        count += 1
+    if step.account_recall_score > 0 and step.account_recall_score < SLO_ACCOUNT_RECALL:
         count += 1
     return count
 
@@ -196,30 +232,37 @@ def _print_slo_failures(results: FlowEvalResults) -> None:
         header_style="bold yellow",
     )
     failed_table.add_column("Path", style="dim", width=4)
-    failed_table.add_column("Question", width=45)
+    failed_table.add_column("Question", width=40)
     failed_table.add_column("R", justify="center", width=3)
     failed_table.add_column("F", justify="center", width=3)
-    failed_table.add_column("C", justify="center", width=3)
     failed_table.add_column("A", justify="center", width=3)
+    failed_table.add_column("Doc", justify="center", width=4)
+    failed_table.add_column("Acct", justify="center", width=4)
 
     def fmt(passed: bool) -> str:
         return "[green]Y[/green]" if passed else "[red]X[/red]"
 
     for path_id, step in shown:
-        question_display = step.question[:43] + "..." if len(step.question) > 43 else step.question
+        question_display = step.question[:38] + "..." if len(step.question) > 38 else step.question
 
         r_pass = step.relevance_score >= SLO_FLOW_RELEVANCE
         f_pass = step.faithfulness_score >= SLO_FLOW_FAITHFULNESS
-        c_pass = step.context_precision_score >= SLO_FLOW_CONTEXT_PRECISION
         a_pass = step.answer_correctness_score >= SLO_FLOW_ANSWER_CORRECTNESS
+        # Doc passes if both precision and recall pass (or source not used)
+        doc_pass = (step.doc_precision_score == 0 or step.doc_precision_score >= SLO_DOC_PRECISION) and \
+                   (step.doc_recall_score == 0 or step.doc_recall_score >= SLO_DOC_RECALL)
+        # Account passes if both precision and recall pass (or source not used)
+        acct_pass = (step.account_precision_score == 0 or step.account_precision_score >= SLO_ACCOUNT_PRECISION) and \
+                    (step.account_recall_score == 0 or step.account_recall_score >= SLO_ACCOUNT_RECALL)
 
         failed_table.add_row(
             str(path_id + 1),
             question_display,
             fmt(r_pass),
             fmt(f_pass),
-            fmt(c_pass),
             fmt(a_pass),
+            fmt(doc_pass),
+            fmt(acct_pass),
         )
 
     console.print(failed_table)
@@ -242,8 +285,11 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
             "intent_accuracy": results.intent_accuracy,
             "avg_relevance": results.avg_relevance,
             "avg_faithfulness": results.avg_faithfulness,
-            "avg_context_precision": results.avg_context_precision,
             "avg_answer_correctness": results.avg_answer_correctness,
+            "avg_doc_precision": results.avg_doc_precision,
+            "avg_doc_recall": results.avg_doc_recall,
+            "avg_account_precision": results.avg_account_precision,
+            "avg_account_recall": results.avg_account_recall,
             "total_latency_ms": results.total_latency_ms,
             "avg_latency_per_question_ms": results.avg_latency_per_question_ms,
             "p95_latency_ms": results.p95_latency_ms,
@@ -273,15 +319,30 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                 "target": SLO_FLOW_FAITHFULNESS,
                 "passed": results.avg_faithfulness >= SLO_FLOW_FAITHFULNESS,
             },
-            "context_precision": {
-                "value": results.avg_context_precision,
-                "target": SLO_FLOW_CONTEXT_PRECISION,
-                "passed": results.avg_context_precision >= SLO_FLOW_CONTEXT_PRECISION,
-            },
             "answer_correctness": {
                 "value": results.avg_answer_correctness,
                 "target": SLO_FLOW_ANSWER_CORRECTNESS,
                 "passed": results.avg_answer_correctness >= SLO_FLOW_ANSWER_CORRECTNESS,
+            },
+            "doc_precision": {
+                "value": results.avg_doc_precision,
+                "target": SLO_DOC_PRECISION,
+                "passed": results.avg_doc_precision >= SLO_DOC_PRECISION,
+            },
+            "doc_recall": {
+                "value": results.avg_doc_recall,
+                "target": SLO_DOC_RECALL,
+                "passed": results.avg_doc_recall >= SLO_DOC_RECALL,
+            },
+            "account_precision": {
+                "value": results.avg_account_precision,
+                "target": SLO_ACCOUNT_PRECISION,
+                "passed": results.avg_account_precision >= SLO_ACCOUNT_PRECISION,
+            },
+            "account_recall": {
+                "value": results.avg_account_recall,
+                "target": SLO_ACCOUNT_RECALL,
+                "passed": results.avg_account_recall >= SLO_ACCOUNT_RECALL,
             },
         },
         "tracked_metrics": {
@@ -298,8 +359,11 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                         "has_answer": s.has_answer,
                         "relevance_score": s.relevance_score,
                         "faithfulness_score": s.faithfulness_score,
-                        "context_precision_score": s.context_precision_score,
                         "answer_correctness_score": s.answer_correctness_score,
+                        "doc_precision_score": s.doc_precision_score,
+                        "doc_recall_score": s.doc_recall_score,
+                        "account_precision_score": s.account_precision_score,
+                        "account_recall_score": s.account_recall_score,
                         "latency_ms": s.latency_ms,
                         "judge_explanation": s.judge_explanation,
                         "error": s.error,

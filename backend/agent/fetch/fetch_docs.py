@@ -29,7 +29,7 @@ def fetch_docs_node(state: AgentState) -> AgentState:
         return {
             "docs_answer": docs_answer,
             "sources": docs_sources,  # Uses reducer to merge with other sources
-            "context_chunks": context_chunks,  # Individual chunks for RAGAS
+            "doc_chunks": context_chunks,  # Individual chunks for RAGAS (docs source)
         }
 
     except Exception as e:

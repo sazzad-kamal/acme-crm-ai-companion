@@ -102,9 +102,9 @@ class AgentState(TypedDict, total=False):
     # Sources accumulated from all steps (using reducer to append)
     sources: Annotated[list[Source], add]
 
-    # Individual context chunks for RAGAS evaluation
-    # Collects RAG chunks + DuckDB data as separate items (uses reducer to merge)
-    context_chunks: Annotated[list[str], add]
+    # Individual context chunks for RAGAS evaluation (separate by source)
+    doc_chunks: list[str]      # From fetch_docs (documentation RAG)
+    account_chunks: list[str]  # From fetch_account (private CRM text RAG)
 
     # Final outputs
     answer: str

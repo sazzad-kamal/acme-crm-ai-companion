@@ -128,31 +128,66 @@ async def test_single_question(
         # - Company expected but doesn't match -> False
         company_correct = (expected_company is None) or (actual_company_id == expected_company)
 
-        # Get actual context chunks from agent (not conversation history)
-        context_chunks = result.get("context_chunks", [])
+        # Get context chunks by source (separate for proper RAGAS evaluation)
+        doc_chunks = result.get("doc_chunks", [])
+        account_chunks = result.get("account_chunks", [])
 
         # Get expected answer for answer_correctness metric
         expected_answer = get_expected_answer(question)
 
-        # Run RAGAS judge if enabled and we have an answer
+        # Initialize RAGAS metrics
         relevance = 0.0
         faithfulness = 0.0
-        context_precision = 0.0
         answer_correctness = 0.0
+        doc_precision = 0.0
+        doc_recall = 0.0
+        account_precision = 0.0
+        account_recall = 0.0
         explanation = ""
 
         if use_judge and has_answer:
-            judge_result = await asyncio.wait_for(
-                asyncio.to_thread(
-                    judge_answer, question, answer, context_chunks, reference_answer=expected_answer, verbose=verbose
-                ),
-                timeout=120.0,  # 120s timeout to prevent hanging
-            )
-            relevance = judge_result.get("relevance", 0.0)
-            faithfulness = judge_result.get("faithfulness", 0.0)
-            context_precision = judge_result.get("context_precision", 0.0)
-            answer_correctness = judge_result.get("answer_correctness", 0.0)
-            explanation = judge_result.get("explanation", "")
+            # Evaluate doc RAG if chunks exist
+            if doc_chunks:
+                doc_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        judge_answer, question, answer, doc_chunks, reference_answer=expected_answer, verbose=verbose
+                    ),
+                    timeout=120.0,
+                )
+                doc_precision = doc_result.get("context_precision", 0.0)
+                doc_recall = doc_result.get("context_recall", 0.0)
+                # Use doc result for answer metrics if available
+                relevance = doc_result.get("answer_relevancy", 0.0)
+                faithfulness = doc_result.get("faithfulness", 0.0)
+                answer_correctness = doc_result.get("answer_correctness", 0.0)
+
+            # Evaluate account RAG if chunks exist
+            if account_chunks:
+                account_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        judge_answer, question, answer, account_chunks, reference_answer=expected_answer, verbose=verbose
+                    ),
+                    timeout=120.0,
+                )
+                account_precision = account_result.get("context_precision", 0.0)
+                account_recall = account_result.get("context_recall", 0.0)
+                # If no doc chunks, use account result for answer metrics
+                if not doc_chunks:
+                    relevance = account_result.get("answer_relevancy", 0.0)
+                    faithfulness = account_result.get("faithfulness", 0.0)
+                    answer_correctness = account_result.get("answer_correctness", 0.0)
+
+            # If neither source has chunks, evaluate with empty context
+            if not doc_chunks and not account_chunks:
+                fallback_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        judge_answer, question, answer, [], reference_answer=expected_answer, verbose=verbose
+                    ),
+                    timeout=120.0,
+                )
+                relevance = fallback_result.get("answer_relevancy", 0.0)
+                faithfulness = fallback_result.get("faithfulness", 0.0)
+                answer_correctness = fallback_result.get("answer_correctness", 0.0)
 
         return FlowStepResult(
             question=question,
@@ -167,8 +202,11 @@ async def test_single_question(
             intent_correct=actual_intent is not None,
             relevance_score=relevance,
             faithfulness_score=faithfulness,
-            context_precision_score=context_precision,
             answer_correctness_score=answer_correctness,
+            doc_precision_score=doc_precision,
+            doc_recall_score=doc_recall,
+            account_precision_score=account_precision,
+            account_recall_score=account_recall,
             judge_explanation=explanation,
             error=None,
         )
@@ -344,12 +382,20 @@ async def run_flow_eval(
     questions_passed = sum(sum(1 for s in r.steps if s.passed) for r in results)
     questions_failed = total_questions - questions_passed
 
-    # Calculate RAGAS metric averages (4 metrics)
+    # Calculate RAGAS metric averages
     all_steps = [s for r in results for s in r.steps]
     avg_relevance = sum(s.relevance_score for s in all_steps) / len(all_steps) if all_steps else 0.0
     avg_faithfulness = sum(s.faithfulness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
-    avg_context_precision = sum(s.context_precision_score for s in all_steps) / len(all_steps) if all_steps else 0.0
     avg_answer_correctness = sum(s.answer_correctness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
+
+    # Calculate source-specific RAG metrics (only for steps that have chunks from that source)
+    steps_with_doc = [s for s in all_steps if s.doc_precision_score > 0 or s.doc_recall_score > 0]
+    steps_with_account = [s for s in all_steps if s.account_precision_score > 0 or s.account_recall_score > 0]
+
+    avg_doc_precision = sum(s.doc_precision_score for s in steps_with_doc) / len(steps_with_doc) if steps_with_doc else 0.0
+    avg_doc_recall = sum(s.doc_recall_score for s in steps_with_doc) / len(steps_with_doc) if steps_with_doc else 0.0
+    avg_account_precision = sum(s.account_precision_score for s in steps_with_account) / len(steps_with_account) if steps_with_account else 0.0
+    avg_account_recall = sum(s.account_recall_score for s in steps_with_account) / len(steps_with_account) if steps_with_account else 0.0
 
     # Calculate routing accuracy
     # Only count questions that have expected company (skip questions without company context)
@@ -385,8 +431,11 @@ async def run_flow_eval(
         intent_accuracy=intent_accuracy,
         avg_relevance=avg_relevance,
         avg_faithfulness=avg_faithfulness,
-        avg_context_precision=avg_context_precision,
         avg_answer_correctness=avg_answer_correctness,
+        avg_doc_precision=avg_doc_precision,
+        avg_doc_recall=avg_doc_recall,
+        avg_account_precision=avg_account_precision,
+        avg_account_recall=avg_account_recall,
         total_latency_ms=total_latency,
         avg_latency_per_question_ms=avg_latency,
         p95_latency_ms=p95_latency,

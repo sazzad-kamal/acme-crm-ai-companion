@@ -49,7 +49,7 @@ def fetch_account_node(state: AgentState) -> AgentState:
         return {
             "account_context_answer": account_answer,
             "sources": account_sources,  # Uses reducer to merge with other sources
-            "context_chunks": context_chunks,  # Individual chunks for RAGAS
+            "account_chunks": context_chunks,  # Individual chunks for RAGAS (account source)
         }
 
     except Exception as e:

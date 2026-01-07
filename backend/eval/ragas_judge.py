@@ -15,7 +15,13 @@ from ragas.llms import LangchainLLMWrapper
 # Import metric CLASSES (not singleton instances) for thread-safe instantiation
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", DeprecationWarning)
-    from ragas.metrics import AnswerCorrectness, AnswerRelevancy, ContextPrecision, Faithfulness
+    from ragas.metrics import (
+        AnswerCorrectness,
+        AnswerRelevancy,
+        ContextPrecision,
+        ContextRecall,
+        Faithfulness,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -79,10 +85,13 @@ def evaluate_single(
         Faithfulness(llm=llm_factory()),
     ]
 
+    # Add context precision always (doesn't need reference)
+    metrics.append(ContextPrecision(llm=llm_factory()))
+
     if reference_answer:
         dataset_dict["reference"] = [reference_answer]
         metrics.extend([
-            ContextPrecision(llm=llm_factory()),
+            ContextRecall(llm=llm_factory()),
             AnswerCorrectness(llm=llm_factory()),
         ])
 
@@ -110,6 +119,7 @@ def evaluate_single(
             "answer_relevancy": get_score("answer_relevancy"),
             "faithfulness": get_score("faithfulness"),
             "context_precision": get_score("context_precision"),
+            "context_recall": get_score("context_recall"),
             "answer_correctness": get_score("answer_correctness"),
         }
     except Exception as e:
@@ -118,6 +128,7 @@ def evaluate_single(
             "answer_relevancy": 0.0,
             "faithfulness": 0.0,
             "context_precision": 0.0,
+            "context_recall": 0.0,
             "answer_correctness": 0.0,
         }
 
