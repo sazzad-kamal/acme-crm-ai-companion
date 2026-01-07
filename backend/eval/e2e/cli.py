@@ -100,7 +100,6 @@ def main(
 
     # Show LangSmith latency breakdown if requested
     if latency:
-        import time
         from backend.eval.langsmith_latency import print_latency_breakdown
         # Use elapsed time + 1 minute buffer to capture all runs from this eval
         elapsed_minutes = int((time.time() - eval_start_time) / 60) + 1

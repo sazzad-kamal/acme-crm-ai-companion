@@ -14,7 +14,7 @@ from backend.eval.formatting import console
 def get_latency_breakdown(
     minutes_ago: int = 10,
     project_name: str | None = None,
-    limit: int = 500,
+    limit: int = 1000,
 ) -> dict[str, dict]:
     """
     Fetch latency breakdown by node from LangSmith.
@@ -22,6 +22,7 @@ def get_latency_breakdown(
     Args:
         minutes_ago: Look back this many minutes for runs
         project_name: LangSmith project name (defaults to LANGCHAIN_PROJECT env var)
+        limit: Max runs to fetch (higher = more complete but slower)
 
     Returns:
         Dict mapping node_name -> {count, total_ms, avg_ms, min_ms, max_ms}
@@ -90,7 +91,7 @@ def print_latency_breakdown(
     project_name: str | None = None,
 ) -> None:
     """Print latency breakdown table from LangSmith data."""
-    breakdown = get_latency_breakdown(minutes_ago, project_name, limit=500)
+    breakdown = get_latency_breakdown(minutes_ago, project_name)
 
     if not breakdown:
         return
