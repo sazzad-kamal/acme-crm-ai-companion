@@ -6,7 +6,6 @@ Templates for generating follow-up question suggestions.
 
 from langchain_core.prompts import ChatPromptTemplate
 
-
 FOLLOW_UP_PROMPT_TEMPLATE = ChatPromptTemplate.from_messages(
     [
         ("system", "You are a helpful CRM assistant. Generate 3 follow-up question suggestions."),

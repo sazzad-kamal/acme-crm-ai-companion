@@ -17,10 +17,10 @@ from backend.eval.base import console, ensure_qdrant_collections
 
 # Register cleanup to prevent shutdown errors
 atexit.register(close_qdrant_client)
-from backend.eval.shared import save_eval_results
-from backend.eval.formatting import print_debug_failures
-from backend.eval.e2e.runner import run_e2e_eval
 from backend.eval.e2e.output import print_e2e_eval_results
+from backend.eval.e2e.runner import run_e2e_eval
+from backend.eval.formatting import print_debug_failures
+from backend.eval.shared import save_eval_results
 
 app = typer.Typer()
 

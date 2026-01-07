@@ -4,16 +4,15 @@ Shared LLM client infrastructure.
 Provides ChatOpenAI factory and chain creation used by both agent/ and eval/.
 """
 
-import os
 import logging
+import os
 from functools import lru_cache
 from typing import Any
 
-from pydantic import BaseModel
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
-
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +52,9 @@ def get_chat_model(
     if _requires_max_completion_tokens(model):
         return ChatOpenAI(
             model=model,
-            api_key=api_key,
+            api_key=api_key,  # type: ignore[arg-type]
             max_retries=3,
-            request_timeout=60,
+            request_timeout=60,  # type: ignore[call-arg]
             max_completion_tokens=max_tokens,
             streaming=streaming,
         )
@@ -63,8 +62,8 @@ def get_chat_model(
         return ChatOpenAI(
             model=model,
             temperature=temperature,
-            max_tokens=max_tokens,
-            api_key=api_key,
+            max_tokens=max_tokens,  # type: ignore[call-arg]
+            api_key=api_key,  # type: ignore[arg-type]
             max_retries=3,
             request_timeout=60,
             streaming=streaming,
@@ -98,9 +97,9 @@ def create_chain(
     if _requires_max_completion_tokens(model):
         llm = ChatOpenAI(
             model=model,
-            api_key=api_key,
+            api_key=api_key,  # type: ignore[arg-type]
             max_retries=3,
-            request_timeout=60,
+            request_timeout=60,  # type: ignore[call-arg]
             max_completion_tokens=max_tokens,
             streaming=streaming,
         )
@@ -108,8 +107,8 @@ def create_chain(
         llm = ChatOpenAI(
             model=model,
             temperature=temperature,
-            max_tokens=max_tokens,
-            api_key=api_key,
+            max_tokens=max_tokens,  # type: ignore[call-arg]
+            api_key=api_key,  # type: ignore[arg-type]
             streaming=streaming,
         )
 
@@ -142,7 +141,7 @@ def call_llm(
     """
     chat = get_chat_model(model, temperature, max_tokens, streaming=False)
 
-    messages = []
+    messages: list = []
     if system_prompt:
         messages.append(SystemMessage(content=system_prompt))
     messages.append(HumanMessage(content=prompt))
@@ -152,8 +151,8 @@ def call_llm(
     response = chat.invoke(messages)
     result = response.content or ""
 
-    logger.debug(f"LLM response received, len={len(result)}")
-    return result
+    logger.debug(f"LLM response received, len={len(str(result))}")
+    return str(result)
 
 
 __all__ = [

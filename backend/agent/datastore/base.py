@@ -7,9 +7,9 @@ Provides base class with DuckDB connection, table loading, and query helpers.
 from __future__ import annotations
 
 import threading
-from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Any, Protocol, TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Protocol
 
 import duckdb
 
@@ -93,7 +93,7 @@ class CRMDataStoreBase:
         self._company_names_cache: dict[str, str] | None = None
         self._company_ids_cache: set[str] | None = None
 
-    def __enter__(self) -> "CRMDataStoreBase":
+    def __enter__(self) -> CRMDataStoreBase:
         return self
 
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
@@ -137,14 +137,14 @@ class CRMDataStoreBase:
         result = self.conn.execute(query, params or []).fetchone()
         if not result:
             return None
-        return dict(zip([d[0] for d in self.conn.description], result))
+        return dict(zip([d[0] for d in self.conn.description], result, strict=True))
 
     def _fetch_all_dicts(self, query: str, params: list[Any] | None = None) -> list[dict[str, Any]]:
         result = self.conn.execute(query, params or []).fetchall()
         if not result:
             return []
         columns = [d[0] for d in self.conn.description]
-        return [dict(zip(columns, row)) for row in result]
+        return [dict(zip(columns, row, strict=True)) for row in result]
 
     def _ensure_core_tables(self) -> None:
         for table in REQUIRED_TABLES:

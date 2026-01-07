@@ -3,12 +3,13 @@
 import json
 import logging
 import time
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from fastapi.encoders import jsonable_encoder
 
-from backend.agent.core.state import AgentState
 from backend.agent.audit import AgentAuditLogger
+from backend.agent.core.state import AgentState
 from backend.agent.fetch.handlers.common import enrich_raw_data
 from backend.agent.graph import agent_graph, build_thread_config
 
@@ -50,7 +51,8 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
         "sources": [], "steps": [], "raw_data": {}, "follow_up_suggestions": [],
     }
 
-    final, phase = {}, None
+    final: dict[str, Any] = {}
+    phase: str | None = None
 
     try:
         async for e in agent_graph.astream_events(state, config=config, version="v2"):

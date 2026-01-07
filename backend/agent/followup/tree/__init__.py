@@ -49,6 +49,7 @@ __all__ = [
     "get_tree_stats",
     "validate_tree",
     "print_tree",
+    "get_expected_answer",
 ]
 
 # =============================================================================
@@ -58,6 +59,28 @@ __all__ = [
 _DATA_PATH = Path(__file__).parent / "data.json"
 with open(_DATA_PATH) as f:
     _raw_data: dict[str, list[str]] = json.load(f)
+
+# =============================================================================
+# Load Expected Answers (for RAGAS answer_correctness metric)
+# =============================================================================
+
+_EXPECTED_ANSWERS_PATH = Path(__file__).parent / "expected_answers.yaml"
+
+
+def _load_expected_answers() -> dict[str, str]:
+    """Load expected answers from YAML file."""
+    if _EXPECTED_ANSWERS_PATH.exists():
+        try:
+            import yaml  # type: ignore[import-untyped]
+            with open(_EXPECTED_ANSWERS_PATH, encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                return data if data else {}
+        except Exception:
+            return {}
+    return {}
+
+
+_EXPECTED_ANSWERS: dict[str, str] = _load_expected_answers()
 
 # Role mapping - starters are derived from this
 _ROLE_MAP = {
@@ -150,6 +173,19 @@ def get_follow_ups(question: str) -> list[str]:
     if question in _G:
         return list(_G.successors(question))
     return []
+
+
+def get_expected_answer(question: str) -> str | None:
+    """
+    Get the expected answer for a question (for RAGAS answer_correctness).
+
+    Args:
+        question: The question to look up
+
+    Returns:
+        Expected answer string, or None if not found
+    """
+    return _EXPECTED_ANSWERS.get(question)
 
 
 def get_paths_for_role(role: str | None = None) -> list[list[str]]:

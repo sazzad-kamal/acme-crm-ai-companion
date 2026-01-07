@@ -6,7 +6,6 @@ Defines request/response models that match the frontend contract.
 
 from pydantic import BaseModel, Field
 
-
 # =============================================================================
 # Source Models
 # =============================================================================

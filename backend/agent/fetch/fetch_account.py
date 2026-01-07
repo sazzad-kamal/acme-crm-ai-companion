@@ -6,7 +6,6 @@ import time
 from backend.agent.core.state import AgentState
 from backend.agent.fetch.rag import call_account_rag
 
-
 logger = logging.getLogger(__name__)
 
 

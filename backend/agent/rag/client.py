@@ -9,8 +9,7 @@ import threading
 
 from qdrant_client import QdrantClient
 
-from backend.agent.rag.config import QDRANT_PATH, DOCS_COLLECTION, EMBEDDING_MODEL
-
+from backend.agent.rag.config import DOCS_COLLECTION, EMBEDDING_MODEL, QDRANT_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +77,7 @@ def get_docs_index():
         if _docs_index is not None:
             return _docs_index
 
-        from llama_index.core import VectorStoreIndex, Settings
+        from llama_index.core import Settings, VectorStoreIndex
         from llama_index.vector_stores.qdrant import QdrantVectorStore
 
         Settings.embed_model = _get_embed_model()

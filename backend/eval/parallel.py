@@ -4,14 +4,17 @@ Parallel evaluation runner utilities.
 Thread-safe parallel execution with progress tracking.
 """
 
+from __future__ import annotations
+
 import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TypeVar, Callable, Optional
+from typing import TypeVar
 
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    BarColumn,
     TextColumn,
     TimeElapsedColumn,
 )
@@ -23,7 +26,7 @@ T = TypeVar("T")
 
 def run_parallel_evaluation(
     items: list[dict],
-    evaluate_fn: Callable[[dict, Optional[threading.Lock]], T],
+    evaluate_fn: Callable[[dict, threading.Lock | None], T],
     max_workers: int,
     description: str,
     id_field: str = "id",

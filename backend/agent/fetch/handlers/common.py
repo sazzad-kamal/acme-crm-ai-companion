@@ -8,15 +8,15 @@ Includes tool helpers merged from tools/base.py.
 import json
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache, wraps
 from pathlib import Path
-from typing import Callable, Any
+from typing import Any
 
 from backend.agent.core.state import Source
-from backend.agent.fetch.handlers.schemas import ToolResult
 from backend.agent.datastore import CRMDataStore, get_datastore
-
+from backend.agent.fetch.handlers.schemas import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +174,7 @@ def _load_private_texts() -> dict[str, list[dict[str, Any]]]:
         return {}
 
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    with open(jsonl_path, "r", encoding="utf-8") as f:
+    with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
@@ -198,7 +198,7 @@ def _load_attachments() -> dict[str, list[dict[str, Any]]]:
         return {}
 
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    with open(csv_path, "r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             opp_id = row.get("opportunity_id", "")

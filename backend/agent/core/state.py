@@ -5,11 +5,10 @@ This module defines the central state structure that flows through the graph.
 """
 
 import logging
-from typing import Any, TypedDict, Annotated
 from operator import add
+from typing import Annotated, Any, TypedDict
 
 from pydantic import BaseModel
-
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +101,10 @@ class AgentState(TypedDict, total=False):
 
     # Sources accumulated from all steps (using reducer to append)
     sources: Annotated[list[Source], add]
+
+    # Individual context chunks for RAGAS evaluation
+    # Collects RAG chunks + DuckDB data as separate items (uses reducer to merge)
+    context_chunks: Annotated[list[str], add]
 
     # Final outputs
     answer: str

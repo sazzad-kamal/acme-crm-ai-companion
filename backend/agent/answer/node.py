@@ -3,25 +3,24 @@
 import logging
 import time
 
-from backend.agent.core.state import AgentState
-from backend.agent.core.config import get_config
 from backend.agent.answer.formatters import (
-    format_company_section,
+    format_account_context_section,
     format_activities_section,
+    format_attachments_section,
+    format_company_section,
+    format_contacts_section,
+    format_docs_section,
+    format_groups_section,
     format_history_section,
     format_pipeline_section,
     format_renewals_section,
-    format_contacts_section,
-    format_groups_section,
-    format_attachments_section,
-    format_docs_section,
-    format_account_context_section,
 )
 from backend.agent.answer.llm import (
     call_answer_chain,
     call_not_found_chain,
 )
-
+from backend.agent.core.config import get_config
+from backend.agent.core.state import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -98,14 +97,14 @@ def answer_node(state: AgentState) -> AgentState:
         # Update messages for conversation memory (persisted via LangGraph checkpoint)
         messages = list(state.get("messages", []))
         messages.append(
-            {
+            {  # type: ignore[typeddict-unknown-key]
                 "role": "user",
                 "content": state["question"],
                 "company_id": state.get("resolved_company_id"),
             }
         )
         messages.append(
-            {
+            {  # type: ignore[typeddict-unknown-key]
                 "role": "assistant",
                 "content": answer,
                 "company_id": state.get("resolved_company_id"),
@@ -135,14 +134,14 @@ def answer_node(state: AgentState) -> AgentState:
         # Still update messages for conversation continuity
         messages = list(state.get("messages", []))
         messages.append(
-            {
+            {  # type: ignore[typeddict-unknown-key]
                 "role": "user",
                 "content": state["question"],
                 "company_id": state.get("resolved_company_id"),
             }
         )
         messages.append(
-            {
+            {  # type: ignore[typeddict-unknown-key]
                 "role": "assistant",
                 "content": error_answer,
                 "company_id": state.get("resolved_company_id"),

@@ -5,25 +5,24 @@ Handles company_status, company_search, contacts, and attachments intents.
 Includes tool functions merged from tools/company.py.
 """
 
-from backend.agent.fetch.handlers.extractors import (
-    extract_role_from_question,
-    extract_company_criteria,
-    extract_attachment_query,
-)
 from backend.agent.fetch.handlers.common import (
+    CRMDataStore,
     IntentContext,
     IntentResult,
-    empty_raw_data,
+    Source,
+    ToolResult,
     apply_tool_result,
+    empty_raw_data,
+    logger,
     lookup_company,
     make_sources,
     with_datastore,
-    ToolResult,
-    CRMDataStore,
-    Source,
-    logger,
 )
-
+from backend.agent.fetch.handlers.extractors import (
+    extract_attachment_query,
+    extract_company_criteria,
+    extract_role_from_question,
+)
 
 # =============================================================================
 # Tool Functions (merged from tools/company.py)

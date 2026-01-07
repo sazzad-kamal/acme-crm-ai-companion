@@ -6,7 +6,7 @@ Loads test cases from YAML file for cleaner separation of data and code.
 
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 
 def _load_test_cases() -> list[dict]:
@@ -24,7 +24,7 @@ def _load_test_cases() -> list[dict]:
                 "What is the status of Acme Manufacturing? " + "Please provide details. " * 100
             )
 
-    return cases
+    return cases  # type: ignore[no-any-return]
 
 
 E2E_TEST_CASES = _load_test_cases()

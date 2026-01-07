@@ -13,20 +13,19 @@ Uses LangChain's .with_structured_output() for reliable Pydantic parsing.
 import logging
 from typing import Literal
 
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
 )
-from langchain_openai import ChatOpenAI
 
 from backend.agent.core.config import get_config
-from backend.agent.route.schemas import RouterResult
-from backend.agent.datastore import get_datastore, CRMDataStore
+from backend.agent.datastore import CRMDataStore, get_datastore
 from backend.agent.route.prompts import ROUTER_EXAMPLES, ROUTER_PROMPT_TEMPLATE
-
+from backend.agent.route.schemas import RouterResult
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -147,7 +146,7 @@ def _get_router_chain():
     llm = ChatOpenAI(
         model=config.router_model,
         temperature=config.router_temperature,
-        api_key=os.environ.get("OPENAI_API_KEY"),
+        api_key=os.environ.get("OPENAI_API_KEY"),  # type: ignore[arg-type]
         max_retries=3,
     )
 

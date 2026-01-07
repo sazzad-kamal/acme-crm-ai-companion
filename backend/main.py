@@ -1,15 +1,16 @@
 """FastAPI backend for the CRM AI Companion."""
 
+import logging
 import os
 import time
 import uuid
-import logging
-from pathlib import Path
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Callable
+from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Response, APIRouter
+from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -35,7 +36,8 @@ logger = logging.getLogger(__name__)
 
 def _ensure_rag_collections() -> None:
     from qdrant_client import QdrantClient
-    from backend.agent.rag.config import QDRANT_PATH, DOCS_COLLECTION, PRIVATE_COLLECTION
+
+    from backend.agent.rag.config import DOCS_COLLECTION, PRIVATE_COLLECTION, QDRANT_PATH
     from backend.agent.rag.ingest import ingest_docs, ingest_private_texts
 
     for name, ingest_fn, label in [
@@ -63,12 +65,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
         request.state.request_id = request_id
         start = time.time()
 
-        response = await call_next(request)
+        response: Response = await call_next(request)
         ms = int((time.time() - start) * 1000)
 
         response.headers["X-Request-ID"] = request_id

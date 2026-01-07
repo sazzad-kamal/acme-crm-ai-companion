@@ -21,7 +21,6 @@ import csv
 import json
 from pathlib import Path
 
-
 CSV_DIR = Path(__file__).parent / "csv"
 
 
@@ -36,7 +35,7 @@ def merge_opportunity_descriptions() -> None:
 
     # Read opportunity descriptions
     desc_map: dict[str, str] = {}
-    with open(descs_path, "r", encoding="utf-8") as f:
+    with open(descs_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             opp_id = row.get("opportunity_id", "")
@@ -49,7 +48,7 @@ def merge_opportunity_descriptions() -> None:
     # Read opportunities and add notes column
     rows = []
     fieldnames = []
-    with open(opps_path, "r", encoding="utf-8") as f:
+    with open(opps_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         fieldnames = list(reader.fieldnames or [])
         if "notes" not in fieldnames:
@@ -76,7 +75,7 @@ def generate_private_texts() -> int:
     # 1. Opportunities (notes field)
     opps_path = CSV_DIR / "opportunities.csv"
     if opps_path.exists():
-        with open(opps_path, "r", encoding="utf-8") as f:
+        with open(opps_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 notes = row.get("notes", "").strip()
@@ -101,7 +100,7 @@ def generate_private_texts() -> int:
     history_path = CSV_DIR / "history.csv"
     if history_path.exists():
         count_before = len(records)
-        with open(history_path, "r", encoding="utf-8") as f:
+        with open(history_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 desc = row.get("description", "").strip()
@@ -127,7 +126,7 @@ def generate_private_texts() -> int:
     activities_path = CSV_DIR / "activities.csv"
     if activities_path.exists():
         count_before = len(records)
-        with open(activities_path, "r", encoding="utf-8") as f:
+        with open(activities_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 desc = row.get("description", "").strip()
@@ -154,7 +153,7 @@ def generate_private_texts() -> int:
     attachments_path = CSV_DIR / "attachments.csv"
     if attachments_path.exists():
         count_before = len(records)
-        with open(attachments_path, "r", encoding="utf-8") as f:
+        with open(attachments_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 summary = row.get("summary", "").strip()
@@ -178,7 +177,7 @@ def generate_private_texts() -> int:
     groups_path = CSV_DIR / "groups.csv"
     if groups_path.exists():
         count_before = len(records)
-        with open(groups_path, "r", encoding="utf-8") as f:
+        with open(groups_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 desc = row.get("description", "").strip()

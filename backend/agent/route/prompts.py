@@ -6,7 +6,6 @@ Defines prompts for LLM-based question routing.
 
 from langchain_core.prompts import ChatPromptTemplate
 
-
 ROUTER_SYSTEM_PROMPT = """You are a routing assistant for Acme CRM, a customer relationship management system.
 
 Your job is to analyze user questions and provide a complete understanding:

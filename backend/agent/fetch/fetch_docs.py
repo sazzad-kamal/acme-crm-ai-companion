@@ -6,7 +6,6 @@ import time
 from backend.agent.core.state import AgentState
 from backend.agent.fetch.rag import call_docs_rag
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -20,12 +19,17 @@ def fetch_docs_node(state: AgentState) -> AgentState:
     try:
         docs_answer, docs_sources = call_docs_rag(question)
 
+        # Split combined context back into individual chunks for RAGAS evaluation
+        # The RAG tool joins chunks with "\n\n---\n\n"
+        context_chunks = docs_answer.split("\n\n---\n\n") if docs_answer else []
+
         latency_ms = int((time.time() - start_time) * 1000)
-        logger.info(f"[FetchDocs] Complete in {latency_ms}ms, sources={len(docs_sources)}")
+        logger.info(f"[FetchDocs] Complete in {latency_ms}ms, sources={len(docs_sources)}, chunks={len(context_chunks)}")
 
         return {
             "docs_answer": docs_answer,
             "sources": docs_sources,  # Uses reducer to merge with other sources
+            "context_chunks": context_chunks,  # Individual chunks for RAGAS
         }
 
     except Exception as e:

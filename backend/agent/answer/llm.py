@@ -6,12 +6,12 @@ Chain creation and invocation for answer generation.
 
 import logging
 import time
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
-from backend.llm.client import create_chain
+from backend.agent.answer.prompts import COMPANY_NOT_FOUND_TEMPLATE, DATA_ANSWER_TEMPLATE
 from backend.agent.core.config import get_config
-from backend.agent.answer.prompts import DATA_ANSWER_TEMPLATE, COMPANY_NOT_FOUND_TEMPLATE
-
+from backend.llm.client import create_chain
 
 logger = logging.getLogger(__name__)
 

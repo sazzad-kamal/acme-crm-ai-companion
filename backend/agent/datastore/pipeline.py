@@ -7,7 +7,7 @@ Provides opportunity queries, pipeline summaries, forecasts, and deals at risk.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.agent.datastore.base import DataStoreMixinProtocol
@@ -35,7 +35,7 @@ class PipelineMixin(_MixinBase):
         ).fetchall()
 
         columns = [desc[0] for desc in self.conn.description]
-        return [dict(zip(columns, row)) for row in result]
+        return [dict(zip(columns, row, strict=True)) for row in result]
 
     def get_pipeline_summary(self, company_id: str) -> dict:
         self._ensure_table("opportunities")

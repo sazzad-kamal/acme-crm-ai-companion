@@ -5,21 +5,20 @@ Handles activities, analytics, and fallback intents.
 Includes tool functions merged from tools/activity.py.
 """
 
-from backend.agent.fetch.handlers.extractors import extract_activity_type
 from backend.agent.fetch.handlers.common import (
+    CRMDataStore,
     IntentContext,
     IntentResult,
-    empty_raw_data,
-    apply_tool_result,
-    safe_extend,
-    make_sources,
-    with_datastore,
-    ToolResult,
-    CRMDataStore,
     Source,
+    ToolResult,
+    apply_tool_result,
+    empty_raw_data,
     logger,
+    make_sources,
+    safe_extend,
+    with_datastore,
 )
-
+from backend.agent.fetch.handlers.extractors import extract_activity_type
 
 # =============================================================================
 # Tool Functions (merged from tools/activity.py)

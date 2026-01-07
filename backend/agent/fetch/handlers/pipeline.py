@@ -6,20 +6,19 @@ Includes tool functions merged from tools/pipeline.py.
 """
 
 from backend.agent.fetch.handlers.common import (
+    CRMDataStore,
     IntentContext,
     IntentResult,
-    empty_raw_data,
-    apply_tool_result,
-    lookup_company,
-    safe_extend,
-    make_sources,
-    with_datastore,
-    ToolResult,
-    CRMDataStore,
     Source,
+    ToolResult,
+    apply_tool_result,
+    empty_raw_data,
     logger,
+    lookup_company,
+    make_sources,
+    safe_extend,
+    with_datastore,
 )
-
 
 # =============================================================================
 # Tool Functions (merged from tools/pipeline.py)

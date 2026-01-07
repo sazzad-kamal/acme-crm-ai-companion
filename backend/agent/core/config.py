@@ -12,7 +12,6 @@ from pathlib import Path
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 # Configure module logger
 logger = logging.getLogger(__name__)
 

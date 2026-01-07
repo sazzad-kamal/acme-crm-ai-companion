@@ -8,51 +8,50 @@ Usage:
     from backend.agent.fetch.handlers import dispatch_intent, IntentContext, IntentResult
 """
 
-from backend.agent.fetch.handlers.common import (
-    IntentContext,
-    IntentResult,
-    make_sources,
-    with_datastore,
-    ToolResult,
-)
-from backend.agent.fetch.handlers.company import (
-    handle_company_status,
-    handle_company_search,
-    handle_contacts,
-    handle_attachments,
-    # Tools
-    tool_company_lookup,
-    tool_search_companies,
-    tool_search_contacts,
-    tool_search_attachments,
-    tool_accounts_needing_attention,
-)
-from backend.agent.fetch.handlers.pipeline import (
-    handle_pipeline_summary,
-    handle_renewals,
-    handle_deals_at_risk,
-    handle_forecast,
-    handle_forecast_accuracy,
-    # Tools
-    tool_pipeline,
-    tool_pipeline_summary,
-    tool_pipeline_by_owner,
-    tool_upcoming_renewals,
-    tool_deals_at_risk,
-    tool_forecast,
-    tool_forecast_accuracy,
-)
 from backend.agent.fetch.handlers.activity import (
     handle_activities,
     handle_analytics,
     handle_fallback,
+    tool_analytics,
     # Tools
     tool_recent_activity,
     tool_recent_history,
     tool_search_activities,
-    tool_analytics,
 )
-
+from backend.agent.fetch.handlers.common import (
+    IntentContext,
+    IntentResult,
+    ToolResult,
+    make_sources,
+    with_datastore,
+)
+from backend.agent.fetch.handlers.company import (
+    handle_attachments,
+    handle_company_search,
+    handle_company_status,
+    handle_contacts,
+    tool_accounts_needing_attention,
+    # Tools
+    tool_company_lookup,
+    tool_search_attachments,
+    tool_search_companies,
+    tool_search_contacts,
+)
+from backend.agent.fetch.handlers.pipeline import (
+    handle_deals_at_risk,
+    handle_forecast,
+    handle_forecast_accuracy,
+    handle_pipeline_summary,
+    handle_renewals,
+    tool_deals_at_risk,
+    tool_forecast,
+    tool_forecast_accuracy,
+    # Tools
+    tool_pipeline,
+    tool_pipeline_by_owner,
+    tool_pipeline_summary,
+    tool_upcoming_renewals,
+)
 
 # Intent dispatcher - maps intent strings to handler functions
 # Explicit mappings for all router intents (no implicit fallthrough)

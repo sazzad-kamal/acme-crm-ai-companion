@@ -4,9 +4,12 @@ Formatting utilities for eval output.
 Rich console formatting helpers for tables, panels, and styled output.
 """
 
+from collections.abc import Callable
+from typing import Any
+
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 # Shared console instance
 console = Console()
@@ -87,10 +90,10 @@ def print_overall_result_panel(
 
 
 def print_debug_failures(
-    failures: list[dict],
+    failures: list[dict[str, Any]],
     title: str,
     max_items: int = 10,
-    format_item=None,
+    format_item: Callable[[int, dict[str, Any]], None] | None = None,
 ) -> None:
     """
     Print debug output for failed items.

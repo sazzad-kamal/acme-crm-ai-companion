@@ -1,0 +1,1059 @@
+# Expected answers for flow eval - used for RAGAS answer_correctness metric
+# Each question from data.json is mapped to its expected answer
+# Answers are context-aware based on the question's position in the conversation tree
+
+# =============================================================================
+# STARTER QUESTIONS (Root level - 3 personas)
+# =============================================================================
+
+"How's my pipeline?": |
+  Your pipeline is healthy with multiple opportunities across different stages.
+  You have deals in discovery, proposal, and negotiation phases.
+  Key accounts include Acme Manufacturing and Beta Tech Solutions.
+
+"Any renewals at risk?": |
+  You have renewals coming up that need attention.
+  Some accounts show low engagement or have flagged concerns.
+  Delta Health and Crown Foods may need immediate follow-up.
+
+"How's the team doing?": |
+  The team has a combined pipeline across multiple reps.
+  Activity levels show ongoing engagement with accounts.
+  Some reps may need coaching based on activity metrics.
+
+# =============================================================================
+# PIPELINE BRANCH (From "How's my pipeline?")
+# =============================================================================
+
+"Which deals need attention?": |
+  Several deals need attention based on recent activity.
+  Look for deals with stalled progress or upcoming close dates.
+  Consider prioritizing based on value and stage.
+
+"What's going on with Acme Manufacturing?": |
+  Acme Manufacturing is an active account with open opportunities.
+  They have multiple deals in the pipeline and recent activity.
+  Key contacts include decision makers in IT and operations.
+
+"What's the forecast for this quarter?": |
+  The quarterly forecast shows expected revenue from weighted pipeline.
+  Deals in late stages contribute most to the forecast.
+  Consider the close probability for each opportunity.
+
+# From "Which deals need attention?"
+"What stage is the upgrade deal in?": |
+  The upgrade deal is in the discovery or proposal stage.
+  Next steps involve technical evaluation or pricing discussion.
+  The expected close date is within this quarter.
+
+"What's blocking the Crown Foods renewal?": |
+  Crown Foods renewal may be blocked by budget constraints.
+  There may be pending approval from their finance team.
+  Recent engagement has been limited - consider follow-up.
+
+"Who should I follow up with?": |
+  Priority follow-ups include contacts at accounts with stalled deals.
+  Focus on decision makers and economic buyers.
+  Check for overdue activities and upcoming meetings.
+
+# From "What's the forecast for this quarter?"
+"What's the expected close value?": |
+  The expected close value is based on weighted pipeline.
+  This accounts for deal probability and stage.
+  Late-stage deals contribute most to the forecast.
+
+"Which deals are most likely to close?": |
+  Deals in negotiation stage are most likely to close.
+  Look for those with strong engagement and clear next steps.
+  Beta Tech and other late-stage deals show high probability.
+
+"What's at risk in my pipeline?": |
+  At-risk deals show signs of stalling or concern.
+  These may have limited recent activity or blockers.
+  Prioritize outreach to save these opportunities.
+
+# From "What's blocking the Crown Foods renewal?"
+"When did we last talk to Crown Foods?": |
+  The last activity with Crown Foods was a call or meeting.
+  Check the activity log for specific dates and notes.
+  Consider scheduling a follow-up if it's been too long.
+
+"Who is Maria Silva?": |
+  Maria Silva is a contact at one of your accounts.
+  She may be a decision maker or key stakeholder.
+  Check her role and recent interactions in the contact record.
+
+"What's the renewal value?": |
+  The renewal value reflects the annual contract amount.
+  This may include any expansion or add-on opportunities.
+  Compare to the original deal size for context.
+
+# From "Who should I follow up with?"
+"What's the next scheduled activity?": |
+  The next scheduled activity is a call or meeting.
+  Check your calendar for the specific date and time.
+  Prepare by reviewing the account history.
+
+"Show me overdue activities": |
+  Here are activities that are past their due date.
+  Prioritize these for immediate attention.
+  Consider reassigning if needed.
+
+"What meetings do I have this week?": |
+  Your meetings this week include customer calls and internal syncs.
+  Review the agenda and prepare talking points.
+  Check for any conflicts or reschedule needs.
+
+# From "What's the expected close value?"
+"What's the weighted pipeline?": |
+  The weighted pipeline multiplies deal value by probability.
+  This gives a realistic revenue projection.
+  Use this for forecasting and planning.
+
+"Which deals are in negotiation?": |
+  Deals in negotiation stage are near closing.
+  Focus on removing final blockers and getting approval.
+  These represent your best near-term revenue.
+
+"How many open opportunities do I have?": |
+  You have multiple open opportunities across accounts.
+  These span different stages from discovery to closing.
+  Track progress on each for accurate forecasting.
+
+# From "Which deals are most likely to close?"
+"Tell me about the Beta Tech negotiation deal": |
+  The Beta Tech deal is in advanced negotiation.
+  Value and terms are being finalized.
+  Key contacts are engaged and decision timeline is clear.
+
+"What's the next step for my biggest deal?": |
+  The next step depends on current stage and blockers.
+  For late-stage deals, focus on contract and approval.
+  For earlier stages, advance the evaluation process.
+
+"Who owns the contacts for these deals?": |
+  Contact ownership is assigned to the account owner.
+  Check the account record for the assigned rep.
+  Collaborate with the owner for coordinated outreach.
+
+# From "What's at risk in my pipeline?"
+"Which deals are stalled?": |
+  Stalled deals show no recent activity or progress.
+  These may need intervention or re-engagement.
+  Consider a different approach or new champion.
+
+"What accounts have low engagement?": |
+  Accounts with low engagement have limited recent activity.
+  This may indicate risk to the relationship or deal.
+  Plan outreach to re-establish connection.
+
+"Show me deals with no recent activity": |
+  Deals without recent activity may be at risk.
+  Check when the last touchpoint occurred.
+  Prioritize these for immediate outreach.
+
+# =============================================================================
+# RENEWALS BRANCH (From "Any renewals at risk?")
+# =============================================================================
+
+"Tell me about Delta Health's status": |
+  Delta Health is an active account with upcoming renewal.
+  Current engagement level and health status are shown.
+  Consider expansion opportunities beyond renewal.
+
+"Which renewals close this quarter?": |
+  Multiple renewals are due this quarter.
+  Review each for health status and any risks.
+  Plan outreach for those needing attention.
+
+"What accounts need immediate attention?": |
+  Accounts needing immediate attention show warning signs.
+  These may have low engagement, complaints, or blockers.
+  Prioritize based on value and risk level.
+
+# From "Tell me about Delta Health's status"
+"When does Delta Health renew?": |
+  Delta Health's renewal date is coming up.
+  Check the contract for exact timing.
+  Plan renewal discussion in advance.
+
+"Who are the contacts at Delta Health?": |
+  Key contacts at Delta Health include decision makers.
+  These may be in operations, IT, or finance.
+  Review recent interactions for context.
+
+"What's the expansion opportunity?": |
+  The expansion opportunity adds value beyond renewal.
+  This may include additional users, features, or services.
+  Position this as part of the renewal conversation.
+
+# From "When does Delta Health renew?"
+"What's the renewal value for Delta Health?": |
+  The renewal value is the annual contract amount.
+  This may differ from original if terms changed.
+  Consider including expansion in discussions.
+
+"Are there any risks with Delta Health?": |
+  Risks may include low engagement or competitive threats.
+  Check for any open support issues or complaints.
+  Address these proactively before renewal.
+
+"What's the engagement level with Delta Health?": |
+  Engagement level reflects recent activity and interactions.
+  Higher engagement typically indicates healthier relationship.
+  Low engagement may signal risk to the renewal.
+
+# From "Who are the contacts at Delta Health?"
+"Who is Erin Cho?": |
+  Erin Cho is a key contact at Delta Health.
+  Check her role, title, and recent interactions.
+  She may be a decision maker or influencer.
+
+"What is Mike Tran's role?": |
+  Mike Tran's role is shown in the contact record.
+  This indicates his influence on decisions.
+  Tailor your engagement based on his responsibilities.
+
+"When did we last meet with Delta Health?": |
+  The last meeting with Delta Health is in the activity log.
+  Review notes from that meeting for context.
+  Consider scheduling a follow-up if needed.
+
+# From "What's the expansion opportunity?"
+"What's the expansion deal worth?": |
+  The expansion deal value adds to the renewal.
+  This represents additional revenue opportunity.
+  Include in your forecast appropriately.
+
+"Which clinics are we expanding to?": |
+  Expansion may cover additional locations or departments.
+  Check the opportunity notes for specifics.
+  This helps with planning and implementation.
+
+"Who's driving the expansion?": |
+  The expansion champion is the internal advocate.
+  This person is pushing for expanded use.
+  Engage them to accelerate the opportunity.
+
+# From "Which renewals close this quarter?"
+"What's the total renewal value at risk?": |
+  Total at-risk renewal value sums up risky accounts.
+  This helps prioritize rescue efforts.
+  Focus on high-value accounts first.
+
+"Which renewals are in good standing?": |
+  Renewals in good standing show healthy engagement.
+  These are likely to renew without intervention.
+  Consider upsell opportunities.
+
+"Show me renewal timeline": |
+  The renewal timeline shows upcoming due dates.
+  Plan outreach based on proximity.
+  Allow time for negotiation and processing.
+
+# From "What's the total renewal value at risk?"
+"Which account has the highest risk?": |
+  The highest risk account needs immediate attention.
+  Check the risk factors and recent activity.
+  Develop a recovery plan.
+
+"What's causing the risk?": |
+  Risk factors may include low engagement, issues, or competition.
+  Review the account history for patterns.
+  Address root causes in your outreach.
+
+"How can I save these renewals?": |
+  To save at-risk renewals, address concerns directly.
+  Re-engage key stakeholders with value propositions.
+  Consider incentives or concessions if needed.
+
+# From "Which renewals are in good standing?"
+"What's the total healthy renewal value?": |
+  Healthy renewal value represents secure revenue.
+  These accounts are likely to renew.
+  Still maintain relationship for retention.
+
+"Any upsell opportunities?": |
+  Upsell opportunities exist in healthy accounts.
+  These customers are satisfied and may want more.
+  Position additional value during renewal.
+
+"When should I reach out?": |
+  Reach out well before the renewal date.
+  This allows time for discussion and processing.
+  Plan based on your sales cycle length.
+
+# From "Show me renewal timeline"
+"What's due next month?": |
+  Next month's renewals need preparation now.
+  Review each account's health and history.
+  Schedule outreach for the coming weeks.
+
+"Which renewals need prep?": |
+  Renewals needing prep may have complexities.
+  These might involve negotiation or stakeholder alignment.
+  Start preparation early for smooth renewal.
+
+"What's the 90-day renewal forecast?": |
+  The 90-day forecast shows expected renewal revenue.
+  This factors in health status and probability.
+  Use for planning and resource allocation.
+
+# From "What accounts need immediate attention?"
+"What happened with Green Energy?": |
+  Green Energy had some issues or changes.
+  Review the account history for context.
+  This may be a churned or at-risk account.
+
+"Tell me about Eastern Travel's trial": |
+  Eastern Travel is on a trial or evaluation.
+  Check progress and engagement during trial.
+  Plan for conversion conversation.
+
+"How is Harbor Logistics progressing?": |
+  Harbor Logistics is moving through the pipeline.
+  Check current stage and next steps.
+  Address any blockers to keep momentum.
+
+# From "What happened with Green Energy?"
+"Why did Green Energy churn?": |
+  Green Energy churned due to specific reasons.
+  This may include budget, value perception, or competition.
+  Learn from this for future retention.
+
+"Who were the contacts at Green Energy?": |
+  Key contacts at Green Energy were decision makers.
+  Review their roles and your interactions.
+  Consider if relationship can be re-established.
+
+"What was the timeline of the Green Energy relationship?": |
+  The timeline shows when they became a customer and churned.
+  Review key milestones and warning signs.
+  Use for learning and improvement.
+
+# From "Why did Green Energy churn?"
+"What were the warning signs?": |
+  Warning signs included declining engagement.
+  There may have been support issues or complaints.
+  Identify these patterns for early intervention.
+
+"Could we have saved the account?": |
+  Account retention depends on early intervention.
+  Review what actions were taken and when.
+  Consider if different approach would help.
+
+"What can we learn from this?": |
+  Lessons include early warning indicators.
+  Process improvements may prevent future churn.
+  Apply these learnings to at-risk accounts.
+
+# From "Who were the contacts at Green Energy?"
+"Who was Carlos at Green Energy?": |
+  Carlos was a contact at Green Energy.
+  Check his role and your interactions.
+  His departure may have impacted the account.
+
+"What was Linda's role?": |
+  Linda's role at Green Energy is in the record.
+  This indicates her influence on decisions.
+  Review your engagement with her.
+
+"When did we last engage with them?": |
+  Last engagement with Green Energy is in the log.
+  This shows final touchpoints before churn.
+  Earlier engagement may have helped retention.
+
+# From "What was the timeline of the Green Energy relationship?"
+"When did they first become a customer?": |
+  Green Energy became a customer on a specific date.
+  Check the original opportunity for context.
+  Review the initial deal terms.
+
+"What milestones happened?": |
+  Key milestones include implementation and renewals.
+  These show the progression of the relationship.
+  Note any significant events or changes.
+
+"When did issues start?": |
+  Issues may have started at a specific point.
+  Check support tickets and activity notes.
+  This helps identify root causes.
+
+# From "Tell me about Eastern Travel's trial"
+"What's blocking the trial conversion?": |
+  Trial conversion may be blocked by concerns.
+  These could include budget, features, or timing.
+  Address these to move forward.
+
+"Who are the contacts at Eastern Travel?": |
+  Contacts at Eastern Travel include trial users.
+  Identify decision makers and champions.
+  Engage them for conversion.
+
+"What's the trial usage like?": |
+  Trial usage shows how actively they're evaluating.
+  Higher usage typically indicates better fit.
+  Low usage may signal need for guidance.
+
+# From "What's blocking the trial conversion?"
+"Who has budget authority?": |
+  Budget authority lies with specific stakeholders.
+  Identify and engage the economic buyer.
+  Understand their approval process.
+
+"What are their concerns?": |
+  Concerns may include cost, features, or integration.
+  Address each concern with relevant value propositions.
+  Provide evidence and references as needed.
+
+"When was the trial extended?": |
+  Trial extension date is in the opportunity record.
+  This indicates they need more time to evaluate.
+  Use this time to increase engagement.
+
+# From "Who are the contacts at Eastern Travel?"
+"Who is Sanjay Patel?": |
+  Sanjay Patel is a contact at Eastern Travel.
+  Check his role and engagement level.
+  He may be a key decision maker.
+
+"What is Ravi's role?": |
+  Ravi's role indicates his responsibilities.
+  This helps tailor your engagement approach.
+  Check his influence on the decision.
+
+"Who should we escalate to?": |
+  Escalation may go to senior leadership.
+  Identify the appropriate level for issues.
+  Prepare your case before escalating.
+
+# From "What's the trial usage like?"
+"Which features are they using?": |
+  Feature usage shows what's valuable to them.
+  Highlight these in your conversion pitch.
+  Address any unused features.
+
+"How active are the users?": |
+  User activity indicates trial engagement.
+  Active users are more likely to advocate.
+  Low activity may need intervention.
+
+"What's the engagement trend?": |
+  Engagement trend shows if usage is increasing.
+  Growing engagement is a positive sign.
+  Declining trends need attention.
+
+# From "How is Harbor Logistics progressing?"
+"What's the status of the Harbor deal?": |
+  The Harbor Logistics deal is in active stage.
+  Check progress against expected timeline.
+  Address any blockers to advance.
+
+"Who are the contacts at Harbor Logistics?": |
+  Contacts at Harbor Logistics include stakeholders.
+  Identify decision makers and influencers.
+  Plan your engagement strategy.
+
+"What's the implementation plan?": |
+  The implementation plan covers rollout details.
+  This includes timeline, resources, and training.
+  Ensure alignment with customer expectations.
+
+# From "What's the status of the Harbor deal?"
+"What stage is Harbor Logistics in?": |
+  Harbor Logistics is at a specific pipeline stage.
+  This indicates progress toward closing.
+  Plan next steps accordingly.
+
+"What's the deal value?": |
+  The deal value is the expected revenue.
+  This helps prioritize your efforts.
+  Include in your forecast.
+
+"When is the expected close?": |
+  Expected close date is in the opportunity.
+  Plan activities to meet this timeline.
+  Adjust if there are delays.
+
+# From "Who are the contacts at Harbor Logistics?"
+"Who is Jacob Wu?": |
+  Jacob Wu is a contact at Harbor Logistics.
+  Check his role and influence.
+  He may be a key stakeholder.
+
+"Who handles operations at Harbor?": |
+  Operations contact handles day-to-day use.
+  This person is important for implementation.
+  Engage them for user adoption.
+
+"Who's the decision maker?": |
+  The decision maker has final approval.
+  Identify and engage this person.
+  Understand their priorities and concerns.
+
+# From "What's the implementation plan?"
+"What's the rollout timeline?": |
+  Rollout timeline covers implementation phases.
+  Plan resources and support accordingly.
+  Communicate clearly with customer.
+
+"Which teams are involved?": |
+  Involved teams include IT, operations, and users.
+  Coordinate with each for smooth rollout.
+  Identify champions in each group.
+
+"What training is needed?": |
+  Training requirements depend on user roles.
+  Plan sessions for different skill levels.
+  Provide ongoing support resources.
+
+# =============================================================================
+# TEAM BRANCH (From "How's the team doing?")
+# =============================================================================
+
+"What's the total pipeline?": |
+  Total pipeline shows combined opportunity value.
+  This spans all reps and stages.
+  Use for capacity planning and forecasting.
+
+"Which reps are behind on activities?": |
+  Reps behind on activities may need support.
+  Check their activity levels and goals.
+  Provide coaching or resources as needed.
+
+"What's the team's forecast?": |
+  Team forecast combines individual projections.
+  This accounts for weighted pipeline by rep.
+  Use for goal tracking and planning.
+
+# From "What's the total pipeline?"
+"Break down pipeline by rep": |
+  Pipeline by rep shows individual contributions.
+  This helps identify top performers.
+  Balance workload and opportunities.
+
+"What's the average deal size?": |
+  Average deal size indicates typical opportunity.
+  Compare to historical trends.
+  Use for planning and targeting.
+
+"Which stage has the most value?": |
+  Stage with most value shows where deals are.
+  This may indicate bottlenecks or opportunities.
+  Focus on moving deals through stages.
+
+# From "Break down pipeline by rep"
+"Who has the biggest deals?": |
+  Biggest deals are owned by specific reps.
+  These high-value opportunities need attention.
+  Provide support for closing.
+
+"Who needs coaching?": |
+  Coaching needs depend on performance metrics.
+  Identify gaps in skills or execution.
+  Provide targeted development.
+
+"What's the average close rate?": |
+  Close rate shows conversion efficiency.
+  Higher rates indicate effective selling.
+  Use to identify best practices.
+
+# From "What's the average deal size?"
+"How does this compare to last quarter?": |
+  Compare current to last quarter metrics.
+  This shows trends and progress.
+  Identify factors driving changes.
+
+"Which segment has the largest deals?": |
+  Largest deals come from specific segments.
+  Focus efforts on high-value targets.
+  Tailor approach to segment needs.
+
+"What's the deal size trend?": |
+  Deal size trend shows if value is growing.
+  Larger deals indicate market expansion.
+  Smaller deals may need attention.
+
+# From "Which stage has the most value?"
+"Show me deals in negotiation": |
+  Negotiation stage deals are near closing.
+  Focus on removing final blockers.
+  These represent near-term revenue.
+
+"What's stuck in discovery?": |
+  Discovery stage deals may need advancement.
+  Check for blockers or missing information.
+  Help reps move these forward.
+
+"What's the conversion rate by stage?": |
+  Conversion rate shows stage progression.
+  Identify where deals get stuck.
+  Improve processes at problem stages.
+
+# From "Which reps are behind on activities?"
+"Who has overdue tasks?": |
+  Reps with overdue tasks need attention.
+  Help them prioritize and catch up.
+  Address any blocking issues.
+
+"What's the activity breakdown by type?": |
+  Activity breakdown shows calls, emails, meetings.
+  This indicates engagement approach.
+  Balance activities for effectiveness.
+
+"Which accounts need more engagement?": |
+  Accounts with low engagement need outreach.
+  These may be at risk of churn.
+  Assign and track engagement activities.
+
+# From "Who has overdue tasks?"
+"What are the overdue tasks?": |
+  Overdue tasks include specific activities.
+  Prioritize by importance and deadline.
+  Complete or reassign as needed.
+
+"Which accounts are affected?": |
+  Affected accounts may have stalled progress.
+  Check relationship health.
+  Plan recovery activities.
+
+"When were these tasks due?": |
+  Task due dates show how overdue they are.
+  Longer overdue needs more urgent attention.
+  Update or close stale tasks.
+
+# From "What's the activity breakdown by type?"
+"How many calls were made this week?": |
+  Weekly calls show phone engagement level.
+  Compare to goals and benchmarks.
+  Quality matters as much as quantity.
+
+"Which rep has the most meetings?": |
+  Meeting leader shows face-to-face engagement.
+  This often correlates with success.
+  Share best practices across team.
+
+"What's the email activity level?": |
+  Email activity shows written engagement.
+  Check for responses and engagement.
+  Balance with other activity types.
+
+# From "Which accounts need more engagement?"
+"Show me accounts with no recent activity": |
+  Accounts without recent activity are at risk.
+  Assign outreach activities immediately.
+  Check relationship status.
+
+"What's the average activity per account?": |
+  Average activity shows typical engagement.
+  Lower than average needs attention.
+  Set targets for improvement.
+
+"Which accounts are at risk?": |
+  At-risk accounts show warning signs.
+  These may churn without intervention.
+  Prioritize based on value.
+
+# From "What's the team's forecast?"
+"What's the weighted pipeline by rep?": |
+  Weighted pipeline by rep shows individual forecast.
+  This accounts for probability.
+  Use for goal tracking.
+
+"Tell me about Fusion Retail's upsell": |
+  Fusion Retail has an upsell opportunity.
+  Check the details and value.
+  Plan engagement strategy.
+
+"What's at risk this quarter?": |
+  At-risk deals this quarter need attention.
+  These may not close without intervention.
+  Develop recovery plans.
+
+# From "What's the weighted pipeline by rep?"
+"Who has the highest weighted value?": |
+  Highest weighted value rep leads forecast.
+  This indicates strong pipeline quality.
+  Support their closing efforts.
+
+"Which rep is behind target?": |
+  Rep behind target needs support.
+  Identify gaps and barriers.
+  Provide coaching and resources.
+
+"What's the forecast accuracy?": |
+  Forecast accuracy shows prediction reliability.
+  Higher accuracy enables better planning.
+  Improve processes for accuracy.
+
+# From "What's at risk this quarter?"
+"Which deals are past due?": |
+  Past due deals missed expected close.
+  Update with realistic dates.
+  Address blockers urgently.
+
+"What's the total at-risk value?": |
+  At-risk value shows potential lost revenue.
+  Prioritize recovery efforts.
+  Track progress weekly.
+
+"How can we recover these deals?": |
+  Recovery requires addressing root causes.
+  Re-engage champions and decision makers.
+  Consider incentives or concessions.
+
+# From "Tell me about Fusion Retail's upsell"
+"What's the upsell opportunity?": |
+  The upsell adds value to existing account.
+  This may include additional products or services.
+  Position as expansion of success.
+
+"Who are the contacts at Fusion Retail?": |
+  Contacts at Fusion Retail include stakeholders.
+  Identify champions and decision makers.
+  Plan engagement strategy.
+
+"What's Fusion's current usage?": |
+  Current usage shows product adoption.
+  This justifies expansion case.
+  Address any usage gaps.
+
+# From "What's the upsell opportunity?"
+"What's the expansion deal worth?": |
+  Expansion value adds to existing revenue.
+  Include in forecast appropriately.
+  Track as separate opportunity.
+
+"How many additional seats?": |
+  Additional seats expand user base.
+  This indicates growth opportunity.
+  Plan for implementation.
+
+"What's driving the expansion?": |
+  Expansion drivers include success and growth.
+  Leverage these in your pitch.
+  Document for case studies.
+
+# From "Who are the contacts at Fusion Retail?"
+"Who is Emma at Fusion?": |
+  Emma is a contact at Fusion Retail.
+  Check her role and influence.
+  Engage appropriately.
+
+"Who is Lars?": |
+  Lars is a contact with specific role.
+  Check his involvement in decisions.
+  Plan your engagement.
+
+"Who approved the original deal?": |
+  Original approver has history with you.
+  Leverage this relationship for expansion.
+  Ensure continued satisfaction.
+
+# From "What's Fusion's current usage?"
+"How many active users?": |
+  Active user count shows adoption.
+  Higher counts indicate success.
+  Lower counts may need attention.
+
+"Which features are popular?": |
+  Popular features show value delivery.
+  Highlight these in expansion pitch.
+  Address underused features.
+
+"What's the adoption rate?": |
+  Adoption rate shows usage growth.
+  Higher rates indicate success.
+  Lower rates need intervention.
+
+# =============================================================================
+# ACME MANUFACTURING BRANCH (From "What's going on with Acme Manufacturing?")
+# =============================================================================
+
+"Show me Acme Manufacturing's opportunities": |
+  Acme Manufacturing has multiple opportunities.
+  These span different stages and values.
+  Prioritize based on close dates.
+
+"Who are the key contacts at Acme Manufacturing?": |
+  Key contacts at Acme include decision makers.
+  Check their roles and engagement history.
+  Plan outreach strategy.
+
+"What's Acme Manufacturing's renewal status?": |
+  Acme's renewal is coming up or in progress.
+  Check health status and any risks.
+  Plan renewal conversation.
+
+# From "Show me Acme Manufacturing's opportunities"
+"When does the Acme renewal opportunity close?": |
+  Acme renewal has expected close date.
+  Plan activities to meet timeline.
+  Address any blockers early.
+
+"What's the total pipeline value for Acme Manufacturing?": |
+  Total pipeline value sums all opportunities.
+  This shows account potential.
+  Use for prioritization.
+
+# From "Who are the key contacts at Acme Manufacturing?"
+"What is Anna Lopez's role?": |
+  Anna Lopez has a specific role at Acme.
+  This indicates her decision influence.
+  Tailor engagement accordingly.
+
+"Who handles IT at Acme Manufacturing?": |
+  IT contact handles technical decisions.
+  Engage for implementation discussions.
+  Address technical requirements.
+
+"Show me recent activities with Acme Manufacturing": |
+  Recent activities show engagement history.
+  Review for context and follow-ups.
+  Plan next touchpoints.
+
+# From "What's Acme Manufacturing's renewal status?"
+"When exactly is Acme Manufacturing's renewal date?": |
+  Acme's renewal date is in the contract.
+  Plan outreach well in advance.
+  Allow time for negotiation.
+
+"What documents are attached to Acme deals?": |
+  Attached documents include proposals and contracts.
+  Review for reference and updates.
+  Ensure current versions.
+
+"What is Beth Turner's role at Acme?": |
+  Beth Turner's role is in the contact record.
+  This indicates her responsibilities.
+  Plan engagement appropriately.
+
+# From deeper levels
+"Who is the contact for the upgrade opportunity?": |
+  Upgrade opportunity has assigned contact.
+  This is your primary engagement point.
+  Coordinate with account owner.
+
+"Show me deals in discovery stage": |
+  Discovery stage deals are early in pipeline.
+  Focus on qualification and needs.
+  Move promising ones forward.
+
+"Which deals have we closed won?": |
+  Closed won deals show success history.
+  Use for reference and case studies.
+  Celebrate and learn from wins.
+
+"What's the expected close date for Acme's renewal?": |
+  Expected close date is in the opportunity.
+  Plan activities to meet this date.
+  Adjust if delays occur.
+
+"Who's handling the Acme Manufacturing renewal?": |
+  Renewal owner is assigned to opportunity.
+  They coordinate the renewal process.
+  Support as needed.
+
+"What's the current stage of Acme's renewal?": |
+  Current stage shows renewal progress.
+  Plan next steps accordingly.
+  Address any blockers.
+
+"What's the biggest opportunity for Acme?": |
+  Biggest opportunity represents highest value.
+  Prioritize this for attention.
+  Ensure proper engagement.
+
+"How many opportunities does Acme have?": |
+  Opportunity count shows account potential.
+  Track each through the pipeline.
+  Balance attention across deals.
+
+"Who is the account owner for Acme?": |
+  Account owner has primary responsibility.
+  Coordinate all activities with them.
+  Ensure consistent engagement.
+
+"What deals is Anna Lopez involved in?": |
+  Anna's deal involvement is tracked.
+  She may be primary contact on several.
+  Engage her appropriately.
+
+"When did we last talk to Anna Lopez?": |
+  Last contact with Anna is in activity log.
+  Review for context.
+  Schedule follow-up if needed.
+
+"What's the breakdown of contact roles at Acme?": |
+  Contact roles include decision makers and users.
+  Understand each role's influence.
+  Plan engagement strategy.
+
+"What is Joe Smith's contact info?": |
+  Joe Smith's contact info is in the record.
+  Use for outreach and communication.
+  Keep updated.
+
+"What deals involve Joe Smith?": |
+  Joe's deal involvement is tracked.
+  He may influence specific opportunities.
+  Engage him appropriately.
+
+"What's the priority of the next Acme activity?": |
+  Next activity priority is assigned.
+  High priority needs immediate attention.
+  Plan accordingly.
+
+"What was discussed in the last Acme call?": |
+  Last call notes summarize discussion.
+  Review for context and follow-ups.
+  Reference in next conversation.
+
+"When was the last meeting with Acme?": |
+  Last meeting date is in activity log.
+  Check notes for context.
+  Schedule follow-up if needed.
+
+"How many activities has Acme had this month?": |
+  Monthly activity count shows engagement.
+  Compare to benchmarks.
+  Increase if needed.
+
+"What's the health status of Acme Manufacturing?": |
+  Health status indicates relationship strength.
+  Green is healthy, red needs attention.
+  Plan activities accordingly.
+
+"What proposals have been sent to Acme?": |
+  Proposals are attached to opportunities.
+  Review for current status.
+  Follow up on pending ones.
+
+"What's the Acme upgrade opportunity worth?": |
+  Upgrade opportunity value is in the record.
+  Include in pipeline and forecast.
+  Prioritize based on value.
+
+"Is there an expansion opportunity at Acme?": |
+  Expansion opportunity may exist.
+  Check for additional products or users.
+  Include in account planning.
+
+"Show me the PDF attachments for Acme": |
+  PDF attachments include documents.
+  These may be proposals, contracts, or materials.
+  Review for reference.
+
+"Who is the CFO at Acme Manufacturing?": |
+  CFO is a key financial decision maker.
+  Engage for budget and approval.
+  Build relationship for future deals.
+
+"What's Beth Turner's email address?": |
+  Beth's email is in contact record.
+  Use for direct communication.
+  Keep updated.
+
+"Has Beth Turner been involved in any deals?": |
+  Beth's deal involvement is tracked.
+  She may influence specific opportunities.
+  Engage her appropriately.
+
+"What's the Acme industry segment?": |
+  Acme is in manufacturing industry.
+  Tailor approach to industry needs.
+  Reference relevant case studies.
+
+# =============================================================================
+# BETA TECH BRANCH (From deals likely to close)
+# =============================================================================
+
+"When is the negotiation deal expected to close?": |
+  Negotiation deal has expected close date.
+  Plan activities to meet timeline.
+  Address final blockers.
+
+"Who is the primary contact for the Beta Tech deal?": |
+  Primary contact is assigned to opportunity.
+  They are your main engagement point.
+  Coordinate all activities through them.
+
+"What's the negotiation deal value?": |
+  Deal value is in the opportunity record.
+  Include in forecast.
+  Prioritize based on size.
+
+"What's the total value of Beta Tech deals?": |
+  Total value sums all opportunities.
+  This shows account potential.
+  Track each deal separately.
+
+"Who should I follow up with at Beta Tech?": |
+  Follow up with primary contact and decision maker.
+  Check for outstanding items.
+  Schedule next touchpoint.
+
+"What activities happened with Beta Tech?": |
+  Activities are logged in the account.
+  Review for context and progress.
+  Plan next steps.
+
+"What's Lisa Ng's job title?": |
+  Lisa Ng's title is in contact record.
+  This indicates her role and influence.
+  Engage appropriately.
+
+"Who is Omar Haddad at Beta Tech?": |
+  Omar Haddad is a contact at Beta Tech.
+  Check his role and involvement.
+  Plan engagement strategy.
+
+"What is Lisa Ng's email?": |
+  Lisa's email is in contact record.
+  Use for direct communication.
+  Keep updated.
+
+"What's Beta Tech's total pipeline?": |
+  Total pipeline shows opportunity value.
+  Track progress across deals.
+  Include in forecast.
+
+"How many deals does Beta Tech have?": |
+  Deal count shows account activity.
+  Track each through pipeline.
+  Balance attention across deals.
+
+"What's the add-on deal worth?": |
+  Add-on deal value is in the record.
+  This extends the relationship.
+  Include in forecast.
+
+"Why is Beta Tech marked at-risk?": |
+  At-risk status has specific reasons.
+  Address these concerns directly.
+  Develop recovery plan.
+
+"Which accounts have the lowest activity?": |
+  Low activity accounts need engagement.
+  Check for relationship health.
+  Assign outreach activities.
+
+"Show me at-risk renewals": |
+  At-risk renewals need immediate attention.
+  Review each for specific concerns.
+  Develop save plans.
+
+"Who is the meeting with?": |
+  Meeting attendees are in calendar.
+  Prepare for each participant.
+  Review their context.
+
+"Any activities with trial accounts like Eastern Travel?": |
+  Trial account activities are logged.
+  Review for engagement level.
+  Plan conversion activities.
+
+"What type of activity is it?": |
+  Activity type indicates engagement method.
+  This may be call, meeting, or email.
+  Prepare accordingly.

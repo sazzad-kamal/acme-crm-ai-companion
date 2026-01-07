@@ -8,13 +8,13 @@ from pathlib import Path
 
 from rich.table import Table
 
-from backend.eval.base import console, format_percentage, format_check_mark
+from backend.eval.base import console, format_percentage
 from backend.eval.formatting import build_eval_table
 from backend.eval.models import (
+    SLO_FLOW_FAITHFULNESS,
     SLO_FLOW_PATH_PASS_RATE,
     SLO_FLOW_QUESTION_PASS_RATE,
     SLO_FLOW_RELEVANCE,
-    SLO_FLOW_FAITHFULNESS,
     FlowEvalResults,
 )
 
@@ -37,7 +37,7 @@ def print_summary(results: FlowEvalResults) -> bool:
     faithfulness_slo_pass = results.avg_faithfulness >= SLO_FLOW_FAITHFULNESS
 
     # Build table sections: (section_name, [(label, value, slo_target, slo_passed)])
-    sections = [
+    sections: list[tuple[str, list[tuple[str, str, str | None, bool | None]]]] = [
         (
             "Pass Rates",
             [
@@ -71,6 +71,7 @@ def print_summary(results: FlowEvalResults) -> bool:
                     faithfulness_slo_pass,
                 ),
                 ("  Context Precision", format_percentage(results.avg_context_precision), None, None),
+                ("  Answer Correctness", format_percentage(results.avg_answer_correctness), None, None),
             ],
         ),
     ]
@@ -133,6 +134,7 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
             "avg_relevance": results.avg_relevance,
             "avg_faithfulness": results.avg_faithfulness,
             "avg_context_precision": results.avg_context_precision,
+            "avg_answer_correctness": results.avg_answer_correctness,
             "total_latency_ms": results.total_latency_ms,
             "avg_latency_per_question_ms": results.avg_latency_per_question_ms,
             "p95_latency_ms": results.p95_latency_ms,
@@ -175,6 +177,7 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                         "relevance_score": s.relevance_score,
                         "faithfulness_score": s.faithfulness_score,
                         "context_precision_score": s.context_precision_score,
+                        "answer_correctness_score": s.answer_correctness_score,
                         "latency_ms": s.latency_ms,
                         "judge_explanation": s.judge_explanation,
                         "error": s.error,

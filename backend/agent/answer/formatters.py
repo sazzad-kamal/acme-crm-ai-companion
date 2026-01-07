@@ -5,8 +5,9 @@ Uses a declarative formatter factory pattern for consistent, maintainable
 formatting of CRM data sections.
 """
 
-from typing import Callable, Any
+from collections.abc import Callable
 from datetime import datetime, timedelta
+from typing import Any
 
 
 class SectionFormatter:

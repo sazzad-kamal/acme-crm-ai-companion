@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import atexit
 import asyncio
+import atexit
 import logging
 from pathlib import Path
 
@@ -18,9 +18,9 @@ load_dotenv(_project_root / ".env")
 from backend.agent.followup.tree import get_tree_stats
 from backend.agent.rag.client import close_qdrant_client
 from backend.eval.base import console, ensure_qdrant_collections
-from backend.eval.formatting import print_debug_failures
+from backend.eval.flow.flow_output import check_qdrant_access, print_summary, save_results
 from backend.eval.flow.flow_runner import run_flow_eval
-from backend.eval.flow.flow_output import print_summary, save_results, check_qdrant_access
+from backend.eval.formatting import print_debug_failures
 
 # Register cleanup to prevent shutdown errors
 atexit.register(close_qdrant_client)

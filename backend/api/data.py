@@ -35,7 +35,7 @@ def load_jsonl(name: str) -> list[dict[str, Any]]:
     if "metadata" in df.columns:
         meta_df = pd.json_normalize(df["metadata"]).add_prefix("metadata_")
         df = pd.concat([df.drop(columns=["metadata"]), meta_df], axis=1)
-    return df.to_dict("records")
+    return df.to_dict("records")  # type: ignore[no-any-return]
 
 
 def _group_by(data: list[dict], key: str) -> dict[str, list[dict]]:

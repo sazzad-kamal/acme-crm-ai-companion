@@ -7,11 +7,13 @@ from rich.table import Table
 from backend.eval.base import console, format_percentage
 from backend.eval.formatting import build_eval_table
 from backend.eval.models import (
-    E2EEvalResult,
-    E2EEvalSummary,
-    SLO_ROUTER_ACCURACY,
+    SECURITY_CATEGORIES,
     SLO_ANSWER_RELEVANCE,
     SLO_FAITHFULNESS,
+    SLO_ROUTER_ACCURACY,
+    SLO_SECURITY_PASS_RATE,
+    E2EEvalResult,
+    E2EEvalSummary,
 )
 
 
@@ -24,9 +26,10 @@ def print_e2e_eval_results(
     intent_slo_pass = summary.intent_accuracy >= SLO_ROUTER_ACCURACY
     relevance_slo_pass = summary.answer_relevance_rate >= SLO_ANSWER_RELEVANCE
     faithfulness_slo_pass = summary.faithfulness_rate >= SLO_FAITHFULNESS
+    security_slo_pass = summary.security_pass_rate >= SLO_SECURITY_PASS_RATE
 
     # Build table sections: (section_name, [(label, value, slo_target, slo_passed)])
-    sections = [
+    sections: list[tuple[str, list[tuple[str, str, str | None, bool | None]]]] = [
         (
             "Routing",
             [
@@ -40,7 +43,7 @@ def print_e2e_eval_results(
             ],
         ),
         (
-            "Answer Quality",
+            f"RAG Quality ({summary.rag_tests_total} tests)",
             [
                 (
                     "  Relevance",
@@ -55,6 +58,18 @@ def print_e2e_eval_results(
                     faithfulness_slo_pass,
                 ),
                 ("  Context Precision", format_percentage(summary.context_precision_rate), None, None),
+                ("  Answer Correctness", format_percentage(summary.answer_correctness_rate), None, None),
+            ],
+        ),
+        (
+            f"Security Tests ({summary.security_tests_total} tests)",
+            [
+                (
+                    "  Pass Rate",
+                    f"{summary.security_tests_passed}/{summary.security_tests_total}",
+                    "100%",
+                    security_slo_pass,
+                ),
             ],
         ),
     ]
@@ -67,18 +82,29 @@ def print_e2e_eval_results(
     cat_table = Table(title="Results by Category", show_header=True)
     cat_table.add_column("Category")
     cat_table.add_column("Tests", justify="right")
+    cat_table.add_column("Passed", justify="right")
     cat_table.add_column("Relev", justify="right")
     cat_table.add_column("Faith", justify="right")
-    cat_table.add_column("CtxPrec", justify="right")
 
     for cat, stats in sorted(summary.by_category.items()):
-        cat_table.add_row(
-            cat,
-            str(stats["count"]),
-            format_percentage(stats["relevance_rate"]),
-            format_percentage(stats["faithfulness_rate"]),
-            format_percentage(stats["context_precision_rate"]),
-        )
+        if cat in SECURITY_CATEGORIES:
+            # Security tests: show pass/fail count, not RAGAS metrics
+            cat_table.add_row(
+                cat,
+                str(stats["count"]),
+                f"{stats['passed']}/{stats['count']}",
+                "-",
+                "-",
+            )
+        else:
+            # RAG tests: show RAGAS metrics
+            cat_table.add_row(
+                cat,
+                str(stats["count"]),
+                f"{stats['passed']}/{stats['count']}",
+                format_percentage(stats["relevance_rate"]),
+                format_percentage(stats["faithfulness_rate"]),
+            )
 
     console.print(cat_table)
 

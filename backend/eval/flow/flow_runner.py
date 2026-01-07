@@ -5,14 +5,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import Any
 
 from rich.table import Table
 
-from backend.agent.followup.tree import get_paths_for_role
+from backend.agent.followup.tree import get_expected_answer, get_paths_for_role
 from backend.eval.base import console, print_eval_header
+from backend.eval.models import FlowEvalResults, FlowResult, FlowStepResult
 from backend.eval.parallel import calculate_p95_latency
 from backend.eval.ragas_judge import evaluate_single
-from backend.eval.models import FlowStepResult, FlowResult, FlowEvalResults
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +22,16 @@ def judge_answer(
     question: str,
     answer: str,
     contexts: list[str],
+    reference_answer: str | None = None,
 ) -> dict:
     """Judge an answer using RAGAS metrics."""
     try:
-        result = evaluate_single(question, answer, contexts)
+        result = evaluate_single(question, answer, contexts, reference_answer=reference_answer)
         return {
             "relevance": result["answer_relevancy"],
             "faithfulness": result["faithfulness"],
             "context_precision": result["context_precision"],
+            "answer_correctness": result.get("answer_correctness", 0.0),
             "explanation": "",
         }
     except Exception as e:
@@ -37,17 +40,18 @@ def judge_answer(
             "relevance": 0.0,
             "faithfulness": 0.0,
             "context_precision": 0.0,
+            "answer_correctness": 0.0,
             "explanation": f"RAGAS error: {e}",
         }
 
 
-def _invoke_agent(question: str, session_id: str | None = None) -> dict:
+def _invoke_agent(question: str, session_id: str | None = None) -> dict[str, Any]:
     """Invoke the agent graph and return state."""
     from backend.agent.graph import agent_graph, build_thread_config
 
-    state = {"question": question, "session_id": session_id, "sources": []}
+    state: dict[str, Any] = {"question": question, "session_id": session_id, "sources": []}
     config = build_thread_config(session_id)
-    return agent_graph.invoke(state, config=config)
+    return agent_graph.invoke(state, config=config)  # type: ignore[no-any-return]
 
 
 async def test_single_question(
@@ -84,25 +88,27 @@ async def test_single_question(
         sources = result.get("sources", [])
         has_answer = bool(answer and len(answer) > 10)
 
-        # Build contexts for RAGAS judge
-        contexts = []
-        if history:
-            contexts = [
-                f"Q: {h['question']}\nA: {h['answer'][:200]}"
-                for h in history[-2:]  # Last 2 turns
-            ]
+        # Get actual context chunks from agent (not conversation history)
+        context_chunks = result.get("context_chunks", [])
+
+        # Get expected answer for answer_correctness metric
+        expected_answer = get_expected_answer(question)
 
         # Run RAGAS judge if enabled and we have an answer
         relevance = 0.0
         faithfulness = 0.0
         context_precision = 0.0
+        answer_correctness = 0.0
         explanation = ""
 
         if use_judge and has_answer:
-            judge_result = await asyncio.to_thread(judge_answer, question, answer, contexts)
+            judge_result = await asyncio.to_thread(
+                judge_answer, question, answer, context_chunks, reference_answer=expected_answer
+            )
             relevance = judge_result.get("relevance", 0.0)
             faithfulness = judge_result.get("faithfulness", 0.0)
             context_precision = judge_result.get("context_precision", 0.0)
+            answer_correctness = judge_result.get("answer_correctness", 0.0)
             explanation = judge_result.get("explanation", "")
 
         return FlowStepResult(
@@ -114,6 +120,7 @@ async def test_single_question(
             relevance_score=relevance,
             faithfulness_score=faithfulness,
             context_precision_score=context_precision,
+            answer_correctness_score=answer_correctness,
             judge_explanation=explanation,
             error=None,
         )
@@ -130,6 +137,7 @@ async def test_single_question(
             relevance_score=0.0,
             faithfulness_score=0.0,
             context_precision_score=0.0,
+            answer_correctness_score=0.0,
             judge_explanation=f"Error: {e}",
             error=str(e),
         )
@@ -221,7 +229,6 @@ async def run_flow_eval(
 
     # Semaphore to limit concurrent flows
     semaphore = asyncio.Semaphore(concurrency)
-    results: list[FlowResult] = []
     completed = 0
     total = len(paths_to_test)
     lock = asyncio.Lock()
@@ -258,11 +265,11 @@ async def run_flow_eval(
     # Run all flows in parallel
     tasks = [run_with_semaphore(path, i) for i, path in enumerate(paths_to_test)]
     console.print(f"[cyan]Starting {len(tasks)} flows...[/cyan]")
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    gathered = await asyncio.gather(*tasks, return_exceptions=True)
 
     # Check for exceptions in results
-    actual_results = []
-    for i, r in enumerate(results):
+    actual_results: list[FlowResult] = []
+    for i, r in enumerate(gathered):
         if isinstance(r, Exception):
             console.print(f"[red]Path {i + 1} raised exception: {r}[/red]")
             actual_results.append(
@@ -276,8 +283,8 @@ async def run_flow_eval(
                 )
             )
         else:
-            actual_results.append(r)
-    results = actual_results
+            actual_results.append(r)  # type: ignore[arg-type]
+    results = actual_results  # Use consistent name for rest of function
 
     # Aggregate results
     paths_passed = sum(1 for r in results if r.success)
@@ -287,17 +294,18 @@ async def run_flow_eval(
     questions_passed = sum(sum(1 for s in r.steps if s.passed) for r in results)
     questions_failed = total_questions - questions_passed
 
-    # Calculate RAGAS metric averages (3 metrics)
+    # Calculate RAGAS metric averages (4 metrics)
     all_steps = [s for r in results for s in r.steps]
     avg_relevance = sum(s.relevance_score for s in all_steps) / len(all_steps) if all_steps else 0.0
     avg_faithfulness = sum(s.faithfulness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
     avg_context_precision = sum(s.context_precision_score for s in all_steps) / len(all_steps) if all_steps else 0.0
+    avg_answer_correctness = sum(s.answer_correctness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
 
     total_latency = sum(r.total_latency_ms for r in results)
     avg_latency = total_latency / total_questions if total_questions > 0 else 0
 
     # Calculate P95 latency per question
-    step_latencies = [s.latency_ms for s in all_steps]
+    step_latencies: list[float | int] = [s.latency_ms for s in all_steps]
     p95_latency = calculate_p95_latency(step_latencies)
 
     failed_paths = [r for r in results if not r.success]
@@ -314,6 +322,7 @@ async def run_flow_eval(
         avg_relevance=avg_relevance,
         avg_faithfulness=avg_faithfulness,
         avg_context_precision=avg_context_precision,
+        avg_answer_correctness=avg_answer_correctness,
         total_latency_ms=total_latency,
         avg_latency_per_question_ms=avg_latency,
         p95_latency_ms=p95_latency,

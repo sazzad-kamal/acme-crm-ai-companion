@@ -12,12 +12,11 @@ Logs are written to JSONL format for easy analysis.
 
 import json
 import logging
-from dataclasses import dataclass, asdict
-from datetime import datetime, UTC
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from backend.agent.core.config import get_config
-
 
 # Configure module logger
 logger = logging.getLogger(__name__)

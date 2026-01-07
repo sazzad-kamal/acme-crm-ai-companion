@@ -9,16 +9,16 @@ Implements a parallel fetch graph:
 
 import uuid
 
-from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, StateGraph
 
+from backend.agent.answer.node import answer_node
 from backend.agent.core.state import AgentState
-from backend.agent.route.node import route_node
+from backend.agent.fetch.fetch_account import fetch_account_node
 from backend.agent.fetch.fetch_crm import fetch_crm_node
 from backend.agent.fetch.fetch_docs import fetch_docs_node
-from backend.agent.fetch.fetch_account import fetch_account_node
-from backend.agent.answer.node import answer_node
 from backend.agent.followup.node import followup_node
+from backend.agent.route.node import route_node
 
 _checkpointer = MemorySaver()
 

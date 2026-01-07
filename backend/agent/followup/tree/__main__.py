@@ -9,7 +9,8 @@ Usage:
 """
 
 from collections import defaultdict
-from typing import Callable, Optional, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 import typer
 from rich import print as rprint
@@ -31,7 +32,7 @@ ROLE_LABELS = {
 T = TypeVar("T")
 
 
-def _call_with_role(func: Callable[..., T], role: str | None, **kwargs) -> T:
+def _call_with_role(func: Callable[..., T], role: str | None, **kwargs: object) -> T:
     """Call a function with role, handling ValueError consistently."""
     try:
         return func(role=role, **kwargs)
@@ -42,7 +43,7 @@ def _call_with_role(func: Callable[..., T], role: str | None, **kwargs) -> T:
 
 @app.command()
 def validate(
-    role: Optional[str] = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
+    role: str | None = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
 ) -> None:
     """Validate the question tree for consistency."""
     role_label = role.upper() if role else "ALL"
@@ -59,8 +60,8 @@ def validate(
 
 @app.command()
 def tree(
-    role: Optional[str] = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
-    depth: Optional[int] = typer.Option(None, "--depth", "-d", help="Max depth to display"),
+    role: str | None = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
+    depth: int | None = typer.Option(None, "--depth", "-d", help="Max depth to display"),
 ) -> None:
     """Print the question tree in a top-down format."""
     tree_output = print_tree(role=role, max_depth=depth)
@@ -69,7 +70,7 @@ def tree(
 
 @app.command()
 def stats(
-    role: Optional[str] = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
+    role: str | None = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
 ) -> None:
     """Show statistics about the question tree."""
     s = _call_with_role(get_tree_stats, role)
@@ -91,8 +92,8 @@ def stats(
 
 @app.command()
 def paths(
-    role: Optional[str] = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Limit number of paths shown"),
+    role: str | None = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of paths shown"),
 ) -> None:
     """List all conversation paths for auditing workflows."""
     all_paths = _call_with_role(get_paths_for_role, role)

@@ -8,7 +8,6 @@ import logging
 
 from backend.agent.core.state import Source
 
-
 logger = logging.getLogger(__name__)
 
 

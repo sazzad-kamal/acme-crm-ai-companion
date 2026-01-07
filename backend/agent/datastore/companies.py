@@ -7,7 +7,7 @@ Provides company resolution, lookup, and search functionality.
 from __future__ import annotations
 
 from difflib import get_close_matches
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.agent.datastore.base import DataStoreMixinProtocol

@@ -11,8 +11,8 @@ def ensure_qdrant_collections() -> None:
     Ensure Qdrant collections exist, ingesting data if needed.
     Shared by e2e_eval and flow_eval.
     """
-    from backend.agent.rag.config import DOCS_COLLECTION, PRIVATE_COLLECTION, QDRANT_PATH
     from backend.agent.rag.client import get_qdrant_client
+    from backend.agent.rag.config import DOCS_COLLECTION, PRIVATE_COLLECTION, QDRANT_PATH
     from backend.agent.rag.ingest import ingest_docs, ingest_private_texts
 
     QDRANT_PATH.mkdir(parents=True, exist_ok=True)
@@ -20,11 +20,11 @@ def ensure_qdrant_collections() -> None:
 
     docs_exists = (
         qdrant.collection_exists(DOCS_COLLECTION)
-        and qdrant.get_collection(DOCS_COLLECTION).points_count > 0
+        and (qdrant.get_collection(DOCS_COLLECTION).points_count or 0) > 0
     )
     private_exists = (
         qdrant.collection_exists(PRIVATE_COLLECTION)
-        and qdrant.get_collection(PRIVATE_COLLECTION).points_count > 0
+        and (qdrant.get_collection(PRIVATE_COLLECTION).points_count or 0) > 0
     )
 
     if docs_exists and private_exists:
@@ -51,10 +51,10 @@ from backend.eval.formatting import (
     print_eval_header,
 )
 from backend.eval.shared import (
-    compare_to_baseline,
-    save_baseline,
-    print_baseline_comparison,
     REGRESSION_THRESHOLD,
+    compare_to_baseline,
+    print_baseline_comparison,
+    save_baseline,
 )
 
 __all__ = [

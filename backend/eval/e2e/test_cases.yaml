@@ -1,5 +1,11 @@
 # E2E evaluation test cases
 # Contains edge cases, adversarial tests, and realistic user input tests
+#
+# For RAG tests (minimal, error_recovery, ambiguous, realistic_input, multi_turn):
+#   expected_answer provides ground truth for RAGAS answer_correctness metric
+#
+# For security tests (adversarial, anti_hallucination):
+#   No expected_answer - evaluated via refusal_correct and forbidden_keywords
 
 # =============================================================================
 # MINIMAL/SHORT QUERY TESTS (6 tests)
@@ -10,36 +16,54 @@
   category: minimal
   expected_company: null
   expected_intent: null
+  expected_answer: |
+    I can help you with your CRM data. Try asking about a specific company,
+    your pipeline, renewals, or forecast.
 
 - id: e2e_minimal_company_name
   question: "acme"
   category: minimal
   expected_company: ACME-MFG
   expected_intent: company_status
+  expected_answer: |
+    Acme Manufacturing is an active account in Manufacturing industry.
+    They have multiple open opportunities and recent activity.
 
 - id: e2e_minimal_renewals
   question: "renewals"
   category: minimal
   expected_company: null
   expected_intent: renewals
+  expected_answer: |
+    Here are your upcoming renewals. You have several accounts due for renewal
+    with varying health statuses and values.
 
 - id: e2e_minimal_question_mark
   question: "pipeline?"
   category: minimal
   expected_company: null
   expected_intent: pipeline_summary
+  expected_answer: |
+    Your pipeline includes opportunities across different stages.
+    The total pipeline value and number of open deals are shown.
 
 - id: e2e_minimal_forecast
   question: "forecast"
   category: minimal
   expected_company: null
   expected_intent: forecast
+  expected_answer: |
+    The forecast for this period shows expected revenue based on
+    weighted pipeline values and deal probabilities.
 
 - id: e2e_minimal_at_risk
   question: "at risk"
   category: minimal
   expected_company: null
   expected_intent: deals_at_risk
+  expected_answer: |
+    Here are the deals currently flagged as at-risk. These may need
+    attention due to stalled progress or other warning signs.
 
 # =============================================================================
 # ERROR RECOVERY TESTS (6 tests)
@@ -50,36 +74,54 @@
   category: error_recovery
   expected_company: ACME-MFG
   expected_intent: company_status
+  expected_answer: |
+    Acme Manufacturing is an active account. Here's the status information
+    including recent activities and opportunities.
 
 - id: e2e_error_company_not_found
   question: "What's the status of XYZ Nonexistent Corp?"
   category: error_recovery
   expected_company: null
   expected_intent: company_status
+  expected_answer: |
+    I couldn't find a company matching "XYZ Nonexistent Corp" in your CRM.
+    Please check the company name or try a different search.
 
 - id: e2e_error_typo_company
   question: "Show me Akme Manufakturing"
   category: error_recovery
   expected_company: ACME-MFG
   expected_intent: company_status
+  expected_answer: |
+    I found Acme Manufacturing (matching your search). This is an active
+    account with recent activity and open opportunities.
 
 - id: e2e_error_empty_result
   question: "Show activities for a company with no activities"
   category: error_recovery
   expected_company: null
   expected_intent: activities
+  expected_answer: |
+    I couldn't find the company you mentioned. Please specify a valid
+    company name to see their activities.
 
 - id: e2e_error_invalid_date
   question: "Show renewals for February 30th"
   category: error_recovery
   expected_company: null
   expected_intent: renewals
+  expected_answer: |
+    Here are your upcoming renewals. Note that February 30th is not a valid
+    date, so showing all upcoming renewals instead.
 
 - id: e2e_error_partial_data
   question: "What's the pipeline value for a company with incomplete data?"
   category: error_recovery
   expected_company: null
   expected_intent: pipeline_summary
+  expected_answer: |
+    Here's your overall pipeline summary. To see a specific company's pipeline,
+    please provide the company name.
 
 # =============================================================================
 # AMBIGUOUS INTENT TESTS (3 tests)
@@ -90,18 +132,27 @@
   category: ambiguous
   expected_company: null
   expected_intent: pipeline_summary
+  expected_answer: |
+    Here's your pipeline summary showing all open opportunities across
+    different stages with their values and expected close dates.
 
 - id: e2e_ambiguous_pronoun
   question: "Show me their deals"
   category: ambiguous
   expected_company: null
   expected_intent: pipeline_summary
+  expected_answer: |
+    I'm not sure which company you're referring to. Here's your overall
+    pipeline. Please specify a company name for specific deals.
 
 - id: e2e_ambiguous_projections
   question: "show projections"
   category: ambiguous
   expected_company: null
   expected_intent: forecast
+  expected_answer: |
+    Here's your forecast showing projected revenue based on the
+    weighted pipeline and deal probabilities.
 
 # =============================================================================
 # ADVERSARIAL TESTS (8 tests) - Agent-Level Security
@@ -214,48 +265,72 @@
   category: realistic_input
   expected_company: ACME-MFG
   expected_intent: company_status
+  expected_answer: |
+    Acme Manufacturing is an active account in Manufacturing industry.
+    They have open opportunities and recent engagement activity.
 
 - id: e2e_realistic_lowercase
   question: "whats the status of acme manufacturing"
   category: realistic_input
   expected_company: ACME-MFG
   expected_intent: company_status
+  expected_answer: |
+    Acme Manufacturing is an active account. They have multiple
+    opportunities in the pipeline and ongoing activities.
 
 - id: e2e_realistic_typo_company
   question: "show me beta teck solutions activities"
   category: realistic_input
   expected_company: BETA-TECH
   expected_intent: company_status
+  expected_answer: |
+    Here's Beta Tech Solutions status and recent activities.
+    This is an active account with ongoing engagement.
 
 - id: e2e_realistic_informal
   question: "crown foods pls"
   category: realistic_input
   expected_company: CROWN-FOODS
   expected_intent: company_status
+  expected_answer: |
+    Crown Foods is an existing account. Here's their current status
+    including recent activity and opportunity information.
 
 - id: e2e_realistic_typo_question
   question: "whats acmes pipline"
   category: realistic_input
   expected_company: ACME-MFG
   expected_intent: pipeline
+  expected_answer: |
+    Here's Acme Manufacturing's pipeline showing their open opportunities
+    across different stages with values and expected close dates.
 
 - id: e2e_realistic_multi_typo
   question: "shwo me ativities for eastrn travl"
   category: realistic_input
   expected_company: EASTERN-TRAVEL
   expected_intent: company_status
+  expected_answer: |
+    Here's Eastern Travel's status and recent activities.
+    This account has ongoing engagement and opportunities.
 
 - id: e2e_realistic_typo_forecast
   question: "whats the forcast this quarter"
   category: realistic_input
   expected_company: null
   expected_intent: forecast
+  expected_answer: |
+    Here's your forecast for this quarter showing expected revenue
+    based on weighted pipeline values and deal probabilities.
 
 - id: e2e_realistic_typo_stalled
   question: "which deels are staled"
   category: realistic_input
   expected_company: null
   expected_intent: deals_at_risk
+  expected_answer: |
+    Here are the deals that appear stalled or at-risk. These may need
+    attention due to lack of recent progress or activity.
 
 # =============================================================================
 # MULTI-TURN CONVERSATION (5 tests)
@@ -267,6 +342,9 @@
   expected_company: ACME-MFG
   expected_intent: company_status
   session_id: eval_session_1
+  expected_answer: |
+    Acme Manufacturing is an active account in Manufacturing industry.
+    They have open opportunities and recent engagement activity.
 
 - id: e2e_multiturn_1b_pronoun
   question: "What about their contacts?"
@@ -274,6 +352,9 @@
   expected_company: ACME-MFG
   expected_intent: contact_lookup
   session_id: eval_session_1
+  expected_answer: |
+    Here are the key contacts at Acme Manufacturing including
+    their roles and contact information.
 
 - id: e2e_multiturn_1c_pipeline
   question: "And the opportunities?"
@@ -281,6 +362,9 @@
   expected_company: ACME-MFG
   expected_intent: pipeline
   session_id: eval_session_1
+  expected_answer: |
+    Here are Acme Manufacturing's open opportunities showing
+    stage, value, and expected close dates.
 
 - id: e2e_multiturn_2a_context
   question: "What's the status of Beta Tech Solutions?"
@@ -288,6 +372,9 @@
   expected_company: BETA-TECH
   expected_intent: company_status
   session_id: eval_session_2
+  expected_answer: |
+    Beta Tech Solutions is an active account. Here's their current
+    status including recent activity and opportunities.
 
 - id: e2e_multiturn_2b_pronoun
   question: "Show me their recent activities"
@@ -295,3 +382,6 @@
   expected_company: BETA-TECH
   expected_intent: company_status
   session_id: eval_session_2
+  expected_answer: |
+    Here are Beta Tech Solutions' recent activities including
+    calls, meetings, and emails.

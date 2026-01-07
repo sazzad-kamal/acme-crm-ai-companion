@@ -1,12 +1,12 @@
 """CRM data fetch node for LangGraph parallel execution."""
 
+import json
 import logging
 import time
 
-from backend.agent.core.state import AgentState
 from backend.agent.core.config import get_config
+from backend.agent.core.state import AgentState
 from backend.agent.fetch.handlers import IntentContext, dispatch_intent
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,9 @@ def fetch_crm_node(state: AgentState) -> AgentState:
         )
         result = dispatch_intent(intent, ctx)
 
+        # Serialize raw_data as context chunk for RAGAS evaluation
+        crm_context = json.dumps(result.raw_data, indent=2, default=str) if result.raw_data else ""
+
         latency_ms = int((time.time() - start_time) * 1000)
         logger.info(f"[FetchCRM] Complete in {latency_ms}ms, sources={len(result.sources)}")
 
@@ -50,6 +53,7 @@ def fetch_crm_node(state: AgentState) -> AgentState:
             "resolved_company_id": result.resolved_company_id or ctx.resolved_company_id,
             "sources": result.sources,
             "raw_data": result.raw_data,
+            "context_chunks": [crm_context] if crm_context else [],  # DuckDB data for RAGAS
         }
 
     except Exception as e:

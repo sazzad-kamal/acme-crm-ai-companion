@@ -4,36 +4,39 @@ from __future__ import annotations
 
 import threading
 import time
+from typing import Any
 
 from rich.progress import track
 
 from backend.agent.graph import agent_graph, build_thread_config, clear_thread
 from backend.eval.base import console, print_eval_header
-from backend.eval.parallel import run_parallel_evaluation, calculate_p95_latency
-from backend.eval.ragas_judge import evaluate_single
-from backend.eval.models import E2EEvalResult, E2EEvalSummary
 from backend.eval.e2e.test_cases import E2E_TEST_CASES
+from backend.eval.models import SECURITY_CATEGORIES, E2EEvalResult, E2EEvalSummary
+from backend.eval.parallel import calculate_p95_latency, run_parallel_evaluation
+from backend.eval.ragas_judge import evaluate_single
 
 
-def _invoke_agent(question: str, session_id: str | None = None) -> dict:
+def _invoke_agent(question: str, session_id: str | None = None) -> dict[str, Any]:
     """Invoke the agent graph and return state for eval."""
-    state = {"question": question, "sources": []}
+    state: dict[str, Any] = {"question": question, "sources": []}
     config = build_thread_config(session_id)
-    return agent_graph.invoke(state, config=config)
+    return agent_graph.invoke(state, config=config)  # type: ignore[no-any-return]
 
 
 def judge_e2e_response(
     question: str,
     answer: str,
     contexts: list[str],
+    reference_answer: str | None = None,
 ) -> dict:
     """Judge an end-to-end response using RAGAS metrics."""
     try:
-        result = evaluate_single(question, answer, contexts)
+        result = evaluate_single(question, answer, contexts, reference_answer=reference_answer)
         return {
             "answer_relevance": result["answer_relevancy"],
             "faithfulness": result["faithfulness"],
             "context_precision": result["context_precision"],
+            "answer_correctness": result.get("answer_correctness", 0.0),
             "explanation": "",
         }
     except Exception as e:
@@ -41,6 +44,7 @@ def judge_e2e_response(
             "answer_relevance": 0.0,
             "faithfulness": 0.0,
             "context_precision": 0.0,
+            "answer_correctness": 0.0,
             "explanation": f"RAGAS error: {e}",
         }
 
@@ -97,6 +101,9 @@ def run_e2e_test(
     refusal_keywords = test_case.get("refusal_keywords", [])
     forbidden_keywords = test_case.get("forbidden_keywords", [])
 
+    # Expected answer for answer_correctness metric
+    expected_answer = test_case.get("expected_answer")
+
     if verbose:
         console.print(f"\n  Testing: {test_id}")
         console.print(f"    Q: {question[:60]}...")
@@ -117,6 +124,9 @@ def run_e2e_test(
 
         answer = result.get("answer", "")
         sources = [s.id if hasattr(s, "id") else s.get("id", "") for s in result.get("sources", [])]
+
+        # Get actual context chunks for RAGAS (not just source IDs)
+        context_chunks = result.get("context_chunks", [])
 
         actual_company = result.get("resolved_company_id")
         actual_intent = result.get("intent", "general")
@@ -147,8 +157,21 @@ def run_e2e_test(
             error=error,
         )
 
-    # Judge the response using RAGAS
-    judge_result = judge_e2e_response(question, answer, sources)
+    # Judge the response using RAGAS (skip for security tests)
+    if category in SECURITY_CATEGORIES:
+        # Security tests: skip RAGAS metrics (they're meaningless for refusal checks)
+        judge_result = {
+            "answer_relevance": 0.0,
+            "faithfulness": 0.0,
+            "context_precision": 0.0,
+            "answer_correctness": 0.0,
+            "explanation": "Security test - RAGAS skipped",
+        }
+    else:
+        # RAG tests: run full RAGAS evaluation with context chunks
+        judge_result = judge_e2e_response(
+            question, answer, context_chunks, reference_answer=expected_answer
+        )
 
     # Check company extraction correctness
     company_correct = expected_company is None or actual_company == expected_company
@@ -191,10 +214,11 @@ def run_e2e_test(
         refusal_correct=refusal_correct,
         has_forbidden_content=has_forbidden,
         answer=answer[:1000],
-        answer_relevance=judge_result["answer_relevance"],
-        faithfulness=judge_result["faithfulness"],
-        context_precision=judge_result["context_precision"],
-        judge_explanation=judge_result["explanation"],
+        answer_relevance=float(judge_result.get("answer_relevance", 0.0)),  # type: ignore[arg-type]
+        faithfulness=float(judge_result.get("faithfulness", 0.0)),  # type: ignore[arg-type]
+        context_precision=float(judge_result.get("context_precision", 0.0)),  # type: ignore[arg-type]
+        answer_correctness=float(judge_result.get("answer_correctness", 0.0)),  # type: ignore[arg-type]
+        judge_explanation=str(judge_result.get("explanation", "")),
         has_sources=len(sources) > 0,
         sources=sources,
         latency_ms=latency,
@@ -267,6 +291,10 @@ def run_e2e_eval(
     # Compute summary
     total = len(results)
 
+    # Separate RAG tests from security tests
+    rag_results = [r for r in results if r.category not in SECURITY_CATEGORIES]
+    security_results = [r for r in results if r.category in SECURITY_CATEGORIES]
+
     # Company extraction accuracy
     company_tests = [r for r in results if r.expected_company_id is not None]
     company_correct_count = sum(1 for r in company_tests if r.company_correct)
@@ -277,10 +305,17 @@ def run_e2e_eval(
     intent_correct_count = sum(1 for r in intent_tests if r.intent_correct)
     intent_accuracy = intent_correct_count / len(intent_tests) if intent_tests else 1.0
 
-    # Answer quality metrics (RAGAS)
-    relevance_rate = sum(r.answer_relevance for r in results) / total if total > 0 else 0
-    faithfulness_rate = sum(r.faithfulness for r in results) / total if total > 0 else 0
-    context_precision_rate = sum(r.context_precision for r in results) / total if total > 0 else 0
+    # RAG quality metrics (only from RAG tests, not security tests)
+    rag_count = len(rag_results)
+    relevance_rate = sum(r.answer_relevance for r in rag_results) / rag_count if rag_count else 0
+    faithfulness_rate = sum(r.faithfulness for r in rag_results) / rag_count if rag_count else 0
+    context_precision_rate = sum(r.context_precision for r in rag_results) / rag_count if rag_count else 0
+    answer_correctness_rate = sum(r.answer_correctness for r in rag_results) / rag_count if rag_count else 0
+
+    # Security pass rate
+    security_passed = sum(1 for r in security_results if r.passed)
+    security_pass_rate = security_passed / len(security_results) if security_results else 1.0
+
     avg_latency = sum(r.latency_ms for r in results) / total if total > 0 else 0
 
     # Compute P95 latency
@@ -297,28 +332,48 @@ def run_e2e_eval(
         if cat not in by_category:
             by_category[cat] = {
                 "count": 0,
+                "passed": 0,
                 "relevance_sum": 0.0,
                 "faithfulness_sum": 0.0,
                 "context_precision_sum": 0.0,
+                "answer_correctness_sum": 0.0,
             }
         by_category[cat]["count"] += 1
-        by_category[cat]["relevance_sum"] += r.answer_relevance
-        by_category[cat]["faithfulness_sum"] += r.faithfulness
-        by_category[cat]["context_precision_sum"] += r.context_precision
+        by_category[cat]["passed"] += 1 if r.passed else 0
+
+        # Only accumulate RAGAS scores for non-security tests
+        if cat not in SECURITY_CATEGORIES:
+            by_category[cat]["relevance_sum"] += r.answer_relevance
+            by_category[cat]["faithfulness_sum"] += r.faithfulness
+            by_category[cat]["context_precision_sum"] += r.context_precision
+            by_category[cat]["answer_correctness_sum"] += r.answer_correctness
 
     for cat in by_category:
         count = by_category[cat]["count"]
-        by_category[cat]["relevance_rate"] = by_category[cat]["relevance_sum"] / count
-        by_category[cat]["faithfulness_rate"] = by_category[cat]["faithfulness_sum"] / count
-        by_category[cat]["context_precision_rate"] = by_category[cat]["context_precision_sum"] / count
+        if cat not in SECURITY_CATEGORIES:
+            by_category[cat]["relevance_rate"] = by_category[cat]["relevance_sum"] / count
+            by_category[cat]["faithfulness_rate"] = by_category[cat]["faithfulness_sum"] / count
+            by_category[cat]["context_precision_rate"] = by_category[cat]["context_precision_sum"] / count
+            by_category[cat]["answer_correctness_rate"] = by_category[cat]["answer_correctness_sum"] / count
+        else:
+            # Security tests don't have RAGAS rates
+            by_category[cat]["relevance_rate"] = 0.0
+            by_category[cat]["faithfulness_rate"] = 0.0
+            by_category[cat]["context_precision_rate"] = 0.0
+            by_category[cat]["answer_correctness_rate"] = 0.0
 
     summary = E2EEvalSummary(
         total_tests=total,
         company_extraction_accuracy=company_accuracy,
         intent_accuracy=intent_accuracy,
+        rag_tests_total=rag_count,
         answer_relevance_rate=relevance_rate,
         faithfulness_rate=faithfulness_rate,
         context_precision_rate=context_precision_rate,
+        answer_correctness_rate=answer_correctness_rate,
+        security_tests_total=len(security_results),
+        security_tests_passed=security_passed,
+        security_pass_rate=security_pass_rate,
         avg_latency_ms=avg_latency,
         p95_latency_ms=p95_latency,
         latency_slo_pass=latency_slo_pass,

@@ -8,11 +8,12 @@ Usage:
     python -m backend.eval.e2e.profile
 """
 
+import logging
 import os
 import sys
 import time
-import logging
 from pathlib import Path
+from typing import Any
 
 # Add parent to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
@@ -27,11 +28,11 @@ from backend.agent.graph import agent_graph, build_thread_config
 from backend.agent.rag.tools import tool_docs_rag
 
 
-def _invoke_agent(question: str, session_id: str | None = None) -> dict:
+def _invoke_agent(question: str, session_id: str | None = None) -> dict[str, Any]:
     """Invoke the agent graph and return state."""
-    state = {"question": question, "session_id": session_id, "sources": []}
+    state: dict[str, Any] = {"question": question, "session_id": session_id, "sources": []}
     config = build_thread_config(session_id)
-    return agent_graph.invoke(state, config=config)
+    return agent_graph.invoke(state, config=config)  # type: ignore[no-any-return]
 
 # Configure logging to show timing
 logging.basicConfig(
@@ -82,7 +83,7 @@ TEST_QUERIES = [
 ]
 
 
-def run_profiled_query(question: str, expected_mode: str):
+def run_profiled_query(question: str, expected_mode: str) -> dict[str, Any]:
     """Run a query and print latency breakdown."""
     print(f"\n>> Query: {question[:60]}...")
     print(f"   Expected mode: {expected_mode}")

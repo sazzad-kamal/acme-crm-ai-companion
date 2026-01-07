@@ -5,13 +5,13 @@ SLO checking, baseline comparison, results saving.
 """
 
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from rich.table import Table
 
 from backend.eval.formatting import console, format_check_mark, print_overall_result_panel
-
 
 # =============================================================================
 # Constants

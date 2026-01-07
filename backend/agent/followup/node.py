@@ -3,10 +3,9 @@
 import logging
 import time
 
-from backend.agent.core.state import AgentState
 from backend.agent.core.config import get_config
+from backend.agent.core.state import AgentState
 from backend.agent.followup.llm import generate_follow_up_suggestions
-
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ def followup_node(state: AgentState) -> AgentState:
         "pipeline_summary": raw_data.get("pipeline_summary")
         if isinstance(raw_data, dict)
         else None,
-        "docs": len(state.get("doc_sources", [])),
+        "docs": len(state.get("doc_sources") or []),  # type: ignore[arg-type]
     }
 
     try:

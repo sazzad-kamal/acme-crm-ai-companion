@@ -310,43 +310,7 @@ class TestSharedLlmClient:
 
 
 class TestEvalShared:
-    """Tests for backend.eval.shared module - LLM judge functions."""
-
-    def test_run_llm_judge_success(self):
-        """Test run_llm_judge with successful response."""
-        from backend.eval.shared import run_llm_judge
-
-        with patch("backend.eval.llm_client.call_llm") as mock_call:
-            mock_call.return_value = '{"answer_relevance": 5, "explanation": "Good answer"}'
-
-            result = run_llm_judge("test prompt", "system prompt")
-
-            assert result["answer_relevance"] == 5
-            assert result["explanation"] == "Good answer"
-
-    def test_run_llm_judge_empty_response(self):
-        """Test run_llm_judge with empty response."""
-        from backend.eval.shared import run_llm_judge
-
-        with patch("backend.eval.llm_client.call_llm") as mock_call:
-            mock_call.return_value = ""
-
-            result = run_llm_judge("test prompt", "system prompt")
-
-            assert "error" in result
-            assert "Empty response" in result["error"]
-
-    def test_run_llm_judge_exception(self):
-        """Test run_llm_judge handles exceptions."""
-        from backend.eval.shared import run_llm_judge
-
-        with patch("backend.eval.llm_client.call_llm") as mock_call:
-            mock_call.side_effect = Exception("API error")
-
-            result = run_llm_judge("test prompt", "system prompt")
-
-            assert "error" in result
-            assert "API error" in result["error"]
+    """Tests for backend.eval.shared module - finalize and save functions."""
 
     def test_finalize_eval_cli_all_pass(self):
         """Test finalize_eval_cli when all checks pass."""

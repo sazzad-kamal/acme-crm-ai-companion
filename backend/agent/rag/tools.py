@@ -8,12 +8,11 @@ Provides:
 
 import logging
 
-from qdrant_client.models import Filter, FieldCondition, MatchValue
+from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from backend.agent.core.state import Source
-from backend.agent.rag.config import PRIVATE_COLLECTION, EMBEDDING_MODEL
-from backend.agent.rag.client import get_qdrant_client, get_docs_index
-
+from backend.agent.rag.client import get_docs_index, get_qdrant_client
+from backend.agent.rag.config import EMBEDDING_MODEL, PRIVATE_COLLECTION
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +78,7 @@ def tool_account_rag(
         Tuple of (context_text, sources)
     """
     try:
-        from llama_index.core import VectorStoreIndex, Settings
+        from llama_index.core import Settings, VectorStoreIndex
         from llama_index.vector_stores.qdrant import QdrantVectorStore
 
         Settings.embed_model = _get_embed_model()

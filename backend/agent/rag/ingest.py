@@ -13,14 +13,13 @@ from pathlib import Path
 from qdrant_client import QdrantClient
 
 from backend.agent.rag.config import (
-    QDRANT_PATH,
-    DOCS_DIR,
-    JSONL_PATH,
     DOCS_COLLECTION,
-    PRIVATE_COLLECTION,
+    DOCS_DIR,
     EMBEDDING_MODEL,
+    JSONL_PATH,
+    PRIVATE_COLLECTION,
+    QDRANT_PATH,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,7 @@ def ingest_docs(recreate: bool = True) -> int:
     Returns:
         Number of chunks ingested
     """
-    from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
+    from llama_index.core import Settings, SimpleDirectoryReader, VectorStoreIndex
     from llama_index.core.node_parser import SentenceSplitter
     from llama_index.embeddings.huggingface import HuggingFaceEmbedding
     from llama_index.vector_stores.qdrant import QdrantVectorStore
@@ -95,7 +94,7 @@ def ingest_docs(recreate: bool = True) -> int:
 
     # Get final count
     info = client.get_collection(DOCS_COLLECTION)
-    chunk_count = info.points_count
+    chunk_count = info.points_count or 0
 
     logger.info(f"Ingested {chunk_count} chunks into '{DOCS_COLLECTION}'")
 
@@ -115,7 +114,7 @@ def ingest_private_texts(recreate: bool = True) -> int:
     Returns:
         Number of chunks ingested
     """
-    from llama_index.core import Document, VectorStoreIndex, Settings
+    from llama_index.core import Document, Settings, VectorStoreIndex
     from llama_index.core.node_parser import SentenceSplitter
     from llama_index.embeddings.huggingface import HuggingFaceEmbedding
     from llama_index.vector_stores.qdrant import QdrantVectorStore
@@ -132,7 +131,7 @@ def ingest_private_texts(recreate: bool = True) -> int:
         return 0
 
     documents = []
-    with open(JSONL_PATH, "r", encoding="utf-8") as f:
+    with open(JSONL_PATH, encoding="utf-8") as f:
         for line_num, line in enumerate(f, 1):
             if not line.strip():
                 continue
@@ -185,7 +184,7 @@ def ingest_private_texts(recreate: bool = True) -> int:
 
     # Get final count
     info = client.get_collection(PRIVATE_COLLECTION)
-    chunk_count = info.points_count
+    chunk_count = info.points_count or 0
 
     logger.info(f"Ingested {chunk_count} chunks into '{PRIVATE_COLLECTION}'")
 

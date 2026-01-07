@@ -6,10 +6,9 @@ Templates for generating answers and handling company-not-found scenarios.
 
 from langchain_core.prompts import (
     ChatPromptTemplate,
-    SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
+    SystemMessagePromptTemplate,
 )
-
 
 AGENT_SYSTEM_PROMPT = """You are a helpful CRM assistant for Acme CRM Suite.
 Your job is to answer questions using ONLY the provided context, which may include:

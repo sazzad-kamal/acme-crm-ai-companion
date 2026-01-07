@@ -7,10 +7,9 @@ Handles question routing and parameter extraction.
 import logging
 import time
 
-from backend.agent.core.state import AgentState, format_history_for_prompt
 from backend.agent.core.config import get_config
+from backend.agent.core.state import AgentState, format_history_for_prompt
 from backend.agent.route.router import route_question
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,7 @@ def route_node(state: AgentState) -> AgentState:
             f"latency={latency_ms}ms"
         )
 
-        return {
+        return {  # type: ignore[typeddict-unknown-key]
             "router_result": router_result,  # Full result for downstream access
             "mode_used": router_result.mode_used,
             "resolved_company_id": router_result.company_id,

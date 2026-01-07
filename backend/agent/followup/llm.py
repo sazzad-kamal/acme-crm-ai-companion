@@ -9,10 +9,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from backend.llm.client import create_chain
 from backend.agent.core.config import get_config
 from backend.agent.followup.prompts import FOLLOW_UP_PROMPT_TEMPLATE
-
+from backend.llm.client import create_chain
 
 logger = logging.getLogger(__name__)
 
