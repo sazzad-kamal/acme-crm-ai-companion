@@ -3,12 +3,35 @@
 from __future__ import annotations
 
 import logging
+import os
+from typing import Any
 
 from datasets import Dataset
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from ragas import evaluate
+from ragas.embeddings import LangchainEmbeddingsWrapper
+from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import answer_correctness, answer_relevancy, context_precision, faithfulness
 
 logger = logging.getLogger(__name__)
+
+
+def _get_ragas_llm() -> Any:
+    """Get LLM wrapper for RAGAS."""
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        api_key=os.environ.get("OPENAI_API_KEY"),  # type: ignore[arg-type]
+    )
+    return LangchainLLMWrapper(llm)
+
+
+def _get_ragas_embeddings() -> Any:
+    """Get embeddings wrapper for RAGAS."""
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-3-small",
+        api_key=os.environ.get("OPENAI_API_KEY"),  # type: ignore[arg-type]
+    )
+    return LangchainEmbeddingsWrapper(embeddings)
 
 
 def evaluate_single(
@@ -31,7 +54,7 @@ def evaluate_single(
     """
     # RAGAS requires non-empty contexts
     if not contexts:
-        contexts = [""]
+        contexts = ["No context provided"]
 
     dataset_dict = {
         "question": [question],
@@ -39,10 +62,20 @@ def evaluate_single(
         "contexts": [contexts],
     }
 
+    # Configure metrics with explicit LLM/embeddings (required in RAGAS 0.4.x)
+    ragas_llm = _get_ragas_llm()
+    ragas_embeddings = _get_ragas_embeddings()
+
     # Select metrics - add answer_correctness if reference provided
     metrics = [answer_relevancy, faithfulness, context_precision]
+    for metric in metrics:
+        metric.llm = ragas_llm
+        if hasattr(metric, "embeddings"):
+            metric.embeddings = ragas_embeddings
+
     if reference_answer:
         dataset_dict["ground_truth"] = [reference_answer]
+        answer_correctness.llm = ragas_llm
         metrics.append(answer_correctness)
 
     dataset = Dataset.from_dict(dataset_dict)
@@ -50,11 +83,18 @@ def evaluate_single(
     try:
         result = evaluate(dataset, metrics=metrics)
 
+        # RAGAS 0.4.x returns lists (one score per sample) - extract first element
+        def get_score(name: str) -> float:
+            val = result.get(name, 0.0)  # type: ignore[union-attr]
+            if isinstance(val, list):
+                return float(val[0]) if val else 0.0
+            return float(val) if val else 0.0
+
         return {
-            "answer_relevancy": float(result["answer_relevancy"]),  # type: ignore[arg-type,index]
-            "faithfulness": float(result["faithfulness"]),  # type: ignore[arg-type,index]
-            "context_precision": float(result["context_precision"]),  # type: ignore[arg-type,index]
-            "answer_correctness": float(result.get("answer_correctness", 0.0) or 0.0),  # type: ignore[union-attr]
+            "answer_relevancy": get_score("answer_relevancy"),
+            "faithfulness": get_score("faithfulness"),
+            "context_precision": get_score("context_precision"),
+            "answer_correctness": get_score("answer_correctness"),
         }
     except Exception as e:
         logger.warning(f"RAGAS evaluation failed: {e}")

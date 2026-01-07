@@ -916,6 +916,8 @@ class TestRagasJudge:
             }
 
         monkeypatch.setattr("backend.eval.ragas_judge.evaluate", mock_evaluate)
+        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_llm", lambda: None)
+        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_embeddings", lambda: None)
 
         from backend.eval.ragas_judge import evaluate_single
 
@@ -932,8 +934,8 @@ class TestRagasJudge:
     def test_evaluate_single_empty_contexts(self, monkeypatch):
         """Test evaluate_single with empty contexts."""
         def mock_evaluate(dataset, metrics):
-            # Verify contexts is not empty (should be [""])
-            assert dataset["contexts"][0] == [""]
+            # Verify contexts is not empty (should be ["No context provided"])
+            assert dataset["contexts"][0] == ["No context provided"]
             return {
                 "answer_relevancy": 0.5,
                 "faithfulness": 0.5,
@@ -941,6 +943,8 @@ class TestRagasJudge:
             }
 
         monkeypatch.setattr("backend.eval.ragas_judge.evaluate", mock_evaluate)
+        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_llm", lambda: None)
+        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_embeddings", lambda: None)
 
         from backend.eval.ragas_judge import evaluate_single
 
@@ -958,6 +962,8 @@ class TestRagasJudge:
             raise RuntimeError("RAGAS API error")
 
         monkeypatch.setattr("backend.eval.ragas_judge.evaluate", mock_evaluate)
+        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_llm", lambda: None)
+        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_embeddings", lambda: None)
 
         from backend.eval.ragas_judge import evaluate_single
 
