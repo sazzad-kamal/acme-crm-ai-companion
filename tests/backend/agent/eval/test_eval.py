@@ -306,11 +306,11 @@ class TestSLOConstants:
 
     def test_slo_answer_relevance(self):
         """Test SLO answer relevance threshold."""
-        assert SLO_ANSWER_RELEVANCE == 0.80
+        assert SLO_ANSWER_RELEVANCE == 0.85
 
     def test_slo_faithfulness(self):
         """Test SLO faithfulness threshold."""
-        assert SLO_FAITHFULNESS == 0.80
+        assert SLO_FAITHFULNESS == 0.90
 
     def test_slo_flow_path_pass_rate(self):
         """Test SLO flow path pass rate threshold."""
@@ -326,7 +326,7 @@ class TestSLOConstants:
 
     def test_slo_flow_faithfulness(self):
         """Test SLO flow faithfulness threshold."""
-        assert SLO_FLOW_FAITHFULNESS == 0.80
+        assert SLO_FLOW_FAITHFULNESS == 0.90
 
 
 # =============================================================================

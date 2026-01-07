@@ -75,13 +75,13 @@ def evaluate_single(
         # Pass llm and embeddings to evaluate() - RAGAS 0.4.x API
         result = evaluate(
             dataset,
-            metrics=metrics,
+            metrics=metrics,  # type: ignore[arg-type]
             llm=ragas_llm,
             embeddings=ragas_embeddings,
         )
 
         # RAGAS 0.4.x returns EvaluationResult - convert to pandas DataFrame
-        df = result.to_pandas()
+        df = result.to_pandas()  # type: ignore[union-attr]
 
         def get_score(name: str) -> float:
             if name in df.columns and len(df) > 0:
