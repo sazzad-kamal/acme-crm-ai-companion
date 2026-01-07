@@ -921,9 +921,9 @@ class TestRagasJudge:
         def mock_evaluate(dataset, metrics, **kwargs):
             return MockResult()
 
+        # Mock both evaluate and _create_metrics to avoid RAGAS validation
         monkeypatch.setattr("backend.eval.ragas_judge.evaluate", mock_evaluate)
-        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_llm", lambda: None)
-        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_embeddings", lambda: None)
+        monkeypatch.setattr("backend.eval.ragas_judge._create_metrics", lambda *args, **kwargs: [])
 
         from backend.eval.ragas_judge import evaluate_single
 
@@ -955,8 +955,7 @@ class TestRagasJudge:
             return MockResult()
 
         monkeypatch.setattr("backend.eval.ragas_judge.evaluate", mock_evaluate)
-        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_llm", lambda: None)
-        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_embeddings", lambda: None)
+        monkeypatch.setattr("backend.eval.ragas_judge._create_metrics", lambda *args, **kwargs: [])
 
         from backend.eval.ragas_judge import evaluate_single
 
@@ -974,8 +973,7 @@ class TestRagasJudge:
             raise RuntimeError("RAGAS API error")
 
         monkeypatch.setattr("backend.eval.ragas_judge.evaluate", mock_evaluate)
-        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_llm", lambda: None)
-        monkeypatch.setattr("backend.eval.ragas_judge._get_ragas_embeddings", lambda: None)
+        monkeypatch.setattr("backend.eval.ragas_judge._create_metrics", lambda *args, **kwargs: [])
 
         from backend.eval.ragas_judge import evaluate_single
 

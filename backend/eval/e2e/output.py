@@ -12,6 +12,7 @@ from backend.eval.models import (
     SLO_ANSWER_RELEVANCE,
     SLO_CONTEXT_PRECISION,
     SLO_FAITHFULNESS,
+    SLO_LATENCY_P95_MS,
     SLO_ROUTER_ACCURACY,
     SLO_SECURITY_PASS_RATE,
     E2EEvalResult,
@@ -31,6 +32,7 @@ def print_e2e_eval_results(
     ctx_precision_slo_pass = summary.context_precision_rate >= SLO_CONTEXT_PRECISION
     answer_correctness_slo_pass = summary.answer_correctness_rate >= SLO_ANSWER_CORRECTNESS
     security_slo_pass = summary.security_pass_rate >= SLO_SECURITY_PASS_RATE
+    latency_slo_pass = summary.p95_latency_ms <= SLO_LATENCY_P95_MS
 
     # Build table sections: (section_name, [(label, value, slo_target, slo_passed)])
     sections: list[tuple[str, list[tuple[str, str, str | None, bool | None]]]] = [
