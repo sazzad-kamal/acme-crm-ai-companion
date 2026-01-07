@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import TypeVar
 
 from rich.progress import (
@@ -31,6 +31,7 @@ def run_parallel_evaluation(
     description: str,
     id_field: str = "id",
     use_lock: bool = True,
+    timeout_seconds: int = 120,
 ) -> list[T]:
     """
     Run evaluation in parallel using ThreadPoolExecutor.
@@ -45,6 +46,7 @@ def run_parallel_evaluation(
         description: Description for progress bar
         id_field: Name of the field containing item ID (default: "id")
         use_lock: Whether to use a lock for thread-safe access (default: True)
+        timeout_seconds: Timeout per item in seconds (default: 120)
 
     Returns:
         List of results in the same order as input items
@@ -82,8 +84,10 @@ def run_parallel_evaluation(
                 item = future_to_item[future]
                 item_id = item[id_field]
                 try:
-                    result = future.result()
+                    result = future.result(timeout=timeout_seconds)
                     results_by_id[item_id] = result
+                except TimeoutError:
+                    progress.console.print(f"  [yellow]⏱ {item_id}: timeout after {timeout_seconds}s[/yellow]")
                 except Exception as e:
                     progress.console.print(f"  [red]✗ {item_id}: {e}[/red]")
                 finally:
