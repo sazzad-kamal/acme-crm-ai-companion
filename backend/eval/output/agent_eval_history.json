@@ -1,19 +1,5 @@
 [
   {
-    "run_id": "2025-12-27T22:52:15.195327",
-    "timestamp": "2025-12-27T22:52:15.195354",
-    "tags": [],
-    "metrics": {
-      "answer_relevance": 0.0,
-      "groundedness": 0.0,
-      "tool_selection": 0.3,
-      "p95_latency_ms": 176854.46786880493,
-      "avg_latency_ms": 117498.61052036285
-    },
-    "total_tests": 10,
-    "latency_slo_pass": false
-  },
-  {
     "run_id": "2025-12-27T22:58:05.445507",
     "timestamp": "2025-12-27T22:58:05.445521",
     "tags": [],
@@ -373,6 +359,48 @@
     "failed_slos": [
       "P95 latency 124526ms > 10000ms",
       "Avg latency 81831ms > 6000ms"
+    ]
+  },
+  {
+    "run_id": "2026-01-06T20:04:36.356724",
+    "timestamp": "2026-01-06T20:04:36.356724",
+    "tags": [],
+    "metrics": {
+      "answer_relevance": 0.0,
+      "groundedness": 0.0,
+      "company_extraction": 0.0,
+      "intent_accuracy": 0.0,
+      "p95_latency_ms": 6608.663320541382,
+      "avg_latency_ms": 1363.1298542022705
+    },
+    "total_tests": 5,
+    "p95_slo_pass": true,
+    "avg_slo_pass": true,
+    "all_slos_passed": false,
+    "failed_slos": [
+      "Answer relevance 0.0% < 80%",
+      "Groundedness 0.0% < 80%"
+    ]
+  },
+  {
+    "run_id": "2026-01-06T20:09:33.320890",
+    "timestamp": "2026-01-06T20:09:33.320890",
+    "tags": [],
+    "metrics": {
+      "answer_relevance": 1.0,
+      "groundedness": 1.0,
+      "company_extraction": 0.0,
+      "intent_accuracy": 1.0,
+      "p95_latency_ms": 12421.553134918213,
+      "avg_latency_ms": 6868.854475021362
+    },
+    "total_tests": 5,
+    "p95_slo_pass": false,
+    "avg_slo_pass": false,
+    "all_slos_passed": false,
+    "failed_slos": [
+      "P95 latency 12422ms > 10000ms",
+      "Avg latency 6869ms > 6000ms"
     ]
   }
 ]

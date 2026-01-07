@@ -10,10 +10,9 @@ from rich.progress import track
 from backend.agent.graph import agent_graph, build_thread_config, clear_thread
 from backend.eval.base import console, print_eval_header
 from backend.eval.parallel import run_parallel_evaluation, calculate_p95_latency
-from backend.eval.shared import run_llm_judge
+from backend.eval.ragas_judge import evaluate_single
 from backend.eval.models import E2EEvalResult, E2EEvalSummary
 from backend.eval.e2e.test_cases import E2E_TEST_CASES
-from backend.eval.prompts import E2E_JUDGE_SYSTEM, E2E_JUDGE_PROMPT
 
 
 def _invoke_agent(question: str, session_id: str | None = None) -> dict:
@@ -26,35 +25,24 @@ def _invoke_agent(question: str, session_id: str | None = None) -> dict:
 def judge_e2e_response(
     question: str,
     answer: str,
-    sources: list[str],
-    category: str = "data",
+    contexts: list[str],
 ) -> dict:
-    """Judge an end-to-end response using LLM."""
-    prompt = E2E_JUDGE_PROMPT.format(
-        question=question,
-        category=category.upper(),
-        answer=answer,
-        sources=", ".join(sources) if sources else "None",
-    )
-
-    result = run_llm_judge(prompt, E2E_JUDGE_SYSTEM)
-
-    if "error" in result:
+    """Judge an end-to-end response using RAGAS metrics."""
+    try:
+        result = evaluate_single(question, answer, contexts)
         return {
-            "answer_relevance": 0,
-            "answer_grounded": 0,
-            "context_relevance": 0,
-            "faithfulness": 0,
-            "explanation": f"Judge error: {result['error']}",
+            "answer_relevance": result["answer_relevancy"],
+            "faithfulness": result["faithfulness"],
+            "context_precision": result["context_precision"],
+            "explanation": "",
         }
-
-    return {
-        "answer_relevance": result.get("answer_relevance", 0),
-        "answer_grounded": result.get("answer_grounded", 0),
-        "context_relevance": result.get("context_relevance", 0),
-        "faithfulness": result.get("faithfulness", 0),
-        "explanation": result.get("explanation", ""),
-    }
+    except Exception as e:
+        return {
+            "answer_relevance": 0.0,
+            "faithfulness": 0.0,
+            "context_precision": 0.0,
+            "explanation": f"RAGAS error: {e}",
+        }
 
 
 def check_refusal_response(
@@ -150,16 +138,17 @@ def run_e2e_test(
             refusal_correct=False,
             has_forbidden_content=False,
             answer="",
-            answer_relevance=0,
-            answer_grounded=0,
+            answer_relevance=0.0,
+            faithfulness=0.0,
+            context_precision=0.0,
             has_sources=False,
             latency_ms=latency,
             total_tokens=0,
             error=error,
         )
 
-    # Judge the response
-    judge_result = judge_e2e_response(question, answer, sources, category=category)
+    # Judge the response using RAGAS
+    judge_result = judge_e2e_response(question, answer, sources)
 
     # Check company extraction correctness
     company_correct = expected_company is None or actual_company == expected_company
@@ -173,17 +162,16 @@ def run_e2e_test(
     )
 
     if verbose:
-        relevance = "Y" if judge_result["answer_relevance"] else "N"
-        grounded = "Y" if judge_result["answer_grounded"] else "N"
-        ctx_relevance = "Y" if judge_result["context_relevance"] else "N"
-        faithful = "Y" if judge_result["faithfulness"] else "N"
+        relevance = f"{judge_result['answer_relevance']:.2f}"
+        faithful = f"{judge_result['faithfulness']:.2f}"
+        ctx_prec = f"{judge_result['context_precision']:.2f}"
         company_mark = "Y" if company_correct else "N"
         intent_mark = "Y" if intent_correct else "N"
         console.print(
             f"    Company: {actual_company} [{company_mark}], Intent: {actual_intent} [{intent_mark}]"
         )
         console.print(
-            f"    Relevance: {relevance}, Grounded: {grounded}, CtxRel: {ctx_relevance}, Faithful: {faithful}"
+            f"    Relevance: {relevance}, Faithfulness: {faithful}, CtxPrec: {ctx_prec}"
         )
         if expected_refusal:
             refusal_mark = "Y" if refusal_correct else "N"
@@ -204,9 +192,8 @@ def run_e2e_test(
         has_forbidden_content=has_forbidden,
         answer=answer[:1000],
         answer_relevance=judge_result["answer_relevance"],
-        answer_grounded=judge_result["answer_grounded"],
-        context_relevance=judge_result["context_relevance"],
         faithfulness=judge_result["faithfulness"],
+        context_precision=judge_result["context_precision"],
         judge_explanation=judge_result["explanation"],
         has_sources=len(sources) > 0,
         sources=sources,
@@ -290,11 +277,10 @@ def run_e2e_eval(
     intent_correct_count = sum(1 for r in intent_tests if r.intent_correct)
     intent_accuracy = intent_correct_count / len(intent_tests) if intent_tests else 1.0
 
-    # Answer quality metrics
+    # Answer quality metrics (RAGAS)
     relevance_rate = sum(r.answer_relevance for r in results) / total if total > 0 else 0
-    groundedness_rate = sum(r.answer_grounded for r in results) / total if total > 0 else 0
-    context_relevance_rate = sum(r.context_relevance for r in results) / total if total > 0 else 0
     faithfulness_rate = sum(r.faithfulness for r in results) / total if total > 0 else 0
+    context_precision_rate = sum(r.context_precision for r in results) / total if total > 0 else 0
     avg_latency = sum(r.latency_ms for r in results) / total if total > 0 else 0
 
     # Compute P95 latency
@@ -311,34 +297,28 @@ def run_e2e_eval(
         if cat not in by_category:
             by_category[cat] = {
                 "count": 0,
-                "relevance_sum": 0,
-                "grounded_sum": 0,
-                "context_relevance_sum": 0,
-                "faithfulness_sum": 0,
+                "relevance_sum": 0.0,
+                "faithfulness_sum": 0.0,
+                "context_precision_sum": 0.0,
             }
         by_category[cat]["count"] += 1
         by_category[cat]["relevance_sum"] += r.answer_relevance
-        by_category[cat]["grounded_sum"] += r.answer_grounded
-        by_category[cat]["context_relevance_sum"] += r.context_relevance
         by_category[cat]["faithfulness_sum"] += r.faithfulness
+        by_category[cat]["context_precision_sum"] += r.context_precision
 
     for cat in by_category:
         count = by_category[cat]["count"]
         by_category[cat]["relevance_rate"] = by_category[cat]["relevance_sum"] / count
-        by_category[cat]["groundedness_rate"] = by_category[cat]["grounded_sum"] / count
-        by_category[cat]["context_relevance_rate"] = (
-            by_category[cat]["context_relevance_sum"] / count
-        )
         by_category[cat]["faithfulness_rate"] = by_category[cat]["faithfulness_sum"] / count
+        by_category[cat]["context_precision_rate"] = by_category[cat]["context_precision_sum"] / count
 
     summary = E2EEvalSummary(
         total_tests=total,
         company_extraction_accuracy=company_accuracy,
         intent_accuracy=intent_accuracy,
         answer_relevance_rate=relevance_rate,
-        groundedness_rate=groundedness_rate,
-        context_relevance_rate=context_relevance_rate,
         faithfulness_rate=faithfulness_rate,
+        context_precision_rate=context_precision_rate,
         avg_latency_ms=avg_latency,
         p95_latency_ms=p95_latency,
         latency_slo_pass=latency_slo_pass,

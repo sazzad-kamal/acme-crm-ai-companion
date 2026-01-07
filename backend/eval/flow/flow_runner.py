@@ -11,9 +11,8 @@ from rich.table import Table
 from backend.agent.followup.tree import get_paths_for_role
 from backend.eval.base import console, print_eval_header
 from backend.eval.parallel import calculate_p95_latency
-from backend.eval.shared import run_llm_judge
+from backend.eval.ragas_judge import evaluate_single
 from backend.eval.models import FlowStepResult, FlowResult, FlowEvalResults
-from backend.eval.prompts import FLOW_JUDGE_SYSTEM, FLOW_JUDGE_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -21,26 +20,25 @@ logger = logging.getLogger(__name__)
 def judge_answer(
     question: str,
     answer: str,
-    context: str = "",
+    contexts: list[str],
 ) -> dict:
-    """Judge an answer using LLM."""
-    prompt = FLOW_JUDGE_PROMPT.format(
-        question=question,
-        answer=answer[:1000],  # Truncate long answers
-        context=context[:500] if context else "First question in conversation",
-    )
-
-    result = run_llm_judge(prompt, FLOW_JUDGE_SYSTEM)
-
-    if "error" in result:
-        logger.warning(f"Judge failed: {result['error']}")
-        return {"relevance": 0, "grounded": 0, "explanation": f"Judge error: {result['error']}"}
-
-    return {
-        "relevance": result.get("answer_relevance", 0),
-        "grounded": result.get("answer_grounded", 0),
-        "explanation": result.get("explanation", ""),
-    }
+    """Judge an answer using RAGAS metrics."""
+    try:
+        result = evaluate_single(question, answer, contexts)
+        return {
+            "relevance": result["answer_relevancy"],
+            "faithfulness": result["faithfulness"],
+            "context_precision": result["context_precision"],
+            "explanation": "",
+        }
+    except Exception as e:
+        logger.warning(f"RAGAS judge failed: {e}")
+        return {
+            "relevance": 0.0,
+            "faithfulness": 0.0,
+            "context_precision": 0.0,
+            "explanation": f"RAGAS error: {e}",
+        }
 
 
 def _invoke_agent(question: str, session_id: str | None = None) -> dict:
@@ -86,25 +84,25 @@ async def test_single_question(
         sources = result.get("sources", [])
         has_answer = bool(answer and len(answer) > 10)
 
-        # Build context from history for judge
-        context = ""
+        # Build contexts for RAGAS judge
+        contexts = []
         if history:
-            context = "\n".join(
-                [
-                    f"Q: {h['question']}\nA: {h['answer'][:200]}..."
-                    for h in history[-2:]  # Last 2 turns
-                ]
-            )
+            contexts = [
+                f"Q: {h['question']}\nA: {h['answer'][:200]}"
+                for h in history[-2:]  # Last 2 turns
+            ]
 
-        # Run LLM judge if enabled and we have an answer
-        relevance = 0
-        grounded = 0
+        # Run RAGAS judge if enabled and we have an answer
+        relevance = 0.0
+        faithfulness = 0.0
+        context_precision = 0.0
         explanation = ""
 
         if use_judge and has_answer:
-            judge_result = await asyncio.to_thread(judge_answer, question, answer, context)
-            relevance = judge_result.get("relevance", 0)
-            grounded = judge_result.get("grounded", 0)
+            judge_result = await asyncio.to_thread(judge_answer, question, answer, contexts)
+            relevance = judge_result.get("relevance", 0.0)
+            faithfulness = judge_result.get("faithfulness", 0.0)
+            context_precision = judge_result.get("context_precision", 0.0)
             explanation = judge_result.get("explanation", "")
 
         return FlowStepResult(
@@ -114,7 +112,8 @@ async def test_single_question(
             has_answer=has_answer,
             has_sources=len(sources) > 0,
             relevance_score=relevance,
-            grounded_score=grounded,
+            faithfulness_score=faithfulness,
+            context_precision_score=context_precision,
             judge_explanation=explanation,
             error=None,
         )
@@ -128,8 +127,9 @@ async def test_single_question(
             latency_ms=latency_ms,
             has_answer=False,
             has_sources=False,
-            relevance_score=0,
-            grounded_score=0,
+            relevance_score=0.0,
+            faithfulness_score=0.0,
+            context_precision_score=0.0,
             judge_explanation=f"Error: {e}",
             error=str(e),
         )
@@ -205,7 +205,7 @@ async def run_flow_eval(
     # Print header
     print_eval_header(
         "[bold blue]Conversation Flow Evaluation[/bold blue]",
-        "Testing multi-turn conversation paths with LLM-as-judge",
+        "Testing multi-turn conversation paths with RAGAS metrics",
     )
 
     config_table = Table(show_header=False, box=None, padding=(0, 2))
@@ -245,7 +245,7 @@ async def run_flow_eval(
                         console.print(f"  Q{j + 1}: {step.question[:50]}...")
                         console.print(
                             f"      [{step_color}][{status_icon}][/{step_color}] "
-                            f"R={step.relevance_score} G={step.grounded_score} | {step.latency_ms}ms"
+                            f"R={step.relevance_score:.2f} F={step.faithfulness_score:.2f} | {step.latency_ms}ms"
                         )
                         if step.judge_explanation and verbose:
                             console.print(
@@ -287,10 +287,11 @@ async def run_flow_eval(
     questions_passed = sum(sum(1 for s in r.steps if s.passed) for r in results)
     questions_failed = total_questions - questions_passed
 
-    # Calculate judge score averages
+    # Calculate RAGAS metric averages (3 metrics)
     all_steps = [s for r in results for s in r.steps]
-    avg_relevance = sum(s.relevance_score for s in all_steps) / len(all_steps) if all_steps else 0
-    avg_grounded = sum(s.grounded_score for s in all_steps) / len(all_steps) if all_steps else 0
+    avg_relevance = sum(s.relevance_score for s in all_steps) / len(all_steps) if all_steps else 0.0
+    avg_faithfulness = sum(s.faithfulness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
+    avg_context_precision = sum(s.context_precision_score for s in all_steps) / len(all_steps) if all_steps else 0.0
 
     total_latency = sum(r.total_latency_ms for r in results)
     avg_latency = total_latency / total_questions if total_questions > 0 else 0
@@ -311,7 +312,8 @@ async def run_flow_eval(
         questions_passed=questions_passed,
         questions_failed=questions_failed,
         avg_relevance=avg_relevance,
-        avg_grounded=avg_grounded,
+        avg_faithfulness=avg_faithfulness,
+        avg_context_precision=avg_context_precision,
         total_latency_ms=total_latency,
         avg_latency_per_question_ms=avg_latency,
         p95_latency_ms=p95_latency,

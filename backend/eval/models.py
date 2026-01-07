@@ -6,76 +6,6 @@ from pydantic import BaseModel
 
 
 # =============================================================================
-# Tool Evaluation Models
-# =============================================================================
-
-
-class ToolEvalResult(BaseModel):
-    """Result from individual tool evaluation."""
-
-    tool_name: str
-    test_case_id: str
-    input_params: dict = {}
-
-    # Expected vs actual
-    expected_found: bool = True
-    actual_found: bool = False
-    expected_company_id: str | None = None
-    actual_company_id: str | None = None
-
-    # Quality metrics
-    data_correct: bool = False
-    sources_present: bool = False
-    latency_ms: float = 0.0
-    error: str | None = None
-
-
-class ToolEvalSummary(BaseModel):
-    """Summary statistics for tool evaluation."""
-
-    total_tests: int
-    passed: int = 0
-    failed: int = 0
-    accuracy: float = 0.0
-    avg_latency_ms: float = 0.0
-    by_tool: dict[str, dict] = {}
-
-
-# =============================================================================
-# Router Evaluation Models
-# =============================================================================
-
-
-class RouterEvalResult(BaseModel):
-    """Result from router evaluation."""
-
-    test_case_id: str
-    question: str
-    expected_mode: str
-    actual_mode: str = ""
-    expected_company_id: str | None = None
-    actual_company_id: str | None = None
-    mode_correct: bool = False
-    company_correct: bool = True
-    intent_expected: str | None = None
-    intent_actual: str | None = None
-    intent_correct: bool = True
-    latency_ms: float = 0.0
-    error: str | None = None
-
-
-class RouterEvalSummary(BaseModel):
-    """Summary statistics for router evaluation."""
-
-    total_tests: int
-    mode_accuracy: float = 0.0
-    company_extraction_accuracy: float = 0.0
-    intent_accuracy: float = 0.0
-    avg_latency_ms: float = 0.0
-    by_mode: dict[str, dict] = {}
-
-
-# =============================================================================
 # E2E Evaluation Models
 # =============================================================================
 
@@ -102,12 +32,11 @@ class E2EEvalResult(BaseModel):
     refusal_correct: bool = True  # Did the agent properly refuse (or not refuse)?
     has_forbidden_content: bool = False  # Did the response contain forbidden keywords?
 
-    # Answer quality (LLM-judged) - RAGAS-style metrics
+    # Answer quality (RAGAS metrics, 0.0-1.0)
     answer: str
-    answer_relevance: int  # 0 or 1 - Does answer address the question?
-    answer_grounded: int  # 0 or 1 - Is answer grounded in expected data type?
-    context_relevance: int = 0  # 0 or 1 - Was retrieved context relevant to question?
-    faithfulness: int = 0  # 0 or 1 - Is answer faithful to retrieved context (no hallucination)?
+    answer_relevance: float  # RAGAS answer_relevancy
+    faithfulness: float = 0.0  # RAGAS faithfulness (replaces answer_grounded)
+    context_precision: float = 0.0  # RAGAS context_precision
     judge_explanation: str = ""
 
     # Metadata
@@ -127,11 +56,10 @@ class E2EEvalSummary(BaseModel):
     company_extraction_accuracy: float = 0.0
     intent_accuracy: float = 0.0
 
-    # Answer quality (RAGAS-style metrics)
-    answer_relevance_rate: float  # Does answer address the question?
-    groundedness_rate: float  # Is answer grounded in expected data type?
-    context_relevance_rate: float = 0.0  # Was retrieved context relevant?
-    faithfulness_rate: float = 0.0  # Is answer faithful to context (no hallucination)?
+    # Answer quality (RAGAS metrics, 0.0-1.0)
+    answer_relevance_rate: float  # RAGAS answer_relevancy
+    faithfulness_rate: float = 0.0  # RAGAS faithfulness
+    context_precision_rate: float = 0.0  # RAGAS context_precision
 
     # Latency
     avg_latency_ms: float
@@ -146,39 +74,21 @@ class E2EEvalSummary(BaseModel):
 # SLO Thresholds
 # =============================================================================
 
-# Production latency SLOs (what users experience)
+# Latency SLOs
 SLO_LATENCY_P95_MS = 5000  # 5s P95 - catches outliers
-SLO_LATENCY_AVG_MS = 3000  # 3s average - typical experience
 
-# Eval latency SLOs (more lenient due to judge LLM overhead)
-SLO_EVAL_LATENCY_P95_MS = 10000  # 10s P95 for eval (includes ~500ms judge call)
-SLO_EVAL_LATENCY_AVG_MS = 6000  # 6s average for eval
-
-# Quality SLOs (E2E)
-SLO_TOOL_ACCURACY = 0.90  # 90% tool accuracy
+# Quality SLOs (E2E) - RAGAS metrics
 SLO_ROUTER_ACCURACY = 0.90  # 90% router accuracy (company extraction)
-SLO_ANSWER_RELEVANCE = 0.80  # 80% answer relevance
-SLO_GROUNDEDNESS = 0.80  # 80% groundedness
-SLO_OVERALL = 0.80  # 80% overall
+SLO_ANSWER_RELEVANCE = 0.80  # 80% RAGAS answer_relevancy
+SLO_FAITHFULNESS = 0.80  # 80% RAGAS faithfulness
 
-# Flow Eval SLOs
+# Flow Eval SLOs - RAGAS metrics
 SLO_FLOW_PATH_PASS_RATE = 0.85  # 85% of conversation paths should pass
 SLO_FLOW_QUESTION_PASS_RATE = 0.90  # 90% of individual questions should pass
-SLO_FLOW_RELEVANCE = 0.85  # 85% relevance score
-SLO_FLOW_GROUNDED = 0.80  # 80% groundedness score
+SLO_FLOW_RELEVANCE = 0.85  # 85% RAGAS answer_relevancy
+SLO_FLOW_FAITHFULNESS = 0.80  # 80% RAGAS faithfulness
 SLO_FLOW_AVG_LATENCY_MS = 4000  # 4s average per question
 SLO_FLOW_P95_LATENCY_MS = 8000  # 8s P95 per question (flow has multi-turn overhead)
-
-
-class AgentEvalSummary(BaseModel):
-    """Complete agent evaluation summary."""
-
-    e2e_eval: E2EEvalSummary | None = None
-    overall_score: float = 0.0  # Weighted composite score
-    all_slos_passed: bool = True  # Did all SLOs pass?
-    failed_slos: list[str] = []  # Which SLOs failed?
-    regression_detected: bool = False  # Score worse than baseline?
-    baseline_score: float | None = None  # Previous run score
 
 
 # =============================================================================
@@ -197,16 +107,21 @@ class FlowStepResult:
     latency_ms: int
     has_answer: bool
     has_sources: bool
-    # LLM Judge scores
-    relevance_score: int = 0  # 0 or 1
-    grounded_score: int = 0  # 0 or 1
+    # RAGAS metrics (0.0-1.0)
+    relevance_score: float = 0.0  # RAGAS answer_relevancy
+    faithfulness_score: float = 0.0  # RAGAS faithfulness
+    context_precision_score: float = 0.0  # RAGAS context_precision
     judge_explanation: str = ""
     error: str | None = None
 
     @property
     def passed(self) -> bool:
-        """Question passes if has answer AND both judge scores are 1."""
-        return self.has_answer and self.relevance_score == 1 and self.grounded_score == 1
+        """Question passes if has answer AND meets quality thresholds."""
+        return (
+            self.has_answer
+            and self.relevance_score >= 0.7
+            and self.faithfulness_score >= 0.7
+        )
 
 
 @dataclass
@@ -232,9 +147,10 @@ class FlowEvalResults:
     total_questions: int
     questions_passed: int
     questions_failed: int
-    # Judge metrics
-    avg_relevance: float = 0.0
-    avg_grounded: float = 0.0
+    # RAGAS metrics (0.0-1.0)
+    avg_relevance: float = 0.0  # RAGAS answer_relevancy
+    avg_faithfulness: float = 0.0  # RAGAS faithfulness
+    avg_context_precision: float = 0.0  # RAGAS context_precision
     total_latency_ms: int = 0
     avg_latency_per_question_ms: float = 0.0
     p95_latency_ms: float = 0.0  # P95 latency per question

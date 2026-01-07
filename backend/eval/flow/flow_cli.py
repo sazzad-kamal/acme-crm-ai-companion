@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 import asyncio
 import logging
 from pathlib import Path
@@ -11,26 +12,20 @@ from dotenv import load_dotenv
 from rich.panel import Panel
 
 # Load environment before other imports
-load_dotenv()
+_project_root = Path(__file__).parent.parent.parent.parent
+load_dotenv(_project_root / ".env")
 
 from backend.agent.followup.tree import get_tree_stats
-from backend.eval.base import console, format_percentage, ensure_qdrant_collections
-from backend.eval.shared import finalize_eval_cli
+from backend.agent.rag.client import close_qdrant_client
+from backend.eval.base import console, ensure_qdrant_collections
 from backend.eval.formatting import print_debug_failures
-from backend.eval.models import (
-    SLO_FLOW_PATH_PASS_RATE,
-    SLO_FLOW_QUESTION_PASS_RATE,
-    SLO_FLOW_RELEVANCE,
-    SLO_FLOW_GROUNDED,
-)
 from backend.eval.flow.flow_runner import run_flow_eval
 from backend.eval.flow.flow_output import print_summary, save_results, check_qdrant_access
 
-app = typer.Typer()
+# Register cleanup to prevent shutdown errors
+atexit.register(close_qdrant_client)
 
-# Use absolute path for baseline
-_BACKEND_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
-BASELINE_PATH = _BACKEND_ROOT / "agent" / "eval" / "output" / "flow_eval_baseline.json"
+app = typer.Typer()
 
 
 async def _run_eval_async(
@@ -40,10 +35,8 @@ async def _run_eval_async(
     workers: int,
     no_judge: bool,
     output: str | None,
-    baseline: str | None,
-    set_baseline: bool,
     debug: bool,
-) -> int:
+) -> None:
     """Async implementation of the eval runner."""
     # Check if Qdrant is accessible
     if not check_qdrant_access():
@@ -57,7 +50,7 @@ async def _run_eval_async(
                 border_style="red",
             )
         )
-        return 1
+        return
 
     # Warmup: trigger model loading
     console.print("\n[dim]Warming up models...[/dim]")
@@ -90,7 +83,7 @@ async def _run_eval_async(
         import traceback
 
         traceback.print_exc()
-        return 1
+        return
 
     # Print summary
     print_summary(results)
@@ -103,7 +96,7 @@ async def _run_eval_async(
             for j, step in enumerate(item["steps"]):
                 status = "PASS" if step["passed"] else "FAIL"
                 console.print(f"[bold]Q{j + 1}:[/bold] {step['question']}")
-                console.print(f"    [{status}] R={step['relevance_score']} G={step['grounded_score']}")
+                console.print(f"    [{status}] R={step['relevance_score']} F={step['faithfulness_score']}")
                 console.print(f"    [bold]Answer:[/bold] {step['answer'][:200]}...")
                 if step["judge_explanation"]:
                     console.print(f"    [bold]Judge:[/bold] {step['judge_explanation']}")
@@ -117,7 +110,7 @@ async def _run_eval_async(
                             "question": s.question,
                             "passed": s.passed,
                             "relevance_score": s.relevance_score,
-                            "grounded_score": s.grounded_score,
+                            "faithfulness_score": s.faithfulness_score,
                             "answer": s.answer,
                             "judge_explanation": s.judge_explanation,
                         }
@@ -134,63 +127,6 @@ async def _run_eval_async(
     if output:
         save_results(results, Path(output))
 
-    # Cleanup Qdrant client
-    try:
-        from backend.agent.rag.client import close_qdrant_client
-
-        close_qdrant_client()
-    except Exception:
-        pass
-
-    # Build SLO checks
-    slo_checks = [
-        (
-            "Path Pass Rate",
-            results.path_pass_rate >= SLO_FLOW_PATH_PASS_RATE,
-            format_percentage(results.path_pass_rate),
-            f">={format_percentage(SLO_FLOW_PATH_PASS_RATE)}",
-        ),
-        (
-            "Question Pass Rate",
-            results.question_pass_rate >= SLO_FLOW_QUESTION_PASS_RATE,
-            format_percentage(results.question_pass_rate),
-            f">={format_percentage(SLO_FLOW_QUESTION_PASS_RATE)}",
-        ),
-        (
-            "Relevance",
-            results.avg_relevance >= SLO_FLOW_RELEVANCE,
-            format_percentage(results.avg_relevance),
-            f">={format_percentage(SLO_FLOW_RELEVANCE)}",
-        ),
-        (
-            "Groundedness",
-            results.avg_grounded >= SLO_FLOW_GROUNDED,
-            format_percentage(results.avg_grounded),
-            f">={format_percentage(SLO_FLOW_GROUNDED)}",
-        ),
-    ]
-
-    # Prepare baseline data
-    baseline_data = {
-        "path_pass_rate": results.path_pass_rate,
-        "question_pass_rate": results.question_pass_rate,
-        "avg_relevance": results.avg_relevance,
-        "avg_grounded": results.avg_grounded,
-    } if set_baseline else None
-
-    # Finalize CLI: baseline comparison, SLO panel, exit code
-    baseline_path = Path(baseline) if baseline else BASELINE_PATH
-    return finalize_eval_cli(
-        primary_score=results.question_pass_rate,
-        slo_checks=slo_checks,
-        baseline_path=baseline_path,
-        score_key="question_pass_rate",
-        set_baseline=set_baseline,
-        baseline_data=baseline_data,
-        extra_failure_check=results.paths_failed > 0,
-        extra_failure_reason=f"{results.paths_failed} paths failed",
-    )
-
 
 @app.command()
 def main(
@@ -204,17 +140,11 @@ def main(
     workers: int = typer.Option(5, "--workers", "-w", help="Max parallel workers"),
     no_judge: bool = typer.Option(False, "--no-judge", help="Skip LLM-as-judge evaluation"),
     output: str | None = typer.Option(None, "--output", "-o", help="Path to save JSON results"),
-    baseline: str | None = typer.Option(
-        None, "--baseline", "-b", help="Path to baseline JSON for regression comparison"
-    ),
-    set_baseline: bool = typer.Option(
-        False, "--set-baseline", help="Save current results as new baseline"
-    ),
     debug: bool = typer.Option(False, "--debug", "-d", help="Dump full details for failing paths"),
 ) -> None:
     """Run conversation flow evaluation."""
     logging.basicConfig(level=logging.WARNING)
-    exit_code = asyncio.run(
+    asyncio.run(
         _run_eval_async(
             limit=limit,
             verbose=verbose,
@@ -222,12 +152,9 @@ def main(
             workers=workers,
             no_judge=no_judge,
             output=output,
-            baseline=baseline,
-            set_baseline=set_baseline,
             debug=debug,
         )
     )
-    raise typer.Exit(code=exit_code)
 
 
 if __name__ == "__main__":

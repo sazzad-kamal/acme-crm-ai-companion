@@ -9,13 +9,12 @@ from pathlib import Path
 from rich.table import Table
 
 from backend.eval.base import console, format_percentage, format_check_mark
-from backend.eval.slo import print_slo_result, get_failed_slos
-from backend.eval.formatting import print_overall_result_panel, build_eval_table
+from backend.eval.formatting import build_eval_table
 from backend.eval.models import (
     SLO_FLOW_PATH_PASS_RATE,
     SLO_FLOW_QUESTION_PASS_RATE,
     SLO_FLOW_RELEVANCE,
-    SLO_FLOW_GROUNDED,
+    SLO_FLOW_FAITHFULNESS,
     FlowEvalResults,
 )
 
@@ -35,31 +34,21 @@ def print_summary(results: FlowEvalResults) -> bool:
     path_slo_pass = results.path_pass_rate >= SLO_FLOW_PATH_PASS_RATE
     q_slo_pass = results.question_pass_rate >= SLO_FLOW_QUESTION_PASS_RATE
     relevance_slo_pass = results.avg_relevance >= SLO_FLOW_RELEVANCE
-    grounded_slo_pass = results.avg_grounded >= SLO_FLOW_GROUNDED
-
-    # Wall clock time
-    wall_secs = results.wall_clock_ms / 1000
+    faithfulness_slo_pass = results.avg_faithfulness >= SLO_FLOW_FAITHFULNESS
 
     # Build table sections: (section_name, [(label, value, slo_target, slo_passed)])
     sections = [
         (
-            "",
+            "Pass Rates",
             [
-                ("Paths Tested", f"{results.paths_tested}/{results.total_paths}", None, None),
                 (
-                    "Path Pass Rate",
+                    "  Path Pass Rate",
                     format_percentage(results.path_pass_rate),
                     f">={format_percentage(SLO_FLOW_PATH_PASS_RATE)}",
                     path_slo_pass,
                 ),
-            ],
-        ),
-        (
-            "",
-            [
-                ("Questions Total", str(results.total_questions), None, None),
                 (
-                    "Question Pass Rate",
+                    "  Question Pass Rate",
                     format_percentage(results.question_pass_rate),
                     f">={format_percentage(SLO_FLOW_QUESTION_PASS_RATE)}",
                     q_slo_pass,
@@ -67,7 +56,7 @@ def print_summary(results: FlowEvalResults) -> bool:
             ],
         ),
         (
-            "LLM Judge Scores",
+            "Answer Quality",
             [
                 (
                     "  Relevance",
@@ -76,59 +65,20 @@ def print_summary(results: FlowEvalResults) -> bool:
                     relevance_slo_pass,
                 ),
                 (
-                    "  Groundedness",
-                    format_percentage(results.avg_grounded),
-                    f">={format_percentage(SLO_FLOW_GROUNDED)}",
-                    grounded_slo_pass,
+                    "  Faithfulness",
+                    format_percentage(results.avg_faithfulness),
+                    f">={format_percentage(SLO_FLOW_FAITHFULNESS)}",
+                    faithfulness_slo_pass,
                 ),
+                ("  Context Precision", format_percentage(results.avg_context_precision), None, None),
             ],
-        ),
-        (
-            "Latency",
-            [
-                ("  Avg per Question", f"{results.avg_latency_per_question_ms:.0f}ms", None, None),
-                ("  P95 per Question", f"{results.p95_latency_ms:.0f}ms", None, None),
-                ("  Total", f"{results.total_latency_ms}ms", None, None),
-            ],
-        ),
-        (
-            "",
-            [("Wall Clock Time", f"{wall_secs:.1f}s ({wall_secs / 60:.1f} min)", None, None)],
         ),
     ]
 
     summary_table = build_eval_table("Flow Evaluation Summary", sections)
     console.print(summary_table)
 
-    # SLO Summary Panel
-    slo_checks = [
-        (
-            "Path Pass Rate",
-            path_slo_pass,
-            format_percentage(results.path_pass_rate),
-            f">={format_percentage(SLO_FLOW_PATH_PASS_RATE)}",
-        ),
-        (
-            "Question Pass Rate",
-            q_slo_pass,
-            format_percentage(results.question_pass_rate),
-            f">={format_percentage(SLO_FLOW_QUESTION_PASS_RATE)}",
-        ),
-        (
-            "Relevance",
-            relevance_slo_pass,
-            format_percentage(results.avg_relevance),
-            f">={format_percentage(SLO_FLOW_RELEVANCE)}",
-        ),
-        (
-            "Groundedness",
-            grounded_slo_pass,
-            format_percentage(results.avg_grounded),
-            f">={format_percentage(SLO_FLOW_GROUNDED)}",
-        ),
-    ]
-
-    all_slos_passed = print_slo_result(slo_checks)
+    all_slos_passed = path_slo_pass and q_slo_pass and relevance_slo_pass and faithfulness_slo_pass
 
     # Failed Paths Detail
     if results.failed_paths:
@@ -140,8 +90,8 @@ def print_summary(results: FlowEvalResults) -> bool:
         )
         failed_table.add_column("Path", style="bold", width=6)
         failed_table.add_column("Question", width=50)
-        failed_table.add_column("R", justify="center", width=3)
-        failed_table.add_column("G", justify="center", width=3)
+        failed_table.add_column("R", justify="center", width=5)
+        failed_table.add_column("F", justify="center", width=5)
         failed_table.add_column("Latency", justify="right", width=8)
         failed_table.add_column("Issue", width=40)
 
@@ -156,30 +106,13 @@ def print_summary(results: FlowEvalResults) -> bool:
                     failed_table.add_row(
                         str(fp.path_id) if i == 0 else "",
                         step.question[:48] + "..." if len(step.question) > 48 else step.question,
-                        format_check_mark(step.relevance_score == 1),
-                        format_check_mark(step.grounded_score == 1),
+                        f"{step.relevance_score:.2f}",
+                        f"{step.faithfulness_score:.2f}",
                         f"{step.latency_ms}ms",
                         issue,
                     )
 
         console.print(failed_table)
-
-    # Overall Result
-    failed_slo_names = get_failed_slos(slo_checks)
-    all_passed = all_slos_passed and results.paths_failed == 0
-
-    failure_reasons = []
-    if results.paths_failed > 0:
-        failure_reasons.append(f"{results.paths_failed} paths failed")
-    if failed_slo_names:
-        failure_reasons.append(f"{len(failed_slo_names)} SLOs not met: {', '.join(failed_slo_names)}")
-
-    console.print()
-    print_overall_result_panel(
-        all_passed=all_passed,
-        failure_reasons=failure_reasons,
-        success_message=f"All {results.paths_tested} paths passed, all SLOs met",
-    )
 
     return all_slos_passed
 
@@ -198,7 +131,8 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
             "questions_failed": results.questions_failed,
             "question_pass_rate": results.question_pass_rate,
             "avg_relevance": results.avg_relevance,
-            "avg_grounded": results.avg_grounded,
+            "avg_faithfulness": results.avg_faithfulness,
+            "avg_context_precision": results.avg_context_precision,
             "total_latency_ms": results.total_latency_ms,
             "avg_latency_per_question_ms": results.avg_latency_per_question_ms,
             "p95_latency_ms": results.p95_latency_ms,
@@ -220,10 +154,10 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                 "target": SLO_FLOW_RELEVANCE,
                 "passed": results.avg_relevance >= SLO_FLOW_RELEVANCE,
             },
-            "groundedness": {
-                "value": results.avg_grounded,
-                "target": SLO_FLOW_GROUNDED,
-                "passed": results.avg_grounded >= SLO_FLOW_GROUNDED,
+            "faithfulness": {
+                "value": results.avg_faithfulness,
+                "target": SLO_FLOW_FAITHFULNESS,
+                "passed": results.avg_faithfulness >= SLO_FLOW_FAITHFULNESS,
             },
         },
         "tracked_metrics": {
@@ -239,7 +173,8 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                         "question": s.question,
                         "has_answer": s.has_answer,
                         "relevance_score": s.relevance_score,
-                        "grounded_score": s.grounded_score,
+                        "faithfulness_score": s.faithfulness_score,
+                        "context_precision_score": s.context_precision_score,
                         "latency_ms": s.latency_ms,
                         "judge_explanation": s.judge_explanation,
                         "error": s.error,

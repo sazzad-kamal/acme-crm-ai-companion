@@ -145,7 +145,7 @@ def build_eval_table(
             table.add_row(f"[bold]{section_name}[/bold]", "", "", "")
 
         for label, value, slo_target, slo_passed in rows:
-            slo_display = slo_target if slo_target else "[dim]tracked[/dim]"
+            slo_display = slo_target if slo_target else ""
             status = format_check_mark(slo_passed) if slo_passed is not None else ""
             table.add_row(label, value, slo_display, status)
 
