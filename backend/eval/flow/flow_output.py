@@ -40,22 +40,16 @@ def print_summary(results: FlowEvalResults) -> bool:
     ctx_precision_slo_pass = results.avg_context_precision >= SLO_FLOW_CONTEXT_PRECISION
     answer_correctness_slo_pass = results.avg_answer_correctness >= SLO_FLOW_ANSWER_CORRECTNESS
 
-    # Build table sections: (section_name, [(label, value, slo_target, slo_passed)])
+    # Build table sections matching E2E structure: (section_name, [(label, value, slo_target, slo_passed)])
     sections: list[tuple[str, list[tuple[str, str, str | None, bool | None]]]] = [
         (
-            "Pass Rates",
+            "Retrieval",
             [
                 (
-                    "  Path Pass Rate",
-                    format_percentage(results.path_pass_rate),
-                    f">={format_percentage(SLO_FLOW_PATH_PASS_RATE)}",
-                    path_slo_pass,
-                ),
-                (
-                    "  Question Pass Rate",
-                    format_percentage(results.question_pass_rate),
-                    f">={format_percentage(SLO_FLOW_QUESTION_PASS_RATE)}",
-                    q_slo_pass,
+                    "  Context Precision",
+                    format_percentage(results.avg_context_precision),
+                    f">={format_percentage(SLO_FLOW_CONTEXT_PRECISION)}",
+                    ctx_precision_slo_pass,
                 ),
             ],
         ),
@@ -75,12 +69,6 @@ def print_summary(results: FlowEvalResults) -> bool:
                     faithfulness_slo_pass,
                 ),
                 (
-                    "  Context Precision",
-                    format_percentage(results.avg_context_precision),
-                    f">={format_percentage(SLO_FLOW_CONTEXT_PRECISION)}",
-                    ctx_precision_slo_pass,
-                ),
-                (
                     "  Answer Correctness",
                     format_percentage(results.avg_answer_correctness),
                     f">={format_percentage(SLO_FLOW_ANSWER_CORRECTNESS)}",
@@ -93,9 +81,13 @@ def print_summary(results: FlowEvalResults) -> bool:
     summary_table = build_eval_table("Flow Evaluation Summary", sections)
     console.print(summary_table)
 
-    # Latency summary
+    # Summary stats below table
     console.print(
-        f"\nLatency: {results.wall_clock_ms / 1000:.1f}s total | "
+        f"\nPaths: {results.paths_passed}/{results.paths_tested} passed | "
+        f"Questions: {results.questions_passed}/{results.total_questions} passed"
+    )
+    console.print(
+        f"Latency: {results.wall_clock_ms / 1000:.1f}s total | "
         f"{results.avg_latency_per_question_ms:.0f}ms avg | "
         f"{results.p95_latency_ms:.0f}ms P95"
     )
