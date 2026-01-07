@@ -88,6 +88,9 @@ def get_latency_breakdown(
     return breakdown
 
 
+AGENT_NODES = {"route", "fetch_crm", "fetch_docs", "fetch_account", "answer", "followup"}
+
+
 def print_latency_breakdown(
     minutes_ago: int = 30,
     project_name: str | None = None,
@@ -96,6 +99,13 @@ def print_latency_breakdown(
     breakdown = get_latency_breakdown(minutes_ago, project_name)
 
     if not breakdown:
+        return
+
+    # Filter to only agent nodes (exclude RAGAS evaluation nodes like "row 0")
+    breakdown = {k: v for k, v in breakdown.items() if k in AGENT_NODES}
+
+    if not breakdown:
+        console.print("[dim]No agent node latencies found[/dim]")
         return
 
     # Calculate total for percentages
