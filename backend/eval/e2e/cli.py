@@ -36,6 +36,9 @@ def main(
     latency: bool = typer.Option(True, "--latency/--no-latency", help="Show per-node latency breakdown from LangSmith"),
 ) -> None:
     """Run end-to-end agent evaluation."""
+    import time
+    eval_start_time = time.time()
+
     results, summary = run_e2e_eval(
         limit=limit, verbose=verbose, parallel=parallel, max_workers=workers
     )
@@ -97,8 +100,11 @@ def main(
 
     # Show LangSmith latency breakdown if requested
     if latency:
+        import time
         from backend.eval.langsmith_latency import print_latency_breakdown
-        print_latency_breakdown(minutes_ago=10)
+        # Use elapsed time + 1 minute buffer to capture all runs from this eval
+        elapsed_minutes = int((time.time() - eval_start_time) / 60) + 1
+        print_latency_breakdown(minutes_ago=max(elapsed_minutes, 5))
 
 
 if __name__ == "__main__":
