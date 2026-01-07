@@ -3,49 +3,31 @@
 from __future__ import annotations
 
 import logging
-import os
+import warnings
 from typing import Any
 
 from datasets import Dataset
-from openai import AsyncOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from ragas import evaluate
-from ragas.embeddings import OpenAIEmbeddings as RagasOpenAIEmbeddings
-from ragas.llms import llm_factory
-from ragas.metrics.collections.answer_correctness.metric import AnswerCorrectness
-from ragas.metrics.collections.answer_relevancy.metric import AnswerRelevancy
-from ragas.metrics.collections.context_precision.metric import ContextPrecision
-from ragas.metrics.collections.faithfulness.metric import Faithfulness
+from ragas.embeddings import LangchainEmbeddingsWrapper
+from ragas.llms import LangchainLLMWrapper
+
+# Use old-style metrics (deprecated but work with evaluate())
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    from ragas.metrics import answer_correctness, answer_relevancy, context_precision, faithfulness
 
 logger = logging.getLogger(__name__)
 
 
-def _get_openai_client() -> AsyncOpenAI:
-    """Get OpenAI async client."""
-    return AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+def _get_ragas_llm() -> LangchainLLMWrapper:
+    """Get LLM for RAGAS using LangChain wrapper."""
+    return LangchainLLMWrapper(ChatOpenAI(model="gpt-4o-mini"))
 
 
-def _get_ragas_llm() -> Any:
-    """Get LLM for RAGAS using native factory."""
-    return llm_factory("gpt-4o-mini", client=_get_openai_client())
-
-
-def _get_ragas_embeddings() -> Any:
-    """Get embeddings for RAGAS using native OpenAI embeddings."""
-    return RagasOpenAIEmbeddings(client=_get_openai_client())
-
-
-def _create_metrics(
-    llm: Any, embeddings: Any, include_correctness: bool = False
-) -> list[Any]:
-    """Create RAGAS metric instances with LLM and embeddings."""
-    metrics: list[Any] = [
-        AnswerRelevancy(llm=llm, embeddings=embeddings),
-        Faithfulness(llm=llm),
-        ContextPrecision(llm=llm),
-    ]
-    if include_correctness:
-        metrics.append(AnswerCorrectness(llm=llm, embeddings=embeddings))
-    return metrics
+def _get_ragas_embeddings() -> LangchainEmbeddingsWrapper:
+    """Get embeddings for RAGAS using LangChain wrapper."""
+    return LangchainEmbeddingsWrapper(OpenAIEmbeddings(model="text-embedding-3-small"))
 
 
 def evaluate_single(
@@ -70,30 +52,38 @@ def evaluate_single(
     if not contexts:
         contexts = ["No context provided"]
 
-    dataset_dict = {
-        "question": [question],
-        "answer": [answer],
-        "contexts": [contexts],
+    # Old-style RAGAS metrics use different column names
+    dataset_dict: dict[str, Any] = {
+        "user_input": [question],
+        "response": [answer],
+        "retrieved_contexts": [contexts],
     }
 
-    # Get LLM and embeddings for RAGAS 0.4.x
+    # Get LLM and embeddings
     ragas_llm = _get_ragas_llm()
     ragas_embeddings = _get_ragas_embeddings()
 
-    # Create metric instances with LLM and embeddings
-    include_correctness = reference_answer is not None
-    if reference_answer:
-        dataset_dict["ground_truth"] = [reference_answer]
+    # Select metrics based on available data
+    # context_precision and answer_correctness require reference (ground truth)
+    metrics: list[Any] = [answer_relevancy, faithfulness]
 
-    metrics = _create_metrics(ragas_llm, ragas_embeddings, include_correctness)
+    if reference_answer:
+        dataset_dict["reference"] = [reference_answer]
+        metrics.extend([context_precision, answer_correctness])
+
     dataset = Dataset.from_dict(dataset_dict)
 
     try:
-        # Pass metrics to evaluate() - RAGAS 0.4.x API
-        result = evaluate(dataset, metrics=metrics)
+        # Pass llm and embeddings to evaluate() for old-style metrics
+        result = evaluate(
+            dataset,
+            metrics=metrics,
+            llm=ragas_llm,
+            embeddings=ragas_embeddings,
+        )
 
-        # RAGAS 0.4.x returns EvaluationResult - convert to pandas DataFrame
-        df = result.to_pandas()  # type: ignore[union-attr]
+        # Convert to pandas DataFrame
+        df = result.to_pandas()
 
         def get_score(name: str) -> float:
             if name in df.columns and len(df) > 0:

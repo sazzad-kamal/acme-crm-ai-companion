@@ -915,15 +915,12 @@ class TestRagasJudge:
                 return pd.DataFrame([{
                     "answer_relevancy": 0.85,
                     "faithfulness": 0.90,
-                    "context_precision": 0.80,
                 }])
 
         def mock_evaluate(dataset, metrics, **kwargs):
             return MockResult()
 
-        # Mock both evaluate and _create_metrics to avoid RAGAS validation
         monkeypatch.setattr("backend.eval.ragas_judge.evaluate", mock_evaluate)
-        monkeypatch.setattr("backend.eval.ragas_judge._create_metrics", lambda *args, **kwargs: [])
 
         from backend.eval.ragas_judge import evaluate_single
 
@@ -935,7 +932,6 @@ class TestRagasJudge:
 
         assert result["answer_relevancy"] == 0.85
         assert result["faithfulness"] == 0.90
-        assert result["context_precision"] == 0.80
 
     def test_evaluate_single_empty_contexts(self, monkeypatch):
         """Test evaluate_single with empty contexts."""
@@ -946,16 +942,14 @@ class TestRagasJudge:
                 return pd.DataFrame([{
                     "answer_relevancy": 0.5,
                     "faithfulness": 0.5,
-                    "context_precision": 0.5,
                 }])
 
         def mock_evaluate(dataset, metrics, **kwargs):
             # Verify contexts is not empty (should be ["No context provided"])
-            assert dataset["contexts"][0] == ["No context provided"]
+            assert dataset["retrieved_contexts"][0] == ["No context provided"]
             return MockResult()
 
         monkeypatch.setattr("backend.eval.ragas_judge.evaluate", mock_evaluate)
-        monkeypatch.setattr("backend.eval.ragas_judge._create_metrics", lambda *args, **kwargs: [])
 
         from backend.eval.ragas_judge import evaluate_single
 
@@ -973,7 +967,6 @@ class TestRagasJudge:
             raise RuntimeError("RAGAS API error")
 
         monkeypatch.setattr("backend.eval.ragas_judge.evaluate", mock_evaluate)
-        monkeypatch.setattr("backend.eval.ragas_judge._create_metrics", lambda *args, **kwargs: [])
 
         from backend.eval.ragas_judge import evaluate_single
 
