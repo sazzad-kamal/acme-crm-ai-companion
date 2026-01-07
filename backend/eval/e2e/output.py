@@ -12,7 +12,6 @@ from backend.eval.models import (
     SLO_ANSWER_RELEVANCE,
     SLO_CONTEXT_PRECISION,
     SLO_FAITHFULNESS,
-    SLO_LATENCY_P95_MS,
     SLO_ROUTER_ACCURACY,
     SLO_SECURITY_PASS_RATE,
     E2EEvalResult,

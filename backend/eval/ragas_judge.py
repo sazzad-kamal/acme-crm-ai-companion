@@ -10,7 +10,12 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from ragas import evaluate
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
-from ragas.metrics import answer_correctness, answer_relevancy, context_precision, faithfulness
+from ragas.metrics.collections import (
+    answer_correctness,
+    answer_relevancy,
+    context_precision,
+    faithfulness,
+)
 
 logger = logging.getLogger(__name__)
 
