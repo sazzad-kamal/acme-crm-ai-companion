@@ -346,11 +346,6 @@ def format_attachments_section(attachments_data: dict | None) -> str:
     return format_section("attachments", attachments_data) if attachments_data else ""
 
 
-def format_docs_section(docs_answer: str) -> str:
-    """Format docs RAG answer for the prompt."""
-    return f"=== DOCUMENTATION GUIDANCE ===\n{docs_answer}" if docs_answer else ""
-
-
 def format_account_context_section(account_context: str) -> str:
     """Format account RAG context (notes, attachments) for the prompt."""
     return f"=== ACCOUNT CONTEXT (Notes & Attachments) ===\n{account_context}" if account_context else ""
@@ -368,6 +363,5 @@ __all__ = [
     "format_contacts_section",
     "format_groups_section",
     "format_attachments_section",
-    "format_docs_section",
     "format_account_context_section",
 ]

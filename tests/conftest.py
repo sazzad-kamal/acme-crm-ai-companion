@@ -175,13 +175,6 @@ def mock_llm():
     def mock_call_not_found_chain(question: str, query: str, matches: str) -> tuple[str, int]:
         return _mock_answer_response("couldn't find an exact match"), 100
 
-    def mock_call_docs_rag(question: str) -> tuple[str, list]:
-        return (
-            "According to the documentation, you can find this feature "
-            "in the Settings menu under Account Configuration.",
-            [Source(type="doc", id="product_acme_crm_overview", label="Product Overview")],
-        )
-
     def mock_call_account_rag(question: str, company_id: str) -> tuple[str, list]:
         return (
             "Based on the account notes, the customer mentioned concerns about "
@@ -236,7 +229,7 @@ def mock_llm():
             intent = "company_status"
 
         return RouterResult(
-            mode_used="data+docs",
+            mode_used="data",
             company_id=None,
             days=30,
             intent=intent,
@@ -246,7 +239,6 @@ def mock_llm():
     with patch("backend.agent.answer.llm.call_answer_chain", mock_call_answer_chain), \
          patch("backend.agent.answer.llm.stream_answer_chain", mock_stream_answer_chain), \
          patch("backend.agent.answer.llm.call_not_found_chain", mock_call_not_found_chain), \
-         patch("backend.agent.fetch.rag.call_docs_rag", mock_call_docs_rag), \
          patch("backend.agent.fetch.rag.call_account_rag", mock_call_account_rag), \
          patch("backend.agent.followup.llm.generate_follow_up_suggestions", mock_generate_follow_up_suggestions), \
          patch("backend.agent.route.router.llm_route_question", mock_llm_route_question):
@@ -267,12 +259,6 @@ def mock_llm_response():
 def chat_request_company():
     """Sample chat request about a company."""
     return {"question": "What's going on with Acme Manufacturing?"}
-
-
-@pytest.fixture
-def chat_request_docs():
-    """Sample chat request about documentation."""
-    return {"question": "How do I import contacts?", "mode": "docs"}
 
 
 @pytest.fixture

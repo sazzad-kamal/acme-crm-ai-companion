@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class Source(BaseModel):
     """A source reference for citations."""
 
-    type: str  # "company", "doc", "activity", "opportunity", "history"
+    type: str  # "company", "activity", "opportunity", "history", "note", "attachment"
     id: str
     label: str
 
@@ -91,10 +91,6 @@ class AgentState(TypedDict, total=False):
     groups_data: dict[str, Any] | None
     attachments_data: dict[str, Any] | None
 
-    # Docs output
-    docs_answer: str
-    docs_sources: list[Source]
-
     # Account RAG output (private CRM text: notes, attachments)
     account_context_answer: str
     account_context_sources: list[Source]
@@ -102,8 +98,7 @@ class AgentState(TypedDict, total=False):
     # Sources accumulated from all steps (using reducer to append)
     sources: Annotated[list[Source], add]
 
-    # Individual context chunks for RAGAS evaluation (separate by source)
-    doc_chunks: list[str]      # From fetch_docs (documentation RAG)
+    # Individual context chunks for RAGAS evaluation
     account_chunks: list[str]  # From fetch_account (private CRM text RAG)
 
     # Final outputs

@@ -2,10 +2,9 @@
 LLM-based router for intelligent question routing.
 
 Uses an LLM to:
-1. Determine question mode (docs, data, data+docs)
-2. Understand query intent
-3. Extract parameters (company, timeframe, etc.)
-4. Expand/rewrite queries for better understanding
+1. Understand query intent
+2. Extract parameters (company, timeframe, etc.)
+3. Expand/rewrite queries for better understanding
 
 Uses LangChain's .with_structured_output() for reliable Pydantic parsing.
 """
@@ -87,9 +86,9 @@ class LLMRouterResponse(BaseModel):
     Used with .with_structured_output() for reliable parsing.
     """
 
-    mode: Literal["docs", "data", "data+docs"] = Field(
-        default="data+docs",
-        description="The data source mode: 'docs' for documentation, 'data' for CRM data, 'data+docs' for both",
+    mode: Literal["data"] = Field(
+        default="data",
+        description="The data source mode: 'data' for CRM data queries",
     )
     intent: Literal[
         "company_status",  # General status/summary of a specific company

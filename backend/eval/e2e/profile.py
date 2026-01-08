@@ -25,7 +25,7 @@ project_root = Path(__file__).parent.parent.parent.parent
 load_dotenv(project_root / ".env")
 
 from backend.agent.graph import agent_graph, build_thread_config
-from backend.agent.rag.tools import tool_docs_rag
+from backend.agent.rag.tools import tool_account_rag
 
 
 def _invoke_agent(question: str, session_id: str | None = None) -> dict[str, Any]:
@@ -44,7 +44,7 @@ logging.basicConfig(
 # Warmup models (simulates server startup)
 print("Warming up models...")
 warmup_start = time.time()
-tool_docs_rag("warmup", top_k=1)  # Trigger embedding model load
+tool_account_rag("warmup", "test_company", top_k=1)  # Trigger embedding model load
 warmup_ms = int((time.time() - warmup_start) * 1000)
 print(f"Models loaded in {warmup_ms}ms")
 print()
@@ -72,14 +72,14 @@ else:
 print()
 print("-" * 70)
 
-# Test queries representing different modes
+# Test queries for CRM data
 TEST_QUERIES = [
-    # Data-only query (company lookup)
+    # Company lookup
     ("What's happening with Acme Manufacturing?", "data"),
-    # Docs-only query (product question)
-    ("How do I create a new opportunity?", "docs"),
-    # Data+docs query (requires both)
-    ("What renewals are coming up and how does the renewal process work?", "data+docs"),
+    # Pipeline query
+    ("Show me the pipeline for Tech Innovations", "data"),
+    # Renewals query
+    ("What renewals are coming up in the next 90 days?", "data"),
 ]
 
 

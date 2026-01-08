@@ -3,7 +3,6 @@ LangGraph-based agent orchestration.
 
 Implements a parallel fetch graph:
     Route ─┬─→ fetch_crm ──────┬─→ Answer → Followup
-           ├─→ fetch_docs ─────┤
            └─→ fetch_account ──┘
 """
 
@@ -16,7 +15,6 @@ from backend.agent.answer.node import answer_node
 from backend.agent.core.state import AgentState
 from backend.agent.fetch.fetch_account import fetch_account_node
 from backend.agent.fetch.fetch_crm import fetch_crm_node
-from backend.agent.fetch.fetch_docs import fetch_docs_node
 from backend.agent.followup.node import followup_node
 from backend.agent.route.node import route_node
 
@@ -45,7 +43,6 @@ def _build_graph():
     # Add nodes
     graph.add_node("route", route_node)
     graph.add_node("fetch_crm", fetch_crm_node)
-    graph.add_node("fetch_docs", fetch_docs_node)
     graph.add_node("fetch_account", fetch_account_node)
     graph.add_node("answer", answer_node)
     graph.add_node("followup", followup_node)
@@ -55,12 +52,10 @@ def _build_graph():
 
     # Fan-out: route → all fetch nodes (parallel execution)
     graph.add_edge("route", "fetch_crm")
-    graph.add_edge("route", "fetch_docs")
     graph.add_edge("route", "fetch_account")
 
     # Fan-in: all fetch nodes → answer (waits for all to complete)
     graph.add_edge("fetch_crm", "answer")
-    graph.add_edge("fetch_docs", "answer")
     graph.add_edge("fetch_account", "answer")
 
     # Continue to followup and end

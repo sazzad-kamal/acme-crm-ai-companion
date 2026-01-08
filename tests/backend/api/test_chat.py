@@ -127,7 +127,6 @@ class TestStreamingModule:
         assert "route" in NODE_MESSAGES
         # Parallel fetch nodes
         assert "fetch_crm" in NODE_MESSAGES
-        assert "fetch_docs" in NODE_MESSAGES
         assert "fetch_account" in NODE_MESSAGES
         assert "answer" in NODE_MESSAGES
         assert "followup" in NODE_MESSAGES

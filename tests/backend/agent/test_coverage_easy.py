@@ -58,22 +58,20 @@ class TestHandlersCommon:
 class TestLlmHelpersFormatAvailableData:
     """Tests for _format_available_data."""
 
-    def test_format_available_data_with_pipeline_and_docs(self):
-        """Test _format_available_data includes pipeline and docs."""
+    def test_format_available_data_with_pipeline(self):
+        """Test _format_available_data includes pipeline."""
         from backend.agent.followup.llm import _format_available_data
 
         result = _format_available_data(
             data={
                 "contacts": 5,
                 "pipeline_summary": True,
-                "docs": 10,
             },
             company_name="Acme"
         )
 
         assert "Pipeline" in result
-        assert "Documentation" in result
-        assert "10" in result  # docs count
+        assert "Contacts" in result
 
     def test_format_available_data_empty_after_filtering(self):
         """Test _format_available_data with all zero counts."""
@@ -375,35 +373,12 @@ class TestCompanyIndustryLabel:
 
 
 # =============================================================================
-# fetch/rag.py - lines 27-29, 42-47: exception handling paths
+# fetch/rag.py - lines 42-47: exception handling paths
 # =============================================================================
 
 
 class TestFetchRagExceptionHandling:
     """Tests for fetch/rag.py exception handling."""
-
-    def test_call_docs_rag_exception_returns_empty(self):
-        """Test call_docs_rag returns empty on exception (lines 27-29)."""
-        # Import fresh to avoid caching
-        import importlib
-        import backend.agent.fetch.rag as rag_module
-        importlib.reload(rag_module)
-
-        # Mock the import inside the function
-        with patch.object(rag_module, "tool_docs_rag", side_effect=Exception("RAG error"), create=True):
-            # Actually trigger the exception path by mocking at import level
-            with patch.dict("sys.modules", {}):
-                pass
-
-        # Simpler approach: just verify the function exists and handles errors gracefully
-        # The function has a try/except that returns ("", []) on any exception
-        from backend.agent.fetch.rag import call_docs_rag
-
-        # Call with valid input - the function should work normally
-        # For exception testing, we'd need to mock deeper
-        result, sources = call_docs_rag("test question about settings")
-        assert isinstance(result, str)
-        assert isinstance(sources, list)
 
     def test_call_account_rag_exception_returns_empty(self):
         """Test call_account_rag returns empty on exception (lines 45-47)."""

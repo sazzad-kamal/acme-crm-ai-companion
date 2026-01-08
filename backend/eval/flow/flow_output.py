@@ -14,8 +14,6 @@ from backend.eval.models import (
     SLO_ACCOUNT_PRECISION,
     SLO_ACCOUNT_RECALL,
     SLO_COMPANY_EXTRACTION,
-    SLO_DOC_PRECISION,
-    SLO_DOC_RECALL,
     SLO_FLOW_ANSWER_CORRECTNESS,
     SLO_FLOW_FAITHFULNESS,
     SLO_FLOW_PATH_PASS_RATE,
@@ -51,11 +49,7 @@ def print_summary(results: FlowEvalResults) -> bool:
     faithfulness_slo_pass = results.avg_faithfulness >= SLO_FLOW_FAITHFULNESS
     answer_correctness_slo_pass = results.avg_answer_correctness >= SLO_FLOW_ANSWER_CORRECTNESS
 
-    # RAG source-specific SLOs
-    # Doc RAG always runs, so always show metrics (0% if retrieval failed, never N/A)
-    doc_precision_slo_pass = results.avg_doc_precision >= SLO_DOC_PRECISION
-    doc_recall_slo_pass = results.avg_doc_recall >= SLO_DOC_RECALL
-    # Account RAG is conditional, show N/A only if never invoked
+    # Account RAG SLOs - conditional, show N/A only if never invoked
     account_precision_slo_pass = results.avg_account_precision >= SLO_ACCOUNT_PRECISION if results.account_sample_count > 0 else None
     account_recall_slo_pass = results.avg_account_recall >= SLO_ACCOUNT_RECALL if results.account_sample_count > 0 else None
 
@@ -92,18 +86,6 @@ def print_summary(results: FlowEvalResults) -> bool:
         (
             "Retrieval",
             [
-                (
-                    "  Doc Precision",
-                    format_percentage(results.avg_doc_precision),
-                    f">={format_percentage(SLO_DOC_PRECISION)}",
-                    doc_precision_slo_pass,
-                ),
-                (
-                    "  Doc Recall",
-                    format_percentage(results.avg_doc_recall),
-                    f">={format_percentage(SLO_DOC_RECALL)}",
-                    doc_recall_slo_pass,
-                ),
                 (
                     "  Account Precision",
                     format_percentage(results.avg_account_precision) if results.account_sample_count > 0 else "N/A",
@@ -171,8 +153,6 @@ def print_summary(results: FlowEvalResults) -> bool:
         and q_slo_pass
         and (company_slo_pass is None or company_slo_pass)
         and intent_slo_pass
-        and doc_precision_slo_pass  # Doc RAG always runs, never None
-        and doc_recall_slo_pass  # Doc RAG always runs, never None
         and (account_precision_slo_pass is None or account_precision_slo_pass)
         and (account_recall_slo_pass is None or account_recall_slo_pass)
         and relevance_slo_pass
@@ -197,11 +177,6 @@ def _count_ragas_failures(step: FlowStepResult) -> int:
     if step.faithfulness_score < SLO_FLOW_FAITHFULNESS:
         count += 1
     if step.answer_correctness_score < SLO_FLOW_ANSWER_CORRECTNESS:
-        count += 1
-    # Doc RAG always runs, so always count its failures
-    if step.doc_rag_invoked and step.doc_precision_score < SLO_DOC_PRECISION:
-        count += 1
-    if step.doc_rag_invoked and step.doc_recall_score < SLO_DOC_RECALL:
         count += 1
     # Account RAG is conditional, only count if invoked
     if step.account_rag_invoked and step.account_precision_score < SLO_ACCOUNT_PRECISION:
@@ -241,7 +216,6 @@ def _print_slo_failures(results: FlowEvalResults) -> None:
     failed_table.add_column("R", justify="center", width=3)
     failed_table.add_column("F", justify="center", width=3)
     failed_table.add_column("A", justify="center", width=3)
-    failed_table.add_column("Doc", justify="center", width=4)
     failed_table.add_column("Acct", justify="center", width=4)
 
     def fmt(passed: bool | None) -> str:
@@ -256,11 +230,6 @@ def _print_slo_failures(results: FlowEvalResults) -> None:
         f_pass = step.faithfulness_score >= SLO_FLOW_FAITHFULNESS
         a_pass = step.answer_correctness_score >= SLO_FLOW_ANSWER_CORRECTNESS
 
-        # Doc: Always show since doc RAG always runs (never N/A)
-        doc_pass: bool = (
-            step.doc_precision_score >= SLO_DOC_PRECISION and step.doc_recall_score >= SLO_DOC_RECALL
-        )
-
         # Account: N/A if not invoked, else check both precision and recall
         acct_pass: bool | None = None if not step.account_rag_invoked else (
             step.account_precision_score >= SLO_ACCOUNT_PRECISION and step.account_recall_score >= SLO_ACCOUNT_RECALL
@@ -272,7 +241,6 @@ def _print_slo_failures(results: FlowEvalResults) -> None:
             fmt(r_pass),
             fmt(f_pass),
             fmt(a_pass),
-            fmt(doc_pass),
             fmt(acct_pass),
         )
 
@@ -297,8 +265,6 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
             "avg_relevance": results.avg_relevance,
             "avg_faithfulness": results.avg_faithfulness,
             "avg_answer_correctness": results.avg_answer_correctness,
-            "avg_doc_precision": results.avg_doc_precision,
-            "avg_doc_recall": results.avg_doc_recall,
             "avg_account_precision": results.avg_account_precision,
             "avg_account_recall": results.avg_account_recall,
             "total_latency_ms": results.total_latency_ms,
@@ -335,16 +301,6 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                 "target": SLO_FLOW_ANSWER_CORRECTNESS,
                 "passed": results.avg_answer_correctness >= SLO_FLOW_ANSWER_CORRECTNESS,
             },
-            "doc_precision": {
-                "value": results.avg_doc_precision,
-                "target": SLO_DOC_PRECISION,
-                "passed": results.avg_doc_precision >= SLO_DOC_PRECISION,
-            },
-            "doc_recall": {
-                "value": results.avg_doc_recall,
-                "target": SLO_DOC_RECALL,
-                "passed": results.avg_doc_recall >= SLO_DOC_RECALL,
-            },
             "account_precision": {
                 "value": results.avg_account_precision,
                 "target": SLO_ACCOUNT_PRECISION,
@@ -371,8 +327,6 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                         "relevance_score": s.relevance_score,
                         "faithfulness_score": s.faithfulness_score,
                         "answer_correctness_score": s.answer_correctness_score,
-                        "doc_precision_score": s.doc_precision_score,
-                        "doc_recall_score": s.doc_recall_score,
                         "account_precision_score": s.account_precision_score,
                         "account_recall_score": s.account_recall_score,
                         "latency_ms": s.latency_ms,

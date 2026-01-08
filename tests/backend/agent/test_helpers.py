@@ -220,24 +220,6 @@ class TestFormatRenewalsSection:
         assert "Acme Corp" in result
 
 
-class TestFormatDocsSection:
-    """Tests for format_docs_section."""
-    
-    def test_returns_empty_for_none(self):
-        """Returns empty string for None input."""
-        from backend.agent.answer.formatters import format_docs_section
-        assert format_docs_section(None) == ""
-        assert format_docs_section("") == ""
-    
-    def test_formats_docs_answer(self):
-        """Formats documentation answer."""
-        from backend.agent.answer.formatters import format_docs_section
-        
-        result = format_docs_section("Here is how to import contacts...")
-        assert "DOCUMENTATION GUIDANCE" in result
-        assert "Here is how to import contacts" in result
-
-
 # =============================================================================
 # LLM Helpers Tests
 # =============================================================================
@@ -258,7 +240,6 @@ class TestCallAnswerChainMockMode:
             history_section="No history",
             pipeline_section="No pipeline",
             renewals_section="No renewals",
-            docs_section="No docs",
         )
 
         assert isinstance(result, tuple)
@@ -278,7 +259,6 @@ class TestCallAnswerChainMockMode:
             history_section="History",
             pipeline_section="Pipeline",
             renewals_section="Renewals",
-            docs_section="Docs",
         )
         assert latency == 100
 

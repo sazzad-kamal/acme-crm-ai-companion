@@ -38,18 +38,6 @@ class TestE2EAgentPipeline:
         assert "sources" in result
         assert "mode_used" in result
 
-    @pytest.mark.integration
-    def test_agent_handles_docs_query(self):
-        """Test agent handles docs query end-to-end."""
-        from backend.agent.graph import agent_graph, build_thread_config
-
-        state = {"question": "How do I import contacts?", "sources": []}
-        config = build_thread_config(None)
-        result = agent_graph.invoke(state, config=config)
-
-        assert "mode_used" in result
-        assert "answer" in result
-
 
 # =============================================================================
 # E2E Datastore Tests

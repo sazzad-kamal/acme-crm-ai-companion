@@ -11,23 +11,6 @@ from backend.agent.core.state import Source
 logger = logging.getLogger(__name__)
 
 
-def call_docs_rag(question: str) -> tuple[str, list[Source]]:
-    """Call the docs RAG tool with error handling.
-
-    Args:
-        question: The user's question
-
-    Returns:
-        Tuple of (context string, list of sources)
-    """
-    try:
-        from backend.agent.rag.tools import tool_docs_rag
-        return tool_docs_rag(question)
-    except Exception as e:
-        logger.warning(f"Docs RAG failed: {e}")
-        return "", []
-
-
 def call_account_rag(question: str, company_id: str) -> tuple[str, list[Source]]:
     """Call the account RAG tool with error handling.
 
@@ -47,6 +30,5 @@ def call_account_rag(question: str, company_id: str) -> tuple[str, list[Source]]
 
 
 __all__ = [
-    "call_docs_rag",
     "call_account_rag",
 ]

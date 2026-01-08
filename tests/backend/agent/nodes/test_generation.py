@@ -174,7 +174,6 @@ class TestAnswerNode:
             "renewals_data": {"renewals": []},
             "groups_data": {"groups": []},
             "attachments_data": {"attachments": []},
-            "docs_answer": "Documentation content",
             "account_context_answer": "Context notes",
         }
 
@@ -384,7 +383,6 @@ class TestFollowupNode:
                 "history": [{"type": "Note"}],
                 "renewals": [],
             },
-            "doc_sources": [{"id": "doc1"}],
         }
 
         followup_node(state)
@@ -392,7 +390,6 @@ class TestFollowupNode:
         call_kwargs = mock_generate.call_args[1]
         assert call_kwargs["available_data"]["contacts"] == 2
         assert call_kwargs["available_data"]["activities"] == 1
-        assert call_kwargs["available_data"]["docs"] == 1
 
     @patch('backend.agent.followup.node.generate_follow_up_suggestions')
     @patch('backend.agent.followup.node.get_config')

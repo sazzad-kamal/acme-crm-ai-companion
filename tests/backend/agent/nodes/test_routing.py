@@ -136,8 +136,8 @@ class TestRouteNode:
         assert result["steps"][0]["status"] == "error"
 
     @patch('backend.agent.route.node.route_question')
-    def test_route_node_handles_exception_with_docs_fallback(self, mock_route):
-        """Handles exception and uses docs fallback for non-data keywords."""
+    def test_route_node_handles_exception_with_data_fallback_generic(self, mock_route):
+        """Handles exception and uses data fallback for generic questions."""
         from backend.agent.route.node import route_node
 
         mock_route.side_effect = Exception("Router error")
@@ -149,8 +149,8 @@ class TestRouteNode:
 
         result = route_node(state)
 
-        # Should fallback to docs mode for non-data keywords
-        assert result["mode_used"] == "docs"
+        # Should fallback to data mode (doc RAG removed)
+        assert result["mode_used"] == "data"
         assert "error" in result
 
     @patch('backend.agent.route.node.route_question')

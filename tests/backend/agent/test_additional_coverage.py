@@ -388,15 +388,14 @@ class TestMainAppCoverage:
             # Should not raise
             _ensure_rag_collections()
 
-            # Should check both collections
-            assert mock_client.collection_exists.call_count == 2
+            # Should check private collection
+            assert mock_client.collection_exists.call_count == 1
 
     def test_ensure_rag_collections_empty_count(self):
         """Test _ensure_rag_collections when collection exists but empty."""
         from backend.main import _ensure_rag_collections
 
         with patch("qdrant_client.QdrantClient") as mock_qdrant_class, \
-             patch("backend.agent.rag.ingest.ingest_docs") as mock_ingest_docs, \
              patch("backend.agent.rag.ingest.ingest_private_texts") as mock_ingest_private:
 
             mock_client = MagicMock()
@@ -409,8 +408,7 @@ class TestMainAppCoverage:
 
             _ensure_rag_collections()
 
-            # Should call ingest for both empty collections
-            mock_ingest_docs.assert_called_once()
+            # Should call ingest for private collection
             mock_ingest_private.assert_called_once()
 
 
@@ -439,28 +437,6 @@ class TestCompanyHandlerFilters:
 
         assert "filters" in result.data
         assert result.data["filters"]["company_id"] == "ACME-MFG"
-
-
-# =============================================================================
-# fetch nodes - error handling (parallel fetch)
-# =============================================================================
-
-
-class TestFetchingNodeErrors:
-    """Tests for parallel fetch node error handling."""
-
-    def test_fetch_docs_node_handles_exceptions(self):
-        """Test fetch_docs_node returns empty on exception."""
-        from backend.agent.fetch.fetch_docs import fetch_docs_node
-
-        with patch("backend.agent.fetch.fetch_docs.call_docs_rag") as mock_rag:
-            mock_rag.side_effect = Exception("RAG failed")
-
-            state = {"question": "test question"}
-            result = fetch_docs_node(state)
-
-            assert result["docs_answer"] == ""
-            assert "error" in result
 
 
 # =============================================================================

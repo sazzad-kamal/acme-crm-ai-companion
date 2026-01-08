@@ -65,9 +65,9 @@ def _run_eval(
     # Warmup: trigger model loading
     console.print("\n[dim]Warming up models...[/dim]")
     try:
-        from backend.agent.rag.tools import tool_docs_rag
+        from backend.agent.rag.tools import tool_account_rag
 
-        tool_docs_rag("warmup", top_k=1)
+        tool_account_rag("warmup", "test_company", top_k=1)
         console.print("[dim]Models loaded.[/dim]")
     except Exception as e:
         console.print(f"[yellow]Warning: Model preload failed: {e}[/yellow]")

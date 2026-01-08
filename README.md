@@ -34,8 +34,7 @@ acme-crm-ai-companion/
 │   │   ├── tools/           # Tool implementations
 │   │   └── eval/            # Evaluation framework
 │   ├── data/                # CRM data files
-│   │   ├── csv/             # CRM CSV data
-│   │   └── docs/            # Product documentation
+│   │   └── csv/             # CRM CSV data
 │   ├── main.py              # FastAPI app entry
 │   ├── exceptions.py        # Custom exceptions
 │   └── config.py            # Configuration
@@ -153,7 +152,7 @@ Content-Type: application/json
 
 {
   "question": "What's going on with Acme Manufacturing?",
-  "mode": "auto",  // "auto" | "data" | "docs" | "data+docs"
+  "mode": "data",  // Currently only "data" mode is supported
   "days": 30       // Optional: time range for data queries
 }
 ```
@@ -169,7 +168,7 @@ Content-Type: application/json
     {"id": "route", "label": "Analyzed question", "status": "done"}
   ],
   "meta": {
-    "mode_used": "data+docs",
+    "mode_used": "data",
     "latency_ms": 1234,
     "model": "gpt-5.2"
   },
@@ -243,8 +242,8 @@ GitHub Actions workflows:
 | Renewals | "Which accounts have renewals this quarter?" |
 | Pipeline | "Show me the sales pipeline for TechCorp" |
 | Activities | "Recent activities for Global Industries" |
-| Documentation | "How do I create a new opportunity?" |
-| Mixed | "Best practices for managing Acme's pipeline?" |
+| Account Search | "Show me all Enterprise accounts" |
+| Contacts | "Who are the decision makers at Global Industries?" |
 
 ## 🤝 Contributing
 

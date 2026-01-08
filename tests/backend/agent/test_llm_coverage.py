@@ -142,15 +142,6 @@ class TestLlmHelpersCallFunctions:
         assert len(answer) > 0
         assert isinstance(latency, int)
 
-    def test_call_docs_rag_returns_context_and_sources(self):
-        """Test call_docs_rag returns context and sources."""
-        from backend.agent.fetch.rag import call_docs_rag
-
-        context, sources = call_docs_rag("How do I create a contact?")
-
-        assert isinstance(context, str)
-        assert isinstance(sources, list)
-
     def test_call_account_rag_returns_context_and_sources(self):
         """Test call_account_rag returns context and sources."""
         from backend.agent.fetch.rag import call_account_rag
@@ -250,7 +241,7 @@ class TestLlmRouter:
         with patch("backend.agent.route.router._get_router_chain") as mock_get_chain:
             mock_chain = MagicMock()
             mock_response = LLMRouterResponse(
-                mode="docs",
+                mode="data",
                 intent="general",
                 company_name=None,
                 days=90,
@@ -263,7 +254,7 @@ class TestLlmRouter:
 
             result = _call_llm_router("How do I use the CRM?")
 
-            assert result["mode"] == "docs"
+            assert result["mode"] == "data"
             call_args = mock_chain.invoke.call_args[0][0]
             assert call_args["conversation_context"] == ""
 
@@ -275,8 +266,8 @@ class TestLlmRouter:
 
         result = llm_route_question(question="What is Acme's pipeline?")
 
-        # Mock fixture returns data+docs mode
-        assert result.mode_used == "data+docs"
+        # Mock fixture returns data mode
+        assert result.mode_used == "data"
         assert result.intent is not None
 
     def test_get_router_chain_caching(self):
@@ -315,31 +306,6 @@ class TestLlmRouter:
 
 class TestNodesFetching:
     """Tests for parallel fetch nodes."""
-
-    def test_fetch_docs_node_success(self):
-        """Test fetch_docs_node successful fetch."""
-        from backend.agent.fetch.fetch_docs import fetch_docs_node
-        from backend.agent.core.schemas import Source
-
-        with patch("backend.agent.fetch.fetch_docs.call_docs_rag") as mock_rag:
-            mock_rag.return_value = ("Docs content", [Source(type="doc", id="doc1", label="Doc")])
-
-            state = {"question": "How to create contact?"}
-            result = fetch_docs_node(state)
-
-            assert result["docs_answer"] == "Docs content"
-            assert len(result["sources"]) == 1
-
-    def test_fetch_docs_node_exception(self):
-        """Test fetch_docs_node handles exceptions."""
-        from backend.agent.fetch.fetch_docs import fetch_docs_node
-
-        with patch("backend.agent.fetch.fetch_docs.call_docs_rag", side_effect=Exception("RAG error")):
-            state = {"question": "How to create contact?"}
-            result = fetch_docs_node(state)
-
-            assert result["docs_answer"] == ""
-            assert "error" in result
 
     def test_fetch_account_node_success(self):
         """Test fetch_account_node successful fetch."""

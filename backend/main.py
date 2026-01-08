@@ -37,23 +37,19 @@ logger = logging.getLogger(__name__)
 def _ensure_rag_collections() -> None:
     from qdrant_client import QdrantClient
 
-    from backend.agent.rag.config import DOCS_COLLECTION, PRIVATE_COLLECTION, QDRANT_PATH
-    from backend.agent.rag.ingest import ingest_docs, ingest_private_texts
+    from backend.agent.rag.config import PRIVATE_COLLECTION, QDRANT_PATH
+    from backend.agent.rag.ingest import ingest_private_texts
 
-    for name, ingest_fn, label in [
-        (DOCS_COLLECTION, ingest_docs, "docs"),
-        (PRIVATE_COLLECTION, ingest_private_texts, "private"),
-    ]:
-        qdrant = QdrantClient(path=str(QDRANT_PATH))
-        exists = qdrant.collection_exists(name)
-        count = qdrant.get_collection(name).points_count if exists else 0
-        qdrant.close()
+    qdrant = QdrantClient(path=str(QDRANT_PATH))
+    exists = qdrant.collection_exists(PRIVATE_COLLECTION)
+    count = qdrant.get_collection(PRIVATE_COLLECTION).points_count if exists else 0
+    qdrant.close()
 
-        if not exists or count == 0:
-            logger.info(f"Ingesting {label} collection...")
-            ingest_fn()
-        else:
-            logger.info(f"{label.capitalize()} collection ready ({count} points)")
+    if not exists or count == 0:
+        logger.info("Ingesting private collection...")
+        ingest_private_texts()
+    else:
+        logger.info(f"Private collection ready ({count} points)")
 
 
 @asynccontextmanager

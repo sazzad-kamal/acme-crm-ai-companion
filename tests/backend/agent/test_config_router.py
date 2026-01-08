@@ -162,8 +162,8 @@ class TestLLMRouter:
 
         result = route_question("What's going on with Acme Corp?")
 
-        # In mock mode, returns data+docs with company_status (detected from "acme")
-        assert result.mode_used == "data+docs"
+        # In mock mode, returns data with company_status (detected from "acme")
+        assert result.mode_used == "data"
         assert result.intent == "company_status"
 
     def test_router_returns_default_days_in_mock(self):
@@ -300,7 +300,7 @@ class TestLLMRouterResponse:
 
         response = LLMRouterResponse()
 
-        assert response.mode == "data+docs"
+        assert response.mode == "data"
         assert response.intent == "general"
         assert response.days == 30
         assert response.company_name is None
@@ -370,13 +370,13 @@ class TestLLMRouterResponse:
         from backend.agent.route.router import LLMRouterResponse
 
         response = LLMRouterResponse(
-            mode="docs",
+            mode="data",
             intent="general",
             query_expansion="Expanded query",
         )
 
         data = response.model_dump()
-        assert data["mode"] == "docs"
+        assert data["mode"] == "data"
         assert data["query_expansion"] == "Expanded query"
 
 
@@ -427,12 +427,12 @@ class TestLLMRouterExtended:
         assert result.owner == "jsmith"
 
     def test_llm_route_question_mock_mode_returns_defaults(self):
-        """In mock mode, returns default data+docs routing."""
+        """In mock mode, returns default data routing."""
         from backend.agent.route.router import llm_route_question
 
         result = llm_route_question("Show me the forecast")
 
-        assert result.mode_used == "data+docs"
+        assert result.mode_used == "data"
         assert result.days == 30
 
     def test_route_question_detects_owner_as_fallback(self):
@@ -457,7 +457,7 @@ class TestLLMRouterExtended:
         )
 
         # Should still return default in mock mode
-        assert result.mode_used == "data+docs"
+        assert result.mode_used == "data"
 
     def test_starter_owner_map_coverage(self):
         """Tests all patterns in STARTER_OWNER_MAP."""

@@ -59,7 +59,7 @@ def generate_follow_up_suggestions(
 
     Args:
         question: The user's original question
-        mode: The response mode ("data", "docs", etc.)
+        mode: The response mode ("data")
         company_id: Optional company ID for context
         company_name: Optional company name for context
         conversation_history: Previous conversation context
@@ -125,8 +125,6 @@ def _format_available_data(data: dict | None, company_name: str | None) -> str:
 
     if data.get("pipeline_summary"):
         lines.append("- Pipeline: Overall pipeline summary available")
-    if data.get("docs", 0) > 0:
-        lines.append(f"- Documentation: {data['docs']} relevant docs")
 
     return "\n".join(lines) if lines else "No specific data available. Suggest general CRM questions."
 

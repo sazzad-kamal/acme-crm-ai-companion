@@ -2,7 +2,6 @@
 RAG search tools for the agent layer.
 
 Provides:
-- tool_docs_rag: Search product documentation
 - tool_account_rag: Search company-scoped CRM text
 """
 
@@ -11,7 +10,7 @@ import logging
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from backend.agent.core.state import Source
-from backend.agent.rag.client import get_docs_index, get_qdrant_client
+from backend.agent.rag.client import get_qdrant_client
 from backend.agent.rag.config import EMBEDDING_MODEL, PRIVATE_COLLECTION
 
 logger = logging.getLogger(__name__)
@@ -22,43 +21,6 @@ def _get_embed_model():
     from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
     return HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
-
-
-def tool_docs_rag(question: str, top_k: int = 5) -> tuple[str, list[Source]]:
-    """
-    Search product documentation and return relevant context.
-
-    Args:
-        question: User's question
-        top_k: Number of chunks to retrieve
-
-    Returns:
-        Tuple of (context_text, sources)
-    """
-    try:
-        index = get_docs_index()
-        retriever = index.as_retriever(similarity_top_k=top_k)
-        nodes = retriever.retrieve(question)
-
-        context_parts = []
-        sources = []
-        seen_docs = set()
-
-        for node in nodes:
-            context_parts.append(node.text)
-            doc_id = node.metadata.get("doc_id", node.metadata.get("file_name", "unknown"))
-            if doc_id not in seen_docs:
-                seen_docs.add(doc_id)
-                label = doc_id.replace("_", " ").replace(".md", "").title()
-                sources.append(Source(type="doc", id=doc_id, label=label))
-
-        context = "\n\n---\n\n".join(context_parts)
-        logger.info(f"Docs RAG: retrieved {len(nodes)} chunks from {len(sources)} docs")
-        return context, sources
-
-    except Exception as e:
-        logger.warning(f"Docs RAG failed: {e}")
-        return "", []
 
 
 def tool_account_rag(
@@ -122,6 +84,5 @@ def tool_account_rag(
 
 
 __all__ = [
-    "tool_docs_rag",
     "tool_account_rag",
 ]

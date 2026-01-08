@@ -24,7 +24,7 @@ Current company: {company}
 GENERATE 3 QUESTIONS:
 1. First question: Drill deeper into current company's available data (use company name)
 2. Second question: Another angle on current company's data (use company name)
-3. Third question: Let user explore something NEW - different company, general CRM question, or documentation topic
+3. Third question: Let user explore something NEW - different company or general CRM data question
 
 RULES:
 - Questions 1-2: ONLY ask about data types listed as available above

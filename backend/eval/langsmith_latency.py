@@ -83,7 +83,7 @@ def get_latency_breakdown(
     return breakdown
 
 
-AGENT_NODES = {"route", "fetch_crm", "fetch_docs", "fetch_account", "answer", "followup"}
+AGENT_NODES = {"route", "fetch_crm", "fetch_account", "answer", "followup"}
 
 
 def get_latency_percentages(
@@ -115,17 +115,17 @@ def get_latency_percentages(
 
     # Map node names to sections
     # routing = route node
-    # retrieval = fetch_docs (fetch_crm and fetch_account run in parallel, fetch_docs is the main one)
+    # retrieval = fetch_account (fetch_crm runs in parallel, account is the vector RAG)
     # answer = answer node
     # followup = followup node
     route_pct = breakdown.get("route", {}).get("avg_ms", 0) / total_avg
-    fetch_docs_pct = breakdown.get("fetch_docs", {}).get("avg_ms", 0) / total_avg
+    fetch_account_pct = breakdown.get("fetch_account", {}).get("avg_ms", 0) / total_avg
     answer_pct = breakdown.get("answer", {}).get("avg_ms", 0) / total_avg
     followup_pct = breakdown.get("followup", {}).get("avg_ms", 0) / total_avg
 
     return {
         "routing": route_pct,
-        "retrieval": fetch_docs_pct,
+        "retrieval": fetch_account_pct,
         "answer": answer_pct,
         "followup": followup_pct,
     }

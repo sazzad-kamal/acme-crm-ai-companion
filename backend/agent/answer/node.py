@@ -9,7 +9,6 @@ from backend.agent.answer.formatters import (
     format_attachments_section,
     format_company_section,
     format_contacts_section,
-    format_docs_section,
     format_groups_section,
     format_history_section,
     format_pipeline_section,
@@ -65,7 +64,6 @@ def answer_node(state: AgentState) -> AgentState:
             renewals_section = format_renewals_section(state.get("renewals_data"))
             groups_section = format_groups_section(state.get("groups_data"))
             attachments_section = format_attachments_section(state.get("attachments_data"))
-            docs_section = format_docs_section(state.get("docs_answer", ""))
             account_context_section = format_account_context_section(
                 state.get("account_context_answer", "")
             )
@@ -82,7 +80,6 @@ def answer_node(state: AgentState) -> AgentState:
                 renewals_section=renewals_section,
                 groups_section=groups_section,
                 attachments_section=attachments_section,
-                docs_section=docs_section,
                 account_context_section=account_context_section,
             )
 

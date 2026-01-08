@@ -134,9 +134,7 @@ SLO_FLOW_ANSWER_CORRECTNESS = 0.70  # 70% - hardest metric, flexible answer form
 SLO_FLOW_AVG_LATENCY_MS = 4000  # 4s average per question
 SLO_FLOW_P95_LATENCY_MS = 8000  # 8s P95 per question (flow has multi-turn overhead)
 
-# RAG source-specific SLOs (separate precision/recall for docs vs account)
-SLO_DOC_PRECISION = 0.80  # 80% - doc retrieval precision
-SLO_DOC_RECALL = 0.70  # 70% - doc retrieval recall
+# RAG source-specific SLOs (account RAG only)
 SLO_ACCOUNT_PRECISION = 0.80  # 80% - account retrieval precision
 SLO_ACCOUNT_RECALL = 0.70  # 70% - account retrieval recall
 
@@ -168,14 +166,11 @@ class FlowStepResult:
     relevance_score: float = 0.0  # RAGAS answer_relevancy
     faithfulness_score: float = 0.0  # RAGAS faithfulness
     answer_correctness_score: float = 0.0  # RAGAS answer_correctness
-    # RAGAS metrics (0.0-1.0) - retrieval quality by source
+    # RAGAS metrics (0.0-1.0) - retrieval quality
     context_precision_score: float = 0.0  # Legacy combined (deprecated)
-    doc_precision_score: float = 0.0  # Doc RAG precision
-    doc_recall_score: float = 0.0  # Doc RAG recall
     account_precision_score: float = 0.0  # Account RAG precision
     account_recall_score: float = 0.0  # Account RAG recall
     # RAG invocation flags (for N/A vs 0% distinction)
-    doc_rag_invoked: bool = True  # Always True (doc RAG always runs)
     account_rag_invoked: bool = False  # True only if account RAG was called
     judge_explanation: str = ""
     error: str | None = None
@@ -221,14 +216,11 @@ class FlowEvalResults:
     avg_relevance: float = 0.0  # RAGAS answer_relevancy
     avg_faithfulness: float = 0.0  # RAGAS faithfulness
     avg_answer_correctness: float = 0.0  # RAGAS answer_correctness
-    # RAGAS metrics (0.0-1.0) - retrieval quality by source
+    # RAGAS metrics (0.0-1.0) - retrieval quality
     avg_context_precision: float = 0.0  # Legacy combined (deprecated)
-    avg_doc_precision: float = 0.0  # Doc RAG precision
-    avg_doc_recall: float = 0.0  # Doc RAG recall
     avg_account_precision: float = 0.0  # Account RAG precision
     avg_account_recall: float = 0.0  # Account RAG recall
     # Sample counts for N/A display (0 means no samples)
-    doc_sample_count: int = 0  # Number of steps with doc chunks
     account_sample_count: int = 0  # Number of steps with account chunks
     # Latency
     total_latency_ms: int = 0

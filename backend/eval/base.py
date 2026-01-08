@@ -12,34 +12,24 @@ def ensure_qdrant_collections() -> None:
     Shared by e2e_eval and flow_eval.
     """
     from backend.agent.rag.client import get_qdrant_client
-    from backend.agent.rag.config import DOCS_COLLECTION, PRIVATE_COLLECTION, QDRANT_PATH
-    from backend.agent.rag.ingest import ingest_docs, ingest_private_texts
+    from backend.agent.rag.config import PRIVATE_COLLECTION, QDRANT_PATH
+    from backend.agent.rag.ingest import ingest_private_texts
 
     QDRANT_PATH.mkdir(parents=True, exist_ok=True)
     qdrant = get_qdrant_client()
 
-    docs_exists = (
-        qdrant.collection_exists(DOCS_COLLECTION)
-        and (qdrant.get_collection(DOCS_COLLECTION).points_count or 0) > 0
-    )
     private_exists = (
         qdrant.collection_exists(PRIVATE_COLLECTION)
         and (qdrant.get_collection(PRIVATE_COLLECTION).points_count or 0) > 0
     )
 
-    if docs_exists and private_exists:
+    if private_exists:
         print("Qdrant collections ready.")
         return
 
-    if not docs_exists:
-        print("Ingesting docs into Qdrant...")
-        chunk_count = ingest_docs()
-        print(f"  Docs collection created with {chunk_count} chunks")
-
-    if not private_exists:
-        print("Ingesting private texts into Qdrant...")
-        ingest_private_texts()
-        print("  Private collection created")
+    print("Ingesting private texts into Qdrant...")
+    ingest_private_texts()
+    print("  Private collection created")
 
 
 # Re-export utilities from focused modules

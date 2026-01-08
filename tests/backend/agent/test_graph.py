@@ -40,26 +40,6 @@ class TestGraphIntegration:
     @pytest.mark.integration
     @patch("backend.agent.answer.llm.call_answer_chain")
     @patch("backend.agent.route.router.route_question")
-    def test_graph_execution_docs_mode(self, mock_route, mock_answer_chain):
-        """Test graph execution in docs mode."""
-        from backend.agent.core.schemas import RouterResult
-
-        mock_route.return_value = RouterResult(
-            mode_used="docs",
-            company_id=None,
-            intent="docs",
-            days=90,
-        )
-        mock_answer_chain.return_value = ("This is a test answer about documentation.", 100)
-
-        result = _invoke_agent("How do I create a contact?")
-
-        assert "mode_used" in result
-        assert isinstance(result.get("answer", ""), str)
-
-    @pytest.mark.integration
-    @patch("backend.agent.answer.llm.call_answer_chain")
-    @patch("backend.agent.route.router.route_question")
     @patch("backend.agent.fetch.handlers.company.tool_company_lookup")
     def test_graph_execution_data_mode(self, mock_company, mock_route, mock_answer_chain):
         """Test graph execution in data mode."""

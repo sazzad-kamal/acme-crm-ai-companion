@@ -148,13 +148,8 @@ def test_single_question(
         # - Company expected but doesn't match -> False
         company_correct = (expected_company is None) or (actual_company_id == expected_company)
 
-        # Get context chunks by source (separate for proper RAGAS evaluation)
-        doc_chunks = result.get("doc_chunks", [])
+        # Get context chunks for RAGAS evaluation
         account_chunks = result.get("account_chunks", [])
-
-        # Determine if each RAG was invoked
-        # Doc RAG always runs (fetch_docs_node always executes)
-        doc_rag_invoked = True
 
         # Account RAG is conditional on intent and company_id
         # Check if it was actually invoked by looking at the result
@@ -167,32 +162,29 @@ def test_single_question(
         relevance = 0.0
         faithfulness = 0.0
         answer_correctness = 0.0
-        doc_precision = 0.0
-        doc_recall = 0.0
         account_precision = 0.0
         account_recall = 0.0
         explanation = ""
 
         if use_judge and has_answer:
-            # Always evaluate doc RAG (it's always invoked)
-            # Even with empty chunks, this shows 0% (retrieval failure) not N/A
-            doc_result = judge_answer(
-                question, answer, doc_chunks, reference_answer=expected_answer, verbose=verbose
-            )
-            doc_precision = doc_result.get("context_precision", 0.0)
-            doc_recall = doc_result.get("context_recall", 0.0)
-            # Use doc result for answer metrics
-            relevance = doc_result.get("relevance", 0.0)
-            faithfulness = doc_result.get("faithfulness", 0.0)
-            answer_correctness = doc_result.get("answer_correctness", 0.0)
-
-            # Only evaluate account RAG if it was actually invoked
+            # Evaluate account RAG if it was invoked
             if account_rag_invoked:
                 account_result = judge_answer(
                     question, answer, account_chunks, reference_answer=expected_answer, verbose=verbose
                 )
                 account_precision = account_result.get("context_precision", 0.0)
                 account_recall = account_result.get("context_recall", 0.0)
+                relevance = account_result.get("relevance", 0.0)
+                faithfulness = account_result.get("faithfulness", 0.0)
+                answer_correctness = account_result.get("answer_correctness", 0.0)
+            else:
+                # If no account RAG, evaluate answer quality without context
+                general_result = judge_answer(
+                    question, answer, [], reference_answer=expected_answer, verbose=verbose
+                )
+                relevance = general_result.get("relevance", 0.0)
+                faithfulness = general_result.get("faithfulness", 0.0)
+                answer_correctness = general_result.get("answer_correctness", 0.0)
 
         return FlowStepResult(
             question=question,
@@ -208,11 +200,8 @@ def test_single_question(
             relevance_score=relevance,
             faithfulness_score=faithfulness,
             answer_correctness_score=answer_correctness,
-            doc_precision_score=doc_precision,
-            doc_recall_score=doc_recall,
             account_precision_score=account_precision,
             account_recall_score=account_recall,
-            doc_rag_invoked=doc_rag_invoked,
             account_rag_invoked=account_rag_invoked,
             judge_explanation=explanation,
             error=None,
@@ -399,14 +388,9 @@ def run_flow_eval(
     avg_faithfulness = sum(s.faithfulness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
     avg_answer_correctness = sum(s.answer_correctness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
 
-    # Calculate source-specific RAG metrics based on invocation flags
-    # Doc RAG is always invoked, so always count all steps
-    steps_with_doc = [s for s in all_steps if s.doc_rag_invoked]
-    # Account RAG is conditional, only count steps where it was invoked
+    # Calculate account RAG metrics (only count steps where it was invoked)
     steps_with_account = [s for s in all_steps if s.account_rag_invoked]
 
-    avg_doc_precision = sum(s.doc_precision_score for s in steps_with_doc) / len(steps_with_doc) if steps_with_doc else 0.0
-    avg_doc_recall = sum(s.doc_recall_score for s in steps_with_doc) / len(steps_with_doc) if steps_with_doc else 0.0
     avg_account_precision = sum(s.account_precision_score for s in steps_with_account) / len(steps_with_account) if steps_with_account else 0.0
     avg_account_recall = sum(s.account_recall_score for s in steps_with_account) / len(steps_with_account) if steps_with_account else 0.0
 
@@ -447,11 +431,8 @@ def run_flow_eval(
         avg_relevance=avg_relevance,
         avg_faithfulness=avg_faithfulness,
         avg_answer_correctness=avg_answer_correctness,
-        avg_doc_precision=avg_doc_precision,
-        avg_doc_recall=avg_doc_recall,
         avg_account_precision=avg_account_precision,
         avg_account_recall=avg_account_recall,
-        doc_sample_count=len(steps_with_doc),
         account_sample_count=len(steps_with_account),
         total_latency_ms=total_latency,
         avg_latency_per_question_ms=avg_latency,

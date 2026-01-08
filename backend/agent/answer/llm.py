@@ -68,7 +68,6 @@ def build_answer_input(
     history_section: str,
     pipeline_section: str,
     renewals_section: str,
-    docs_section: str,
     account_context_section: str = "",
     contacts_section: str = "",
     groups_section: str = "",
@@ -86,7 +85,6 @@ def build_answer_input(
         "renewals_section": renewals_section,
         "groups_section": groups_section,
         "attachments_section": attachments_section,
-        "docs_section": docs_section,
         "account_context_section": account_context_section,
     }
 
@@ -99,7 +97,6 @@ def call_answer_chain(
     history_section: str,
     pipeline_section: str,
     renewals_section: str,
-    docs_section: str,
     account_context_section: str = "",
     contacts_section: str = "",
     groups_section: str = "",
@@ -120,7 +117,6 @@ def call_answer_chain(
         "renewals_section": renewals_section,
         "groups_section": groups_section,
         "attachments_section": attachments_section,
-        "docs_section": docs_section,
         "account_context_section": account_context_section,
     })
 
@@ -137,7 +133,6 @@ async def stream_answer_chain(
     history_section: str,
     pipeline_section: str,
     renewals_section: str,
-    docs_section: str,
     account_context_section: str = "",
     contacts_section: str = "",
     groups_section: str = "",
@@ -157,7 +152,6 @@ async def stream_answer_chain(
         "renewals_section": renewals_section,
         "groups_section": groups_section,
         "attachments_section": attachments_section,
-        "docs_section": docs_section,
         "account_context_section": account_context_section,
     }):
         if chunk:

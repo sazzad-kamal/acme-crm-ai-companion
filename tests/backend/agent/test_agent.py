@@ -241,9 +241,9 @@ class TestRouter:
     """Tests for the router in mock mode."""
 
     def test_route_returns_default_mode_in_mock(self):
-        """Test that mock mode returns data+docs."""
+        """Test that mock mode returns data mode."""
         result = route_question("How do I create a new opportunity?")
-        assert result.mode_used == "data+docs"
+        assert result.mode_used == "data"
 
     def test_route_returns_default_intent_in_mock(self):
         """Test that mock mode detects intent from keywords."""

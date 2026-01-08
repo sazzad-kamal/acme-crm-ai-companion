@@ -2,7 +2,7 @@
 Tests for the LangGraph agent structure with parallel fetch nodes.
 
 Verifies:
-- Graph has 6 nodes (route + 3 parallel fetch + answer + followup)
+- Graph has 5 nodes (route + 2 parallel fetch + answer + followup)
 - All router intents are explicitly mapped
 - Account RAG triggers for correct intents
 """
@@ -13,22 +13,22 @@ import pytest
 class TestGraphStructure:
     """Tests for the parallel fetch graph structure."""
 
-    def test_graph_has_six_nodes(self):
-        """Verify the graph has 6 nodes with parallel fetch."""
+    def test_graph_has_five_nodes(self):
+        """Verify the graph has 5 nodes with parallel fetch."""
         from backend.agent.graph import agent_graph
 
         # Get node names from the graph
         node_names = set(agent_graph.nodes.keys())
 
-        # Should have exactly these 6 nodes (plus __start__ and __end__)
-        # 3 parallel fetch nodes: fetch_crm, fetch_docs, fetch_account
-        expected_nodes = {"route", "fetch_crm", "fetch_docs", "fetch_account", "answer", "followup"}
+        # Should have exactly these 5 nodes (plus __start__ and __end__)
+        # 2 parallel fetch nodes: fetch_crm, fetch_account
+        expected_nodes = {"route", "fetch_crm", "fetch_account", "answer", "followup"}
 
         # Filter out internal nodes
         actual_nodes = {n for n in node_names if not n.startswith("__")}
 
         assert actual_nodes == expected_nodes, (
-            f"Expected 6 nodes {expected_nodes}, got {actual_nodes}"
+            f"Expected 5 nodes {expected_nodes}, got {actual_nodes}"
         )
 
     def test_old_nodes_removed(self):
@@ -48,7 +48,6 @@ class TestGraphStructure:
         """Verify nodes submodules export the correct functions."""
         from backend.agent.route.node import route_node
         from backend.agent.fetch.fetch_crm import fetch_crm_node
-        from backend.agent.fetch.fetch_docs import fetch_docs_node
         from backend.agent.fetch.fetch_account import fetch_account_node, ACCOUNT_RAG_INTENTS
         from backend.agent.answer.node import answer_node
         from backend.agent.followup.node import followup_node
@@ -56,7 +55,6 @@ class TestGraphStructure:
         # Verify all functions are callable
         assert callable(route_node)
         assert callable(fetch_crm_node)
-        assert callable(fetch_docs_node)
         assert callable(fetch_account_node)
         assert callable(answer_node)
         assert callable(followup_node)
@@ -177,12 +175,8 @@ class TestVerticalSliceStructure:
 
     def test_fetch_rag_module_exists(self):
         """Verify fetch/rag.py exports the correct functions."""
-        from backend.agent.fetch.rag import (
-            call_docs_rag,
-            call_account_rag,
-        )
+        from backend.agent.fetch.rag import call_account_rag
 
-        assert callable(call_docs_rag)
         assert callable(call_account_rag)
 
     def test_agent_llm_folder_removed(self):

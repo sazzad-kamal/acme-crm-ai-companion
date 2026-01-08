@@ -66,13 +66,8 @@ def route_node(state: AgentState) -> AgentState:
         latency_ms = int((time.time() - start_time) * 1000)
         logger.error(f"[Route] Failed after {latency_ms}ms: {e}")
 
-        # Determine fallback mode based on question content
-        question_lower = state["question"].lower()
-        fallback_mode = "docs"  # Default fallback
-        if any(
-            kw in question_lower for kw in ["company", "account", "customer", "pipeline", "renewal"]
-        ):
-            fallback_mode = "data"
+        # Default to data mode (CRM data queries)
+        fallback_mode = "data"
 
         return {
             "mode_used": fallback_mode,

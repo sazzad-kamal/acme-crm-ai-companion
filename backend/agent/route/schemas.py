@@ -6,11 +6,11 @@ from pydantic import BaseModel, Field
 class RouterResult(BaseModel):
     """Result from the router's analysis."""
 
-    mode_used: str  # "docs", "data", "data+docs"
+    mode_used: str  # "data" only (CRM data queries)
     company_id: str | None = None
     company_name_query: str | None = None  # If we need to resolve a name
     days: int = 90
-    intent: str = "general"  # "company_status", "renewals", "pipeline", "docs", "general"
+    intent: str = "general"  # "company_status", "renewals", "pipeline", "general"
     # Role-based owner for filtering (set from starter detection)
     owner: str | None = None  # e.g., "jsmith" for sales rep, "amartin" for CSM
     # LLM router additions (merged routing + understanding)

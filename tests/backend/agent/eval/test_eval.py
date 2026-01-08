@@ -125,7 +125,7 @@ class TestE2EEvalSummary:
             latency_followup_pct=0.25,
             by_category={
                 "company_status": {"count": 10, "relevance_rate": 0.9, "faithfulness_rate": 0.8},
-                "docs_query": {"count": 15, "relevance_rate": 0.87, "faithfulness_rate": 0.87},
+                "pipeline_query": {"count": 15, "relevance_rate": 0.87, "faithfulness_rate": 0.87},
             },
         )
 
@@ -1046,7 +1046,7 @@ class TestLangSmithLatency:
                 if kwargs.get("is_root") is False:
                     return [
                         MockRun("route", now, now + timedelta(milliseconds=100)),
-                        MockRun("fetch_docs", now, now + timedelta(milliseconds=500)),
+                        MockRun("fetch_account", now, now + timedelta(milliseconds=500)),
                         MockRun("answer", now, now + timedelta(milliseconds=300)),
                     ]
                 else:
@@ -1063,10 +1063,10 @@ class TestLangSmithLatency:
         result = get_latency_breakdown()
 
         assert "route" in result
-        assert "fetch_docs" in result
+        assert "fetch_account" in result
         assert "answer" in result
         assert result["route"]["avg_ms"] == 100.0
-        assert result["fetch_docs"]["avg_ms"] == 500.0
+        assert result["fetch_account"]["avg_ms"] == 500.0
         assert result["answer"]["avg_ms"] == 300.0
 
     def test_print_latency_breakdown_empty(self, monkeypatch):
@@ -1148,9 +1148,6 @@ class TestEnsureQdrantCollections:
         def mock_get_client():
             return MockClient()
 
-        def mock_ingest_docs():
-            return 10
-
         def mock_ingest_private():
             pass
 
@@ -1159,7 +1156,6 @@ class TestEnsureQdrantCollections:
         import backend.agent.rag.config
 
         monkeypatch.setattr(backend.agent.rag.client, "get_qdrant_client", mock_get_client)
-        monkeypatch.setattr(backend.agent.rag.ingest, "ingest_docs", mock_ingest_docs)
         monkeypatch.setattr(backend.agent.rag.ingest, "ingest_private_texts", mock_ingest_private)
         monkeypatch.setattr(backend.agent.rag.config, "QDRANT_PATH", tmp_path / "qdrant")
 

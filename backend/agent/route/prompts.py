@@ -19,15 +19,9 @@ The CRM has distinct data tables - route based on which table has the data:
 - **history**: Completed past interactions with notes
 
 ## ROUTING
-1. **mode**: What data source should answer this question? MUST be exactly one of:
-   - "docs": Help documentation, how-to guides, feature explanations, "how do I..." questions
-   - "data": CRM database queries (contacts, companies, opportunities, activities, renewals, pipeline)
-   - "data+docs": Questions that need both database info AND documentation context
+1. **mode**: Always "data" - this assistant handles CRM data queries only.
 
-   IMPORTANT: mode can ONLY be "docs", "data", or "data+docs". Never use any other value.
-   When unsure, default to "data" for account/company questions, "docs" for how-to questions.
-
-2. **intent**: The primary purpose of the question (separate from mode!)
+2. **intent**: The primary purpose of the question
 
    COMPANY-SPECIFIC INTENTS (require a company name):
    - "company_status": General status/summary of a specific company/account. Use for account metadata fields.
@@ -60,11 +54,8 @@ The CRM has distinct data tables - route based on which table has the data:
      * "How many activities has Acme had this month?" → analytics (with company_name)
      * "Which activity type is most common?" → analytics (no company_name)
 
-   DOCUMENTATION INTENT:
-   - "general": How-to questions, feature explanations, help documentation
-     * Pattern: "How do I...", "What is...", "Can you explain...", "How can I..."
-     * These ask about HOW TO USE features, not to RETRIEVE data
-     * NEVER confuse with data intents (e.g., "How do I add a contact?" is general, NOT contact_search)
+   GENERAL INTENT:
+   - "general": Questions that don't fit other intents
 
 3. **company_name**: If a specific company/account is mentioned, extract it EXACTLY as stated (null if none)
    - Extract the FULL name as the user wrote it (e.g., "Global Tech Solutions" not just "Global")
@@ -97,32 +88,7 @@ Analyze the question and provide your structured response."""
 
 
 ROUTER_EXAMPLES = """
-## MODE DECISION GUIDE:
-- "data" = ONLY need CRM database (activities, pipeline, renewals, contacts, companies)
-- "docs" = ONLY need help documentation (how-to, features, best practices)
-- "data+docs" = Need BOTH data AND guidance on what it means or what to do
-
-## CRITICAL: "How do I..." questions are ALWAYS docs + general intent!
-
 ## Example questions and responses:
-
-### DOCUMENTATION QUESTIONS (mode=docs, intent=general)
-# Pattern: "How do I...", "What is...", "Can you explain...", "How can I..."
-
-Q: "How do I set up email notifications?"
-{"mode": "docs", "intent": "general", "company_name": null, "days": 30,
- "query_expansion": "Explain how to configure email notifications in Acme CRM",
- "key_entities": ["email notifications"], "action_type": "retrieve", "confidence": 0.95}
-
-Q: "What is the difference between leads and opportunities?"
-{"mode": "docs", "intent": "general", "company_name": null, "days": 30,
- "query_expansion": "Explain the distinction between leads and opportunities in the CRM",
- "key_entities": ["leads", "opportunities"], "action_type": "retrieve", "confidence": 0.95}
-
-Q: "Can you explain how tags work?"
-{"mode": "docs", "intent": "general", "company_name": null, "days": 30,
- "query_expansion": "Explain the tagging system and how to use tags in Acme CRM",
- "key_entities": ["tags"], "action_type": "retrieve", "confidence": 0.95}
 
 ### COMPANY-SPECIFIC DATA QUERIES
 Q: "What's the pipeline for Acme Corp?"
@@ -261,12 +227,6 @@ Q: "What's the overall team status?"
 {"mode": "data", "intent": "pipeline_summary", "company_name": null, "days": 30,
  "query_expansion": "Show my team's aggregate pipeline and activity metrics",
  "key_entities": ["team", "status"], "action_type": "summarize", "confidence": 0.95}
-
-### COMBINED DATA + DOCS
-Q: "Which accounts are at risk and what should I do?"
-{"mode": "data+docs", "intent": "renewals", "company_name": null, "days": 90,
- "query_expansion": "Identify at-risk accounts and provide churn prevention guidance",
- "key_entities": ["at-risk"], "action_type": "analyze", "confidence": 0.9}
 
 ### COMPANY-SPECIFIC ACTIVITIES (use company_status, NOT activities)
 Q: "Show me recent activities for Skyline Industries"
