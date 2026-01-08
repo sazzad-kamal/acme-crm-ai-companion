@@ -90,7 +90,7 @@ def print_summary(results: FlowEvalResults) -> bool:
             ],
         ),
         (
-            "Fetch",
+            f"Fetch (n={results.account_sample_count})" if results.account_sample_count > 0 else "Fetch",
             [
                 (
                     "  Precision",

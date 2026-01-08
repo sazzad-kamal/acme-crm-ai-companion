@@ -3,25 +3,34 @@
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
+import threading
 
 from llama_index.core.schema import NodeWithScore
 
 logger = logging.getLogger(__name__)
 
+# Thread-safe lazy initialization for reranker
+_reranker = None
+_reranker_lock = threading.Lock()
 
-@lru_cache(maxsize=1)
+
 def _get_reranker():
-    """Lazy-load reranker postprocessor (singleton)."""
-    from llama_index.core.postprocessor import SentenceTransformerRerank
+    """Lazy-load reranker postprocessor (thread-safe singleton)."""
+    global _reranker
+    if _reranker is None:
+        with _reranker_lock:
+            # Double-check after acquiring lock
+            if _reranker is None:
+                from llama_index.core.postprocessor import SentenceTransformerRerank
 
-    from backend.agent.rag.config import RERANKER_MODEL, RERANKER_TOP_K
+                from backend.agent.rag.config import RERANKER_MODEL, RERANKER_TOP_K
 
-    logger.info(f"Loading reranker model: {RERANKER_MODEL}")
-    return SentenceTransformerRerank(
-        model=RERANKER_MODEL,
-        top_n=RERANKER_TOP_K,
-    )
+                logger.info(f"Loading reranker model: {RERANKER_MODEL}")
+                _reranker = SentenceTransformerRerank(
+                    model=RERANKER_MODEL,
+                    top_n=RERANKER_TOP_K,
+                )
+    return _reranker
 
 
 def rerank_nodes(

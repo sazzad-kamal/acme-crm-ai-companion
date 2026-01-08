@@ -6,6 +6,7 @@ Provides:
 """
 
 import logging
+import threading
 
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
@@ -24,12 +25,22 @@ from backend.agent.rag.config import (
 
 logger = logging.getLogger(__name__)
 
+# Thread-safe lazy initialization for embedding model
+_embed_model = None
+_embed_model_lock = threading.Lock()
+
 
 def _get_embed_model():
-    """Get the embedding model (lazy load)."""
-    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    """Get the embedding model (thread-safe lazy initialization)."""
+    global _embed_model
+    if _embed_model is None:
+        with _embed_model_lock:
+            # Double-check after acquiring lock
+            if _embed_model is None:
+                from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-    return HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
+                _embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
+    return _embed_model
 
 
 def tool_account_rag(

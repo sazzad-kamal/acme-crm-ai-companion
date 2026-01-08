@@ -44,6 +44,7 @@ def _run_eval(
     no_judge: bool,
     output: str | None,
     debug: bool,
+    eval_mode: str,
 ) -> None:
     """Run the flow evaluation."""
     eval_start_time = time.time()
@@ -87,6 +88,7 @@ def _run_eval(
             verbose=verbose,
             use_judge=use_judge,
             concurrency=concurrency,
+            eval_mode=eval_mode,
         )
     except Exception as e:
         console.print(f"\n[red bold]ERROR: Evaluation failed: {e}[/red bold]")
@@ -159,6 +161,12 @@ def main(
     no_judge: bool = typer.Option(False, "--no-judge", help="Skip LLM-as-judge evaluation"),
     output: str | None = typer.Option(None, "--output", "-o", help="Path to save JSON results"),
     debug: bool = typer.Option(False, "--debug", "-d", help="Dump full details for failing paths"),
+    eval_mode: str = typer.Option(
+        "both",
+        "--eval-mode",
+        "-e",
+        help="RAGAS mode: 'rag' (precision/recall), 'pipeline' (faithfulness/relevance), or 'both'",
+    ),
 ) -> None:
     """Run conversation flow evaluation."""
     logging.basicConfig(level=logging.WARNING)
@@ -170,6 +178,7 @@ def main(
         no_judge=no_judge,
         output=output,
         debug=debug,
+        eval_mode=eval_mode,
     )
 
 

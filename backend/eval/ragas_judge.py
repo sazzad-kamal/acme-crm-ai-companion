@@ -214,6 +214,7 @@ def evaluate_single(
         eval_result = evaluate(
             dataset,
             metrics=metrics,
+            show_progress=False,  # Suppress tqdm progress bars
         )
 
         # Convert to pandas DataFrame

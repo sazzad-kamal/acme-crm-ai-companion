@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import logging
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
+from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 from backend.agent.answer.formatters import (
@@ -28,9 +28,6 @@ from backend.eval.parallel import calculate_p95_latency
 from backend.eval.ragas_judge import evaluate_single
 
 logger = logging.getLogger(__name__)
-
-# Lock for thread-safe console output
-_console_lock = threading.Lock()
 
 
 def _detect_expected_company(question: str) -> str | None:
@@ -133,6 +130,7 @@ def test_single_question(
     session_id: str,
     use_judge: bool = True,
     verbose: bool = False,
+    eval_mode: str = "both",
 ) -> FlowStepResult:
     """
     Test a single question with conversation history.
@@ -214,15 +212,21 @@ def test_single_question(
 
         if use_judge and has_answer:
             # 1. RAG precision/recall - only when account RAG was invoked
-            if account_rag_invoked and account_chunks:
+            # Skip if eval_mode is "pipeline" (only want answer quality metrics)
+            if eval_mode in ("rag", "both") and account_rag_invoked and account_chunks:
                 rag_result = judge_answer(
                     question, answer, account_chunks, reference_answer=expected_answer, verbose=verbose
                 )
                 account_precision = rag_result.get("context_precision", 0.0)
                 account_recall = rag_result.get("context_recall", 0.0)
+                # Track precision + recall (2 metrics)
+                ragas_metrics_total = 2
+                nan_metrics = rag_result.get("nan_metrics", [])
+                ragas_metrics_failed = sum(1 for m in nan_metrics if m in ("context_precision", "context_recall"))
 
             # 2. Answer quality (faithfulness, relevance, correctness) - all contexts
-            if all_contexts:
+            # Skip if eval_mode is "rag" (only want precision/recall metrics)
+            if eval_mode in ("pipeline", "both") and all_contexts:
                 pipeline_result = judge_answer(
                     question, answer, all_contexts, reference_answer=expected_answer, verbose=verbose
                 )
@@ -230,8 +234,16 @@ def test_single_question(
                 faithfulness = pipeline_result.get("faithfulness", 0.0)
                 answer_correctness = pipeline_result.get("answer_correctness", 0.0)
                 explanation = pipeline_result.get("explanation", "")
-                ragas_metrics_total = pipeline_result.get("metrics_total", 5)
-                ragas_metrics_failed = pipeline_result.get("metrics_failed", 0)
+                # Track only relevance + faithfulness + correctness (3 metrics) in pipeline mode
+                if eval_mode == "pipeline":
+                    ragas_metrics_total = 3
+                    nan_metrics = pipeline_result.get("nan_metrics", [])
+                    ragas_metrics_failed = sum(1 for m in nan_metrics if m in ("answer_relevancy", "faithfulness", "answer_correctness"))
+                else:
+                    # both mode: count all 5 metrics (2 from rag + 3 from pipeline)
+                    ragas_metrics_total += 3
+                    nan_metrics = pipeline_result.get("nan_metrics", [])
+                    ragas_metrics_failed += sum(1 for m in nan_metrics if m in ("answer_relevancy", "faithfulness", "answer_correctness"))
 
         return FlowStepResult(
             question=question,
@@ -288,7 +300,13 @@ def test_single_question(
         )
 
 
-def test_flow(path: list[str], path_id: int, use_judge: bool = True, verbose: bool = False) -> FlowResult:
+def test_flow(
+    path: list[str],
+    path_id: int,
+    use_judge: bool = True,
+    verbose: bool = False,
+    eval_mode: str = "both",
+) -> FlowResult:
     """
     Test a complete conversation flow (sequence of questions with memory).
 
@@ -297,6 +315,7 @@ def test_flow(path: list[str], path_id: int, use_judge: bool = True, verbose: bo
         path_id: ID for this path
         use_judge: Whether to run LLM-as-judge evaluation
         verbose: Show detailed RAGAS output
+        eval_mode: RAGAS mode - 'rag', 'pipeline', or 'both'
 
     Returns:
         FlowResult with all step results
@@ -309,7 +328,7 @@ def test_flow(path: list[str], path_id: int, use_judge: bool = True, verbose: bo
 
     # Questions within a flow must be sequential (memory dependency)
     for question in path:
-        step_result = test_single_question(question, history, session_id, use_judge, verbose)
+        step_result = test_single_question(question, history, session_id, use_judge, verbose, eval_mode)
         steps.append(step_result)
         total_latency += step_result.latency_ms
 
@@ -338,6 +357,7 @@ def run_flow_eval(
     verbose: bool = False,
     use_judge: bool = True,
     concurrency: int = 5,
+    eval_mode: str = "both",
 ) -> FlowEvalResults:
     """
     Run the flow evaluation on all paths using ThreadPoolExecutor.
@@ -347,6 +367,7 @@ def run_flow_eval(
         verbose: Print detailed output
         use_judge: Whether to run LLM-as-judge evaluation
         concurrency: Number of flows to run in parallel (default 5)
+        eval_mode: RAGAS mode - 'rag', 'pipeline', or 'both'
 
     Returns:
         FlowEvalResults with aggregated metrics
@@ -366,57 +387,52 @@ def run_flow_eval(
     config_table = Table(show_header=False, box=None, padding=(0, 2))
     config_table.add_column("Key", style="dim")
     config_table.add_column("Value")
-    config_table.add_row("Total paths in tree", str(len(all_paths)))
     config_table.add_row("Paths to test", str(len(paths_to_test)))
-    config_table.add_row("Questions per path", str(len(paths_to_test[0]) if paths_to_test else 0))
-    config_table.add_row("Using LLM Judge", "Yes" if use_judge else "No")
-    config_table.add_row("Concurrency", f"{concurrency} flows in parallel")
+    config_table.add_row("RAGAS Mode", eval_mode)
+    config_table.add_row("Concurrency", str(concurrency))
     console.print(config_table)
     console.print()
 
-    completed = 0
     total = len(paths_to_test)
     results: list[FlowResult] = []
 
-    console.print(f"[cyan]Starting {total} flows with {concurrency} workers...[/cyan]")
+    # Use ThreadPoolExecutor for parallel flow execution with clean progress bar
+    with Progress(
+        TextColumn("[cyan]Evaluating paths"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TextColumn("[dim]{task.completed}/{task.total}[/dim]"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=False,
+    ) as progress:
+        task = progress.add_task("", total=total)
 
-    # Use ThreadPoolExecutor for parallel flow execution
-    with ThreadPoolExecutor(max_workers=concurrency) as executor:
-        # Submit all flows
-        futures = {
-            executor.submit(test_flow, path, i, use_judge, verbose): i
-            for i, path in enumerate(paths_to_test)
-        }
+        with ThreadPoolExecutor(max_workers=concurrency) as executor:
+            # Submit all flows
+            futures = {
+                executor.submit(test_flow, path, i, use_judge, verbose, eval_mode): i
+                for i, path in enumerate(paths_to_test)
+            }
 
-        # Process results as they complete
-        for future in as_completed(futures):
-            path_id = futures[future]
-            try:
-                result = future.result()
-                results.append(result)
-
-                with _console_lock:
-                    completed += 1
-                    status_color = "green" if result.success else "red"
-                    status = "PASS" if result.success else "FAIL"
-                    console.print(
-                        f"[dim][{completed}/{total}][/dim] Path {path_id + 1}: "
-                        f"[{status_color}]{status}[/{status_color}] ({result.total_latency_ms}ms)"
+            # Process results as they complete
+            for future in as_completed(futures):
+                path_id = futures[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    results.append(
+                        FlowResult(
+                            path_id=path_id,
+                            questions=paths_to_test[path_id],
+                            steps=[],
+                            total_latency_ms=0,
+                            success=False,
+                            error=str(e),
+                        )
                     )
-            except Exception as e:
-                with _console_lock:
-                    completed += 1
-                    console.print(f"[red]Path {path_id + 1} raised exception: {e}[/red]")
-                results.append(
-                    FlowResult(
-                        path_id=path_id,
-                        questions=paths_to_test[path_id],
-                        steps=[],
-                        total_latency_ms=0,
-                        success=False,
-                        error=str(e),
-                    )
-                )
+                progress.advance(task)
 
     # Sort results by path_id for consistent ordering
     results.sort(key=lambda r: r.path_id)
