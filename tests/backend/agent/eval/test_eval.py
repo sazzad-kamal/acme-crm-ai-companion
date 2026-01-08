@@ -290,6 +290,33 @@ class TestFlowEvalResults:
         assert results.path_pass_rate == 0.0
         assert results.question_pass_rate == 0.0
 
+    def test_flow_eval_results_composite_score(self):
+        """Test FlowEvalResults composite score calculation."""
+        results = FlowEvalResults(
+            total_paths=10,
+            paths_tested=10,
+            paths_passed=9,
+            paths_failed=1,
+            total_questions=40,
+            questions_passed=36,
+            questions_failed=4,
+            company_extraction_accuracy=0.95,
+            intent_accuracy=0.90,
+            avg_relevance=0.88,
+            avg_faithfulness=0.92,
+            avg_context_precision=0.82,
+            avg_answer_correctness=0.75,
+        )
+
+        # Composite = 0.30*faith + 0.25*rel + 0.15*ctx + 0.15*ans + 0.10*routing + 0.05*pass_rate
+        # routing = (0.95 + 0.90) / 2 = 0.925
+        # pass_rate = 36/40 = 0.90
+        # = 0.30*0.92 + 0.25*0.88 + 0.15*0.82 + 0.15*0.75 + 0.10*0.925 + 0.05*0.90
+        # = 0.276 + 0.22 + 0.123 + 0.1125 + 0.0925 + 0.045 = 0.869
+        expected = 0.30 * 0.92 + 0.25 * 0.88 + 0.15 * 0.82 + 0.15 * 0.75 + 0.10 * 0.925 + 0.05 * 0.90
+        assert abs(results.composite_score - expected) < 0.001
+        assert results.composite_score > 0.85  # Should pass SLO
+
 
 # =============================================================================
 # SLO Constants Tests
@@ -1134,13 +1161,17 @@ class TestEnsureQdrantCollections:
 
     def test_ensure_qdrant_collections_missing(self, monkeypatch, tmp_path):
         """Test ensure_qdrant_collections when collections are missing."""
+        # Track state: before ingest, collection doesn't exist; after ingest, it does
+        state = {"ingested": False}
 
         class MockCollection:
-            points_count = 0
+            @property
+            def points_count(self):
+                return 102 if state["ingested"] else 0
 
         class MockClient:
             def collection_exists(self, name):
-                return False
+                return state["ingested"]
 
             def get_collection(self, name):
                 return MockCollection()
@@ -1148,18 +1179,23 @@ class TestEnsureQdrantCollections:
         def mock_get_client():
             return MockClient()
 
-        def mock_ingest_private():
+        def mock_close_client():
             pass
+
+        def mock_ingest_private():
+            state["ingested"] = True
 
         import backend.agent.rag.client
         import backend.agent.rag.ingest
         import backend.agent.rag.config
 
         monkeypatch.setattr(backend.agent.rag.client, "get_qdrant_client", mock_get_client)
+        monkeypatch.setattr(backend.agent.rag.client, "close_qdrant_client", mock_close_client)
         monkeypatch.setattr(backend.agent.rag.ingest, "ingest_private_texts", mock_ingest_private)
         monkeypatch.setattr(backend.agent.rag.config, "QDRANT_PATH", tmp_path / "qdrant")
 
         from backend.eval.base import ensure_qdrant_collections
 
-        # Should call ingest functions
+        # Should call ingest functions and verify collection was created
         ensure_qdrant_collections()
+        assert state["ingested"]

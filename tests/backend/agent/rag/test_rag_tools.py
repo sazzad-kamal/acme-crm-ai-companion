@@ -87,18 +87,17 @@ class TestToolAccountRag:
 
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
-        with patch.dict(sys.modules, llama_mocks), \
-             patch("backend.agent.rag.tools.get_qdrant_client") as mock_client:
-
-            mock_client.return_value = MagicMock()
-
+        with patch.dict(sys.modules, llama_mocks):
             # Clear cached import
             if "backend.agent.rag.tools" in sys.modules:
                 del sys.modules["backend.agent.rag.tools"]
 
-            from backend.agent.rag.tools import tool_account_rag
+            from backend.agent.rag import tools
 
-            context, sources = tool_account_rag("What were the meeting notes?", "COMP001")
+            # Patch where it's used, not where it's defined
+            with patch.object(tools, "get_qdrant_client") as mock_client:
+                mock_client.return_value = MagicMock()
+                context, sources = tools.tool_account_rag("What were the meeting notes?", "COMP001")
 
         assert "Meeting notes" in context
         assert "Proposal document" in context
@@ -114,17 +113,15 @@ class TestToolAccountRag:
 
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
-        with patch.dict(sys.modules, llama_mocks), \
-             patch("backend.agent.rag.tools.get_qdrant_client") as mock_client:
-
-            mock_client.return_value = MagicMock()
-
+        with patch.dict(sys.modules, llama_mocks):
             if "backend.agent.rag.tools" in sys.modules:
                 del sys.modules["backend.agent.rag.tools"]
 
-            from backend.agent.rag.tools import tool_account_rag
+            from backend.agent.rag import tools
 
-            context, sources = tool_account_rag("Unknown query", "COMP001")
+            with patch.object(tools, "get_qdrant_client") as mock_client:
+                mock_client.return_value = MagicMock()
+                context, sources = tools.tool_account_rag("Unknown query", "COMP001")
 
         assert context == ""
         assert sources == []

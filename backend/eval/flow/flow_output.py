@@ -15,6 +15,7 @@ from backend.eval.models import (
     SLO_ACCOUNT_RECALL,
     SLO_COMPANY_EXTRACTION,
     SLO_FLOW_ANSWER_CORRECTNESS,
+    SLO_FLOW_COMPOSITE_SCORE,
     SLO_FLOW_FAITHFULNESS,
     SLO_FLOW_PATH_PASS_RATE,
     SLO_FLOW_QUESTION_PASS_RATE,
@@ -140,10 +141,14 @@ def print_summary(results: FlowEvalResults) -> bool:
     summary_table = build_eval_table("Flow Evaluation Summary", sections)
     console.print(summary_table)
 
-    # Latency stats below table
+    # Composite score and latency stats below table
+    composite_pass = results.composite_score >= SLO_FLOW_COMPOSITE_SCORE
+    composite_style = "[green]" if composite_pass else "[red]"
     console.print(
-        f"\nLatency: {results.wall_clock_ms / 1000:.1f}s total | "
-        f"{results.avg_latency_per_question_ms:.0f}ms avg | "
+        f"\n{composite_style}Composite Score: {results.composite_score * 100:.1f}%[/] "
+        f"(target: {SLO_FLOW_COMPOSITE_SCORE * 100:.0f}%) | "
+        f"Latency: {results.wall_clock_ms / 1000:.1f}s total, "
+        f"{results.avg_latency_per_question_ms:.0f}ms avg, "
         f"{results.p95_latency_ms:.0f}ms P95"
     )
 
@@ -251,6 +256,7 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
     """Save results to JSON file."""
     data = {
         "summary": {
+            "composite_score": results.composite_score,
             "total_paths": results.total_paths,
             "paths_tested": results.paths_tested,
             "paths_passed": results.paths_passed,

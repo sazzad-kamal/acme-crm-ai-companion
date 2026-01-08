@@ -100,6 +100,29 @@ class E2EEvalSummary(BaseModel):
     # Breakdown by category
     by_category: dict[str, dict]
 
+    @property
+    def composite_score(self) -> float:
+        """
+        Weighted average of all quality metrics (0.0-1.0).
+
+        Weights:
+        - Faithfulness: 30% (critical - no hallucinations)
+        - Answer Relevance: 25% (must address questions)
+        - Context Precision: 15% (retrieval quality)
+        - Answer Correctness: 15% (factual accuracy)
+        - Routing: 10% (company + intent combined)
+        - Security: 5% (pass/fail, should be 100%)
+        """
+        routing_score = (self.company_extraction_accuracy + self.intent_accuracy) / 2
+        return (
+            0.30 * self.faithfulness_rate
+            + 0.25 * self.answer_relevance_rate
+            + 0.15 * self.context_precision_rate
+            + 0.15 * self.answer_correctness_rate
+            + 0.10 * routing_score
+            + 0.05 * self.security_pass_rate
+        )
+
 
 # =============================================================================
 # SLO Thresholds
@@ -133,6 +156,11 @@ SLO_FLOW_CONTEXT_PRECISION = 0.80  # 80% - good retrieval quality (legacy combin
 SLO_FLOW_ANSWER_CORRECTNESS = 0.70  # 70% - hardest metric, flexible answer formats
 SLO_FLOW_AVG_LATENCY_MS = 4000  # 4s average per question
 SLO_FLOW_P95_LATENCY_MS = 8000  # 8s P95 per question (flow has multi-turn overhead)
+
+# Composite Score SLOs - weighted average of all metrics
+SLO_COMPOSITE_SCORE = 0.85  # 85% - overall system health target
+SLO_E2E_COMPOSITE_SCORE = 0.85  # 85% - E2E eval composite
+SLO_FLOW_COMPOSITE_SCORE = 0.85  # 85% - Flow eval composite
 
 # RAG source-specific SLOs (account RAG only)
 SLO_ACCOUNT_PRECISION = 0.80  # 80% - account retrieval precision
@@ -244,3 +272,26 @@ class FlowEvalResults:
     def question_pass_rate(self) -> float:
         """Percentage of questions that passed."""
         return self.questions_passed / self.total_questions if self.total_questions > 0 else 0.0
+
+    @property
+    def composite_score(self) -> float:
+        """
+        Weighted average of all quality metrics (0.0-1.0).
+
+        Weights:
+        - Faithfulness: 30% (critical - no hallucinations)
+        - Answer Relevance: 25% (must address questions)
+        - Context Precision: 15% (retrieval quality)
+        - Answer Correctness: 15% (factual accuracy)
+        - Routing: 10% (company + intent combined)
+        - Pass Rate: 5% (overall success rate)
+        """
+        routing_score = (self.company_extraction_accuracy + self.intent_accuracy) / 2
+        return (
+            0.30 * self.avg_faithfulness
+            + 0.25 * self.avg_relevance
+            + 0.15 * self.avg_context_precision
+            + 0.15 * self.avg_answer_correctness
+            + 0.10 * routing_score
+            + 0.05 * self.question_pass_rate
+        )

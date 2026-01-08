@@ -11,7 +11,7 @@ def ensure_qdrant_collections() -> None:
     Ensure Qdrant collections exist, ingesting data if needed.
     Shared by e2e_eval and flow_eval.
     """
-    from backend.agent.rag.client import get_qdrant_client
+    from backend.agent.rag.client import close_qdrant_client, get_qdrant_client
     from backend.agent.rag.config import PRIVATE_COLLECTION, QDRANT_PATH
     from backend.agent.rag.ingest import ingest_private_texts
 
@@ -27,9 +27,18 @@ def ensure_qdrant_collections() -> None:
         print("Qdrant collections ready.")
         return
 
+    # Close singleton before ingest (ingest needs exclusive access to local storage)
+    close_qdrant_client()
+
     print("Ingesting private texts into Qdrant...")
     ingest_private_texts()
-    print("  Private collection created")
+
+    # Verify collection was created (this creates a fresh singleton)
+    qdrant = get_qdrant_client()
+    if not qdrant.collection_exists(PRIVATE_COLLECTION):
+        raise RuntimeError(f"Failed to create collection {PRIVATE_COLLECTION}")
+    count = qdrant.get_collection(PRIVATE_COLLECTION).points_count or 0
+    print(f"  Private collection created ({count} points)")
 
 
 # Re-export utilities from focused modules

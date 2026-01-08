@@ -10,6 +10,7 @@ import logging
 
 from qdrant_client import QdrantClient
 
+from backend.agent.rag.client import close_qdrant_client
 from backend.agent.rag.config import (
     EMBEDDING_MODEL,
     JSONL_PATH,
@@ -30,7 +31,7 @@ def ingest_private_texts(recreate: bool = True) -> int:
     Returns:
         Number of chunks ingested
     """
-    from llama_index.core import Document, Settings, VectorStoreIndex
+    from llama_index.core import Document, Settings, StorageContext, VectorStoreIndex
     from llama_index.core.node_parser import SentenceSplitter
     from llama_index.embeddings.huggingface import HuggingFaceEmbedding
     from llama_index.vector_stores.qdrant import QdrantVectorStore
@@ -75,7 +76,10 @@ def ingest_private_texts(recreate: bool = True) -> int:
 
     logger.info(f"Loaded {len(documents)} documents from JSONL")
 
-    # Initialize Qdrant
+    # Close any existing singleton to avoid conflicts
+    close_qdrant_client()
+
+    # Create dedicated client for ingestion (local Qdrant needs exclusive access)
     QDRANT_PATH.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(QDRANT_PATH))
 
@@ -84,34 +88,29 @@ def ingest_private_texts(recreate: bool = True) -> int:
         logger.info(f"Deleting existing collection: {PRIVATE_COLLECTION}")
         client.delete_collection(PRIVATE_COLLECTION)
 
-    # Create vector store
+    # Create vector store with storage context
     vector_store = QdrantVectorStore(
         client=client,
         collection_name=PRIVATE_COLLECTION,
     )
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
     # Build index (this ingests the documents)
     logger.info("Building vector index...")
     VectorStoreIndex.from_documents(
         documents,
-        vector_store=vector_store,
+        storage_context=storage_context,
         show_progress=True,
     )
 
-    # Get final count
-    if client.collection_exists(PRIVATE_COLLECTION):
-        info = client.get_collection(PRIVATE_COLLECTION)
-        chunk_count = info.points_count or 0
-    else:
-        # Collection might not exist if embedding model had issues
-        logger.warning(f"Collection {PRIVATE_COLLECTION} not found after ingestion")
-        chunk_count = len(documents)
+    # Persist to ensure data is written
+    storage_context.persist()
 
-    logger.info(f"Ingested {chunk_count} chunks into '{PRIVATE_COLLECTION}'")
+    chunk_count = len(documents)
+    logger.info(f"Ingested {chunk_count} documents into '{PRIVATE_COLLECTION}'")
 
-    # Close the client to release the lock
+    # Close client to persist data (singleton will be recreated on next access)
     client.close()
-
     return chunk_count
 
 
