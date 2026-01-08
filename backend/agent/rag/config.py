@@ -20,13 +20,13 @@ EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 # Reranker configuration
 RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # Fast, good quality
 RERANKER_TOP_K = 5       # Final chunks after reranking
-RETRIEVAL_TOP_K = 15     # Over-retrieve before reranking
+RETRIEVAL_TOP_K = 30     # Over-retrieve before reranking
 RERANKER_ENABLED = True  # Feature flag for easy rollback
 
 # Hybrid search configuration (dense + sparse vectors)
 HYBRID_SEARCH_ENABLED = True
 SPARSE_EMBEDDING_MODEL = "Qdrant/bm25"  # BM25 via fastembed
-SPARSE_TOP_K = 15  # Sparse candidates before fusion
+SPARSE_TOP_K = 30  # Sparse candidates before fusion
 
 
 __all__ = [
