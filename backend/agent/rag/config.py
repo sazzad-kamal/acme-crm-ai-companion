@@ -23,6 +23,11 @@ RERANKER_TOP_K = 5       # Final chunks after reranking
 RETRIEVAL_TOP_K = 15     # Over-retrieve before reranking
 RERANKER_ENABLED = True  # Feature flag for easy rollback
 
+# Hybrid search configuration (dense + sparse vectors)
+HYBRID_SEARCH_ENABLED = True
+SPARSE_EMBEDDING_MODEL = "Qdrant/bm25"  # BM25 via fastembed
+SPARSE_TOP_K = 15  # Sparse candidates before fusion
+
 
 __all__ = [
     "QDRANT_PATH",
@@ -33,4 +38,7 @@ __all__ = [
     "RERANKER_TOP_K",
     "RETRIEVAL_TOP_K",
     "RERANKER_ENABLED",
+    "HYBRID_SEARCH_ENABLED",
+    "SPARSE_EMBEDDING_MODEL",
+    "SPARSE_TOP_K",
 ]

@@ -152,6 +152,17 @@ def print_summary(results: FlowEvalResults) -> bool:
                 ),
             ],
         ),
+        (
+            "RAGAS Reliability",
+            [
+                (
+                    "  Metrics Success",
+                    f"{results.ragas_metrics_total - results.ragas_metrics_failed}/{results.ragas_metrics_total} ({format_percentage(results.ragas_success_rate)})",
+                    ">=90.0%",
+                    results.ragas_success_rate >= 0.9,
+                ),
+            ],
+        ),
     ]
 
     # Build table with composite score as aggregate row
@@ -166,17 +177,6 @@ def print_summary(results: FlowEvalResults) -> bool:
         ),
     )
     console.print(summary_table)
-
-    # Show RAGAS reliability warning if failures occurred
-    if results.ragas_calls_failed > 0:
-        success_rate = results.ragas_success_rate
-        if success_rate < 0.9:
-            console.print(f"\n[bold red]⚠ RAGAS API Reliability: {format_percentage(success_rate)} "
-                          f"({results.ragas_calls_failed}/{results.ragas_calls_total} calls failed)[/bold red]")
-            console.print("[dim]  Low reliability may skew quality metrics. Check OPENAI_API_KEY and network.[/dim]")
-        else:
-            console.print(f"\n[yellow]⚠ RAGAS API: {results.ragas_calls_failed}/{results.ragas_calls_total} "
-                          f"calls failed[/yellow]")
 
     # N/A metrics (None) don't affect overall pass/fail
     all_slos_passed = (
@@ -307,8 +307,8 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
             "latency_routing_pct": results.latency_routing_pct,
             "latency_retrieval_pct": results.latency_retrieval_pct,
             "latency_answer_pct": results.latency_answer_pct,
-            "ragas_calls_total": results.ragas_calls_total,
-            "ragas_calls_failed": results.ragas_calls_failed,
+            "ragas_metrics_total": results.ragas_metrics_total,
+            "ragas_metrics_failed": results.ragas_metrics_failed,
             "ragas_success_rate": results.ragas_success_rate,
         },
         "slo_results": {

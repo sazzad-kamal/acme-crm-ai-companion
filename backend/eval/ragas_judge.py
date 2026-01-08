@@ -4,10 +4,68 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import warnings
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+# Suppress "Event loop is closed" errors from httpx/aiohttp during cleanup
+# These are harmless but flood the logs on Windows
+def _suppress_event_loop_closed_errors() -> None:
+    """Install custom handlers to suppress event loop closed errors."""
+    import asyncio
+
+    # Suppress via excepthook (catches uncaught exceptions)
+    original_excepthook = sys.excepthook
+
+    def custom_excepthook(exc_type: type, exc_value: BaseException, exc_tb: Any) -> None:
+        if isinstance(exc_value, RuntimeError) and "Event loop is closed" in str(exc_value):
+            return  # Suppress this error
+        original_excepthook(exc_type, exc_value, exc_tb)
+
+    sys.excepthook = custom_excepthook
+
+    # Suppress via asyncio exception handler (catches async errors)
+    def silent_exception_handler(loop: Any, context: dict) -> None:
+        exception = context.get("exception")
+        if isinstance(exception, RuntimeError) and "Event loop is closed" in str(exception):
+            return  # Suppress this error
+        # Fall back to default for other errors
+        loop.default_exception_handler(context)
+
+    # Set the handler on the current event loop if one exists
+    try:
+        loop = asyncio.get_event_loop()
+        loop.set_exception_handler(silent_exception_handler)
+    except RuntimeError:
+        pass  # No event loop running yet
+
+    # Add logging filter to suppress these errors from httpx/asyncio loggers
+    class EventLoopClosedFilter(logging.Filter):
+        def filter(self, record: logging.LogRecord) -> bool:
+            msg = str(record.getMessage())
+            if "Event loop is closed" in msg:
+                return False
+            return True
+
+    for logger_name in ["asyncio", "httpx", "httpcore", "aiohttp"]:
+        logging.getLogger(logger_name).addFilter(EventLoopClosedFilter())
+
+    # Suppress RAGAS executor errors (APIConnectionError, etc.) - we track failures separately
+    class RagasExecutorFilter(logging.Filter):
+        def filter(self, record: logging.LogRecord) -> bool:
+            msg = str(record.getMessage())
+            # Suppress "Exception raised in Job[X]" messages from ragas.executor
+            if "Exception raised in Job" in msg:
+                return False
+            return True
+
+    logging.getLogger("ragas.executor").addFilter(RagasExecutorFilter())
+
+
+_suppress_event_loop_closed_errors()
 
 
 def _is_mock_mode() -> bool:
@@ -77,7 +135,7 @@ if not _is_mock_mode():
 
 def _get_ragas_llm() -> Any:
     """Get LLM for RAGAS using LangChain wrapper."""
-    return LangchainLLMWrapper(ChatOpenAI(model="gpt-4o-mini"))
+    return LangchainLLMWrapper(ChatOpenAI(model="gpt-4o-mini", temperature=0))
 
 
 def _get_ragas_embeddings() -> Any:
@@ -161,32 +219,47 @@ def evaluate_single(
         # Convert to pandas DataFrame
         df = eval_result.to_pandas()  # type: ignore[union-attr]
 
+        # Track which metrics returned NaN (internal RAGAS failure)
+        nan_metrics: list[str] = []
+
         def get_score(name: str) -> float:
             if name in df.columns and len(df) > 0:
                 val = df[name].iloc[0]
                 if val is None or (isinstance(val, float) and val != val):  # Check for NaN
+                    nan_metrics.append(name)
                     return 0.0
                 return float(val)
             return 0.0
 
-        return {
+        result = {
             "answer_relevancy": get_score("answer_relevancy"),
             "faithfulness": get_score("faithfulness"),
             "context_precision": get_score("context_precision"),
             "context_recall": get_score("context_recall"),
             "answer_correctness": get_score("answer_correctness"),
-            "error": None,  # Success
+            "error": None,
+            "nan_metrics": nan_metrics,  # Track which metrics returned NaN
         }
+
+        # If any metrics returned NaN, mark as partial failure
+        if nan_metrics:
+            result["error"] = f"RAGAS returned NaN for: {', '.join(nan_metrics)}"
+            logger.debug(f"RAGAS partial failure - NaN metrics: {nan_metrics}")
+
+        return result
     except Exception as e:
         error_msg = str(e)
         logger.warning(f"RAGAS evaluation failed: {error_msg}")
+        # All metrics failed
+        all_metrics = ["answer_relevancy", "faithfulness", "context_precision", "context_recall", "answer_correctness"]
         return {
             "answer_relevancy": 0.0,
             "faithfulness": 0.0,
             "context_precision": 0.0,
             "context_recall": 0.0,
             "answer_correctness": 0.0,
-            "error": error_msg,  # Track the failure
+            "error": error_msg,
+            "nan_metrics": all_metrics,  # All metrics failed
         }
 
 

@@ -13,10 +13,13 @@ from backend.agent.core.state import Source
 from backend.agent.rag.client import get_qdrant_client
 from backend.agent.rag.config import (
     EMBEDDING_MODEL,
+    HYBRID_SEARCH_ENABLED,
     PRIVATE_COLLECTION,
     RERANKER_ENABLED,
     RERANKER_TOP_K,
     RETRIEVAL_TOP_K,
+    SPARSE_EMBEDDING_MODEL,
+    SPARSE_TOP_K,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,19 +63,32 @@ def tool_account_rag(
             must=[FieldCondition(key="company_id", match=MatchValue(value=company_id))]
         )
 
-        vector_store = QdrantVectorStore(
-            client=client,
-            collection_name=PRIVATE_COLLECTION,
-        )
+        # Configure vector store with hybrid if enabled
+        vector_store_kwargs = {
+            "client": client,
+            "collection_name": PRIVATE_COLLECTION,
+        }
+        if HYBRID_SEARCH_ENABLED:
+            vector_store_kwargs["enable_hybrid"] = True
+            vector_store_kwargs["fastembed_sparse_model"] = SPARSE_EMBEDDING_MODEL
+
+        vector_store = QdrantVectorStore(**vector_store_kwargs)
 
         # Over-retrieve if reranker is enabled, otherwise use top_k directly
         retrieval_k = RETRIEVAL_TOP_K if RERANKER_ENABLED else top_k
 
         index = VectorStoreIndex.from_vector_store(vector_store)
-        retriever = index.as_retriever(
-            similarity_top_k=retrieval_k,
-            vector_store_kwargs={"qdrant_filters": qdrant_filter},
-        )
+
+        # Configure retriever with hybrid mode if enabled
+        retriever_kwargs = {
+            "similarity_top_k": retrieval_k,
+            "vector_store_kwargs": {"qdrant_filters": qdrant_filter},
+        }
+        if HYBRID_SEARCH_ENABLED:
+            retriever_kwargs["sparse_top_k"] = SPARSE_TOP_K
+            retriever_kwargs["vector_store_query_mode"] = "hybrid"
+
+        retriever = index.as_retriever(**retriever_kwargs)
         nodes = retriever.retrieve(question)
 
         # Rerank if enabled and we have more nodes than needed

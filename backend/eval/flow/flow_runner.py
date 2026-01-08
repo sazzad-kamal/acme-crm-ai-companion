@@ -10,6 +10,17 @@ from typing import Any
 
 from rich.table import Table
 
+from backend.agent.answer.formatters import (
+    format_account_context_section,
+    format_activities_section,
+    format_attachments_section,
+    format_company_section,
+    format_contacts_section,
+    format_groups_section,
+    format_history_section,
+    format_pipeline_section,
+    format_renewals_section,
+)
 from backend.agent.followup.tree import get_expected_answer, get_paths_for_role
 from backend.eval.base import console, print_eval_header
 from backend.eval.models import FlowEvalResults, FlowResult, FlowStepResult
@@ -67,6 +78,7 @@ def judge_answer(
 
         # Check if RAGAS itself reported an error
         ragas_error = result.get("error")
+        nan_metrics = result.get("nan_metrics", [])
         return {
             "relevance": result["answer_relevancy"],
             "faithfulness": result["faithfulness"],
@@ -75,6 +87,8 @@ def judge_answer(
             "answer_correctness": result.get("answer_correctness", 0.0),
             "explanation": f"RAGAS error: {ragas_error}" if ragas_error else "",
             "ragas_failed": ragas_error is not None,
+            "metrics_total": 5,
+            "metrics_failed": len(nan_metrics),
         }
     except TimeoutError:
         logger.warning(f"RAGAS judge timed out after {timeout}s")
@@ -86,6 +100,8 @@ def judge_answer(
             "answer_correctness": 0.0,
             "explanation": f"RAGAS timeout after {timeout}s",
             "ragas_failed": True,
+            "metrics_total": 5,
+            "metrics_failed": 5,  # All metrics failed on timeout
         }
     except Exception as e:
         logger.warning(f"RAGAS judge failed: {e}")
@@ -97,6 +113,8 @@ def judge_answer(
             "answer_correctness": 0.0,
             "explanation": f"RAGAS error: {e}",
             "ragas_failed": True,
+            "metrics_total": 5,
+            "metrics_failed": 5,  # All metrics failed on exception
         }
 
 
@@ -153,12 +171,33 @@ def test_single_question(
         # - Company expected but doesn't match -> False
         company_correct = (expected_company is None) or (actual_company_id == expected_company)
 
-        # Get context chunks for RAGAS evaluation
+        # Get RAG chunks for precision/recall evaluation
         account_chunks = result.get("account_chunks", [])
 
         # Account RAG is conditional on intent and company_id
         # Check if it was actually invoked by looking at the result
         account_rag_invoked = bool(result.get("account_context_answer"))
+
+        # Build all_contexts from all data sources the LLM used
+        all_contexts = []
+        if company_section := format_company_section(result.get("company_data")):
+            all_contexts.append(company_section)
+        if activities_section := format_activities_section(result.get("activities_data")):
+            all_contexts.append(activities_section)
+        if history_section := format_history_section(result.get("history_data")):
+            all_contexts.append(history_section)
+        if pipeline_section := format_pipeline_section(result.get("pipeline_data")):
+            all_contexts.append(pipeline_section)
+        if renewals_section := format_renewals_section(result.get("renewals_data")):
+            all_contexts.append(renewals_section)
+        if contacts_section := format_contacts_section(result.get("contacts_data")):
+            all_contexts.append(contacts_section)
+        if groups_section := format_groups_section(result.get("groups_data")):
+            all_contexts.append(groups_section)
+        if attachments_section := format_attachments_section(result.get("attachments_data")):
+            all_contexts.append(attachments_section)
+        if account_context := format_account_context_section(result.get("account_context_answer", "")):
+            all_contexts.append(account_context)
 
         # Get expected answer for answer_correctness metric
         expected_answer = get_expected_answer(question)
@@ -170,31 +209,29 @@ def test_single_question(
         account_precision = 0.0
         account_recall = 0.0
         explanation = ""
-        ragas_failed = False
+        ragas_metrics_total = 0
+        ragas_metrics_failed = 0
 
         if use_judge and has_answer:
-            # Evaluate account RAG if it was invoked
-            if account_rag_invoked:
-                account_result = judge_answer(
+            # 1. RAG precision/recall - only when account RAG was invoked
+            if account_rag_invoked and account_chunks:
+                rag_result = judge_answer(
                     question, answer, account_chunks, reference_answer=expected_answer, verbose=verbose
                 )
-                account_precision = account_result.get("context_precision", 0.0)
-                account_recall = account_result.get("context_recall", 0.0)
-                relevance = account_result.get("relevance", 0.0)
-                faithfulness = account_result.get("faithfulness", 0.0)
-                answer_correctness = account_result.get("answer_correctness", 0.0)
-                explanation = account_result.get("explanation", "")
-                ragas_failed = account_result.get("ragas_failed", False)
-            else:
-                # If no account RAG, evaluate answer quality without context
-                general_result = judge_answer(
-                    question, answer, [], reference_answer=expected_answer, verbose=verbose
+                account_precision = rag_result.get("context_precision", 0.0)
+                account_recall = rag_result.get("context_recall", 0.0)
+
+            # 2. Answer quality (faithfulness, relevance, correctness) - all contexts
+            if all_contexts:
+                pipeline_result = judge_answer(
+                    question, answer, all_contexts, reference_answer=expected_answer, verbose=verbose
                 )
-                relevance = general_result.get("relevance", 0.0)
-                faithfulness = general_result.get("faithfulness", 0.0)
-                answer_correctness = general_result.get("answer_correctness", 0.0)
-                explanation = general_result.get("explanation", "")
-                ragas_failed = general_result.get("ragas_failed", False)
+                relevance = pipeline_result.get("relevance", 0.0)
+                faithfulness = pipeline_result.get("faithfulness", 0.0)
+                answer_correctness = pipeline_result.get("answer_correctness", 0.0)
+                explanation = pipeline_result.get("explanation", "")
+                ragas_metrics_total = pipeline_result.get("metrics_total", 5)
+                ragas_metrics_failed = pipeline_result.get("metrics_failed", 0)
 
         return FlowStepResult(
             question=question,
@@ -215,7 +252,8 @@ def test_single_question(
             account_rag_invoked=account_rag_invoked,
             judge_explanation=explanation,
             error=None,
-            ragas_failed=ragas_failed,
+            ragas_metrics_total=ragas_metrics_total,
+            ragas_metrics_failed=ragas_metrics_failed,
         )
 
     except TimeoutError:
@@ -416,10 +454,10 @@ def run_flow_eval(
     intent_correct_count = sum(1 for s in all_steps if s.intent_correct)
     intent_accuracy = intent_correct_count / len(all_steps) if all_steps else 0.0
 
-    # Calculate RAGAS reliability (steps with answers that were evaluated)
-    steps_with_judge = [s for s in all_steps if s.has_answer]
-    ragas_calls_total = len(steps_with_judge)
-    ragas_calls_failed = sum(1 for s in steps_with_judge if s.ragas_failed)
+    # Calculate RAGAS reliability (per-metric, not per-call)
+    # Sum up all metrics evaluated and all metrics that failed across all steps
+    ragas_metrics_total = sum(s.ragas_metrics_total for s in all_steps)
+    ragas_metrics_failed = sum(s.ragas_metrics_failed for s in all_steps)
 
     total_latency = sum(r.total_latency_ms for r in results)
     avg_latency = total_latency / total_questions if total_questions > 0 else 0
@@ -448,8 +486,8 @@ def run_flow_eval(
         avg_account_precision=avg_account_precision,
         avg_account_recall=avg_account_recall,
         account_sample_count=len(steps_with_account),
-        ragas_calls_total=ragas_calls_total,
-        ragas_calls_failed=ragas_calls_failed,
+        ragas_metrics_total=ragas_metrics_total,
+        ragas_metrics_failed=ragas_metrics_failed,
         total_latency_ms=total_latency,
         avg_latency_per_question_ms=avg_latency,
         p95_latency_ms=p95_latency,
