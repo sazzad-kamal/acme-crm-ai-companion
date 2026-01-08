@@ -10,9 +10,11 @@ from backend.eval.models import (
     SECURITY_CATEGORIES,
     SLO_ANSWER_CORRECTNESS,
     SLO_ANSWER_RELEVANCE,
+    SLO_AVG_LATENCY_MS,
     SLO_COMPANY_EXTRACTION,
     SLO_CONTEXT_PRECISION,
     SLO_CONTEXT_RECALL,
+    SLO_E2E_COMPOSITE_SCORE,
     SLO_FAITHFULNESS,
     SLO_LATENCY_ANSWER_PCT,
     SLO_LATENCY_FOLLOWUP_PCT,
@@ -63,6 +65,10 @@ def print_e2e_eval_results(
     retrieval_latency_pass = summary.latency_retrieval_pct <= SLO_LATENCY_RETRIEVAL_PCT
     answer_latency_pass = summary.latency_answer_pct <= SLO_LATENCY_ANSWER_PCT
     followup_latency_pass = summary.latency_followup_pct <= SLO_LATENCY_FOLLOWUP_PCT
+    avg_latency_pass = summary.avg_latency_ms <= SLO_AVG_LATENCY_MS
+
+    # Composite score pass/fail
+    composite_pass = summary.composite_score >= SLO_E2E_COMPOSITE_SCORE
 
     # Build table sections: (section_name, [(label, value, slo_target, slo_passed)])
     sections: list[tuple[str, list[tuple[str, str, str | None, bool | None]]]] = [
@@ -90,16 +96,16 @@ def print_e2e_eval_results(
             ],
         ),
         (
-            "Retrieval",
+            "Fetch",
             [
                 (
-                    "  Context Precision",
+                    "  Precision",
                     format_percentage(summary.context_precision_rate),
                     f">={format_percentage(SLO_CONTEXT_PRECISION)}",
                     ctx_precision_slo_pass,
                 ),
                 (
-                    "  Context Recall",
+                    "  Recall",
                     format_percentage(summary.context_recall_rate),
                     f">={format_percentage(SLO_CONTEXT_RECALL)}",
                     ctx_recall_slo_pass,
@@ -152,15 +158,31 @@ def print_e2e_eval_results(
                 ),
             ],
         ),
+        (
+            "Latency",
+            [
+                (
+                    "  avg/question",
+                    f"{summary.avg_latency_ms:.0f}ms",
+                    f"<={SLO_AVG_LATENCY_MS}ms",
+                    avg_latency_pass,
+                ),
+            ],
+        ),
     ]
 
-    table = build_eval_table("E2E Evaluation Summary", sections)
-    console.print(table)
-
-    # 3. Latency line
-    console.print(
-        f"Latency: {summary.wall_clock_ms / 1000:.1f}s total | {summary.avg_latency_ms:.0f}ms avg/question"
+    # Build table with composite score as aggregate row
+    table = build_eval_table(
+        "E2E Evaluation Summary",
+        sections,
+        aggregate_row=(
+            "Composite Score",
+            format_percentage(summary.composite_score),
+            f">={format_percentage(SLO_E2E_COMPOSITE_SCORE)}",
+            composite_pass,
+        ),
     )
+    console.print(table)
 
     # 4. SLO Failures table
     _print_issues(results)

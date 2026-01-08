@@ -136,7 +136,7 @@ def test_single_question(
         has_answer = bool(answer and len(answer) > 10)
 
         # Get routing info from agent result
-        actual_company_id = result.get("company_id")
+        actual_company_id = result.get("resolved_company_id")
         actual_intent = result.get("intent")
 
         # Detect expected company from question text

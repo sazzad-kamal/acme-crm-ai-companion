@@ -15,6 +15,7 @@ from backend.eval.models import (
     SLO_ACCOUNT_RECALL,
     SLO_COMPANY_EXTRACTION,
     SLO_FLOW_ANSWER_CORRECTNESS,
+    SLO_FLOW_AVG_LATENCY_MS,
     SLO_FLOW_COMPOSITE_SCORE,
     SLO_FLOW_FAITHFULNESS,
     SLO_FLOW_PATH_PASS_RATE,
@@ -58,6 +59,10 @@ def print_summary(results: FlowEvalResults) -> bool:
     routing_latency_pass = results.latency_routing_pct <= SLO_LATENCY_ROUTING_PCT
     retrieval_latency_pass = results.latency_retrieval_pct <= SLO_LATENCY_RETRIEVAL_PCT
     answer_latency_pass = results.latency_answer_pct <= SLO_LATENCY_ANSWER_PCT
+    avg_latency_pass = results.avg_latency_per_question_ms <= SLO_FLOW_AVG_LATENCY_MS
+
+    # Composite score pass/fail
+    composite_pass = results.composite_score >= SLO_FLOW_COMPOSITE_SCORE
 
     # Build table sections matching E2E structure: (section_name, [(label, value, slo_target, slo_passed)])
     sections: list[tuple[str, list[tuple[str, str, str | None, bool | None]]]] = [
@@ -85,16 +90,16 @@ def print_summary(results: FlowEvalResults) -> bool:
             ],
         ),
         (
-            "Retrieval",
+            "Fetch",
             [
                 (
-                    "  Account Precision",
+                    "  Precision",
                     format_percentage(results.avg_account_precision) if results.account_sample_count > 0 else "N/A",
                     f">={format_percentage(SLO_ACCOUNT_PRECISION)}" if results.account_sample_count > 0 else "-",
                     account_precision_slo_pass,
                 ),
                 (
-                    "  Account Recall",
+                    "  Recall",
                     format_percentage(results.avg_account_recall) if results.account_sample_count > 0 else "N/A",
                     f">={format_percentage(SLO_ACCOUNT_RECALL)}" if results.account_sample_count > 0 else "-",
                     account_recall_slo_pass,
@@ -136,21 +141,31 @@ def print_summary(results: FlowEvalResults) -> bool:
                 ),
             ],
         ),
+        (
+            "Latency",
+            [
+                (
+                    "  avg/question",
+                    f"{results.avg_latency_per_question_ms:.0f}ms",
+                    f"<={SLO_FLOW_AVG_LATENCY_MS}ms",
+                    avg_latency_pass,
+                ),
+            ],
+        ),
     ]
 
-    summary_table = build_eval_table("Flow Evaluation Summary", sections)
-    console.print(summary_table)
-
-    # Composite score and latency stats below table
-    composite_pass = results.composite_score >= SLO_FLOW_COMPOSITE_SCORE
-    composite_style = "[green]" if composite_pass else "[red]"
-    console.print(
-        f"\n{composite_style}Composite Score: {results.composite_score * 100:.1f}%[/] "
-        f"(target: {SLO_FLOW_COMPOSITE_SCORE * 100:.0f}%) | "
-        f"Latency: {results.wall_clock_ms / 1000:.1f}s total, "
-        f"{results.avg_latency_per_question_ms:.0f}ms avg, "
-        f"{results.p95_latency_ms:.0f}ms P95"
+    # Build table with composite score as aggregate row
+    summary_table = build_eval_table(
+        "Flow Evaluation Summary",
+        sections,
+        aggregate_row=(
+            "Composite Score",
+            format_percentage(results.composite_score),
+            f">={format_percentage(SLO_FLOW_COMPOSITE_SCORE)}",
+            composite_pass,
+        ),
     )
+    console.print(summary_table)
 
     # N/A metrics (None) don't affect overall pass/fail
     all_slos_passed = (
@@ -166,6 +181,8 @@ def print_summary(results: FlowEvalResults) -> bool:
         and routing_latency_pass
         and retrieval_latency_pass
         and answer_latency_pass
+        and avg_latency_pass
+        and composite_pass
     )
 
     # SLO Failures Detail
@@ -221,7 +238,7 @@ def _print_slo_failures(results: FlowEvalResults) -> None:
     failed_table.add_column("R", justify="center", width=3)
     failed_table.add_column("F", justify="center", width=3)
     failed_table.add_column("A", justify="center", width=3)
-    failed_table.add_column("Acct", justify="center", width=4)
+    failed_table.add_column("P/R", justify="center", width=4)
 
     def fmt(passed: bool | None) -> str:
         if passed is None:
@@ -271,11 +288,10 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
             "avg_relevance": results.avg_relevance,
             "avg_faithfulness": results.avg_faithfulness,
             "avg_answer_correctness": results.avg_answer_correctness,
-            "avg_account_precision": results.avg_account_precision,
-            "avg_account_recall": results.avg_account_recall,
+            "avg_precision": results.avg_account_precision,
+            "avg_recall": results.avg_account_recall,
             "total_latency_ms": results.total_latency_ms,
             "avg_latency_per_question_ms": results.avg_latency_per_question_ms,
-            "p95_latency_ms": results.p95_latency_ms,
             "wall_clock_ms": results.wall_clock_ms,
             "latency_routing_pct": results.latency_routing_pct,
             "latency_retrieval_pct": results.latency_retrieval_pct,
@@ -307,20 +323,26 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                 "target": SLO_FLOW_ANSWER_CORRECTNESS,
                 "passed": results.avg_answer_correctness >= SLO_FLOW_ANSWER_CORRECTNESS,
             },
-            "account_precision": {
+            "precision": {
                 "value": results.avg_account_precision,
                 "target": SLO_ACCOUNT_PRECISION,
                 "passed": results.avg_account_precision >= SLO_ACCOUNT_PRECISION,
             },
-            "account_recall": {
+            "recall": {
                 "value": results.avg_account_recall,
                 "target": SLO_ACCOUNT_RECALL,
                 "passed": results.avg_account_recall >= SLO_ACCOUNT_RECALL,
             },
-        },
-        "tracked_metrics": {
-            "avg_latency_ms": results.avg_latency_per_question_ms,
-            "p95_latency_ms": results.p95_latency_ms,
+            "avg_latency_ms": {
+                "value": results.avg_latency_per_question_ms,
+                "target": SLO_FLOW_AVG_LATENCY_MS,
+                "passed": results.avg_latency_per_question_ms <= SLO_FLOW_AVG_LATENCY_MS,
+            },
+            "composite_score": {
+                "value": results.composite_score,
+                "target": SLO_FLOW_COMPOSITE_SCORE,
+                "passed": results.composite_score >= SLO_FLOW_COMPOSITE_SCORE,
+            },
         },
         "failed_paths": [
             {
@@ -333,8 +355,8 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                         "relevance_score": s.relevance_score,
                         "faithfulness_score": s.faithfulness_score,
                         "answer_correctness_score": s.answer_correctness_score,
-                        "account_precision_score": s.account_precision_score,
-                        "account_recall_score": s.account_recall_score,
+                        "precision_score": s.account_precision_score,
+                        "recall_score": s.account_recall_score,
                         "latency_ms": s.latency_ms,
                         "judge_explanation": s.judge_explanation,
                         "error": s.error,
