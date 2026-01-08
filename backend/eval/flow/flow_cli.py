@@ -63,12 +63,19 @@ def _run_eval(
         )
         return
 
-    # Warmup: trigger model loading
+    # Warmup: trigger model loading (suppress expected "no results" warning)
     console.print("\n[dim]Warming up models...[/dim]")
     try:
         from backend.agent.rag.tools import tool_account_rag
 
-        tool_account_rag("warmup", "test_company", top_k=1)
+        # Temporarily suppress RAG warnings during warmup (expected to fail with fake company)
+        rag_logger = logging.getLogger("backend.agent.rag.tools")
+        original_level = rag_logger.level
+        rag_logger.setLevel(logging.ERROR)
+        try:
+            tool_account_rag("warmup", "test_company", top_k=1)
+        finally:
+            rag_logger.setLevel(original_level)
         console.print("[dim]Models loaded.[/dim]")
     except Exception as e:
         console.print(f"[yellow]Warning: Model preload failed: {e}[/yellow]")
