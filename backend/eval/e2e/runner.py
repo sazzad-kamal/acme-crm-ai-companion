@@ -37,6 +37,7 @@ def judge_e2e_response(
             "answer_relevance": result["answer_relevancy"],
             "faithfulness": result["faithfulness"],
             "context_precision": result["context_precision"],
+            "context_recall": result.get("context_recall", 0.0),
             "answer_correctness": result.get("answer_correctness", 0.0),
             "explanation": "",
         }
@@ -45,6 +46,7 @@ def judge_e2e_response(
             "answer_relevance": 0.0,
             "faithfulness": 0.0,
             "context_precision": 0.0,
+            "context_recall": 0.0,
             "answer_correctness": 0.0,
             "explanation": f"RAGAS error: {e}",
         }
@@ -152,6 +154,7 @@ def run_e2e_test(
             answer_relevance=0.0,
             faithfulness=0.0,
             context_precision=0.0,
+            context_recall=0.0,
             has_sources=False,
             latency_ms=latency,
             total_tokens=0,
@@ -165,6 +168,7 @@ def run_e2e_test(
             "answer_relevance": 0.0,
             "faithfulness": 0.0,
             "context_precision": 0.0,
+            "context_recall": 0.0,
             "answer_correctness": 0.0,
             "explanation": "Security test - RAGAS skipped",
         }
@@ -218,6 +222,7 @@ def run_e2e_test(
         answer_relevance=float(judge_result.get("answer_relevance", 0.0)),  # type: ignore[arg-type]
         faithfulness=float(judge_result.get("faithfulness", 0.0)),  # type: ignore[arg-type]
         context_precision=float(judge_result.get("context_precision", 0.0)),  # type: ignore[arg-type]
+        context_recall=float(judge_result.get("context_recall", 0.0)),  # type: ignore[arg-type]
         answer_correctness=float(judge_result.get("answer_correctness", 0.0)),  # type: ignore[arg-type]
         judge_explanation=str(judge_result.get("explanation", "")),
         has_sources=len(sources) > 0,
@@ -313,6 +318,7 @@ def run_e2e_eval(
     relevance_rate = sum(r.answer_relevance for r in rag_results) / rag_count if rag_count else 0
     faithfulness_rate = sum(r.faithfulness for r in rag_results) / rag_count if rag_count else 0
     context_precision_rate = sum(r.context_precision for r in rag_results) / rag_count if rag_count else 0
+    context_recall_rate = sum(r.context_recall for r in rag_results) / rag_count if rag_count else 0
     answer_correctness_rate = sum(r.answer_correctness for r in rag_results) / rag_count if rag_count else 0
 
     # Security pass rate
@@ -335,6 +341,7 @@ def run_e2e_eval(
                 "relevance_sum": 0.0,
                 "faithfulness_sum": 0.0,
                 "context_precision_sum": 0.0,
+                "context_recall_sum": 0.0,
                 "answer_correctness_sum": 0.0,
             }
         by_category[cat]["count"] += 1
@@ -345,6 +352,7 @@ def run_e2e_eval(
             by_category[cat]["relevance_sum"] += r.answer_relevance
             by_category[cat]["faithfulness_sum"] += r.faithfulness
             by_category[cat]["context_precision_sum"] += r.context_precision
+            by_category[cat]["context_recall_sum"] += r.context_recall
             by_category[cat]["answer_correctness_sum"] += r.answer_correctness
 
     for cat in by_category:
@@ -353,12 +361,14 @@ def run_e2e_eval(
             by_category[cat]["relevance_rate"] = by_category[cat]["relevance_sum"] / count
             by_category[cat]["faithfulness_rate"] = by_category[cat]["faithfulness_sum"] / count
             by_category[cat]["context_precision_rate"] = by_category[cat]["context_precision_sum"] / count
+            by_category[cat]["context_recall_rate"] = by_category[cat]["context_recall_sum"] / count
             by_category[cat]["answer_correctness_rate"] = by_category[cat]["answer_correctness_sum"] / count
         else:
             # Security tests don't have RAGAS rates
             by_category[cat]["relevance_rate"] = 0.0
             by_category[cat]["faithfulness_rate"] = 0.0
             by_category[cat]["context_precision_rate"] = 0.0
+            by_category[cat]["context_recall_rate"] = 0.0
             by_category[cat]["answer_correctness_rate"] = 0.0
 
     summary = E2EEvalSummary(
@@ -369,6 +379,7 @@ def run_e2e_eval(
         answer_relevance_rate=relevance_rate,
         faithfulness_rate=faithfulness_rate,
         context_precision_rate=context_precision_rate,
+        context_recall_rate=context_recall_rate,
         answer_correctness_rate=answer_correctness_rate,
         security_tests_total=len(security_results),
         security_tests_passed=security_passed,

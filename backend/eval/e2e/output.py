@@ -12,6 +12,7 @@ from backend.eval.models import (
     SLO_ANSWER_RELEVANCE,
     SLO_COMPANY_EXTRACTION,
     SLO_CONTEXT_PRECISION,
+    SLO_CONTEXT_RECALL,
     SLO_FAITHFULNESS,
     SLO_LATENCY_ANSWER_PCT,
     SLO_LATENCY_FOLLOWUP_PCT,
@@ -52,6 +53,7 @@ def print_e2e_eval_results(
     company_slo_pass = summary.company_extraction_accuracy >= SLO_COMPANY_EXTRACTION
     intent_slo_pass = summary.intent_accuracy >= SLO_ROUTER_ACCURACY
     ctx_precision_slo_pass = summary.context_precision_rate >= SLO_CONTEXT_PRECISION
+    ctx_recall_slo_pass = summary.context_recall_rate >= SLO_CONTEXT_RECALL
     relevance_slo_pass = summary.answer_relevance_rate >= SLO_ANSWER_RELEVANCE
     faithfulness_slo_pass = summary.faithfulness_rate >= SLO_FAITHFULNESS
     answer_correctness_slo_pass = summary.answer_correctness_rate >= SLO_ANSWER_CORRECTNESS
@@ -95,6 +97,12 @@ def print_e2e_eval_results(
                     format_percentage(summary.context_precision_rate),
                     f">={format_percentage(SLO_CONTEXT_PRECISION)}",
                     ctx_precision_slo_pass,
+                ),
+                (
+                    "  Context Recall",
+                    format_percentage(summary.context_recall_rate),
+                    f">={format_percentage(SLO_CONTEXT_RECALL)}",
+                    ctx_recall_slo_pass,
                 ),
                 (
                     "  latency",
@@ -169,6 +177,8 @@ def _count_ragas_failures(r: E2EEvalResult) -> int:
         count += 1
     if r.context_precision < SLO_CONTEXT_PRECISION:
         count += 1
+    if r.context_recall < SLO_CONTEXT_RECALL:
+        count += 1
     if r.answer_correctness < SLO_ANSWER_CORRECTNESS:
         count += 1
     return count
@@ -199,23 +209,25 @@ def _print_issues(results: list[E2EEvalResult]) -> None:
         header_style="bold yellow",
     )
     failed_table.add_column("#", style="dim", width=3)
-    failed_table.add_column("Question", width=45)
+    failed_table.add_column("Question", width=40)
     failed_table.add_column("R", justify="center", width=3)
     failed_table.add_column("F", justify="center", width=3)
-    failed_table.add_column("C", justify="center", width=3)
+    failed_table.add_column("CP", justify="center", width=3)
+    failed_table.add_column("CR", justify="center", width=3)
     failed_table.add_column("A", justify="center", width=3)
 
     for i, r in enumerate(shown, 1):
         # Format question display (show question, fallback to test_case_id if empty)
         if r.question.strip():
-            question_display = r.question[:43] + "..." if len(r.question) > 43 else r.question
+            question_display = r.question[:38] + "..." if len(r.question) > 38 else r.question
         else:
             question_display = f"[{r.test_case_id}]"
 
         # Format RAGAS metrics as checkmarks
         r_pass = r.answer_relevance >= SLO_ANSWER_RELEVANCE
         f_pass = r.faithfulness >= SLO_FAITHFULNESS
-        c_pass = r.context_precision >= SLO_CONTEXT_PRECISION
+        cp_pass = r.context_precision >= SLO_CONTEXT_PRECISION
+        cr_pass = r.context_recall >= SLO_CONTEXT_RECALL
         a_pass = r.answer_correctness >= SLO_ANSWER_CORRECTNESS
 
         def fmt(passed: bool) -> str:
@@ -226,7 +238,8 @@ def _print_issues(results: list[E2EEvalResult]) -> None:
             question_display,
             fmt(r_pass),
             fmt(f_pass),
-            fmt(c_pass),
+            fmt(cp_pass),
+            fmt(cr_pass),
             fmt(a_pass),
         )
 

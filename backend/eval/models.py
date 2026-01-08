@@ -12,6 +12,26 @@ SECURITY_CATEGORIES = {"adversarial", "anti_hallucination"}
 
 
 # =============================================================================
+# Composite Score Helpers
+# =============================================================================
+
+
+def _latency_score(avg_latency_ms: float, slo_target_ms: float) -> float:
+    """
+    Convert latency to 0-1 score for composite score calculation.
+
+    - Score = 1.0 if avg_latency <= SLO target
+    - Score = 0.0 if avg_latency >= 2x SLO target
+    - Linear interpolation between
+    """
+    if avg_latency_ms <= slo_target_ms:
+        return 1.0
+    if avg_latency_ms >= 2 * slo_target_ms:
+        return 0.0
+    return 1.0 - (avg_latency_ms - slo_target_ms) / slo_target_ms
+
+
+# =============================================================================
 # E2E Evaluation Models
 # =============================================================================
 
@@ -43,6 +63,7 @@ class E2EEvalResult(BaseModel):
     answer_relevance: float  # RAGAS answer_relevancy
     faithfulness: float = 0.0  # RAGAS faithfulness (replaces answer_grounded)
     context_precision: float = 0.0  # RAGAS context_precision
+    context_recall: float = 0.0  # RAGAS context_recall
     answer_correctness: float = 0.0  # RAGAS answer_correctness (requires expected_answer)
     judge_explanation: str = ""
 
@@ -80,6 +101,7 @@ class E2EEvalSummary(BaseModel):
     answer_relevance_rate: float  # RAGAS answer_relevancy
     faithfulness_rate: float = 0.0  # RAGAS faithfulness
     context_precision_rate: float = 0.0  # RAGAS context_precision
+    context_recall_rate: float = 0.0  # RAGAS context_recall
     answer_correctness_rate: float = 0.0  # RAGAS answer_correctness
 
     # Security test metrics
@@ -107,20 +129,25 @@ class E2EEvalSummary(BaseModel):
 
         Weights:
         - Faithfulness: 30% (critical - no hallucinations)
-        - Answer Relevance: 25% (must address questions)
-        - Context Precision: 15% (retrieval quality)
+        - Answer Relevance: 20% (must address questions)
         - Answer Correctness: 15% (factual accuracy)
-        - Routing: 10% (company + intent combined)
+        - Context Precision: 10% (retrieved relevant chunks)
+        - Context Recall: 10% (retrieved all needed chunks)
+        - Routing: 5% (company + intent combined)
         - Security: 5% (pass/fail, should be 100%)
+        - Latency: 5% (speed, capped at SLO)
         """
         routing_score = (self.company_extraction_accuracy + self.intent_accuracy) / 2
+        latency_score = _latency_score(self.avg_latency_ms, SLO_AVG_LATENCY_MS)
         return (
             0.30 * self.faithfulness_rate
-            + 0.25 * self.answer_relevance_rate
-            + 0.15 * self.context_precision_rate
+            + 0.20 * self.answer_relevance_rate
             + 0.15 * self.answer_correctness_rate
-            + 0.10 * routing_score
+            + 0.10 * self.context_precision_rate
+            + 0.10 * self.context_recall_rate
+            + 0.05 * routing_score
             + 0.05 * self.security_pass_rate
+            + 0.05 * latency_score
         )
 
 
@@ -129,6 +156,7 @@ class E2EEvalSummary(BaseModel):
 # =============================================================================
 
 # Latency SLOs
+SLO_AVG_LATENCY_MS = 3000  # 3s average for E2E - used in composite score
 SLO_LATENCY_P95_MS = 5000  # 5s P95 - catches outliers
 
 # Latency % SLOs (percentage of total latency per node)
@@ -280,18 +308,21 @@ class FlowEvalResults:
 
         Weights:
         - Faithfulness: 30% (critical - no hallucinations)
-        - Answer Relevance: 25% (must address questions)
-        - Context Precision: 15% (retrieval quality)
+        - Answer Relevance: 20% (must address questions)
         - Answer Correctness: 15% (factual accuracy)
+        - Account Precision: 10% (retrieved relevant chunks)
+        - Account Recall: 10% (retrieved all needed chunks)
         - Routing: 10% (company + intent combined)
-        - Pass Rate: 5% (overall success rate)
+        - Latency: 5% (speed, capped at SLO)
         """
         routing_score = (self.company_extraction_accuracy + self.intent_accuracy) / 2
+        latency_score = _latency_score(self.avg_latency_per_question_ms, SLO_FLOW_AVG_LATENCY_MS)
         return (
             0.30 * self.avg_faithfulness
-            + 0.25 * self.avg_relevance
-            + 0.15 * self.avg_context_precision
+            + 0.20 * self.avg_relevance
             + 0.15 * self.avg_answer_correctness
+            + 0.10 * self.avg_account_precision
+            + 0.10 * self.avg_account_recall
             + 0.10 * routing_score
-            + 0.05 * self.question_pass_rate
+            + 0.05 * latency_score
         )

@@ -13,6 +13,7 @@ import pytest
 os.environ["MOCK_LLM"] = "1"
 
 from backend.eval.models import (
+    _latency_score,
     E2EEvalResult,
     E2EEvalSummary,
     FlowStepResult,
@@ -27,6 +28,43 @@ from backend.eval.models import (
     SLO_FLOW_RELEVANCE,
     SLO_FLOW_FAITHFULNESS,
 )
+
+
+# =============================================================================
+# Latency Score Helper Tests
+# =============================================================================
+
+
+class TestLatencyScore:
+    """Tests for _latency_score helper function."""
+
+    def test_latency_score_at_slo(self):
+        """Test latency score at exactly SLO target."""
+        assert _latency_score(3000.0, 3000.0) == 1.0
+
+    def test_latency_score_below_slo(self):
+        """Test latency score below SLO target."""
+        assert _latency_score(2000.0, 3000.0) == 1.0
+
+    def test_latency_score_at_double_slo(self):
+        """Test latency score at 2x SLO target."""
+        assert _latency_score(6000.0, 3000.0) == 0.0
+
+    def test_latency_score_above_double_slo(self):
+        """Test latency score above 2x SLO target."""
+        assert _latency_score(9000.0, 3000.0) == 0.0
+
+    def test_latency_score_interpolation(self):
+        """Test latency score linear interpolation between SLO and 2x SLO."""
+        # 4500ms is halfway between 3000ms (SLO) and 6000ms (2x SLO)
+        # Score should be 0.5
+        assert _latency_score(4500.0, 3000.0) == 0.5
+
+    def test_latency_score_interpolation_quarter(self):
+        """Test latency score at 25% above SLO."""
+        # 3750ms is 25% of the way from 3000ms to 6000ms
+        # Score should be 0.75
+        assert _latency_score(3750.0, 3000.0) == 0.75
 
 
 # =============================================================================
@@ -53,6 +91,7 @@ class TestE2EEvalResult:
             answer_relevance=0.9,
             faithfulness=0.85,
             context_precision=0.8,
+            context_recall=0.75,
             has_sources=True,
             latency_ms=200.0,
             total_tokens=500,
@@ -61,6 +100,7 @@ class TestE2EEvalResult:
         assert result.answer_relevance == 0.9
         assert result.faithfulness == 0.85
         assert result.context_precision == 0.8
+        assert result.context_recall == 0.75
         assert result.intent_correct is True
 
     def test_e2e_eval_result_with_judge_explanation(self):
@@ -117,6 +157,7 @@ class TestE2EEvalSummary:
             answer_relevance_rate=0.88,
             faithfulness_rate=0.84,
             context_precision_rate=0.80,
+            context_recall_rate=0.75,
             avg_latency_ms=350.0,
             wall_clock_ms=5000,
             latency_routing_pct=0.20,
@@ -131,7 +172,36 @@ class TestE2EEvalSummary:
 
         assert summary.answer_relevance_rate == 0.88
         assert summary.faithfulness_rate == 0.84
+        assert summary.context_recall_rate == 0.75
         assert summary.latency_routing_pct == 0.20
+
+    def test_e2e_eval_summary_composite_score(self):
+        """Test E2EEvalSummary composite score calculation."""
+        summary = E2EEvalSummary(
+            total_tests=25,
+            company_extraction_accuracy=0.95,
+            intent_accuracy=0.90,
+            answer_relevance_rate=0.88,
+            faithfulness_rate=0.92,
+            context_precision_rate=0.85,
+            context_recall_rate=0.80,
+            answer_correctness_rate=0.75,
+            security_pass_rate=1.0,
+            avg_latency_ms=2500.0,  # Under 3000ms SLO, so latency_score = 1.0
+            by_category={},
+        )
+
+        # Composite = 0.30*faith + 0.20*rel + 0.15*ans + 0.10*ctx_prec + 0.10*ctx_recall + 0.05*routing + 0.05*security + 0.05*latency
+        # routing = (0.95 + 0.90) / 2 = 0.925
+        # latency_score = 1.0 (2500ms <= 3000ms SLO)
+        # = 0.30*0.92 + 0.20*0.88 + 0.15*0.75 + 0.10*0.85 + 0.10*0.80 + 0.05*0.925 + 0.05*1.0 + 0.05*1.0
+        # = 0.276 + 0.176 + 0.1125 + 0.085 + 0.080 + 0.04625 + 0.05 + 0.05 = 0.87575
+        expected = (
+            0.30 * 0.92 + 0.20 * 0.88 + 0.15 * 0.75 + 0.10 * 0.85
+            + 0.10 * 0.80 + 0.05 * 0.925 + 0.05 * 1.0 + 0.05 * 1.0
+        )
+        assert abs(summary.composite_score - expected) < 0.001
+        assert summary.composite_score > 0.85  # Should pass SLO
 
 
 # =============================================================================
@@ -306,14 +376,17 @@ class TestFlowEvalResults:
             avg_faithfulness=0.92,
             avg_context_precision=0.82,
             avg_answer_correctness=0.75,
+            avg_account_precision=0.85,
+            avg_account_recall=0.80,
+            avg_latency_per_question_ms=3000.0,  # Under SLO, so latency_score = 1.0
         )
 
-        # Composite = 0.30*faith + 0.25*rel + 0.15*ctx + 0.15*ans + 0.10*routing + 0.05*pass_rate
+        # Composite = 0.30*faith + 0.20*rel + 0.15*ans + 0.10*acct_prec + 0.10*acct_recall + 0.10*routing + 0.05*latency
         # routing = (0.95 + 0.90) / 2 = 0.925
-        # pass_rate = 36/40 = 0.90
-        # = 0.30*0.92 + 0.25*0.88 + 0.15*0.82 + 0.15*0.75 + 0.10*0.925 + 0.05*0.90
-        # = 0.276 + 0.22 + 0.123 + 0.1125 + 0.0925 + 0.045 = 0.869
-        expected = 0.30 * 0.92 + 0.25 * 0.88 + 0.15 * 0.82 + 0.15 * 0.75 + 0.10 * 0.925 + 0.05 * 0.90
+        # latency_score = 1.0 (3000ms <= 4000ms SLO)
+        # = 0.30*0.92 + 0.20*0.88 + 0.15*0.75 + 0.10*0.85 + 0.10*0.80 + 0.10*0.925 + 0.05*1.0
+        # = 0.276 + 0.176 + 0.1125 + 0.085 + 0.080 + 0.0925 + 0.05 = 0.872
+        expected = 0.30 * 0.92 + 0.20 * 0.88 + 0.15 * 0.75 + 0.10 * 0.85 + 0.10 * 0.80 + 0.10 * 0.925 + 0.05 * 1.0
         assert abs(results.composite_score - expected) < 0.001
         assert results.composite_score > 0.85  # Should pass SLO
 
