@@ -61,7 +61,7 @@ def judge_answer(
     contexts: list[str],
     reference_answer: str | None = None,
     verbose: bool = False,
-    timeout: int = 120,
+    timeout: int = 180,
 ) -> dict:
     """Judge an answer using RAGAS metrics with timeout."""
     try:
@@ -221,8 +221,12 @@ def test_single_question(
                 account_recall = rag_result.get("context_recall", 0.0)
                 # Track precision + recall (2 metrics)
                 ragas_metrics_total = 2
-                nan_metrics = rag_result.get("nan_metrics", [])
-                ragas_metrics_failed = sum(1 for m in nan_metrics if m in ("context_precision", "context_recall"))
+                # Count failures: timeout/error sets ragas_failed=True, else check nan_metrics
+                if rag_result.get("ragas_failed"):
+                    ragas_metrics_failed = 2  # All RAG metrics failed
+                else:
+                    nan_metrics = rag_result.get("nan_metrics", [])
+                    ragas_metrics_failed = sum(1 for m in nan_metrics if m in ("context_precision", "context_recall"))
 
             # 2. Answer quality (faithfulness, relevance, correctness) - all contexts
             # Skip if eval_mode is "rag" (only want precision/recall metrics)
@@ -237,13 +241,21 @@ def test_single_question(
                 # Track only relevance + faithfulness + correctness (3 metrics) in pipeline mode
                 if eval_mode == "pipeline":
                     ragas_metrics_total = 3
-                    nan_metrics = pipeline_result.get("nan_metrics", [])
-                    ragas_metrics_failed = sum(1 for m in nan_metrics if m in ("answer_relevancy", "faithfulness", "answer_correctness"))
+                    # Count failures: timeout/error sets ragas_failed=True, else check nan_metrics
+                    if pipeline_result.get("ragas_failed"):
+                        ragas_metrics_failed = 3  # All pipeline metrics failed
+                    else:
+                        nan_metrics = pipeline_result.get("nan_metrics", [])
+                        ragas_metrics_failed = sum(1 for m in nan_metrics if m in ("answer_relevancy", "faithfulness", "answer_correctness"))
                 else:
                     # both mode: count all 5 metrics (2 from rag + 3 from pipeline)
                     ragas_metrics_total += 3
-                    nan_metrics = pipeline_result.get("nan_metrics", [])
-                    ragas_metrics_failed += sum(1 for m in nan_metrics if m in ("answer_relevancy", "faithfulness", "answer_correctness"))
+                    # Count failures: timeout/error sets ragas_failed=True, else check nan_metrics
+                    if pipeline_result.get("ragas_failed"):
+                        ragas_metrics_failed += 3  # All pipeline metrics failed
+                    else:
+                        nan_metrics = pipeline_result.get("nan_metrics", [])
+                        ragas_metrics_failed += sum(1 for m in nan_metrics if m in ("answer_relevancy", "faithfulness", "answer_correctness"))
 
         return FlowStepResult(
             question=question,
@@ -502,6 +514,7 @@ def run_flow_eval(
         avg_account_precision=avg_account_precision,
         avg_account_recall=avg_account_recall,
         account_sample_count=len(steps_with_account),
+        rag_expected_count=len(steps_with_expected_company),
         ragas_metrics_total=ragas_metrics_total,
         ragas_metrics_failed=ragas_metrics_failed,
         total_latency_ms=total_latency,

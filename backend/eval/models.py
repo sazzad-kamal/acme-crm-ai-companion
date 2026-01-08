@@ -275,7 +275,8 @@ class FlowEvalResults:
     avg_account_precision: float = 0.0  # Account RAG precision
     avg_account_recall: float = 0.0  # Account RAG recall
     # Sample counts for N/A display (0 means no samples)
-    account_sample_count: int = 0  # Number of steps with account chunks
+    account_sample_count: int = 0  # Number of steps with account chunks (RAG returned results)
+    rag_expected_count: int = 0  # Number of steps where RAG was expected (company detected)
     # RAGAS reliability tracking (per-metric, not per-call)
     ragas_metrics_total: int = 0  # Total individual metrics evaluated (questions × 5)
     ragas_metrics_failed: int = 0  # Individual metrics that returned NaN
