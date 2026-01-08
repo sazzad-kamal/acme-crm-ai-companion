@@ -32,9 +32,13 @@ from backend.eval.models import (
 logger = logging.getLogger(__name__)
 
 
-def print_summary(results: FlowEvalResults) -> bool:
+def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
     """
     Print a comprehensive summary of eval results with SLO status.
+
+    Args:
+        results: The evaluation results
+        eval_mode: RAGAS mode - 'rag', 'pipeline', or 'both'
 
     Returns:
         True if all SLOs passed
@@ -47,13 +51,24 @@ def print_summary(results: FlowEvalResults) -> bool:
     # Company extraction: N/A if no questions have expected company
     company_slo_pass = results.company_extraction_accuracy >= SLO_COMPANY_EXTRACTION if results.company_sample_count > 0 else None
     intent_slo_pass = results.intent_accuracy >= SLO_ROUTER_ACCURACY
-    relevance_slo_pass = results.avg_relevance >= SLO_FLOW_RELEVANCE
-    faithfulness_slo_pass = results.avg_faithfulness >= SLO_FLOW_FAITHFULNESS
-    answer_correctness_slo_pass = results.avg_answer_correctness >= SLO_FLOW_ANSWER_CORRECTNESS
 
-    # Account RAG SLOs - conditional, show N/A only if never invoked
-    account_precision_slo_pass = results.avg_account_precision >= SLO_ACCOUNT_PRECISION if results.account_sample_count > 0 else None
-    account_recall_slo_pass = results.avg_account_recall >= SLO_ACCOUNT_RECALL if results.account_sample_count > 0 else None
+    # Answer quality metrics - N/A if eval_mode is "rag" (not evaluated)
+    if eval_mode == "rag":
+        relevance_slo_pass = None
+        faithfulness_slo_pass = None
+        answer_correctness_slo_pass = None
+    else:
+        relevance_slo_pass = results.avg_relevance >= SLO_FLOW_RELEVANCE
+        faithfulness_slo_pass = results.avg_faithfulness >= SLO_FLOW_FAITHFULNESS
+        answer_correctness_slo_pass = results.avg_answer_correctness >= SLO_FLOW_ANSWER_CORRECTNESS
+
+    # Account RAG SLOs - N/A if eval_mode is "pipeline" or never invoked
+    if eval_mode == "pipeline":
+        account_precision_slo_pass = None
+        account_recall_slo_pass = None
+    else:
+        account_precision_slo_pass = results.avg_account_precision >= SLO_ACCOUNT_PRECISION if results.account_sample_count > 0 else None
+        account_recall_slo_pass = results.avg_account_recall >= SLO_ACCOUNT_RECALL if results.account_sample_count > 0 else None
 
     # Compute latency SLO pass/fail
     routing_latency_pass = results.latency_routing_pct <= SLO_LATENCY_ROUTING_PCT
@@ -61,8 +76,11 @@ def print_summary(results: FlowEvalResults) -> bool:
     answer_latency_pass = results.latency_answer_pct <= SLO_LATENCY_ANSWER_PCT
     avg_latency_pass = results.avg_latency_per_question_ms <= SLO_FLOW_AVG_LATENCY_MS
 
-    # Composite score pass/fail
-    composite_pass = results.composite_score >= SLO_FLOW_COMPOSITE_SCORE
+    # Composite score pass/fail - only valid when all metrics are evaluated
+    if eval_mode == "both":
+        composite_pass = results.composite_score >= SLO_FLOW_COMPOSITE_SCORE
+    else:
+        composite_pass = None  # N/A when not all metrics evaluated
 
     # Build table sections matching E2E structure: (section_name, [(label, value, slo_target, slo_passed)])
     sections: list[tuple[str, list[tuple[str, str, str | None, bool | None]]]] = [
@@ -90,18 +108,18 @@ def print_summary(results: FlowEvalResults) -> bool:
             ],
         ),
         (
-            f"Fetch (n={results.account_sample_count})" if results.account_sample_count > 0 else "Fetch",
+            f"Fetch (n={results.account_sample_count})" if results.account_sample_count > 0 and eval_mode != "pipeline" else "Fetch",
             [
                 (
                     "  Precision",
-                    format_percentage(results.avg_account_precision) if results.account_sample_count > 0 else "N/A",
-                    f">={format_percentage(SLO_ACCOUNT_PRECISION)}" if results.account_sample_count > 0 else "-",
+                    format_percentage(results.avg_account_precision) if results.account_sample_count > 0 and eval_mode != "pipeline" else "N/A",
+                    f">={format_percentage(SLO_ACCOUNT_PRECISION)}" if results.account_sample_count > 0 and eval_mode != "pipeline" else "-",
                     account_precision_slo_pass,
                 ),
                 (
                     "  Recall",
-                    format_percentage(results.avg_account_recall) if results.account_sample_count > 0 else "N/A",
-                    f">={format_percentage(SLO_ACCOUNT_RECALL)}" if results.account_sample_count > 0 else "-",
+                    format_percentage(results.avg_account_recall) if results.account_sample_count > 0 and eval_mode != "pipeline" else "N/A",
+                    f">={format_percentage(SLO_ACCOUNT_RECALL)}" if results.account_sample_count > 0 and eval_mode != "pipeline" else "-",
                     account_recall_slo_pass,
                 ),
                 (
@@ -117,20 +135,20 @@ def print_summary(results: FlowEvalResults) -> bool:
             [
                 (
                     "  Relevance",
-                    format_percentage(results.avg_relevance),
-                    f">={format_percentage(SLO_FLOW_RELEVANCE)}",
+                    format_percentage(results.avg_relevance) if eval_mode != "rag" else "N/A",
+                    f">={format_percentage(SLO_FLOW_RELEVANCE)}" if eval_mode != "rag" else "-",
                     relevance_slo_pass,
                 ),
                 (
                     "  Faithfulness",
-                    format_percentage(results.avg_faithfulness),
-                    f">={format_percentage(SLO_FLOW_FAITHFULNESS)}",
+                    format_percentage(results.avg_faithfulness) if eval_mode != "rag" else "N/A",
+                    f">={format_percentage(SLO_FLOW_FAITHFULNESS)}" if eval_mode != "rag" else "-",
                     faithfulness_slo_pass,
                 ),
                 (
                     "  Answer Correctness",
-                    format_percentage(results.avg_answer_correctness),
-                    f">={format_percentage(SLO_FLOW_ANSWER_CORRECTNESS)}",
+                    format_percentage(results.avg_answer_correctness) if eval_mode != "rag" else "N/A",
+                    f">={format_percentage(SLO_FLOW_ANSWER_CORRECTNESS)}" if eval_mode != "rag" else "-",
                     answer_correctness_slo_pass,
                 ),
                 (
@@ -171,8 +189,8 @@ def print_summary(results: FlowEvalResults) -> bool:
         sections,
         aggregate_row=(
             "Composite Score",
-            format_percentage(results.composite_score),
-            f">={format_percentage(SLO_FLOW_COMPOSITE_SCORE)}",
+            format_percentage(results.composite_score) if eval_mode == "both" else "N/A",
+            f">={format_percentage(SLO_FLOW_COMPOSITE_SCORE)}" if eval_mode == "both" else "-",
             composite_pass,
         ),
     )

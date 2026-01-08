@@ -106,7 +106,7 @@ def _run_eval(
         results.latency_answer_pct = latency_pcts.get("answer", 0.0)
 
     # Print summary
-    print_summary(results)
+    print_summary(results, eval_mode=eval_mode)
 
     # Debug output for failing paths
     if debug and results.failed_paths:
