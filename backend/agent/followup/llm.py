@@ -2,18 +2,57 @@
 Followup node LLM functions.
 
 Chain creation and invocation for follow-up question generation.
+Loads prompt from prompt.txt for clean separation.
 """
 
 import logging
+from pathlib import Path
 from typing import Any
 
+from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from backend.agent.core.config import get_config
-from backend.agent.followup.prompts import FOLLOW_UP_PROMPT_TEMPLATE
 from backend.llm.client import create_chain
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Load Prompt from File
+# =============================================================================
+
+_PROMPT_PATH = Path(__file__).parent / "prompt.txt"
+_PROMPT_TEXT = _PROMPT_PATH.read_text(encoding="utf-8")
+
+# Parse [system] and [human] sections
+_sections: dict[str, str] = {}
+_current_section: str | None = None
+_current_lines: list[str] = []
+
+for _line in _PROMPT_TEXT.split("\n"):
+    if _line.strip() == "[system]":
+        if _current_section:
+            _sections[_current_section] = "\n".join(_current_lines).strip()
+        _current_section = "system"
+        _current_lines = []
+    elif _line.strip() == "[human]":
+        if _current_section:
+            _sections[_current_section] = "\n".join(_current_lines).strip()
+        _current_section = "human"
+        _current_lines = []
+    else:
+        _current_lines.append(_line)
+
+if _current_section:
+    _sections[_current_section] = "\n".join(_current_lines).strip()
+
+FOLLOW_UP_PROMPT_TEMPLATE = ChatPromptTemplate.from_messages(
+    [
+        ("system", _sections.get("system", "")),
+        ("human", _sections.get("human", "")),
+    ]
+)
 
 
 class FollowUpSuggestions(BaseModel):
