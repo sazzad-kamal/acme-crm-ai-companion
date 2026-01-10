@@ -219,9 +219,18 @@ def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
     return all_slos_passed
 
 
-def _count_ragas_failures(step: FlowStepResult, eval_mode: str = "both") -> int:
-    """Count how many RAGAS metrics failed for a step based on eval_mode."""
+def _count_slo_failures(step: FlowStepResult, eval_mode: str = "both") -> int:
+    """Count how many SLO metrics failed for a step based on eval_mode."""
     count = 0
+    # SQL execution success
+    if step.sql_queries_total > 0 and step.sql_queries_success < step.sql_queries_total:
+        count += 1
+    # SQL data validation (only count if assertions exist and failed)
+    if step.sql_data_validated is False:
+        count += 1
+    # RAG decision
+    if not step.rag_decision_correct:
+        count += 1
     # Pipeline metrics (relevance, faithfulness, answer_correctness)
     if eval_mode in ("pipeline", "both"):
         if step.relevance_score < SLO_FLOW_RELEVANCE:
@@ -245,14 +254,14 @@ def _print_slo_failures(results: FlowEvalResults, eval_mode: str = "both") -> No
     failures: list[tuple[int, FlowStepResult]] = []
     for flow_result in results.all_results:
         for step in flow_result.steps:
-            if _count_ragas_failures(step, eval_mode) > 0:
+            if _count_slo_failures(step, eval_mode) > 0:
                 failures.append((flow_result.path_id, step))
 
     if not failures:
         return
 
     # Sort by failure count (most failures first)
-    failures.sort(key=lambda x: _count_ragas_failures(x[1], eval_mode), reverse=True)
+    failures.sort(key=lambda x: _count_slo_failures(x[1], eval_mode), reverse=True)
 
     # Show top 5
     shown = failures[:5]
@@ -265,7 +274,11 @@ def _print_slo_failures(results: FlowEvalResults, eval_mode: str = "both") -> No
         header_style="bold yellow",
     )
     failed_table.add_column("Path", style="dim", width=4)
-    failed_table.add_column("Question", width=40)
+    failed_table.add_column("Question", width=32)
+    # Always show SQL Gen, SQL Data, and RAG Decision columns
+    failed_table.add_column("SQL Gen", justify="center", width=7)
+    failed_table.add_column("SQL Data", justify="center", width=8)
+    failed_table.add_column("RAG Dec", justify="center", width=7)
 
     # Add columns based on eval_mode
     if eval_mode in ("pipeline", "both"):
@@ -273,8 +286,8 @@ def _print_slo_failures(results: FlowEvalResults, eval_mode: str = "both") -> No
         failed_table.add_column("F", justify="center", width=3)
         failed_table.add_column("A", justify="center", width=3)
     if eval_mode in ("rag", "both"):
-        failed_table.add_column("P", justify="center", width=3)
-        failed_table.add_column("Rc", justify="center", width=3)
+        failed_table.add_column("Precision", justify="center", width=9)
+        failed_table.add_column("Recall", justify="center", width=6)
 
     def fmt(passed: bool | None) -> str:
         if passed is None:
@@ -282,9 +295,16 @@ def _print_slo_failures(results: FlowEvalResults, eval_mode: str = "both") -> No
         return "[green]Y[/green]" if passed else "[red]X[/red]"
 
     for path_id, step in shown:
-        question_display = step.question[:38] + "..." if len(step.question) > 38 else step.question
+        question_display = step.question[:30] + "..." if len(step.question) > 30 else step.question
 
-        row: list[str] = [str(path_id + 1), question_display]
+        # SQL execution success: Y if no queries or all succeeded, X if any failed
+        sql_gen_pass = step.sql_queries_total == 0 or step.sql_queries_success == step.sql_queries_total
+        # SQL data validation: Y if passed, X if failed, - if no assertions defined
+        sql_data_pass = step.sql_data_validated  # None = no assertions, True = passed, False = failed
+        # RAG decision success
+        rag_pass = step.rag_decision_correct
+
+        row: list[str] = [str(path_id + 1), question_display, fmt(sql_gen_pass), fmt(sql_data_pass), fmt(rag_pass)]
 
         if eval_mode in ("pipeline", "both"):
             r_pass = step.relevance_score >= SLO_FLOW_RELEVANCE
@@ -293,7 +313,7 @@ def _print_slo_failures(results: FlowEvalResults, eval_mode: str = "both") -> No
             row.extend([fmt(r_pass), fmt(f_pass), fmt(a_pass)])
 
         if eval_mode in ("rag", "both"):
-            # Separate P and Rc columns
+            # Precision/Recall: N/A if not invoked, Y if passed, X if failed
             p_pass: bool | None = None if not step.account_rag_invoked else (
                 step.account_precision_score >= SLO_ACCOUNT_PRECISION
             )
@@ -394,6 +414,10 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                     {
                         "question": s.question,
                         "has_answer": s.has_answer,
+                        "sql_queries_total": s.sql_queries_total,
+                        "sql_queries_success": s.sql_queries_success,
+                        "sql_data_validated": s.sql_data_validated,
+                        "sql_data_errors": s.sql_data_errors,
                         "relevance_score": s.relevance_score,
                         "faithfulness_score": s.faithfulness_score,
                         "answer_correctness_score": s.answer_correctness_score,

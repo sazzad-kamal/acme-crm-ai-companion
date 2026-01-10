@@ -11,7 +11,7 @@ from typing import Any
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from backend.agent.followup.tree import get_expected_answer, get_expected_rag, get_paths_for_role
+from backend.agent.followup.tree import get_expected_answer, get_expected_rag, get_paths_for_role, validate_sql_results
 from backend.eval.formatting import console, print_eval_header
 from backend.eval.judge import evaluate_single
 from backend.eval.models import FlowEvalResults, FlowResult, FlowStepResult
@@ -140,6 +140,16 @@ def test_single_question(
         if account_context := result.get("account_context_answer", ""):
             all_contexts.append(account_context)
 
+        # Validate SQL results against expected (for SQL-only questions)
+        sql_data_validated: bool | None = None
+        sql_data_errors: list[str] | None = None
+        if sql_results:
+            passed, errors = validate_sql_results(question, sql_results)
+            # Only set validated if we have assertions for this question
+            if get_expected_rag(question) is False:  # SQL-only question
+                sql_data_validated = passed
+                sql_data_errors = errors if errors else None
+
         # Get expected answer for answer_correctness metric
         expected_answer = get_expected_answer(question)
 
@@ -214,6 +224,8 @@ def test_single_question(
             has_sources=len(sources) > 0,
             sql_queries_total=sql_queries_total,
             sql_queries_success=sql_queries_success,
+            sql_data_validated=sql_data_validated,
+            sql_data_errors=sql_data_errors,
             expected_rag=expected_rag,
             actual_rag=actual_rag_decision,
             rag_decision_correct=rag_decision_correct,

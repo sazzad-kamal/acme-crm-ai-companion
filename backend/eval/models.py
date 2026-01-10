@@ -68,6 +68,9 @@ class FlowStepResult:
     # SQL execution metrics
     sql_queries_total: int = 0
     sql_queries_success: int = 0
+    # SQL data validation (compares results against expected)
+    sql_data_validated: bool | None = None  # None = no expected results, True = passed, False = failed
+    sql_data_errors: list[str] | None = None  # List of validation failures
     # RAG decision metrics
     expected_rag: bool | None = None
     actual_rag: bool = False

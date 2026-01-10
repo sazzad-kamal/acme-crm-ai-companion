@@ -31,6 +31,24 @@ history: history_id, company_id, contact_id, opportunity_id,
 - opportunities.primary_contact_id → contacts.contact_id (deal has primary contact)
 - activities/history can link to company, contact, AND/OR opportunity via their respective ID columns
 
+## JOIN EXAMPLES
+-- To get health_flags, plan, or other company fields with opportunities:
+SELECT o.stage, o.value, c.health_flags, c.plan, c.name AS company_name
+FROM opportunities o
+JOIN companies c ON o.company_id = c.company_id
+WHERE o.stage NOT IN ('Closed Won', 'Closed Lost')
+
+-- To get contact details with opportunities:
+SELECT o.name, o.value, ct.first_name, ct.last_name, ct.role
+FROM opportunities o
+JOIN contacts ct ON o.primary_contact_id = ct.contact_id
+
+-- To combine opportunities, companies, and contacts:
+SELECT o.name, o.value, o.stage, c.health_flags, ct.first_name || ' ' || ct.last_name AS contact_name
+FROM opportunities o
+JOIN companies c ON o.company_id = c.company_id
+JOIN contacts ct ON o.primary_contact_id = ct.contact_id
+
 ## RULES
 1. Use $company_id or $contact_id as placeholders (resolved from earlier query results)
 2. Forecast weights: New=5%, Discovery=10%, Qualified=25%, Proposal=50%, Negotiation=75%

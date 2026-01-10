@@ -51,6 +51,8 @@ __all__ = [
     "print_tree",
     "get_expected_answer",
     "get_expected_rag",
+    "get_expected_sql_results",
+    "validate_sql_results",
 ]
 
 # =============================================================================
@@ -84,6 +86,7 @@ def _load_yaml_fixture(filename: str) -> dict:
 
 _EXPECTED_ANSWERS: dict[str, str] = _load_yaml_fixture("expected_answers.yaml")
 _EXPECTED_RAG: dict[str, bool] = _load_yaml_fixture("expected_rag.yaml")
+_EXPECTED_SQL_RESULTS: dict[str, dict] = _load_yaml_fixture("expected_sql_results.yaml")
 
 # Role mapping - starters are derived from this
 _ROLE_MAP = {
@@ -202,6 +205,115 @@ def get_expected_rag(question: str) -> bool | None:
         True if RAG should be invoked, False if not, None if not found
     """
     return _EXPECTED_RAG.get(question)
+
+
+def get_expected_sql_results(question: str) -> dict | None:
+    """
+    Get the expected SQL results assertions for a question.
+
+    Args:
+        question: The question to look up
+
+    Returns:
+        Dict of assertions (row_count_min, total_value, must_contain, etc.), or None if not found
+    """
+    return _EXPECTED_SQL_RESULTS.get(question)
+
+
+def validate_sql_results(question: str, sql_results: dict) -> tuple[bool, list[str]]:
+    """
+    Validate SQL query results against expected assertions.
+
+    Args:
+        question: The question that was asked
+        sql_results: Dict of query name -> list of result rows
+
+    Returns:
+        Tuple of (passed: bool, errors: list[str])
+        - passed: True if all assertions pass, False if any fail
+        - errors: List of error messages describing failures
+    """
+    expected = get_expected_sql_results(question)
+    if expected is None:
+        # No assertions defined for this question
+        return True, []
+
+    errors: list[str] = []
+
+    # Flatten all results into a single list of rows and a string for text search
+    all_rows: list[dict] = []
+    all_values: list = []
+    all_text = ""
+
+    for query_name, rows in sql_results.items():
+        if isinstance(rows, list):
+            for row in rows:
+                if isinstance(row, dict):
+                    all_rows.append(row)
+                    all_values.extend(row.values())
+                    all_text += " ".join(str(v) for v in row.values()) + " "
+                else:
+                    all_values.append(row)
+                    all_text += str(row) + " "
+        elif isinstance(rows, dict):
+            all_rows.append(rows)
+            all_values.extend(rows.values())
+            all_text += " ".join(str(v) for v in rows.values()) + " "
+
+    all_text = all_text.lower()
+
+    # Validate row_count_min
+    if "row_count_min" in expected:
+        min_rows = expected["row_count_min"]
+        if len(all_rows) < min_rows:
+            errors.append(f"row_count: got {len(all_rows)}, expected >= {min_rows}")
+
+    # Validate row_count_max
+    if "row_count_max" in expected:
+        max_rows = expected["row_count_max"]
+        if len(all_rows) > max_rows:
+            errors.append(f"row_count: got {len(all_rows)}, expected <= {max_rows}")
+
+    # Validate total_value (sum of value columns)
+    if "total_value" in expected:
+        expected_total = expected["total_value"]
+        actual_total = 0
+        for row in all_rows:
+            if "value" in row:
+                try:
+                    actual_total += float(row["value"])
+                except (ValueError, TypeError):
+                    pass
+        # Allow 10% tolerance for rounding
+        tolerance = expected_total * 0.1
+        if abs(actual_total - expected_total) > tolerance:
+            errors.append(f"total_value: got {actual_total}, expected {expected_total}")
+
+    # Validate must_contain (single value must appear)
+    if "must_contain" in expected:
+        value = expected["must_contain"]
+        if isinstance(value, list):
+            for v in value:
+                if str(v).lower() not in all_text:
+                    errors.append(f"must_contain: '{v}' not found in results")
+        elif str(value).lower() not in all_text:
+            errors.append(f"must_contain: '{value}' not found in results")
+
+    # Validate must_contain_all (all values must appear)
+    if "must_contain_all" in expected:
+        for value in expected["must_contain_all"]:
+            if str(value).lower() not in all_text:
+                errors.append(f"must_contain_all: '{value}' not found in results")
+
+    # Validate must_contain_any (at least one value must appear)
+    if "must_contain_any" in expected:
+        values = expected["must_contain_any"]
+        found_any = any(str(v).lower() in all_text for v in values)
+        if not found_any:
+            errors.append(f"must_contain_any: none of {values} found in results")
+
+    passed = len(errors) == 0
+    return passed, errors
 
 
 def get_paths_for_role(role: str | None = None) -> list[list[str]]:
