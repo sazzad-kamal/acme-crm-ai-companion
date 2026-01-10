@@ -4,256 +4,85 @@
 # - true: Entity RAG should be invoked (company-specific queries)
 # - false: Entity RAG should NOT be invoked (aggregate/global queries)
 #
-# Mapping from intent types:
-# - company_overview, company_pipeline, company_activities, company_history → true
-# - renewals, pipeline_summary, deals_at_risk, forecast, forecast_accuracy,
-#   activities, contacts, company_search, attachments, analytics → false
+# 39-question tree: 24 RAG (true) / 15 SQL (false)
 
 # =============================================================================
-# STARTER QUESTIONS (Root level - 3 personas)
+# SALES REP BRANCH (8 RAG / 5 SQL)
 # =============================================================================
-"How's my pipeline?": false
-"Any renewals at risk?": false
-"How's the team doing?": false
 
-# =============================================================================
-# PIPELINE BRANCH (From "How's my pipeline?")
-# =============================================================================
+# Starter
+"How's my pipeline by stage and health?": false
+
+# Level 2
 "Which deals need attention?": false
-"What's going on with Acme Manufacturing?": true
-"What's the forecast for this quarter?": false
+"What should I know before my Acme call?": true
+"What's my forecast confidence by stage?": false
 
-"What stage is the upgrade deal in?": true
-"What's blocking the Crown Foods renewal?": true
-"Who should I follow up with?": false
+# Level 3 - from "Which deals need attention?"
+"What's blocking the Acme upgrade?": true
+"How should I approach Anna about the pricing concerns?": true
+"What's the pattern across my stalled deals?": true
 
-"When did we last talk to Crown Foods?": true
-"Who is Maria Silva?": false
-"What's the renewal value?": false
+# Level 3 - from "What should I know before my Acme call?"
+"What motivates Beth the CFO?": true
+"How does Acme compare to our other enterprise deals?": true
+"What's in the proposal we sent?": true
 
-"What's the next scheduled activity?": false
-"Show me overdue activities": false
-"What meetings do I have this week?": false
-
-"What's the expected close value?": false
-"Which deals are most likely to close?": false
-"What's at risk in my pipeline?": false
-
-"What's the weighted pipeline?": false
-"Which deals are in negotiation?": false
-"How many open opportunities do I have?": false
-
-"Tell me about the Beta Tech negotiation deal": true
-"What's the next step for my biggest deal?": true
-"Who owns the contacts for these deals?": false
-
-"Which deals are stalled?": false
-"What accounts have low engagement?": false
-"Show me deals with no recent activity": false
+# Level 3 - from "What's my forecast confidence by stage?"
+"How long has each deal been in current stage?": false
+"What's driving the biggest pipeline changes?": true
+"Which deals have the highest velocity?": false
 
 # =============================================================================
-# RENEWALS BRANCH (From "Any renewals at risk?")
-# =============================================================================
-"Tell me about Delta Health's status": true
-"Which renewals close this quarter?": false
-"What accounts need immediate attention?": false
-
-"When does Delta Health renew?": true
-"Who are the contacts at Delta Health?": false
-"What's the expansion opportunity?": true
-
-"What's the renewal value for Delta Health?": true
-"Are there any risks with Delta Health?": true
-"What's the engagement level with Delta Health?": true
-
-"Who is Erin Cho?": false
-"What is Mike Tran's role?": false
-"When did we last meet with Delta Health?": true
-
-"What's the expansion deal worth?": true
-"Which clinics are we expanding to?": true
-"Who's driving the expansion?": false
-
-"What's the total renewal value at risk?": false
-"Which renewals are in good standing?": false
-"Show me renewal timeline": false
-
-"Which account has the highest risk?": false
-"What's causing the risk?": true
-"How can I save these renewals?": true
-
-"What's the total healthy renewal value?": false
-"Any upsell opportunities?": false
-"When should I reach out?": false
-
-"What's due next month?": false
-"Which renewals need prep?": false
-"What's the 90-day renewal forecast?": false
-
-# =============================================================================
-# TEAM BRANCH (From "How's the team doing?")
-# =============================================================================
-"What's the total pipeline?": false
-"Which reps are behind on activities?": false
-"What's the team's forecast?": false
-
-"Break down pipeline by rep": false
-"What's the average deal size?": false
-"Which stage has the most value?": false
-
-"What's our stage conversion rate?": false
-"Which accounts are in manufacturing?": false
-"What's the average close rate?": false
-
-"How does this compare to last quarter?": false
-"Show me enterprise accounts": false
-"Which accounts are in healthcare?": false
-
-"Show me deals in negotiation": false
-"What's stuck in discovery?": false
-"List accounts by region": false
-
-"Who has overdue tasks?": false
-"What's the activity breakdown by type?": false
-"Which accounts need more engagement?": false
-
-"What are the overdue tasks?": false
-"Which accounts are affected?": false
-"When were these tasks due?": false
-
-"How many calls were made this week?": false
-"Which rep has the most meetings?": false
-"Show me trial accounts": false
-
-"Show me accounts with no recent activity": false
-"How accurate was last quarter's forecast?": false
-"Which accounts are at risk?": false
-
-"What's the weighted pipeline by rep?": false
-"What's at risk this quarter?": false
-"Tell me about Fusion Retail's upsell": true
-
-"Who has the highest weighted value?": false
-"What's the win rate by rep?": false
-"What's the forecast accuracy?": false
-
-"Which deals are past due?": false
-"What's the total at-risk value?": false
-"How can we recover these deals?": true
-
-# =============================================================================
-# ACCOUNT DEEP DIVES
+# CSM BRANCH (11 RAG / 2 SQL)
 # =============================================================================
 
-# Green Energy (churned)
-"What happened with Green Energy?": true
+# Starter
+"Which renewals are at risk and why?": false
+
+# Level 2
+"Tell me about Delta Health's situation": true
 "Why did Green Energy churn?": true
-"Who were the contacts at Green Energy?": false
-"What was the timeline of the Green Energy relationship?": true
-"What were the warning signs?": true
-"Could we have saved the account?": true
-"What can we learn from this?": true
-"Who was Carlos at Green Energy?": false
-"What was Linda's role?": false
-"When did we last engage with them?": true
-"When did they first become a customer?": true
-"What milestones happened?": true
-"When did issues start?": true
+"How does my Q1 pipeline compare to Q4?": false
 
-# Eastern Travel (trial)
-"Tell me about Eastern Travel's trial": true
-"What's blocking the trial conversion?": true
-"Who are the contacts at Eastern Travel?": false
-"What's the trial usage like?": true
-"Who has budget authority?": false
-"What are their concerns?": true
-"When was the trial extended?": true
-"Who is Sanjay Patel?": false
-"What is Ravi's role?": false
-"Who should we escalate to?": false
-"Which features are they using?": true
-"How active are the users?": true
-"What's the engagement trend?": true
+# Level 3 - from "Tell me about Delta Health's situation"
+"How has Delta's engagement changed over time?": true
+"Who influences the buying decision at Delta?": true
+"What commitments did we make last QBR?": true
 
-# Harbor Logistics
-"How is Harbor Logistics progressing?": true
-"What's the status of the Harbor deal?": true
-"Who are the contacts at Harbor Logistics?": false
-"What's the implementation plan?": true
-"What stage is Harbor Logistics in?": true
-"What's the deal value?": true
-"When is the expected close?": true
-"Who is Jacob Wu?": false
-"Who handles operations at Harbor?": false
-"Who's the decision maker?": false
-"What's the rollout timeline?": true
-"Which teams are involved?": false
-"What training is needed?": true
+# Level 3 - from "Why did Green Energy churn?"
+"What were the warning signs we missed?": true
+"What did Carlos and Linda tell us before they left?": true
+"What can we learn to prevent future churn?": true
 
-# Fusion Retail
-"What's the upsell opportunity?": true
-"Who are the contacts at Fusion Retail?": false
-"What's Fusion's current usage?": true
-"How many additional seats?": true
-"What's driving the expansion?": true
-"Who is Emma at Fusion?": false
-"Who is Lars?": false
-"Who approved the original deal?": false
-"How many active users?": true
-"Which features are popular?": true
-"What's the adoption rate?": false
+# Level 3 - from "How does my Q1 pipeline compare to Q4?"
+"What's the engagement trend across my renewals?": true
+"Which accounts need immediate outreach?": true
+"What's driving expansion interest across accounts?": true
 
-# Acme Manufacturing
-"Show me Acme Manufacturing's opportunities": true
-"Who are the key contacts at Acme Manufacturing?": false
-"What's Acme Manufacturing's renewal status?": true
-"When does the Acme renewal opportunity close?": true
-"What's the total pipeline value for Acme Manufacturing?": true
-"What is Anna Lopez's role?": false
-"Who handles IT at Acme Manufacturing?": false
-"Show me recent activities with Acme Manufacturing": true
-"When exactly is Acme Manufacturing's renewal date?": true
-"What documents are attached to Acme deals?": false
-"What is Beth Turner's role at Acme?": false
-"Who is the contact for the upgrade opportunity?": false
-"Show me deals in discovery stage": false
-"Which deals have we closed won?": false
-"What's the expected close date for Acme's renewal?": true
-"Who's handling the Acme Manufacturing renewal?": false
-"What's the current stage of Acme's renewal?": true
-"What's the biggest opportunity for Acme?": true
-"How many opportunities does Acme have?": false
-"Who is the account owner for Acme?": true
-"What deals is Anna Lopez involved in?": true
-"When did we last talk to Anna Lopez?": true
-"What's the breakdown of contact roles at Acme?": false
-"What is Joe Smith's contact info?": false
-"What deals involve Joe Smith?": true
-"What's the priority of the next Acme activity?": false
-"What was discussed in the last Acme call?": true
-"When was the last meeting with Acme?": true
-"How many activities has Acme had this month?": false
-"What's the health status of Acme Manufacturing?": true
-"What proposals have been sent to Acme?": false
-"What's the Acme upgrade opportunity worth?": true
-"Is there an expansion opportunity at Acme?": true
-"Show me the PDF attachments for Acme": false
-"Who is the CFO at Acme Manufacturing?": false
-"What's Beth Turner's email address?": false
-"Has Beth Turner been involved in any deals?": true
-"What's the Acme industry segment?": true
+# =============================================================================
+# MANAGER BRANCH (5 RAG / 8 SQL)
+# =============================================================================
 
-# Beta Tech
-"When is the negotiation deal expected to close?": true
-"Who is the primary contact for the Beta Tech deal?": false
-"What's the negotiation deal value?": true
+# Starter
+"How's the team performing with win rates?": false
 
-# At-risk accounts
-"Why is Beta Tech marked at-risk?": true
-"Which accounts have the lowest activity?": false
-"Show me at-risk renewals": false
+# Level 2
+"Show me decision makers with open deals and overdue tasks": false
+"Which high-value accounts have multiple risk signals?": false
+"What's our forecast accuracy trend?": false
 
-# Activity follow-ups
-"Who is the meeting with?": false
-"Any activities with trial accounts like Eastern Travel?": false
-"What type of activity is it?": false
+# Level 3 - from "Show me decision makers with open deals and overdue tasks"
+"Which contacts have no recent activity?": false
+"What's slowing down the negotiation deals?": true
+"Which rep has the best close rate?": false
+
+# Level 3 - from "Which high-value accounts have multiple risk signals?"
+"What's the full picture at Beta Tech?": true
+"What competitors threaten our biggest deals?": true
+"Which deals mention budget as a blocker?": true
+
+# Level 3 - from "What's our forecast accuracy trend?"
+"What deals did we lose and what patterns emerge?": false
+"What's common across our lost deals?": true
+"How does this quarter compare to last?": false

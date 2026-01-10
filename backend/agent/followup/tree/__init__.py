@@ -87,9 +87,9 @@ _EXPECTED_RAG: dict[str, bool] = _load_yaml_fixture("expected_rag.yaml")
 
 # Role mapping - starters are derived from this
 _ROLE_MAP = {
-    "sales": "How's my pipeline?",
-    "csm": "Any renewals at risk?",
-    "manager": "How's the team doing?",
+    "sales": "How's my pipeline by stage and health?",
+    "csm": "Which renewals are at risk and why?",
+    "manager": "How's the team performing with win rates?",
 }
 _STARTERS: list[str] = list(_ROLE_MAP.values())
 
