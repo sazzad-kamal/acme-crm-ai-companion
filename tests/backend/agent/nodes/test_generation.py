@@ -1,8 +1,8 @@
 """
 Tests for answer and follow-up generation nodes.
 
-Tests answer_node (backend/agent/nodes/answer.py) and
-followup_node (backend/agent/nodes/followup.py).
+Tests answer_node (backend/agent/answer/node.py) and
+followup_node (backend/agent/followup/node.py).
 """
 
 import os
@@ -30,7 +30,7 @@ class TestAnswerNode:
         state = {
             "question": "What's happening with Acme?",
             "messages": [],
-            "company_data": {"found": True, "company": {"name": "Acme"}},
+            "sql_results": {"company_info": [{"name": "Acme"}]},
         }
 
         result = answer_node(state)
@@ -48,7 +48,7 @@ class TestAnswerNode:
         state = {
             "question": "Tell me about Acme",
             "messages": [{"role": "user", "content": "Previous message"}],
-            "company_data": None,
+            "sql_results": {},
             "resolved_company_id": "ACME-001",
         }
 
@@ -60,28 +60,6 @@ class TestAnswerNode:
         assert result["messages"][-1]["role"] == "assistant"
         assert result["messages"][-1]["content"] == "Response text."
 
-    @patch('backend.agent.answer.node.call_not_found_chain')
-    def test_answer_node_handles_company_not_found(self, mock_chain):
-        """Uses not-found chain when company not found."""
-        from backend.agent.answer.node import answer_node
-
-        mock_chain.return_value = ("I couldn't find that company.", 80)
-
-        state = {
-            "question": "What about XYZ Corp?",
-            "messages": [],
-            "company_data": {
-                "found": False,
-                "query": "xyz corp",
-                "close_matches": [{"name": "XY Inc", "company_id": "XY-001"}],
-            },
-        }
-
-        result = answer_node(state)
-
-        mock_chain.assert_called_once()
-        assert "company" in result["answer"].lower() or len(result["answer"]) > 0
-
     @patch('backend.agent.answer.node.call_answer_chain')
     def test_answer_node_handles_empty_answer(self, mock_chain):
         """Uses fallback when LLM returns empty answer."""
@@ -92,7 +70,7 @@ class TestAnswerNode:
         state = {
             "question": "Test question",
             "messages": [],
-            "company_data": None,
+            "sql_results": {},
         }
 
         result = answer_node(state)
@@ -109,7 +87,7 @@ class TestAnswerNode:
         state = {
             "question": "Test question",
             "messages": [],
-            "company_data": None,
+            "sql_results": {},
         }
 
         result = answer_node(state)
@@ -128,7 +106,7 @@ class TestAnswerNode:
         state = {
             "question": "Test",
             "messages": [],
-            "company_data": None,
+            "sql_results": {},
         }
 
         result = answer_node(state)
@@ -146,7 +124,7 @@ class TestAnswerNode:
         state = {
             "question": "Test",
             "messages": [],
-            "company_data": None,
+            "sql_results": {},
         }
 
         result = answer_node(state)
@@ -157,8 +135,8 @@ class TestAnswerNode:
         assert result["steps"][0]["status"] == "done"
 
     @patch('backend.agent.answer.node.call_answer_chain')
-    def test_answer_node_formats_all_sections(self, mock_chain):
-        """Formats all data sections for context."""
+    def test_answer_node_passes_sql_results(self, mock_chain):
+        """Passes sql_results to answer chain."""
         from backend.agent.answer.node import answer_node
 
         mock_chain.return_value = ("Full answer", 100)
@@ -166,23 +144,20 @@ class TestAnswerNode:
         state = {
             "question": "Give me everything about Acme",
             "messages": [],
-            "company_data": {"found": True, "company": {"name": "Acme"}},
-            "contacts_data": {"contacts": [{"name": "John"}]},
-            "activities_data": {"activities": [{"type": "Call"}]},
-            "history_data": {"history": []},
-            "pipeline_data": {"opportunities": []},
-            "renewals_data": {"renewals": []},
-            "groups_data": {"groups": []},
-            "attachments_data": {"attachments": []},
+            "sql_results": {
+                "company_info": [{"name": "Acme", "company_id": "ACME-001"}],
+                "open_deals": [{"name": "Upgrade", "value": 50000}],
+            },
             "account_context_answer": "Context notes",
         }
 
         answer_node(state)
 
-        # Verify chain was called with formatted sections
+        # Verify chain was called with sql_results
         call_kwargs = mock_chain.call_args[1]
         assert "question" in call_kwargs
-        assert "company_section" in call_kwargs
+        assert "sql_results" in call_kwargs
+        assert call_kwargs["sql_results"]["company_info"][0]["name"] == "Acme"
 
 
 # =============================================================================
@@ -209,9 +184,7 @@ class TestFollowupNode:
         state = {
             "question": "Tell me about Acme",
             "messages": [],
-            "intent": "data",
-            "company_data": {"found": True, "company": {"name": "Acme Corp"}},
-            "raw_data": {"contacts": [], "activities": []},
+            "sql_results": {"company_info": [{"name": "Acme Corp"}]},
         }
 
         result = followup_node(state)
@@ -253,9 +226,7 @@ class TestFollowupNode:
         state = {
             "question": "Test",
             "messages": [],
-            "intent": "auto",
-            "company_data": None,
-            "raw_data": {},
+            "sql_results": {},
         }
 
         result = followup_node(state)
@@ -280,9 +251,7 @@ class TestFollowupNode:
         state = {
             "question": "Test",
             "messages": [],
-            "intent": "data",
-            "company_data": None,
-            "raw_data": {},
+            "sql_results": {},
         }
 
         result = followup_node(state)
@@ -302,9 +271,7 @@ class TestFollowupNode:
         state = {
             "question": "Test",
             "messages": [],
-            "intent": "auto",
-            "company_data": None,
-            "raw_data": {},
+            "sql_results": {},
         }
 
         result = followup_node(state)
@@ -325,9 +292,7 @@ class TestFollowupNode:
         state = {
             "question": "Test",
             "messages": [],
-            "intent": "auto",
-            "company_data": None,
-            "raw_data": {},
+            "sql_results": {},
         }
 
         result = followup_node(state)
@@ -337,8 +302,8 @@ class TestFollowupNode:
 
     @patch('backend.agent.followup.node.generate_follow_up_suggestions')
     @patch('backend.agent.followup.node.get_config')
-    def test_followup_node_extracts_company_name(self, mock_config, mock_generate):
-        """Extracts company name from company_data."""
+    def test_followup_node_extracts_company_name_from_sql_results(self, mock_config, mock_generate):
+        """Extracts company name from sql_results."""
         from backend.agent.followup.node import followup_node
 
         mock_config.return_value.enable_follow_up_suggestions = True
@@ -348,12 +313,9 @@ class TestFollowupNode:
         state = {
             "question": "Tell me about Acme",
             "messages": [],
-            "intent": "data",
-            "company_data": {
-                "found": True,
-                "company": {"name": "Acme Manufacturing", "company_id": "ACME-001"},
+            "sql_results": {
+                "company_info": [{"name": "Acme Manufacturing", "company_id": "ACME-001"}],
             },
-            "raw_data": {},
         }
 
         followup_node(state)
@@ -363,8 +325,8 @@ class TestFollowupNode:
 
     @patch('backend.agent.followup.node.generate_follow_up_suggestions')
     @patch('backend.agent.followup.node.get_config')
-    def test_followup_node_builds_available_data(self, mock_config, mock_generate):
-        """Builds available_data counts from raw_data."""
+    def test_followup_node_builds_available_data_from_sql_results(self, mock_config, mock_generate):
+        """Builds available_data counts from sql_results."""
         from backend.agent.followup.node import followup_node
 
         mock_config.return_value.enable_follow_up_suggestions = True
@@ -374,14 +336,11 @@ class TestFollowupNode:
         state = {
             "question": "Test",
             "messages": [],
-            "intent": "data",
-            "company_data": None,
-            "raw_data": {
+            "sql_results": {
                 "contacts": [{"name": "John"}, {"name": "Jane"}],
                 "activities": [{"type": "Call"}],
                 "opportunities": [],
                 "history": [{"type": "Note"}],
-                "renewals": [],
             },
         }
 
@@ -404,9 +363,7 @@ class TestFollowupNode:
         state = {
             "question": "Test",
             "messages": [],
-            "intent": "auto",
-            "company_data": None,
-            "raw_data": {},
+            "sql_results": {},
         }
 
         result = followup_node(state)

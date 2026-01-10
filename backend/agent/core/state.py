@@ -73,13 +73,17 @@ class AgentState(TypedDict, total=False):
     messages: list[Message]
     conversation_history: str  # Formatted once in route_node, reused by other nodes
 
-    # Router output (flattened from RouterResult - 4 fields)
-    resolved_company_id: str | None
+    # Query planner output (new schema-driven architecture)
+    query_plan: Any  # QueryPlan object from route_node
+    needs_account_rag: bool  # LLM decision for whether to call Account RAG
+    sql_results: dict[str, Any]  # Results from SQL queries, keyed by purpose
+
+    # Router output
+    resolved_company_id: str | None  # Resolved from SQL query results
     days: int
-    intent: str
     owner: str | None  # Role-based owner for filtering
 
-    # Data outputs
+    # Legacy data outputs (kept for backwards compatibility during migration)
     company_data: dict[str, Any] | None
     activities_data: dict[str, Any] | None
     history_data: dict[str, Any] | None
@@ -104,7 +108,7 @@ class AgentState(TypedDict, total=False):
     answer: str
     follow_up_suggestions: list[str]
 
-    # Raw data for UI
+    # Raw data for UI (same as sql_results for compatibility)
     raw_data: dict[str, Any]
 
     # Error handling

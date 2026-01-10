@@ -23,27 +23,24 @@ def followup_node(state: AgentState) -> AgentState:
     # Use pre-formatted conversation_history from route_node
     conversation_history = state.get("conversation_history", "")
 
-    # Extract company name from company_data
-    company_data = state.get("company_data", {})
-    company_name = None
-    if company_data and company_data.get("found"):
-        company_info = company_data.get("company", {})
-        company_name = company_info.get("name")
+    # Get SQL results from fetch_crm
+    sql_results = state.get("sql_results", {})
 
-    # Build available data counts from raw_data
-    raw_data = state.get("raw_data", {})
-    available_data = {
-        "contacts": len(raw_data.get("contacts", [])) if isinstance(raw_data, dict) else 0,
-        "activities": len(raw_data.get("activities", [])) if isinstance(raw_data, dict) else 0,
-        "opportunities": len(raw_data.get("opportunities", []))
-        if isinstance(raw_data, dict)
-        else 0,
-        "history": len(raw_data.get("history", [])) if isinstance(raw_data, dict) else 0,
-        "renewals": len(raw_data.get("renewals", [])) if isinstance(raw_data, dict) else 0,
-        "pipeline_summary": raw_data.get("pipeline_summary")
-        if isinstance(raw_data, dict)
-        else None,
-    }
+    # Extract company name from sql_results if available
+    company_name = None
+    company_info = sql_results.get("company_info", [])
+    if not company_info:
+        company_info = sql_results.get("companies", [])
+    if company_info and isinstance(company_info, list) and len(company_info) > 0:
+        company_name = company_info[0].get("name")
+
+    # Build available data counts from sql_results
+    available_data = {}
+    for purpose, data in sql_results.items():
+        if isinstance(data, list):
+            available_data[purpose] = len(data)
+        elif data:
+            available_data[purpose] = 1
 
     try:
         suggestions = generate_follow_up_suggestions(

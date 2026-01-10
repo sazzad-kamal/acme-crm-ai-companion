@@ -39,21 +39,16 @@ class TestGraphIntegration:
 
     @pytest.mark.integration
     @patch("backend.agent.answer.llm.call_answer_chain")
-    @patch("backend.agent.route.router.route_question")
-    @patch("backend.agent.fetch.tools.common.tool_company_lookup")
-    def test_graph_execution(self, mock_company, mock_route, mock_answer_chain):
+    @patch("backend.agent.route.query_planner.get_query_plan")
+    def test_graph_execution(self, mock_planner, mock_answer_chain):
         """Test graph execution with company query."""
-        from backend.agent.core import RouterResult
-        from backend.agent.core.state import Source  # Use state.Source for ToolResult
-        from backend.agent.fetch.tools.schemas import ToolResult
+        from backend.agent.route.query_planner import QueryPlan, SQLQuery
 
-        mock_route.return_value = RouterResult(
-            company_id="ACME-MFG",
-            intent="company",
-        )
-        mock_company.return_value = ToolResult(
-            data={"company_id": "ACME-MFG", "name": "Acme Manufacturing"},
-            sources=[Source(type="company", id="ACME-MFG", label="Acme Manufacturing")],
+        mock_planner.return_value = QueryPlan(
+            queries=[
+                SQLQuery(sql="SELECT * FROM companies WHERE LOWER(name) LIKE '%acme%' LIMIT 1", purpose="company_info"),
+            ],
+            needs_account_rag=True,
         )
         mock_answer_chain.return_value = ("Acme Manufacturing is doing well.", 100)
 

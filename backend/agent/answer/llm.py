@@ -4,21 +4,21 @@ Answer node LLM functions.
 Chain creation and invocation for answer generation.
 """
 
+import json
 import logging
 import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from backend.agent.answer.prompts import COMPANY_NOT_FOUND_TEMPLATE, DATA_ANSWER_TEMPLATE
+from backend.agent.answer.prompts import DATA_ANSWER_TEMPLATE
 from backend.agent.core.config import get_config
 from backend.llm.client import create_chain
 
 logger = logging.getLogger(__name__)
 
 
-# Cached chains (lazy initialization)
+# Cached chain (lazy initialization)
 _answer_chain: Any = None
-_not_found_chain: Any = None
 
 
 def _get_answer_chain() -> Any:
@@ -36,19 +36,10 @@ def _get_answer_chain() -> Any:
     return _answer_chain
 
 
-def _get_not_found_chain() -> Any:
-    """Get or create the not-found chain."""
-    global _not_found_chain
-    if _not_found_chain is None:
-        config = get_config()
-        _not_found_chain = create_chain(
-            COMPANY_NOT_FOUND_TEMPLATE,
-            model=config.llm_model,
-            temperature=config.llm_temperature,
-            max_tokens=config.llm_max_tokens,
-        )
-        logger.debug("Created not-found chain")
-    return _not_found_chain
+def reset_answer_chain() -> None:
+    """Reset the cached answer chain (for testing)."""
+    global _answer_chain
+    _answer_chain = None
 
 
 def get_answer_chain() -> Any:
@@ -60,65 +51,72 @@ def get_answer_chain() -> Any:
     return _get_answer_chain()
 
 
+def _format_sql_results(sql_results: dict[str, Any] | None) -> str:
+    """Format SQL results as JSON string for the LLM prompt."""
+    if not sql_results:
+        return "(No data retrieved)"
+
+    # Convert to pretty JSON for readability
+    try:
+        return json.dumps(sql_results, indent=2, default=str)
+    except Exception:
+        return str(sql_results)
+
+
 def build_answer_input(
     question: str,
-    conversation_history_section: str,
-    company_section: str,
-    activities_section: str,
-    history_section: str,
-    pipeline_section: str,
-    renewals_section: str,
-    account_context_section: str = "",
-    contacts_section: str = "",
-    groups_section: str = "",
-    attachments_section: str = "",
+    sql_results: dict[str, Any] | None = None,
+    account_context: str = "",
+    conversation_history: str = "",
 ) -> dict[str, str]:
     """Build input dict for the answer chain."""
+    # Format conversation history section
+    conversation_history_section = ""
+    if conversation_history:
+        conversation_history_section = f"=== RECENT CONVERSATION ===\n{conversation_history}\n"
+
+    # Format account context section
+    account_context_section = ""
+    if account_context:
+        account_context_section = f"=== ACCOUNT CONTEXT (RAG) ===\n{account_context}\n"
+
     return {
         "question": question,
         "conversation_history_section": conversation_history_section,
-        "company_section": company_section,
-        "contacts_section": contacts_section,
-        "activities_section": activities_section,
-        "history_section": history_section,
-        "pipeline_section": pipeline_section,
-        "renewals_section": renewals_section,
-        "groups_section": groups_section,
-        "attachments_section": attachments_section,
+        "sql_results": _format_sql_results(sql_results),
         "account_context_section": account_context_section,
     }
 
 
 def call_answer_chain(
     question: str,
-    conversation_history_section: str,
-    company_section: str,
-    activities_section: str,
-    history_section: str,
-    pipeline_section: str,
-    renewals_section: str,
-    account_context_section: str = "",
-    contacts_section: str = "",
-    groups_section: str = "",
-    attachments_section: str = "",
+    sql_results: dict[str, Any] | None = None,
+    account_context: str = "",
+    conversation_history: str = "",
 ) -> tuple[str, int]:
-    """Call the answer chain and return (answer, latency_ms)."""
+    """
+    Call the answer chain and return (answer, latency_ms).
+
+    Args:
+        question: The user's question
+        sql_results: Dict of SQL query results keyed by purpose
+        account_context: RAG context from account notes/attachments
+        conversation_history: Formatted conversation history
+
+    Returns:
+        Tuple of (answer string, latency in ms)
+    """
     chain = _get_answer_chain()
     start_time = time.time()
 
-    answer = chain.invoke({
-        "question": question,
-        "conversation_history_section": conversation_history_section,
-        "company_section": company_section,
-        "contacts_section": contacts_section,
-        "activities_section": activities_section,
-        "history_section": history_section,
-        "pipeline_section": pipeline_section,
-        "renewals_section": renewals_section,
-        "groups_section": groups_section,
-        "attachments_section": attachments_section,
-        "account_context_section": account_context_section,
-    })
+    chain_input = build_answer_input(
+        question=question,
+        sql_results=sql_results,
+        account_context=account_context,
+        conversation_history=conversation_history,
+    )
+
+    answer = chain.invoke(chain_input)
 
     latency_ms = int((time.time() - start_time) * 1000)
     logger.info(f"Answer chain completed in {latency_ms}ms")
@@ -127,53 +125,40 @@ def call_answer_chain(
 
 async def stream_answer_chain(
     question: str,
-    conversation_history_section: str,
-    company_section: str,
-    activities_section: str,
-    history_section: str,
-    pipeline_section: str,
-    renewals_section: str,
-    account_context_section: str = "",
-    contacts_section: str = "",
-    groups_section: str = "",
-    attachments_section: str = "",
+    sql_results: dict[str, Any] | None = None,
+    account_context: str = "",
+    conversation_history: str = "",
 ) -> AsyncGenerator[str, None]:
-    """Stream answer tokens as they're generated by the LLM."""
+    """
+    Stream answer tokens as they're generated by the LLM.
+
+    Args:
+        question: The user's question
+        sql_results: Dict of SQL query results keyed by purpose
+        account_context: RAG context from account notes/attachments
+        conversation_history: Formatted conversation history
+
+    Yields:
+        Answer tokens as they're generated
+    """
     chain = _get_answer_chain()
 
-    async for chunk in chain.astream({
-        "question": question,
-        "conversation_history_section": conversation_history_section,
-        "company_section": company_section,
-        "contacts_section": contacts_section,
-        "activities_section": activities_section,
-        "history_section": history_section,
-        "pipeline_section": pipeline_section,
-        "renewals_section": renewals_section,
-        "groups_section": groups_section,
-        "attachments_section": attachments_section,
-        "account_context_section": account_context_section,
-    }):
+    chain_input = build_answer_input(
+        question=question,
+        sql_results=sql_results,
+        account_context=account_context,
+        conversation_history=conversation_history,
+    )
+
+    async for chunk in chain.astream(chain_input):
         if chunk:
             yield chunk
 
 
-def call_not_found_chain(question: str, query: str, matches: str) -> tuple[str, int]:
-    """Call the not-found chain and return (answer, latency_ms)."""
-    chain = _get_not_found_chain()
-    start_time = time.time()
-
-    answer = chain.invoke({"question": question, "query": query, "matches": matches})
-
-    latency_ms = int((time.time() - start_time) * 1000)
-    logger.info(f"Not-found chain completed in {latency_ms}ms")
-    return answer, latency_ms
-
-
 __all__ = [
     "get_answer_chain",
+    "reset_answer_chain",
     "build_answer_input",
     "call_answer_chain",
     "stream_answer_chain",
-    "call_not_found_chain",
 ]

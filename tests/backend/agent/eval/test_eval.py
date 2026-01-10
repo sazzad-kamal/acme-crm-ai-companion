@@ -227,7 +227,7 @@ class TestFlowEvalResults:
             questions_passed=36,
             questions_failed=4,
             company_extraction_accuracy=0.95,
-            intent_accuracy=0.90,
+            rag_decision_accuracy=0.90,
             avg_relevance=0.88,
             avg_faithfulness=0.92,
             avg_answer_correctness=0.75,
@@ -824,7 +824,7 @@ class TestOutputModule:
             questions_failed=2,
             company_extraction_accuracy=0.95,
             company_sample_count=20,
-            intent_accuracy=0.92,
+            rag_decision_accuracy=0.92,
             avg_relevance=0.90,
             avg_faithfulness=0.92,
             avg_answer_correctness=0.75,
@@ -898,7 +898,7 @@ class TestOutputModule:
             questions_passed=13,
             questions_failed=2,
             company_sample_count=0,  # No company extraction samples
-            intent_accuracy=0.95,
+            rag_decision_accuracy=0.95,
             avg_relevance=0.90,
             avg_faithfulness=0.92,
         )
@@ -994,7 +994,7 @@ class TestOutputModule:
             questions_passed=13,
             questions_failed=2,
             company_extraction_accuracy=0.90,
-            intent_accuracy=0.85,
+            rag_decision_accuracy=0.85,
             avg_relevance=0.88,
             avg_faithfulness=0.92,
             avg_answer_correctness=0.70,
@@ -1217,56 +1217,56 @@ class TestRunnerModule:
     def test_detect_expected_company_found(self, monkeypatch):
         """Test _detect_expected_company when company found in question."""
         from backend.eval.runner import _detect_expected_company
+        from unittest.mock import MagicMock
 
-        class MockDatastore:
-            _company_names_cache = {"acme": "ACME001", "beta tech": "BETA002"}
+        # Mock the connection to return company data
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchall.return_value = [
+            ("ACME001", "Acme Corp"),
+            ("BETA002", "Beta Tech"),
+        ]
 
-            def _build_company_cache(self):
-                pass
+        def mock_get_connection():
+            return mock_conn
 
-        def mock_get_datastore():
-            return MockDatastore()
+        import backend.agent.datastore.connection
+        monkeypatch.setattr(backend.agent.datastore.connection, "get_connection", mock_get_connection)
 
-        import backend.agent.datastore
-        monkeypatch.setattr(backend.agent.datastore, "get_datastore", mock_get_datastore)
-
-        result = _detect_expected_company("What is Acme's status?")
+        result = _detect_expected_company("What is Acme Corp's status?")
         assert result == "ACME001"
 
     def test_detect_expected_company_not_found(self, monkeypatch):
         """Test _detect_expected_company when no company in question."""
         from backend.eval.runner import _detect_expected_company
+        from unittest.mock import MagicMock
 
-        class MockDatastore:
-            _company_names_cache = {"acme": "ACME001"}
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchall.return_value = [
+            ("ACME001", "Acme Corp"),
+        ]
 
-            def _build_company_cache(self):
-                pass
+        def mock_get_connection():
+            return mock_conn
 
-        def mock_get_datastore():
-            return MockDatastore()
-
-        import backend.agent.datastore
-        monkeypatch.setattr(backend.agent.datastore, "get_datastore", mock_get_datastore)
+        import backend.agent.datastore.connection
+        monkeypatch.setattr(backend.agent.datastore.connection, "get_connection", mock_get_connection)
 
         result = _detect_expected_company("How's my pipeline?")
         assert result is None
 
     def test_detect_expected_company_empty_cache(self, monkeypatch):
-        """Test _detect_expected_company with empty cache."""
+        """Test _detect_expected_company with empty rows."""
         from backend.eval.runner import _detect_expected_company
+        from unittest.mock import MagicMock
 
-        class MockDatastore:
-            _company_names_cache = None
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchall.return_value = []
 
-            def _build_company_cache(self):
-                pass
+        def mock_get_connection():
+            return mock_conn
 
-        def mock_get_datastore():
-            return MockDatastore()
-
-        import backend.agent.datastore
-        monkeypatch.setattr(backend.agent.datastore, "get_datastore", mock_get_datastore)
+        import backend.agent.datastore.connection
+        monkeypatch.setattr(backend.agent.datastore.connection, "get_connection", mock_get_connection)
 
         result = _detect_expected_company("What is Acme's status?")
         assert result is None
@@ -1342,10 +1342,11 @@ class TestTestSingleQuestion:
                 "answer": "This is a good answer with enough content.",
                 "sources": [{"type": "note", "id": "1"}],
                 "resolved_company_id": "ACME001",
-                "intent": "company_status",
+                "needs_account_rag": True,
                 "account_chunks": ["context chunk"],
                 "account_rag_invoked": True,
-                "company_data": {"company": {"name": "Acme"}},
+                "sql_results": {"company_info": [{"name": "Acme", "company_id": "ACME001"}]},
+                "account_context_answer": "Account context from RAG",
             }
 
         def mock_detect_company(question):
@@ -1478,9 +1479,10 @@ class TestTestSingleQuestion:
             return {
                 "answer": "Good answer with sufficient length for testing.",
                 "sources": [],
-                "intent": "pipeline",
-                "company_data": {"company": {"name": "Acme"}},
-                "pipeline_data": {"summary": {"total_count": 5}},
+                "needs_account_rag": False,
+                "sql_results": {
+                    "pipeline": [{"stage": "Discovery", "count": 5}],
+                },
             }
 
         def mock_detect_company(question):
@@ -2193,7 +2195,7 @@ class TestRunFlowEval:
                         relevance_score=0.9,
                         faithfulness_score=0.9,
                         company_correct=True,
-                        intent_correct=True,
+                        rag_decision_correct=True,
                     ),
                     FlowStepResult(
                         question="Q2?",

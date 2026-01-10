@@ -51,6 +51,7 @@ __all__ = [
     "print_tree",
     "get_expected_answer",
     "get_expected_intent",
+    "get_expected_rag",
 ]
 
 # =============================================================================
@@ -104,6 +105,28 @@ def _load_expected_intents() -> dict[str, str]:
 
 
 _EXPECTED_INTENTS: dict[str, str] = _load_expected_intents()
+
+# =============================================================================
+# Load Expected RAG Decisions (for RAG decision accuracy)
+# =============================================================================
+
+_EXPECTED_RAG_PATH = Path(__file__).parent / "expected_rag.yaml"
+
+
+def _load_expected_rag() -> dict[str, bool]:
+    """Load expected RAG decisions from YAML file."""
+    if _EXPECTED_RAG_PATH.exists():
+        try:
+            import yaml
+            with open(_EXPECTED_RAG_PATH, encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                return data if data else {}
+        except Exception:
+            return {}
+    return {}
+
+
+_EXPECTED_RAG: dict[str, bool] = _load_expected_rag()
 
 # Role mapping - starters are derived from this
 _ROLE_MAP = {
@@ -227,6 +250,19 @@ def get_expected_intent(question: str) -> str | None:
         Expected intent string, or None if not found
     """
     return _EXPECTED_INTENTS.get(question)
+
+
+def get_expected_rag(question: str) -> bool | None:
+    """
+    Get the expected RAG decision for a question (for RAG decision accuracy).
+
+    Args:
+        question: The question to look up
+
+    Returns:
+        True if RAG should be invoked, False if not, None if not found
+    """
+    return _EXPECTED_RAG.get(question)
 
 
 def get_paths_for_role(role: str | None = None) -> list[list[str]]:

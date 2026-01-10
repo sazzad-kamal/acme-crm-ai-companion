@@ -1,9 +1,11 @@
 """
 LangGraph-based agent orchestration.
 
-Implements a parallel fetch graph:
-    Route ─┬─→ fetch_crm ──────┬─→ Answer → Followup
-           └─→ fetch_account ──┘
+Implements a sequential fetch graph:
+    Route → fetch_crm → fetch_account → Answer → Followup
+
+Sequential flow allows fetch_crm to resolve company_id before fetch_account needs it.
+DuckDB queries (~5ms) are negligible compared to RAG (~500-2000ms).
 """
 
 import uuid
@@ -37,7 +39,7 @@ def clear_thread(session_id: str | None) -> None:
 
 
 def _build_graph():
-    """Build the LangGraph workflow with parallel fetch nodes."""
+    """Build the LangGraph workflow with sequential fetch nodes."""
     graph = StateGraph(AgentState)
 
     # Add nodes
@@ -50,15 +52,11 @@ def _build_graph():
     # Entry point
     graph.set_entry_point("route")
 
-    # Fan-out: route → all fetch nodes (parallel execution)
+    # Sequential flow: route → fetch_crm → fetch_account → answer → followup
+    # fetch_crm resolves company_id from SQL, fetch_account uses it for RAG
     graph.add_edge("route", "fetch_crm")
-    graph.add_edge("route", "fetch_account")
-
-    # Fan-in: all fetch nodes → answer (waits for all to complete)
-    graph.add_edge("fetch_crm", "answer")
+    graph.add_edge("fetch_crm", "fetch_account")
     graph.add_edge("fetch_account", "answer")
-
-    # Continue to followup and end
     graph.add_edge("answer", "followup")
     graph.add_edge("followup", END)
 

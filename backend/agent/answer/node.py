@@ -3,85 +3,39 @@
 import logging
 import time
 
-from backend.agent.answer.formatters import (
-    format_account_context_section,
-    format_activities_section,
-    format_attachments_section,
-    format_company_section,
-    format_contacts_section,
-    format_groups_section,
-    format_history_section,
-    format_pipeline_section,
-    format_renewals_section,
-)
-from backend.agent.answer.llm import (
-    call_answer_chain,
-    call_not_found_chain,
-)
-from backend.agent.core.config import get_config
+from backend.agent.answer.llm import call_answer_chain
 from backend.agent.core.state import AgentState
 
 logger = logging.getLogger(__name__)
 
 
 def answer_node(state: AgentState) -> AgentState:
-    config = get_config()
+    """
+    Synthesize answer from SQL results and account context.
+
+    Uses simplified call_answer_chain with sql_results and account_context.
+    """
     start_time = time.time()
 
-    logger.info("[Answer] Synthesizing response with LCEL chain...")
+    logger.info("[Answer] Synthesizing response...")
 
     try:
-        company_data = state.get("company_data")
-        llm_latency = 0
+        # Get SQL results from fetch_crm
+        sql_results = state.get("sql_results", {})
 
-        # Handle company not found case
-        if company_data and not company_data.get("found"):
-            close_matches = company_data.get("close_matches", [])[: config.max_close_matches]
-            matches_text = (
-                "\n".join([f"- {m.get('name')} ({m.get('company_id')})" for m in close_matches])
-                or "No similar companies found."
-            )
+        # Get account context from fetch_account (RAG)
+        account_context = state.get("account_context_answer", "")
 
-            # Use LCEL chain for company not found
-            answer, llm_latency = call_not_found_chain(
-                question=state["question"],
-                query=company_data.get("query", "unknown"),
-                matches=matches_text,
-            )
+        # Get conversation history (formatted in route_node)
+        conversation_history = state.get("conversation_history", "")
 
-        else:
-            # Build context sections
-            # Use pre-formatted conversation_history from route_node, add header for answer context
-            conv_history = state.get("conversation_history", "")
-            conversation_history_section = (
-                f"=== RECENT CONVERSATION ===\n{conv_history}" if conv_history else ""
-            )
-            company_section = format_company_section(company_data)
-            contacts_section = format_contacts_section(state.get("contacts_data"))
-            activities_section = format_activities_section(state.get("activities_data"))
-            history_section = format_history_section(state.get("history_data"))
-            pipeline_section = format_pipeline_section(state.get("pipeline_data"))
-            renewals_section = format_renewals_section(state.get("renewals_data"))
-            groups_section = format_groups_section(state.get("groups_data"))
-            attachments_section = format_attachments_section(state.get("attachments_data"))
-            account_context_section = format_account_context_section(
-                state.get("account_context_answer", "")
-            )
-
-            # Use LCEL chain for answer synthesis
-            answer, llm_latency = call_answer_chain(
-                question=state["question"],
-                conversation_history_section=conversation_history_section,
-                company_section=company_section,
-                contacts_section=contacts_section,
-                activities_section=activities_section,
-                history_section=history_section,
-                pipeline_section=pipeline_section,
-                renewals_section=renewals_section,
-                groups_section=groups_section,
-                attachments_section=attachments_section,
-                account_context_section=account_context_section,
-            )
+        # Call answer chain with simplified parameters
+        answer, llm_latency = call_answer_chain(
+            question=state["question"],
+            sql_results=sql_results,
+            account_context=account_context,
+            conversation_history=conversation_history,
+        )
 
         # Validate answer
         if not answer or not answer.strip():

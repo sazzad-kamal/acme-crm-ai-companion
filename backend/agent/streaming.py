@@ -10,7 +10,6 @@ from fastapi.encoders import jsonable_encoder
 
 from backend.agent.audit import AgentAuditLogger
 from backend.agent.core.state import AgentState
-from backend.agent.fetch.tools.common import enrich_raw_data
 from backend.agent.graph import agent_graph, build_thread_config
 
 logger = logging.getLogger(__name__)
@@ -89,7 +88,7 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
 
         yield _format_sse(StreamEvent.DONE, {
             "answer": final.get("answer", ""),
-            "raw_data": enrich_raw_data(final.get("raw_data", {})),
+            "raw_data": final.get("raw_data", {}),
             "follow_up_suggestions": final.get("follow_up_suggestions", []),
         })
 

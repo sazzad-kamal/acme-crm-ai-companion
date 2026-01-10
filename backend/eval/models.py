@@ -69,9 +69,9 @@ class FlowStepResult:
     expected_company_id: str | None = None
     actual_company_id: str | None = None
     company_correct: bool = True
-    expected_intent: str | None = None
-    actual_intent: str | None = None
-    intent_correct: bool = True
+    expected_rag: bool | None = None
+    actual_rag: bool = False
+    rag_decision_correct: bool = True
     # RAGAS metrics (0.0-1.0) - answer quality
     relevance_score: float = 0.0  # RAGAS answer_relevancy
     faithfulness_score: float = 0.0  # RAGAS faithfulness
@@ -126,7 +126,7 @@ class FlowEvalResults:
     # Routing metrics
     company_extraction_accuracy: float = 0.0
     company_sample_count: int = 0  # Number of steps with expected company (0 = N/A)
-    intent_accuracy: float = 0.0
+    rag_decision_accuracy: float = 0.0
     # RAGAS metrics (0.0-1.0) - answer quality
     avg_relevance: float = 0.0  # RAGAS answer_relevancy
     avg_faithfulness: float = 0.0  # RAGAS faithfulness
@@ -184,7 +184,7 @@ class FlowEvalResults:
         - Routing: 10% (company + intent combined)
         - Latency: 5% (speed, capped at SLO)
         """
-        routing_score = (self.company_extraction_accuracy + self.intent_accuracy) / 2
+        routing_score = (self.company_extraction_accuracy + self.rag_decision_accuracy) / 2
         latency_score = _latency_score(self.avg_latency_per_question_ms, SLO_FLOW_AVG_LATENCY_MS)
         return (
             0.30 * self.avg_faithfulness

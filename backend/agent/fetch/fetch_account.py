@@ -1,4 +1,4 @@
-"""Account context RAG fetch node for LangGraph parallel execution."""
+"""Account context RAG fetch node for LangGraph sequential execution."""
 
 import logging
 import time
@@ -9,24 +9,28 @@ from backend.agent.fetch.rag import call_account_rag
 logger = logging.getLogger(__name__)
 
 
-# Intents that trigger Account RAG for unstructured text search
-ACCOUNT_RAG_INTENTS = frozenset({
-    "company",  # All company-specific queries trigger RAG
-})
-
-
 def fetch_account_node(state: AgentState) -> AgentState:
-    """Fetch account context via RAG (conditional on intent and company_id)."""
+    """
+    Fetch account context via RAG (conditional on needs_account_rag and company_id).
+
+    The LLM query planner decides whether RAG is needed (needs_account_rag=True).
+    company_id is resolved by fetch_crm from SQL query results.
+    """
     start_time = time.time()
 
-    intent = state.get("intent", "pipeline_summary")
-    company_id = state.get("resolved_company_id")
-    question = state.get("question", "")
-
-    # Skip if no company_id or wrong intent
-    if not company_id or intent not in ACCOUNT_RAG_INTENTS:
-        logger.info(f"[FetchAccount] Skipped (company={company_id}, intent={intent})")
+    # Check boolean flag set by query planner
+    needs_rag = state.get("needs_account_rag", False)
+    if not needs_rag:
+        logger.info("[FetchAccount] Skipped (needs_account_rag=False)")
         return {"account_context_answer": "", "account_rag_invoked": False}
+
+    # Get company_id resolved by fetch_crm from SQL results
+    company_id = state.get("resolved_company_id")
+    if not company_id:
+        logger.info("[FetchAccount] Skipped (no company_id resolved)")
+        return {"account_context_answer": "", "account_rag_invoked": False}
+
+    question = state.get("question", "")
 
     logger.info(f"[FetchAccount] Searching account context for {company_id}...")
 
@@ -41,7 +45,10 @@ def fetch_account_node(state: AgentState) -> AgentState:
         context_chunks = account_answer.split("\n\n---\n\n") if account_answer else []
 
         latency_ms = int((time.time() - start_time) * 1000)
-        logger.info(f"[FetchAccount] Complete in {latency_ms}ms, sources={len(account_sources)}, chunks={len(context_chunks)}")
+        logger.info(
+            f"[FetchAccount] Complete in {latency_ms}ms, "
+            f"sources={len(account_sources)}, chunks={len(context_chunks)}"
+        )
 
         return {
             "account_context_answer": account_answer,
@@ -53,7 +60,11 @@ def fetch_account_node(state: AgentState) -> AgentState:
     except Exception as e:
         latency_ms = int((time.time() - start_time) * 1000)
         logger.error(f"[FetchAccount] Failed after {latency_ms}ms: {e}")
-        return {"account_context_answer": "", "account_rag_invoked": True, "error": f"Account fetch failed: {e}"}
+        return {
+            "account_context_answer": "",
+            "account_rag_invoked": True,
+            "error": f"Account fetch failed: {e}",
+        }
 
 
 __all__ = ["fetch_account_node"]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -10,18 +11,7 @@ from typing import Any
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from backend.agent.answer.formatters import (
-    format_account_context_section,
-    format_activities_section,
-    format_attachments_section,
-    format_company_section,
-    format_contacts_section,
-    format_groups_section,
-    format_history_section,
-    format_pipeline_section,
-    format_renewals_section,
-)
-from backend.agent.followup.tree import get_expected_answer, get_expected_intent, get_paths_for_role
+from backend.agent.followup.tree import get_expected_answer, get_expected_rag, get_paths_for_role
 from backend.eval.formatting import console, print_eval_header
 from backend.eval.judge import evaluate_single
 from backend.eval.models import FlowEvalResults, FlowResult, FlowStepResult
@@ -37,20 +27,24 @@ def _detect_expected_company(question: str) -> str | None:
     Scans question for known company names from CRM database.
     Returns company_id if found, None otherwise.
     """
-    from backend.agent.datastore import get_datastore
+    from backend.agent.datastore.connection import get_connection
 
-    ds = get_datastore()
+    conn = get_connection()
 
-    # Get all company names from CRM cache
-    ds._build_company_cache()
-    if not ds._company_names_cache:
+    # Get all company names from CRM database
+    try:
+        rows = conn.execute("SELECT company_id, name FROM companies").fetchall()
+    except Exception:
         return None
 
-    # Scan question for company names (case-insensitive)
+    if not rows:
+        return None
+
+    # Build name->id mapping and scan question (case-insensitive)
     question_lower = question.lower()
-    for name, company_id in ds._company_names_cache.items():
-        if name in question_lower:
-            return company_id
+    for company_id, name in rows:
+        if name.lower() in question_lower:
+            return str(company_id)
 
     return None
 
@@ -155,7 +149,7 @@ def test_single_question(
 
         # Get routing info from agent result
         actual_company_id = result.get("resolved_company_id")
-        actual_intent = result.get("intent")
+        actual_rag_decision = result.get("needs_account_rag", False)
 
         # Detect expected company from question text
         expected_company = _detect_expected_company(question)
@@ -169,29 +163,16 @@ def test_single_question(
         # Get RAG chunks for precision/recall evaluation
         account_chunks = result.get("account_chunks", [])
 
-        # Account RAG is conditional on intent and company_id
+        # Account RAG is conditional on needs_account_rag boolean and company_id
         # Use the explicit flag set by fetch_account_node (tracks actual invocations, not just results)
         account_rag_invoked = result.get("account_rag_invoked", False)
 
-        # Build all_contexts from all data sources the LLM used
+        # Build all_contexts from sql_results (JSON stringified)
         all_contexts = []
-        if company_section := format_company_section(result.get("company_data")):
-            all_contexts.append(company_section)
-        if activities_section := format_activities_section(result.get("activities_data")):
-            all_contexts.append(activities_section)
-        if history_section := format_history_section(result.get("history_data")):
-            all_contexts.append(history_section)
-        if pipeline_section := format_pipeline_section(result.get("pipeline_data")):
-            all_contexts.append(pipeline_section)
-        if renewals_section := format_renewals_section(result.get("renewals_data")):
-            all_contexts.append(renewals_section)
-        if contacts_section := format_contacts_section(result.get("contacts_data")):
-            all_contexts.append(contacts_section)
-        if groups_section := format_groups_section(result.get("groups_data")):
-            all_contexts.append(groups_section)
-        if attachments_section := format_attachments_section(result.get("attachments_data")):
-            all_contexts.append(attachments_section)
-        if account_context := format_account_context_section(result.get("account_context_answer", "")):
+        sql_results = result.get("sql_results", {})
+        if sql_results:
+            all_contexts.append(json.dumps(sql_results, indent=2, default=str))
+        if account_context := result.get("account_context_answer", ""):
             all_contexts.append(account_context)
 
         # Get expected answer for answer_correctness metric
@@ -254,11 +235,11 @@ def test_single_question(
                         nan_metrics = pipeline_result.get("nan_metrics", [])
                         ragas_metrics_failed += sum(1 for m in nan_metrics if m in ("answer_relevancy", "faithfulness", "answer_correctness"))
 
-        # Intent classification validation
-        expected_intent = get_expected_intent(question)
-        # Only mark correct if we have an expected intent and it matches actual
-        # If no expected intent in our mapping, we can't validate (treat as correct)
-        intent_correct = (expected_intent is None) or (actual_intent == expected_intent)
+        # RAG decision validation (replaces intent classification)
+        expected_rag = get_expected_rag(question)
+        # Only mark correct if we have an expected RAG decision and it matches actual
+        # If no expected RAG in our mapping, we can't validate (treat as correct)
+        rag_decision_correct = (expected_rag is None) or (actual_rag_decision == expected_rag)
 
         return FlowStepResult(
             question=question,
@@ -269,9 +250,9 @@ def test_single_question(
             expected_company_id=expected_company,
             actual_company_id=actual_company_id,
             company_correct=company_correct,
-            actual_intent=actual_intent,
-            expected_intent=expected_intent,
-            intent_correct=intent_correct,
+            expected_rag=expected_rag,
+            actual_rag=actual_rag_decision,
+            rag_decision_correct=rag_decision_correct,
             relevance_score=relevance,
             faithfulness_score=faithfulness,
             answer_correctness_score=answer_correctness,
@@ -483,8 +464,8 @@ def run_flow_eval(
     else:
         company_extraction_accuracy = 0.0  # Will show as N/A
 
-    intent_correct_count = sum(1 for s in all_steps if s.intent_correct)
-    intent_accuracy = intent_correct_count / len(all_steps) if all_steps else 0.0
+    rag_decision_correct_count = sum(1 for s in all_steps if s.rag_decision_correct)
+    rag_decision_accuracy = rag_decision_correct_count / len(all_steps) if all_steps else 0.0
 
     # Calculate RAGAS reliability (per-metric, not per-call)
     # Sum up all metrics evaluated and all metrics that failed across all steps
@@ -511,7 +492,7 @@ def run_flow_eval(
         questions_failed=questions_failed,
         company_extraction_accuracy=company_extraction_accuracy,
         company_sample_count=company_sample_count,
-        intent_accuracy=intent_accuracy,
+        rag_decision_accuracy=rag_decision_accuracy,
         avg_relevance=avg_relevance,
         avg_faithfulness=avg_faithfulness,
         avg_answer_correctness=avg_answer_correctness,

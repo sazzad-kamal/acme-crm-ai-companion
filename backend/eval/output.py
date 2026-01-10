@@ -49,7 +49,7 @@ def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
     q_slo_pass = results.question_pass_rate >= SLO_FLOW_QUESTION_PASS_RATE
     # Company extraction: N/A if no questions have expected company
     company_slo_pass = results.company_extraction_accuracy >= SLO_COMPANY_EXTRACTION if results.company_sample_count > 0 else None
-    intent_slo_pass = results.intent_accuracy >= SLO_ROUTER_ACCURACY
+    rag_decision_slo_pass = results.rag_decision_accuracy >= SLO_ROUTER_ACCURACY
 
     # Answer quality metrics - N/A if eval_mode is "rag" (not evaluated)
     if eval_mode == "rag":
@@ -93,10 +93,10 @@ def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
                     company_slo_pass,
                 ),
                 (
-                    "  Intent Classification",
-                    format_percentage(results.intent_accuracy),
+                    "  RAG Decision",
+                    format_percentage(results.rag_decision_accuracy),
                     f">={format_percentage(SLO_ROUTER_ACCURACY)}",
-                    intent_slo_pass,
+                    rag_decision_slo_pass,
                 ),
                 (
                     "  latency",
@@ -200,7 +200,7 @@ def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
         path_slo_pass
         and q_slo_pass
         and (company_slo_pass is None or company_slo_pass)
-        and intent_slo_pass
+        and rag_decision_slo_pass
         and (account_precision_slo_pass is None or account_precision_slo_pass)
         and (account_recall_slo_pass is None or account_recall_slo_pass)
         and relevance_slo_pass
@@ -322,7 +322,7 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
             "questions_failed": results.questions_failed,
             "question_pass_rate": results.question_pass_rate,
             "company_extraction_accuracy": results.company_extraction_accuracy,
-            "intent_accuracy": results.intent_accuracy,
+            "rag_decision_accuracy": results.rag_decision_accuracy,
             "avg_relevance": results.avg_relevance,
             "avg_faithfulness": results.avg_faithfulness,
             "avg_answer_correctness": results.avg_answer_correctness,

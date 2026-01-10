@@ -1,0 +1,165 @@
+"""
+SQL query executor for schema-driven query architecture.
+
+Executes QueryPlan queries against DuckDB and resolves placeholders.
+"""
+
+import logging
+import re
+from typing import Any
+
+import duckdb
+
+from backend.agent.route.query_planner import QueryPlan
+
+logger = logging.getLogger(__name__)
+
+
+# Dangerous SQL keywords that should never appear in generated queries
+FORBIDDEN_KEYWORDS = frozenset(
+    {
+        "DROP",
+        "DELETE",
+        "UPDATE",
+        "INSERT",
+        "ALTER",
+        "TRUNCATE",
+        "CREATE",
+        "GRANT",
+        "REVOKE",
+        "EXEC",
+        "EXECUTE",
+    }
+)
+
+
+class SQLExecutionError(Exception):
+    """Raised when SQL execution fails."""
+
+    pass
+
+
+class SQLValidationError(Exception):
+    """Raised when SQL validation fails (e.g., dangerous keywords)."""
+
+    pass
+
+
+def validate_sql(sql: str) -> None:
+    """
+    Validate SQL query for safety.
+
+    Raises:
+        SQLValidationError: If SQL contains dangerous keywords
+    """
+    # Tokenize and check for forbidden keywords
+    tokens = set(re.findall(r"\b[A-Z]+\b", sql.upper()))
+    forbidden_found = tokens & FORBIDDEN_KEYWORDS
+
+    if forbidden_found:
+        raise SQLValidationError(f"SQL contains forbidden keywords: {forbidden_found}")
+
+
+def resolve_placeholders(sql: str, resolved: dict[str, str]) -> str:
+    """
+    Resolve placeholders like $company_id and $contact_id in SQL.
+
+    Args:
+        sql: SQL query with placeholders
+        resolved: Dict mapping placeholder names to resolved values
+
+    Returns:
+        SQL with placeholders replaced by actual values
+    """
+    result = sql
+    for placeholder, value in resolved.items():
+        if value is not None:
+            # Escape single quotes in values for SQL safety
+            safe_value = str(value).replace("'", "''")
+            result = result.replace(placeholder, f"'{safe_value}'")
+    return result
+
+
+def execute_query_plan(
+    plan: QueryPlan,
+    conn: duckdb.DuckDBPyConnection,
+    max_rows: int = 100,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str]]:
+    """
+    Execute SQL queries from a QueryPlan and return results.
+
+    Args:
+        plan: QueryPlan containing SQL queries
+        conn: DuckDB connection
+        max_rows: Maximum rows to return per query (safety limit)
+
+    Returns:
+        Tuple of (results dict by purpose, resolved placeholders dict)
+
+    Raises:
+        SQLValidationError: If SQL contains dangerous keywords
+        SQLExecutionError: If SQL execution fails
+    """
+    results: dict[str, list[dict[str, Any]]] = {}
+    resolved: dict[str, str] = {}  # $company_id, $contact_id
+
+    for query in plan.queries:
+        try:
+            # Validate SQL for safety
+            validate_sql(query.sql)
+
+            # Resolve placeholders from previous query results
+            sql = resolve_placeholders(query.sql, resolved)
+
+            # Add LIMIT if not present (safety)
+            if "LIMIT" not in sql.upper():
+                sql = f"{sql} LIMIT {max_rows}"
+
+            logger.debug(f"Executing SQL for '{query.purpose}': {sql[:100]}...")
+
+            # Execute query
+            result = conn.execute(sql)
+            rows = result.fetchall()
+            columns = [desc[0] for desc in result.description]
+
+            # Convert to list of dicts
+            data = [dict(zip(columns, row, strict=True)) for row in rows]
+
+            # Enforce max_rows limit
+            if len(data) > max_rows:
+                logger.warning(
+                    f"Query '{query.purpose}' returned {len(data)} rows, truncating to {max_rows}"
+                )
+                data = data[:max_rows]
+
+            results[query.purpose] = data
+
+            # Cache IDs for subsequent queries
+            if data:
+                first_row = data[0]
+                if "company_id" in first_row and first_row["company_id"]:
+                    resolved["$company_id"] = str(first_row["company_id"])
+                if "contact_id" in first_row and first_row["contact_id"]:
+                    resolved["$contact_id"] = str(first_row["contact_id"])
+
+            logger.debug(f"Query '{query.purpose}' returned {len(data)} rows")
+
+        except SQLValidationError:
+            # Re-raise validation errors
+            raise
+
+        except Exception as e:
+            logger.error(f"SQL execution failed for '{query.purpose}': {e}")
+            # Store empty result for failed queries instead of failing entirely
+            results[query.purpose] = []
+
+    return results, resolved
+
+
+__all__ = [
+    "execute_query_plan",
+    "resolve_placeholders",
+    "validate_sql",
+    "SQLExecutionError",
+    "SQLValidationError",
+]

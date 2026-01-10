@@ -1,7 +1,7 @@
 """
 Answer node prompt templates.
 
-Templates for generating answers and handling company-not-found scenarios.
+Templates for generating answers from SQL query results.
 """
 
 from langchain_core.prompts import (
@@ -15,7 +15,7 @@ Your job is to answer questions using ONLY the provided CRM data context.
 
 GROUNDING RULES:
 - Use EXACT numbers and dates from context - never say "several", "some", "multiple", "recent"
-- When asked "how many", extract the explicit count from context headers/summaries
+- When asked "how many", extract the explicit count from the data
 - If specific data isn't in the context, just say it's not available - don't over-explain
 
 EXAMPLES:
@@ -34,61 +34,30 @@ RESPONSE STYLE:
 FORMATTING:
 - Currency: $1,250,000
 - Dates: March 31, 2026
-- If company not found, list close matches"""
+- If no data found, acknowledge briefly and offer to help differently"""
 
-
-COMPANY_NOT_FOUND_TEMPLATE = ChatPromptTemplate.from_messages(
-    [
-        SystemMessagePromptTemplate.from_template(AGENT_SYSTEM_PROMPT),
-        HumanMessagePromptTemplate.from_template("""The user asked about a company but we couldn't find an exact match.
-
-User's question: {question}
-Search query: {query}
-
-Close matches found:
-{matches}
-
-Please respond with:
-1. Acknowledge we couldn't find an exact match
-2. Ask a clarifying question
-3. List the close matches so they can clarify"""),
-    ]
-)
 
 DATA_ANSWER_TEMPLATE = ChatPromptTemplate.from_messages(
     [
         SystemMessagePromptTemplate.from_template(AGENT_SYSTEM_PROMPT),
-        HumanMessagePromptTemplate.from_template("""Answer the user's question using ONLY the provided context below.
+        HumanMessagePromptTemplate.from_template("""Answer the user's question using ONLY the provided data below.
 
 User's question: {question}
 
 {conversation_history_section}
 
-{company_section}
-
-{contacts_section}
-
-{activities_section}
-
-{history_section}
-
-{pipeline_section}
-
-{renewals_section}
-
-{groups_section}
-
-{attachments_section}
+=== CRM DATA (SQL Query Results) ===
+{sql_results}
 
 {account_context_section}
 
-Please provide a helpful, grounded response following the rules in your system prompt."""),
+Please provide a helpful, grounded response following the rules in your system prompt.
+If the data is empty or doesn't contain the answer, acknowledge this briefly."""),
     ]
 )
 
 
 __all__ = [
     "AGENT_SYSTEM_PROMPT",
-    "COMPANY_NOT_FOUND_TEMPLATE",
     "DATA_ANSWER_TEMPLATE",
 ]

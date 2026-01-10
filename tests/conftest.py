@@ -4,7 +4,7 @@ Shared pytest fixtures for backend tests.
 This module provides common fixtures used across test files:
 - test_client: FastAPI TestClient instance
 - mock_llm: Auto-patches LLM functions for testing
-- datastore: CRMDataStore instance
+- db_connection: DuckDB connection instance
 """
 
 import os
@@ -30,10 +30,10 @@ os.environ["ACME_RATE_LIMIT_ENABLED"] = "false"
 def client():
     """
     Create a test client for the FastAPI app.
-    
+
     This fixture provides a TestClient instance that can be used to make
     requests to the API without starting a real server.
-    
+
     Usage:
         def test_endpoint(client):
             response = client.get("/api/data/companies")
@@ -54,15 +54,15 @@ def api_client(client):
 # =============================================================================
 
 @pytest.fixture
-def datastore():
+def db_connection():
     """
-    Create a fresh CRMDataStore instance.
-    
+    Create a fresh DuckDB connection instance.
+
     This fixture provides access to the in-memory CRM data for testing
     data-related functionality.
     """
-    from backend.agent.datastore import CRMDataStore
-    return CRMDataStore()
+    from backend.agent.datastore.connection import get_connection
+    return get_connection()
 
 
 @pytest.fixture
@@ -84,13 +84,6 @@ def sample_company_name():
 
 def _mock_answer_response(prompt: str) -> str:
     """Generate mock LLM answer based on prompt content."""
-    if "couldn't find an exact match" in prompt:
-        return (
-            "I couldn't find an exact match for that company in the CRM. "
-            "Could you clarify which company you're asking about? "
-            "Here are some similar companies I found that might be what you're looking for."
-        )
-
     if "renewal" in prompt.lower():
         return (
             "**Upcoming Renewals Summary**\n\n"
@@ -162,7 +155,8 @@ def mock_llm():
     This fixture automatically patches LLM API calls so tests don't require
     a real API key or make actual network requests.
     """
-    from backend.agent.core import Source, RouterResult
+    from backend.agent.core import Source
+    from backend.agent.route.query_planner import QueryPlan, SQLQuery
 
     def mock_call_answer_chain(*args, **kwargs) -> tuple[str, int]:
         question = kwargs.get("question", args[0] if args else "")
@@ -171,9 +165,6 @@ def mock_llm():
     async def mock_stream_answer_chain(*args, **kwargs):
         question = kwargs.get("question", args[0] if args else "")
         yield _mock_answer_response(question)
-
-    def mock_call_not_found_chain(question: str, query: str, matches: str) -> tuple[str, int]:
-        return _mock_answer_response("couldn't find an exact match"), 100
 
     def mock_call_account_rag(question: str, company_id: str) -> tuple[str, list]:
         return (
@@ -184,7 +175,6 @@ def mock_llm():
 
     def mock_generate_follow_up_suggestions(
         question: str,
-        mode: str,
         company_id: str | None = None,
         company_name: str | None = None,
         conversation_history: str = "",
@@ -199,49 +189,65 @@ def mock_llm():
                 return follow_ups[:3]
         return _mock_follow_up_suggestions(company_name, available_data)
 
-    def mock_llm_route_question(
+    def mock_get_query_plan(
         question: str,
-        datastore=None,
         conversation_history: str = "",
-    ) -> RouterResult:
-        from backend.agent.route.router import detect_owner_from_starter
-
-        # Detect intent based on question keywords
+        owner: str | None = None,
+    ) -> QueryPlan:
+        """Mock query planner that returns reasonable SQL queries."""
         q = question.lower()
-        intent = "general"
+        queries = []
+        needs_rag = False
 
-        # Team/aggregate queries -> pipeline_summary
-        if any(kw in q for kw in ["team", "how's my pipeline", "hows my pipeline", "pipeline summary"]):
-            intent = "pipeline_summary"
-        elif "forecast" in q:
-            intent = "forecast"
-        elif any(kw in q for kw in ["at risk", "at-risk", "stalled", "deals at risk"]):
-            intent = "deals_at_risk"
-        elif "renewal" in q:
-            intent = "renewals"
+        # Detect if asking about specific company
+        company_names = ["acme", "beta", "crown", "delta", "echo"]
+        if any(name in q for name in company_names):
+            needs_rag = True
+            queries.append(SQLQuery(
+                sql="SELECT * FROM companies LIMIT 1",
+                purpose="company_info"
+            ))
+            queries.append(SQLQuery(
+                sql="SELECT * FROM opportunities WHERE company_id = '$company_id' LIMIT 20",
+                purpose="open_deals"
+            ))
+
+        # Detect aggregate queries
+        if "renewal" in q:
+            queries.append(SQLQuery(
+                sql="SELECT * FROM companies WHERE renewal_date IS NOT NULL LIMIT 20",
+                purpose="renewals"
+            ))
         elif "pipeline" in q:
-            intent = "pipeline"
-        elif any(kw in q for kw in ["contact", "who"]):
-            intent = "contact_search"
-        elif any(kw in q for kw in ["activit", "recent"]):
-            intent = "activities"
-        elif any(name in q for name in ["acme", "beta", "crown", "delta", "echo"]):
-            intent = "company_status"
+            queries.append(SQLQuery(
+                sql="SELECT * FROM opportunities WHERE stage NOT LIKE '%Closed%' LIMIT 50",
+                purpose="pipeline"
+            ))
+        elif any(kw in q for kw in ["forecast", "weighted"]):
+            queries.append(SQLQuery(
+                sql="SELECT stage, COUNT(*) as count, SUM(value) as total FROM opportunities WHERE stage NOT LIKE '%Closed%' GROUP BY stage",
+                purpose="forecast"
+            ))
+        elif any(kw in q for kw in ["at risk", "at-risk", "stalled"]):
+            queries.append(SQLQuery(
+                sql="SELECT * FROM opportunities WHERE days_in_stage > 45 LIMIT 20",
+                purpose="stale_deals"
+            ))
 
-        return RouterResult(
-            
-            company_id=None,
-            days=30,
-            intent=intent,
-            owner=detect_owner_from_starter(question),
-        )
+        # Default: return something
+        if not queries:
+            queries.append(SQLQuery(
+                sql="SELECT * FROM companies LIMIT 10",
+                purpose="companies"
+            ))
+
+        return QueryPlan(queries=queries, needs_account_rag=needs_rag)
 
     with patch("backend.agent.answer.llm.call_answer_chain", mock_call_answer_chain), \
          patch("backend.agent.answer.llm.stream_answer_chain", mock_stream_answer_chain), \
-         patch("backend.agent.answer.llm.call_not_found_chain", mock_call_not_found_chain), \
          patch("backend.agent.fetch.rag.call_account_rag", mock_call_account_rag), \
          patch("backend.agent.followup.llm.generate_follow_up_suggestions", mock_generate_follow_up_suggestions), \
-         patch("backend.agent.route.router.llm_route_question", mock_llm_route_question):
+         patch("backend.agent.route.query_planner.get_query_plan", mock_get_query_plan):
         yield
 
 
@@ -249,7 +255,7 @@ def mock_llm():
 def mock_llm_response():
     """Create a mock LLM response for testing."""
     return "Based on the CRM data, this is a mock response for testing purposes."
-    
+
 
 # =============================================================================
 # Chat Request Fixtures
