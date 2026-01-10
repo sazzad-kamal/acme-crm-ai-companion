@@ -45,17 +45,18 @@ def _get_embed_model():
 
 def tool_account_rag(
     question: str,
-    company_id: str,
+    filters: dict[str, str],
     top_k: int = 5,
 ) -> tuple[str, list[Source]]:
     """
-    Search company-scoped CRM text (notes, attachments).
+    Search entity-scoped CRM text (notes, attachments).
 
     Uses over-retrieval + reranking for better precision when enabled.
+    Filters by all provided entity IDs for precise results.
 
     Args:
         question: User's question
-        company_id: Company ID for filtering
+        filters: Dict of entity IDs to filter by (company_id, contact_id, opportunity_id)
         top_k: Number of chunks to return (after reranking if enabled)
 
     Returns:
@@ -69,10 +70,15 @@ def tool_account_rag(
 
         client = get_qdrant_client()
 
-        # Create vector store with Qdrant filter for company_id
-        qdrant_filter = Filter(
-            must=[FieldCondition(key="company_id", match=MatchValue(value=company_id))]
-        )
+        # Build compound filter from all provided entity IDs
+        must_conditions = []
+        for key, value in filters.items():
+            if value:
+                must_conditions.append(
+                    FieldCondition(key=key, match=MatchValue(value=value))
+                )
+
+        qdrant_filter = Filter(must=must_conditions) if must_conditions else None
 
         # Configure vector store with hybrid if enabled
         vector_store_kwargs = {
@@ -107,9 +113,9 @@ def tool_account_rag(
             from backend.agent.rag.reranker import rerank_nodes
 
             nodes = rerank_nodes(nodes, question, top_k=RERANKER_TOP_K)
-            logger.info(f"Account RAG: reranked to {len(nodes)} chunks for company {company_id}")
+            logger.info(f"Account RAG: reranked to {len(nodes)} chunks with filters={filters}")
         else:
-            logger.info(f"Account RAG: retrieved {len(nodes)} chunks for company {company_id}")
+            logger.info(f"Account RAG: retrieved {len(nodes)} chunks with filters={filters}")
 
         context_parts = []
         sources = []

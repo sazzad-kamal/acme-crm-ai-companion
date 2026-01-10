@@ -12,7 +12,6 @@ from backend.eval.formatting import build_eval_table, console, format_percentage
 from backend.eval.models import (
     SLO_ACCOUNT_PRECISION,
     SLO_ACCOUNT_RECALL,
-    SLO_COMPANY_EXTRACTION,
     SLO_FLOW_ANSWER_CORRECTNESS,
     SLO_FLOW_AVG_LATENCY_MS,
     SLO_FLOW_COMPOSITE_SCORE,
@@ -24,6 +23,7 @@ from backend.eval.models import (
     SLO_LATENCY_RETRIEVAL_PCT,
     SLO_LATENCY_ROUTING_PCT,
     SLO_ROUTER_ACCURACY,
+    SLO_SQL_SUCCESS,
     FlowEvalResults,
     FlowStepResult,
 )
@@ -47,8 +47,8 @@ def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
     # Compute SLO pass/fail
     path_slo_pass = results.path_pass_rate >= SLO_FLOW_PATH_PASS_RATE
     q_slo_pass = results.question_pass_rate >= SLO_FLOW_QUESTION_PASS_RATE
-    # Company extraction: N/A if no questions have expected company
-    company_slo_pass = results.company_extraction_accuracy >= SLO_COMPANY_EXTRACTION if results.company_sample_count > 0 else None
+    # SQL success: N/A if no queries were executed
+    sql_slo_pass = results.sql_success_rate >= SLO_SQL_SUCCESS if results.sql_query_count > 0 else None
     rag_decision_slo_pass = results.rag_decision_accuracy >= SLO_ROUTER_ACCURACY
 
     # Answer quality metrics - N/A if eval_mode is "rag" (not evaluated)
@@ -87,10 +87,10 @@ def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
             "Routing",
             [
                 (
-                    "  Company Extraction",
-                    format_percentage(results.company_extraction_accuracy) if results.company_sample_count > 0 else "N/A",
-                    f">={format_percentage(SLO_COMPANY_EXTRACTION)}" if results.company_sample_count > 0 else "-",
-                    company_slo_pass,
+                    "  SQL Success",
+                    format_percentage(results.sql_success_rate) if results.sql_query_count > 0 else "N/A",
+                    f">={format_percentage(SLO_SQL_SUCCESS)}" if results.sql_query_count > 0 else "-",
+                    sql_slo_pass,
                 ),
                 (
                     "  RAG Decision",
@@ -199,7 +199,7 @@ def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
     all_slos_passed = (
         path_slo_pass
         and q_slo_pass
-        and (company_slo_pass is None or company_slo_pass)
+        and (sql_slo_pass is None or sql_slo_pass)
         and rag_decision_slo_pass
         and (account_precision_slo_pass is None or account_precision_slo_pass)
         and (account_recall_slo_pass is None or account_recall_slo_pass)
@@ -321,7 +321,8 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
             "questions_passed": results.questions_passed,
             "questions_failed": results.questions_failed,
             "question_pass_rate": results.question_pass_rate,
-            "company_extraction_accuracy": results.company_extraction_accuracy,
+            "sql_success_rate": results.sql_success_rate,
+            "sql_query_count": results.sql_query_count,
             "rag_decision_accuracy": results.rag_decision_accuracy,
             "avg_relevance": results.avg_relevance,
             "avg_faithfulness": results.avg_faithfulness,

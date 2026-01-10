@@ -70,8 +70,6 @@ def ensure_qdrant_collections() -> None:
 def _run_eval(
     limit: int | None,
     verbose: bool,
-    parallel: bool,
-    workers: int,
     no_judge: bool,
     output: str | None,
     debug: bool,
@@ -117,15 +115,14 @@ def _run_eval(
     for key, value in stats.items():
         console.print(f"  [dim]{key}:[/dim] {value}")
 
-    # Run evaluation (synchronous - uses ThreadPoolExecutor internally)
+    # Run evaluation (sequential)
     use_judge = not no_judge
-    concurrency = workers if parallel else 1
     try:
         results = run_flow_eval(
             max_paths=limit,
             verbose=verbose,
             use_judge=use_judge,
-            concurrency=concurrency,
+            concurrency=1,
             eval_mode=eval_mode,
         )
     except Exception as e:
@@ -192,10 +189,6 @@ def main(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Show detailed output for each question"
     ),
-    parallel: bool = typer.Option(
-        True, "--parallel/--no-parallel", "-p", help="Run flows in parallel"
-    ),
-    workers: int = typer.Option(5, "--workers", "-w", help="Max parallel workers"),
     no_judge: bool = typer.Option(False, "--no-judge", help="Skip LLM-as-judge evaluation"),
     output: str | None = typer.Option(None, "--output", "-o", help="Path to save JSON results"),
     debug: bool = typer.Option(False, "--debug", "-d", help="Dump full details for failing paths"),
@@ -211,8 +204,6 @@ def main(
     _run_eval(
         limit=limit,
         verbose=verbose,
-        parallel=parallel,
-        workers=workers,
         no_judge=no_judge,
         output=output,
         debug=debug,

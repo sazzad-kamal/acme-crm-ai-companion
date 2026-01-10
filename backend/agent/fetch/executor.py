@@ -80,11 +80,23 @@ def resolve_placeholders(sql: str, resolved: dict[str, str]) -> str:
     return result
 
 
+class SQLExecutionStats:
+    """Statistics from SQL query execution."""
+
+    def __init__(self) -> None:
+        self.total: int = 0
+        self.success: int = 0
+
+    @property
+    def failed(self) -> int:
+        return self.total - self.success
+
+
 def execute_query_plan(
     plan: QueryPlan,
     conn: duckdb.DuckDBPyConnection,
     max_rows: int = 100,
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str]]:
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str], SQLExecutionStats]:
     """
     Execute SQL queries from a QueryPlan and return results.
 
@@ -94,7 +106,7 @@ def execute_query_plan(
         max_rows: Maximum rows to return per query (safety limit)
 
     Returns:
-        Tuple of (results dict by purpose, resolved placeholders dict)
+        Tuple of (results dict by purpose, resolved placeholders dict, execution stats)
 
     Raises:
         SQLValidationError: If SQL contains dangerous keywords
@@ -102,8 +114,10 @@ def execute_query_plan(
     """
     results: dict[str, list[dict[str, Any]]] = {}
     resolved: dict[str, str] = {}  # $company_id, $contact_id
+    stats = SQLExecutionStats()
 
     for query in plan.queries:
+        stats.total += 1
         try:
             # Validate SQL for safety
             validate_sql(query.sql)
@@ -133,14 +147,14 @@ def execute_query_plan(
                 data = data[:max_rows]
 
             results[query.purpose] = data
+            stats.success += 1
 
-            # Cache IDs for subsequent queries
+            # Cache IDs for subsequent queries and RAG filtering
             if data:
                 first_row = data[0]
-                if "company_id" in first_row and first_row["company_id"]:
-                    resolved["$company_id"] = str(first_row["company_id"])
-                if "contact_id" in first_row and first_row["contact_id"]:
-                    resolved["$contact_id"] = str(first_row["contact_id"])
+                for key in ["company_id", "contact_id", "opportunity_id"]:
+                    if key in first_row and first_row[key] and f"${key}" not in resolved:
+                        resolved[f"${key}"] = str(first_row[key])
 
             logger.debug(f"Query '{query.purpose}' returned {len(data)} rows")
 
@@ -153,7 +167,7 @@ def execute_query_plan(
             # Store empty result for failed queries instead of failing entirely
             results[query.purpose] = []
 
-    return results, resolved
+    return results, resolved, stats
 
 
 __all__ = [
@@ -161,5 +175,6 @@ __all__ = [
     "resolve_placeholders",
     "validate_sql",
     "SQLExecutionError",
+    "SQLExecutionStats",
     "SQLValidationError",
 ]

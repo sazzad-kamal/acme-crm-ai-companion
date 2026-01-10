@@ -97,7 +97,7 @@ class TestToolAccountRag:
             # Patch where it's used, not where it's defined
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
-                context, sources = tools.tool_account_rag("What were the meeting notes?", "COMP001")
+                context, sources = tools.tool_account_rag("What were the meeting notes?", {"company_id": "COMP001"})
 
         assert "Meeting notes" in context
         assert "Proposal document" in context
@@ -121,7 +121,7 @@ class TestToolAccountRag:
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
-                context, sources = tools.tool_account_rag("Unknown query", "COMP001")
+                context, sources = tools.tool_account_rag("Unknown query", {"company_id": "COMP001"})
 
         assert context == ""
         assert sources == []
@@ -131,7 +131,7 @@ class TestToolAccountRag:
         with patch("backend.agent.rag.tools.get_qdrant_client", side_effect=Exception("Client error")):
             from backend.agent.rag.tools import tool_account_rag
 
-            context, sources = tool_account_rag("Any question", "COMP001")
+            context, sources = tool_account_rag("Any question", {"company_id": "COMP001"})
 
         assert context == ""
         assert sources == []
@@ -175,7 +175,7 @@ class TestToolAccountRag:
             # Patch where it's used, not where it's defined
             with patch.object(tools, "get_qdrant_client") as mock_client_fn:
                 mock_client_fn.return_value = MagicMock()
-                context, sources = tools.tool_account_rag("Question", "COMP001")
+                context, sources = tools.tool_account_rag("Question", {"company_id": "COMP001"})
 
         assert len(sources) == 1
         assert sources[0].type == "note"  # Default type
@@ -218,7 +218,35 @@ class TestToolAccountRag:
 
             with patch.object(tools, "get_qdrant_client") as mock_client_fn:
                 mock_client_fn.return_value = MagicMock()
-                context, sources = tools.tool_account_rag("Question", "COMP001")
+                context, sources = tools.tool_account_rag("Question", {"company_id": "COMP001"})
 
         assert len(sources) == 1
         assert sources[0].id == "doc_123"
+
+    def test_tool_account_rag_multi_entity_filter(self):
+        """Test account RAG builds compound filter from multiple entity IDs."""
+        mock_node = MagicMock()
+        mock_node.text = "Lisa discussed pricing with the client."
+        mock_node.metadata = {"type": "note", "source_id": "note_001", "title": "Call Notes"}
+
+        mock_retriever = MagicMock()
+        mock_retriever.retrieve.return_value = [mock_node]
+
+        llama_mocks = self._setup_llama_mocks(mock_retriever)
+
+        with patch.dict(sys.modules, llama_mocks):
+            if "backend.agent.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.rag.tools"]
+
+            from backend.agent.rag import tools
+
+            with patch.object(tools, "get_qdrant_client") as mock_client:
+                mock_client.return_value = MagicMock()
+                # Pass multiple entity IDs
+                context, sources = tools.tool_account_rag(
+                    "What did Lisa say?",
+                    {"company_id": "COMP001", "contact_id": "CONT001", "opportunity_id": "OPP001"}
+                )
+
+        assert "Lisa discussed pricing" in context
+        assert len(sources) == 1

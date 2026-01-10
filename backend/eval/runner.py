@@ -20,35 +20,6 @@ from backend.eval.parallel import calculate_p95_latency
 logger = logging.getLogger(__name__)
 
 
-def _detect_expected_company(question: str) -> str | None:
-    """
-    Detect company mentioned in question text.
-
-    Scans question for known company names from CRM database.
-    Returns company_id if found, None otherwise.
-    """
-    from backend.agent.datastore.connection import get_connection
-
-    conn = get_connection()
-
-    # Get all company names from CRM database
-    try:
-        rows = conn.execute("SELECT company_id, name FROM companies").fetchall()
-    except Exception:
-        return None
-
-    if not rows:
-        return None
-
-    # Build name->id mapping and scan question (case-insensitive)
-    question_lower = question.lower()
-    for company_id, name in rows:
-        if name.lower() in question_lower:
-            return str(company_id)
-
-    return None
-
-
 def judge_answer(
     question: str,
     answer: str,
@@ -148,17 +119,11 @@ def test_single_question(
         has_answer = bool(answer and len(answer) > 10)
 
         # Get routing info from agent result
-        actual_company_id = result.get("resolved_company_id")
         actual_rag_decision = result.get("needs_account_rag", False)
 
-        # Detect expected company from question text
-        expected_company = _detect_expected_company(question)
-
-        # Company correct if:
-        # - No company expected (None) -> True (don't penalize)
-        # - Company expected and matches actual -> True
-        # - Company expected but doesn't match -> False
-        company_correct = (expected_company is None) or (actual_company_id == expected_company)
+        # Get SQL execution stats
+        sql_queries_total = result.get("sql_queries_total", 0)
+        sql_queries_success = result.get("sql_queries_success", 0)
 
         # Get RAG chunks for precision/recall evaluation
         account_chunks = result.get("account_chunks", [])
@@ -247,9 +212,8 @@ def test_single_question(
             latency_ms=latency_ms,
             has_answer=has_answer,
             has_sources=len(sources) > 0,
-            expected_company_id=expected_company,
-            actual_company_id=actual_company_id,
-            company_correct=company_correct,
+            sql_queries_total=sql_queries_total,
+            sql_queries_success=sql_queries_success,
             expected_rag=expected_rag,
             actual_rag=actual_rag_decision,
             rag_decision_correct=rag_decision_correct,
@@ -454,15 +418,10 @@ def run_flow_eval(
     avg_account_precision = sum(s.account_precision_score for s in steps_with_account) / len(steps_with_account) if steps_with_account else 0.0
     avg_account_recall = sum(s.account_recall_score for s in steps_with_account) / len(steps_with_account) if steps_with_account else 0.0
 
-    # Calculate routing accuracy
-    # Only count questions that have expected company (skip questions without company context)
-    steps_with_expected_company = [s for s in all_steps if s.expected_company_id is not None]
-    company_sample_count = len(steps_with_expected_company)
-    if company_sample_count > 0:
-        company_correct_count = sum(1 for s in steps_with_expected_company if s.company_correct)
-        company_extraction_accuracy = company_correct_count / company_sample_count
-    else:
-        company_extraction_accuracy = 0.0  # Will show as N/A
+    # Calculate SQL success rate
+    sql_total = sum(s.sql_queries_total for s in all_steps)
+    sql_success = sum(s.sql_queries_success for s in all_steps)
+    sql_success_rate = sql_success / sql_total if sql_total > 0 else 1.0  # 1.0 if no queries
 
     rag_decision_correct_count = sum(1 for s in all_steps if s.rag_decision_correct)
     rag_decision_accuracy = rag_decision_correct_count / len(all_steps) if all_steps else 0.0
@@ -490,8 +449,8 @@ def run_flow_eval(
         total_questions=total_questions,
         questions_passed=questions_passed,
         questions_failed=questions_failed,
-        company_extraction_accuracy=company_extraction_accuracy,
-        company_sample_count=company_sample_count,
+        sql_success_rate=sql_success_rate,
+        sql_query_count=sql_total,
         rag_decision_accuracy=rag_decision_accuracy,
         avg_relevance=avg_relevance,
         avg_faithfulness=avg_faithfulness,

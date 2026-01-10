@@ -77,9 +77,13 @@ class AgentState(TypedDict, total=False):
     query_plan: Any  # QueryPlan object from route_node
     needs_account_rag: bool  # LLM decision for whether to call Account RAG
     sql_results: dict[str, Any]  # Results from SQL queries, keyed by purpose
+    sql_queries_total: int  # Total number of SQL queries executed
+    sql_queries_success: int  # Number of SQL queries that succeeded
 
-    # Router output
-    resolved_company_id: str | None  # Resolved from SQL query results
+    # Router output - resolved entity IDs from SQL query results
+    resolved_company_id: str | None
+    resolved_contact_id: str | None
+    resolved_opportunity_id: str | None
     days: int
     owner: str | None  # Role-based owner for filtering
 

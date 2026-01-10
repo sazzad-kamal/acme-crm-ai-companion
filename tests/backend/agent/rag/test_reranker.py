@@ -204,7 +204,7 @@ class TestToolAccountRagWithReranker:
                 patch("backend.agent.rag.reranker.rerank_nodes", return_value=reranked_nodes) as mock_rerank,
             ):
                 mock_client.return_value = MagicMock()
-                context, sources = tools.tool_account_rag("test query", "COMP001")
+                context, sources = tools.tool_account_rag("test query", {"company_id": "COMP001"})
 
         # Should have 5 sources (after reranking)
         assert len(sources) == 5
@@ -234,7 +234,7 @@ class TestToolAccountRagWithReranker:
                 patch.object(tools, "RERANKER_ENABLED", False),
             ):
                 mock_client.return_value = MagicMock()
-                context, sources = tools.tool_account_rag("test query", "COMP001")
+                context, sources = tools.tool_account_rag("test query", {"company_id": "COMP001"})
 
         # Should have all 3 sources (no reranking)
         assert len(sources) == 3

@@ -36,10 +36,12 @@ def fetch_crm_node(state: AgentState) -> AgentState:
         conn = get_connection()
 
         # Execute all queries in the plan
-        sql_results, resolved = execute_query_plan(query_plan, conn)
+        sql_results, resolved, stats = execute_query_plan(query_plan, conn)
 
-        # Extract resolved company_id if found
+        # Extract resolved entity IDs for RAG filtering
         resolved_company_id = resolved.get("$company_id")
+        resolved_contact_id = resolved.get("$contact_id")
+        resolved_opportunity_id = resolved.get("$opportunity_id")
 
         # Build sources from results
         sources = _build_sources_from_results(sql_results)
@@ -47,14 +49,20 @@ def fetch_crm_node(state: AgentState) -> AgentState:
         latency_ms = int((time.time() - start_time) * 1000)
         logger.info(
             f"[FetchCRM] Complete in {latency_ms}ms, "
-            f"results={list(sql_results.keys())}, company_id={resolved_company_id}"
+            f"results={list(sql_results.keys())}, "
+            f"resolved={{company={resolved_company_id}, contact={resolved_contact_id}, opp={resolved_opportunity_id}}}, "
+            f"sql_success={stats.success}/{stats.total}"
         )
 
         return {
             "sql_results": sql_results,
             "resolved_company_id": resolved_company_id,
+            "resolved_contact_id": resolved_contact_id,
+            "resolved_opportunity_id": resolved_opportunity_id,
             "raw_data": sql_results,  # Alias for UI/followup compatibility
             "sources": sources,
+            "sql_queries_total": stats.total,
+            "sql_queries_success": stats.success,
         }
 
     except Exception as e:
@@ -64,6 +72,8 @@ def fetch_crm_node(state: AgentState) -> AgentState:
             "sql_results": {},
             "raw_data": {},
             "error": f"SQL execution failed: {e}",
+            "sql_queries_total": len(query_plan.queries) if query_plan else 0,
+            "sql_queries_success": 0,
         }
 
 

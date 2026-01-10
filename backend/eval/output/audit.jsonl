@@ -17443,3 +17443,69 @@ id": "flow_eval_60_1767005314"}
 {"timestamp": "2026-01-10T04:33:05.174386+00:00", "question": "What is Acme CRM?", "latency_ms": 4456, "source_count": 0, "session_id": "session-1768019579155-gx7y7e2by"}
 {"timestamp": "2026-01-10T04:33:12.942054+00:00", "question": "What is Acme CRM?", "latency_ms": 3963, "source_count": 0, "session_id": "session-1768019587905-71ihqd0ic"}
 {"timestamp": "2026-01-10T04:33:14.521635+00:00", "question": "What renewals are coming up this month?", "company_id": "CROWN-FOODS", "latency_ms": 4350, "source_count": 1, "session_id": "session-1768019589558-xhb34xmup"}
+{"timestamp": "2026-01-10T04:36:37.082592+00:00", "question": "What's going on with Acme Manufacturing?", "latency_ms": 264, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:37.466205+00:00", "question": "What are the renewals?", "latency_ms": 368, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:37.851362+00:00", "question": "Show me the pipeline", "latency_ms": 365, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:38.218947+00:00", "question": "What's going on with TechCorp?", "latency_ms": 351, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:38.576163+00:00", "question": "How do I create a contact?", "latency_ms": 357, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:38.932193+00:00", "question": "What is Acme CRM?", "latency_ms": 345, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:39.332577+00:00", "question": "Show me enterprise accounts", "latency_ms": 395, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:39.712957+00:00", "question": "Tell me about opportunities", "latency_ms": 361, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:40.109840+00:00", "question": "Tell me about opportunities", "latency_ms": 396, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:40.477123+00:00", "question": "Tell me about opportunities", "latency_ms": 358, "source_count": 0}
+{"timestamp": "2026-01-10T04:36:40.847145+00:00", "question": "Tell me about opportunities", "latency_ms": 359, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:40.118471+00:00", "question": "What's going on with Acme Manufacturing?", "latency_ms": 233, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:40.485328+00:00", "question": "What are the renewals?", "latency_ms": 351, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:40.815612+00:00", "question": "Show me the pipeline", "latency_ms": 330, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:41.156753+00:00", "question": "What's going on with TechCorp?", "latency_ms": 341, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:41.636935+00:00", "question": "How do I create a contact?", "latency_ms": 469, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:41.955561+00:00", "question": "What is Acme CRM?", "latency_ms": 308, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:42.307171+00:00", "question": "Show me enterprise accounts", "latency_ms": 342, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:42.645027+00:00", "question": "Tell me about opportunities", "latency_ms": 316, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:42.981237+00:00", "question": "Tell me about opportunities", "latency_ms": 327, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:43.313771+00:00", "question": "Tell me about opportunities", "latency_ms": 332, "source_count": 0}
+{"timestamp": "2026-01-10T04:38:43.663441+00:00", "question": "Tell me about opportunities", "latency_ms": 349, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:43.050857+00:00", "question": "What's going on with Acme Manufacturing?", "latency_ms": 254, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:43.407657+00:00", "question": "What are the renewals?", "latency_ms": 338, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:43.784280+00:00", "question": "Show me the pipeline", "latency_ms": 353, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:44.160522+00:00", "question": "What's going on with TechCorp?", "latency_ms": 363, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:44.539295+00:00", "question": "How do I create a contact?", "latency_ms": 365, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:44.887599+00:00", "question": "What is Acme CRM?", "latency_ms": 348, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:45.244575+00:00", "question": "Show me enterprise accounts", "latency_ms": 356, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:45.594972+00:00", "question": "Tell me about opportunities", "latency_ms": 327, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:45.970145+00:00", "question": "Tell me about opportunities", "latency_ms": 356, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:46.341117+00:00", "question": "Tell me about opportunities", "latency_ms": 367, "source_count": 0}
+{"timestamp": "2026-01-10T04:40:46.721062+00:00", "question": "Tell me about opportunities", "latency_ms": 379, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:15.169448+00:00", "question": "What's going on with Acme Manufacturing?", "latency_ms": 288, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:15.562341+00:00", "question": "What are the renewals?", "latency_ms": 377, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:15.950563+00:00", "question": "Show me the pipeline", "latency_ms": 376, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:16.338597+00:00", "question": "What's going on with TechCorp?", "latency_ms": 383, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:16.705023+00:00", "question": "How do I create a contact?", "latency_ms": 354, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:17.117871+00:00", "question": "What is Acme CRM?", "latency_ms": 400, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:17.550455+00:00", "question": "Show me enterprise accounts", "latency_ms": 416, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:18.001561+00:00", "question": "Tell me about opportunities", "latency_ms": 435, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:18.437831+00:00", "question": "Tell me about opportunities", "latency_ms": 436, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:18.799849+00:00", "question": "Tell me about opportunities", "latency_ms": 362, "source_count": 0}
+{"timestamp": "2026-01-10T04:43:19.227245+00:00", "question": "Tell me about opportunities", "latency_ms": 427, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:18.672877+00:00", "question": "What's going on with Acme Manufacturing?", "latency_ms": 268, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:19.095145+00:00", "question": "What are the renewals?", "latency_ms": 408, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:19.465499+00:00", "question": "Show me the pipeline", "latency_ms": 359, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:19.827477+00:00", "question": "What's going on with TechCorp?", "latency_ms": 347, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:20.192178+00:00", "question": "How do I create a contact?", "latency_ms": 341, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:20.558219+00:00", "question": "What is Acme CRM?", "latency_ms": 350, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:20.945568+00:00", "question": "Show me enterprise accounts", "latency_ms": 377, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:21.321864+00:00", "question": "Tell me about opportunities", "latency_ms": 344, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:21.689342+00:00", "question": "Tell me about opportunities", "latency_ms": 352, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:22.055348+00:00", "question": "Tell me about opportunities", "latency_ms": 360, "source_count": 0}
+{"timestamp": "2026-01-10T04:46:22.434514+00:00", "question": "Tell me about opportunities", "latency_ms": 370, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:17.077314+00:00", "question": "What's going on with Acme Manufacturing?", "latency_ms": 238, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:17.407030+00:00", "question": "What are the renewals?", "latency_ms": 314, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:17.756844+00:00", "question": "Show me the pipeline", "latency_ms": 333, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:18.102874+00:00", "question": "What's going on with TechCorp?", "latency_ms": 329, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:18.427045+00:00", "question": "How do I create a contact?", "latency_ms": 308, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:18.778663+00:00", "question": "What is Acme CRM?", "latency_ms": 335, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:19.126826+00:00", "question": "Show me enterprise accounts", "latency_ms": 341, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:19.456548+00:00", "question": "Tell me about opportunities", "latency_ms": 317, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:19.805796+00:00", "question": "Tell me about opportunities", "latency_ms": 349, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:20.124383+00:00", "question": "Tell me about opportunities", "latency_ms": 318, "source_count": 0}
+{"timestamp": "2026-01-10T05:32:20.476745+00:00", "question": "Tell me about opportunities", "latency_ms": 336, "source_count": 0}

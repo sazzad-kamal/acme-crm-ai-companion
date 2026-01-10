@@ -166,7 +166,8 @@ def mock_llm():
         question = kwargs.get("question", args[0] if args else "")
         yield _mock_answer_response(question)
 
-    def mock_call_account_rag(question: str, company_id: str) -> tuple[str, list]:
+    def mock_call_account_rag(question: str, filters: dict[str, str]) -> tuple[str, list]:
+        company_id = filters.get("company_id", "unknown")
         return (
             "Based on the account notes, the customer mentioned concerns about "
             "integration timeline during our last call.",

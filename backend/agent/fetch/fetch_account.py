@@ -11,10 +11,11 @@ logger = logging.getLogger(__name__)
 
 def fetch_account_node(state: AgentState) -> AgentState:
     """
-    Fetch account context via RAG (conditional on needs_account_rag and company_id).
+    Fetch account context via RAG (conditional on needs_account_rag and resolved entities).
 
     The LLM query planner decides whether RAG is needed (needs_account_rag=True).
-    company_id is resolved by fetch_crm from SQL query results.
+    Entity IDs are resolved by fetch_crm from SQL query results.
+    Filters by all resolved entities (company, contact, opportunity) for precise results.
     """
     start_time = time.time()
 
@@ -24,20 +25,28 @@ def fetch_account_node(state: AgentState) -> AgentState:
         logger.info("[FetchAccount] Skipped (needs_account_rag=False)")
         return {"account_context_answer": "", "account_rag_invoked": False}
 
-    # Get company_id resolved by fetch_crm from SQL results
-    company_id = state.get("resolved_company_id")
-    if not company_id:
-        logger.info("[FetchAccount] Skipped (no company_id resolved)")
+    # Build filters from all resolved entity IDs
+    filters: dict[str, str] = {}
+    if state.get("resolved_company_id"):
+        filters["company_id"] = state["resolved_company_id"]
+    if state.get("resolved_contact_id"):
+        filters["contact_id"] = state["resolved_contact_id"]
+    if state.get("resolved_opportunity_id"):
+        filters["opportunity_id"] = state["resolved_opportunity_id"]
+
+    # Need at least one entity to filter by
+    if not filters:
+        logger.info("[FetchAccount] Skipped (no entity IDs resolved)")
         return {"account_context_answer": "", "account_rag_invoked": False}
 
     question = state.get("question", "")
 
-    logger.info(f"[FetchAccount] Searching account context for {company_id}...")
+    logger.info(f"[FetchAccount] Searching account context with filters={filters}...")
 
     try:
         account_answer, account_sources = call_account_rag(
             question=question,
-            company_id=company_id,
+            filters=filters,
         )
 
         # Split combined context back into individual chunks for RAGAS evaluation

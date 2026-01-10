@@ -226,7 +226,8 @@ class TestFlowEvalResults:
             total_questions=40,
             questions_passed=36,
             questions_failed=4,
-            company_extraction_accuracy=0.95,
+            sql_success_rate=0.95,
+            sql_query_count=100,
             rag_decision_accuracy=0.90,
             avg_relevance=0.88,
             avg_faithfulness=0.92,
@@ -433,95 +434,6 @@ class TestLatencyCalculation:
         latencies = [100] * 95 + [10000] * 5
         p95 = calculate_p95_latency(latencies)
         assert p95 >= 100
-
-
-# =============================================================================
-# RAGAS Judge Tests (with mocks)
-# =============================================================================
-
-
-@pytest.mark.skipif(
-    os.environ.get("MOCK_LLM", "0") == "1",
-    reason="RAGAS imports not available in MOCK_LLM mode",
-)
-class TestRagasJudge:
-    """Tests for RAGAS judge with mocked evaluate."""
-
-    def test_evaluate_single_success(self, monkeypatch):
-        """Test evaluate_single with successful RAGAS call."""
-        import pandas as pd
-
-        # Mock EvaluationResult with to_pandas()
-        class MockResult:
-            def to_pandas(self):
-                return pd.DataFrame([{
-                    "answer_relevancy": 0.85,
-                    "faithfulness": 0.90,
-                }])
-
-        def mock_evaluate(dataset, metrics, **kwargs):
-            return MockResult()
-
-        monkeypatch.setattr("backend.eval.judge.evaluate", mock_evaluate)
-
-        from backend.eval.judge import evaluate_single
-
-        result = evaluate_single(
-            question="What is the revenue?",
-            answer="The revenue is $1M.",
-            contexts=["Revenue data shows $1M for Q4."],
-        )
-
-        assert result["answer_relevancy"] == 0.85
-        assert result["faithfulness"] == 0.90
-
-    def test_evaluate_single_empty_contexts(self, monkeypatch):
-        """Test evaluate_single with empty contexts."""
-        import pandas as pd
-
-        class MockResult:
-            def to_pandas(self):
-                return pd.DataFrame([{
-                    "answer_relevancy": 0.5,
-                    "faithfulness": 0.5,
-                }])
-
-        def mock_evaluate(dataset, metrics, **kwargs):
-            # Verify contexts is not empty (should be ["No context provided"])
-            assert dataset["retrieved_contexts"][0] == ["No context provided"]
-            return MockResult()
-
-        monkeypatch.setattr("backend.eval.judge.evaluate", mock_evaluate)
-
-        from backend.eval.judge import evaluate_single
-
-        result = evaluate_single(
-            question="What is the revenue?",
-            answer="I don't know.",
-            contexts=[],
-        )
-
-        assert result["answer_relevancy"] == 0.5
-
-    def test_evaluate_single_exception(self, monkeypatch):
-        """Test evaluate_single handles exceptions gracefully."""
-        def mock_evaluate(dataset, metrics, **kwargs):
-            raise RuntimeError("RAGAS API error")
-
-        monkeypatch.setattr("backend.eval.judge.evaluate", mock_evaluate)
-
-        from backend.eval.judge import evaluate_single
-
-        result = evaluate_single(
-            question="What is the revenue?",
-            answer="The revenue is $1M.",
-            contexts=["Some context"],
-        )
-
-        # Should return zeros on error
-        assert result["answer_relevancy"] == 0.0
-        assert result["faithfulness"] == 0.0
-        assert result["context_precision"] == 0.0
 
 
 # =============================================================================
@@ -822,8 +734,8 @@ class TestOutputModule:
             total_questions=30,
             questions_passed=28,
             questions_failed=2,
-            company_extraction_accuracy=0.95,
-            company_sample_count=20,
+            sql_success_rate=0.98,
+            sql_query_count=50,
             rag_decision_accuracy=0.92,
             avg_relevance=0.90,
             avg_faithfulness=0.92,
@@ -885,8 +797,8 @@ class TestOutputModule:
         result = print_summary(results, eval_mode="pipeline")
         assert isinstance(result, bool)
 
-    def test_print_summary_no_company_samples(self):
-        """Test print_summary when no company samples exist."""
+    def test_print_summary_no_sql_queries(self):
+        """Test print_summary when no SQL queries executed."""
         from backend.eval.output import print_summary
 
         results = FlowEvalResults(
@@ -897,7 +809,7 @@ class TestOutputModule:
             total_questions=15,
             questions_passed=13,
             questions_failed=2,
-            company_sample_count=0,  # No company extraction samples
+            sql_query_count=0,  # No SQL queries executed
             rag_decision_accuracy=0.95,
             avg_relevance=0.90,
             avg_faithfulness=0.92,
@@ -993,7 +905,8 @@ class TestOutputModule:
             total_questions=15,
             questions_passed=13,
             questions_failed=2,
-            company_extraction_accuracy=0.90,
+            sql_success_rate=0.95,
+            sql_query_count=30,
             rag_decision_accuracy=0.85,
             avg_relevance=0.88,
             avg_faithfulness=0.92,
@@ -1214,63 +1127,6 @@ class TestPrintSloFailures:
 class TestRunnerModule:
     """Tests for backend.eval.runner module."""
 
-    def test_detect_expected_company_found(self, monkeypatch):
-        """Test _detect_expected_company when company found in question."""
-        from backend.eval.runner import _detect_expected_company
-        from unittest.mock import MagicMock
-
-        # Mock the connection to return company data
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchall.return_value = [
-            ("ACME001", "Acme Corp"),
-            ("BETA002", "Beta Tech"),
-        ]
-
-        def mock_get_connection():
-            return mock_conn
-
-        import backend.agent.datastore.connection
-        monkeypatch.setattr(backend.agent.datastore.connection, "get_connection", mock_get_connection)
-
-        result = _detect_expected_company("What is Acme Corp's status?")
-        assert result == "ACME001"
-
-    def test_detect_expected_company_not_found(self, monkeypatch):
-        """Test _detect_expected_company when no company in question."""
-        from backend.eval.runner import _detect_expected_company
-        from unittest.mock import MagicMock
-
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchall.return_value = [
-            ("ACME001", "Acme Corp"),
-        ]
-
-        def mock_get_connection():
-            return mock_conn
-
-        import backend.agent.datastore.connection
-        monkeypatch.setattr(backend.agent.datastore.connection, "get_connection", mock_get_connection)
-
-        result = _detect_expected_company("How's my pipeline?")
-        assert result is None
-
-    def test_detect_expected_company_empty_cache(self, monkeypatch):
-        """Test _detect_expected_company with empty rows."""
-        from backend.eval.runner import _detect_expected_company
-        from unittest.mock import MagicMock
-
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchall.return_value = []
-
-        def mock_get_connection():
-            return mock_conn
-
-        import backend.agent.datastore.connection
-        monkeypatch.setattr(backend.agent.datastore.connection, "get_connection", mock_get_connection)
-
-        result = _detect_expected_company("What is Acme's status?")
-        assert result is None
-
     def test_judge_answer_success_with_mock(self):
         """Test judge_answer uses mock mode and returns valid scores."""
         from backend.eval.runner import judge_answer
@@ -1346,11 +1202,10 @@ class TestTestSingleQuestion:
                 "account_chunks": ["context chunk"],
                 "account_rag_invoked": True,
                 "sql_results": {"company_info": [{"name": "Acme", "company_id": "ACME001"}]},
+                "sql_queries_total": 2,
+                "sql_queries_success": 2,
                 "account_context_answer": "Account context from RAG",
             }
-
-        def mock_detect_company(question):
-            return "ACME001"
 
         def mock_get_expected_answer(question):
             return "Expected answer"
@@ -1369,7 +1224,6 @@ class TestTestSingleQuestion:
 
         import backend.eval.runner
         monkeypatch.setattr(backend.eval.runner, "_invoke_agent", mock_invoke_agent)
-        monkeypatch.setattr(backend.eval.runner, "_detect_expected_company", mock_detect_company)
         monkeypatch.setattr(backend.eval.runner, "judge_answer", mock_judge_answer)
 
         import backend.agent.followup.tree
@@ -1378,7 +1232,8 @@ class TestTestSingleQuestion:
         result = test_single_question("What is Acme's status?", [], "session1")
 
         assert result.has_answer is True
-        assert result.company_correct is True
+        assert result.sql_queries_total == 2
+        assert result.sql_queries_success == 2
         assert result.relevance_score == 0.90
 
     def test_test_single_question_no_answer(self, monkeypatch):
@@ -1390,17 +1245,15 @@ class TestTestSingleQuestion:
                 "answer": "",  # Empty answer
                 "sources": [],
                 "intent": "general",
+                "sql_queries_total": 0,
+                "sql_queries_success": 0,
             }
-
-        def mock_detect_company(question):
-            return None
 
         def mock_get_expected_answer(question):
             return None
 
         import backend.eval.runner
         monkeypatch.setattr(backend.eval.runner, "_invoke_agent", mock_invoke_agent)
-        monkeypatch.setattr(backend.eval.runner, "_detect_expected_company", mock_detect_company)
 
         import backend.agent.followup.tree
         monkeypatch.setattr(backend.agent.followup.tree, "get_expected_answer", mock_get_expected_answer)
@@ -1438,10 +1291,9 @@ class TestTestSingleQuestion:
                 "account_chunks": ["chunk1", "chunk2"],
                 "account_rag_invoked": True,
                 "account_context_answer": "context",
+                "sql_queries_total": 1,
+                "sql_queries_success": 1,
             }
-
-        def mock_detect_company(question):
-            return None
 
         def mock_get_expected_answer(question):
             return "Expected"
@@ -1460,7 +1312,6 @@ class TestTestSingleQuestion:
 
         import backend.eval.runner
         monkeypatch.setattr(backend.eval.runner, "_invoke_agent", mock_invoke_agent)
-        monkeypatch.setattr(backend.eval.runner, "_detect_expected_company", mock_detect_company)
         monkeypatch.setattr(backend.eval.runner, "judge_answer", mock_judge_answer)
 
         import backend.agent.followup.tree
@@ -1483,10 +1334,9 @@ class TestTestSingleQuestion:
                 "sql_results": {
                     "pipeline": [{"stage": "Discovery", "count": 5}],
                 },
+                "sql_queries_total": 1,
+                "sql_queries_success": 1,
             }
-
-        def mock_detect_company(question):
-            return None
 
         def mock_get_expected_answer(question):
             return "Expected"
@@ -1505,7 +1355,6 @@ class TestTestSingleQuestion:
 
         import backend.eval.runner
         monkeypatch.setattr(backend.eval.runner, "_invoke_agent", mock_invoke_agent)
-        monkeypatch.setattr(backend.eval.runner, "_detect_expected_company", mock_detect_company)
         monkeypatch.setattr(backend.eval.runner, "judge_answer", mock_judge_answer)
 
         import backend.agent.followup.tree
@@ -1937,15 +1786,13 @@ class TestCliModule:
         def mock_check_qdrant_access():
             return False
 
-        import backend.eval.output
-        monkeypatch.setattr(backend.eval.output, "check_qdrant_access", mock_check_qdrant_access)
+        import backend.eval.cli
+        monkeypatch.setattr(backend.eval.cli, "check_qdrant_access", mock_check_qdrant_access)
 
         # Should return early (not raise) when Qdrant not accessible
         _run_eval(
             limit=1,
             verbose=False,
-            parallel=False,
-            workers=1,
             no_judge=True,
             output=None,
             debug=False,
@@ -1979,13 +1826,13 @@ class TestCliModule:
         def mock_get_latency_percentages(**kwargs):
             return {}
 
-        import backend.eval.output
+        import backend.eval.cli
         import backend.agent.rag.tools
         import backend.agent.followup.tree
         import backend.eval.runner
         import backend.eval.langsmith
 
-        monkeypatch.setattr(backend.eval.output, "check_qdrant_access", mock_check_qdrant_access)
+        monkeypatch.setattr(backend.eval.cli, "check_qdrant_access", mock_check_qdrant_access)
         monkeypatch.setattr(backend.agent.rag.tools, "tool_account_rag", mock_tool_account_rag)
         monkeypatch.setattr(backend.agent.followup.tree, "get_tree_stats", mock_get_tree_stats)
         monkeypatch.setattr(backend.eval.runner, "run_flow_eval", mock_run_flow_eval)
@@ -1995,8 +1842,6 @@ class TestCliModule:
         _run_eval(
             limit=1,
             verbose=False,
-            parallel=False,
-            workers=1,
             no_judge=True,
             output=None,
             debug=False,
@@ -2030,13 +1875,14 @@ class TestCliModule:
         def mock_get_latency_percentages(**kwargs):
             return {"routing": 0.2, "retrieval": 0.3, "answer": 0.25}
 
-        import backend.eval.output
+        import backend.eval.cli
         import backend.agent.rag.tools
         import backend.agent.followup.tree
         import backend.eval.runner
         import backend.eval.langsmith
 
-        monkeypatch.setattr(backend.eval.output, "check_qdrant_access", mock_check_qdrant_access)
+        # Must patch in cli module where it's imported
+        monkeypatch.setattr(backend.eval.cli, "check_qdrant_access", mock_check_qdrant_access)
         monkeypatch.setattr(backend.agent.rag.tools, "tool_account_rag", mock_tool_account_rag)
         monkeypatch.setattr(backend.agent.followup.tree, "get_tree_stats", mock_get_tree_stats)
         monkeypatch.setattr(backend.eval.runner, "run_flow_eval", mock_run_flow_eval)
@@ -2047,8 +1893,6 @@ class TestCliModule:
         _run_eval(
             limit=1,
             verbose=False,
-            parallel=False,
-            workers=1,
             no_judge=True,
             output=str(output_path),
             debug=False,
@@ -2103,13 +1947,13 @@ class TestCliModule:
         def mock_get_latency_percentages(**kwargs):
             return {}
 
-        import backend.eval.output
+        import backend.eval.cli
         import backend.agent.rag.tools
         import backend.agent.followup.tree
         import backend.eval.runner
         import backend.eval.langsmith
 
-        monkeypatch.setattr(backend.eval.output, "check_qdrant_access", mock_check_qdrant_access)
+        monkeypatch.setattr(backend.eval.cli, "check_qdrant_access", mock_check_qdrant_access)
         monkeypatch.setattr(backend.agent.rag.tools, "tool_account_rag", mock_tool_account_rag)
         monkeypatch.setattr(backend.agent.followup.tree, "get_tree_stats", mock_get_tree_stats)
         monkeypatch.setattr(backend.eval.runner, "run_flow_eval", mock_run_flow_eval)
@@ -2119,8 +1963,6 @@ class TestCliModule:
         _run_eval(
             limit=1,
             verbose=False,
-            parallel=False,
-            workers=1,
             no_judge=True,
             output=None,
             debug=True,  # Enable debug output
@@ -2143,12 +1985,12 @@ class TestCliModule:
         def mock_run_flow_eval(**kwargs):
             raise RuntimeError("Evaluation crashed")
 
-        import backend.eval.output
+        import backend.eval.cli
         import backend.agent.rag.tools
         import backend.agent.followup.tree
         import backend.eval.runner
 
-        monkeypatch.setattr(backend.eval.output, "check_qdrant_access", mock_check_qdrant_access)
+        monkeypatch.setattr(backend.eval.cli, "check_qdrant_access", mock_check_qdrant_access)
         monkeypatch.setattr(backend.agent.rag.tools, "tool_account_rag", mock_tool_account_rag)
         monkeypatch.setattr(backend.agent.followup.tree, "get_tree_stats", mock_get_tree_stats)
         monkeypatch.setattr(backend.eval.runner, "run_flow_eval", mock_run_flow_eval)
@@ -2157,8 +1999,6 @@ class TestCliModule:
         _run_eval(
             limit=1,
             verbose=False,
-            parallel=False,
-            workers=1,
             no_judge=True,
             output=None,
             debug=False,
@@ -2194,7 +2034,8 @@ class TestRunFlowEval:
                         has_sources=True,
                         relevance_score=0.9,
                         faithfulness_score=0.9,
-                        company_correct=True,
+                        sql_queries_total=2,
+                        sql_queries_success=2,
                         rag_decision_correct=True,
                     ),
                     FlowStepResult(
@@ -2205,6 +2046,8 @@ class TestRunFlowEval:
                         has_sources=True,
                         relevance_score=0.85,
                         faithfulness_score=0.85,
+                        sql_queries_total=1,
+                        sql_queries_success=1,
                     ),
                 ],
                 total_latency_ms=200,

@@ -132,10 +132,13 @@ attachments: attachment_id, company_id, contact_id, opportunity_id,
 2. Forecast weights: New=5%, Discovery=10%, Qualified=25%, Proposal=50%, Negotiation=75%
 3. Use LIMIT to prevent large results (max 50 rows)
 4. For names, use LOWER() and LIKE for fuzzy match
-5. Set needs_account_rag=true if question is about a specific company (e.g., "Tell me about Acme", "What's Acme's pipeline?")
-6. Set needs_account_rag=false for aggregate queries (e.g., "Show me all deals at risk", "What's the forecast?")
+5. Set needs_account_rag=true ONLY if question mentions a SPECIFIC COMPANY NAME (e.g., "Tell me about Acme", "What's Acme's pipeline?", "What's going on with Delta Health?")
+6. Set needs_account_rag=false for aggregate/personal queries WITHOUT a company name (e.g., "How's my pipeline?", "Show my pipeline", "What's in my pipeline?", "Show me all deals at risk", "What's the forecast?", "Any renewals at risk?")
 7. Set needs_account_rag=false for contact-specific queries without company context (e.g., "Who is Lisa Ng?")
 8. If owner is set, filter by owner WHERE relevant (e.g., opportunities.owner, activities.owner)
+9. CRITICAL: If needs_account_rag=true, your FIRST query MUST select company_id from companies table:
+   SELECT company_id, name, ... FROM companies WHERE LOWER(name) LIKE '%company_name%' LIMIT 1
+   This ensures company_id is resolved for the Account RAG lookup.
 
 ## CURRENT USER
 {owner}

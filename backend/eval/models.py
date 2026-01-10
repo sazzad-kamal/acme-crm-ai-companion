@@ -35,7 +35,7 @@ SLO_LATENCY_ANSWER_PCT = 0.30  # 30% - LLM generation
 
 # Routing Quality SLOs
 SLO_ROUTER_ACCURACY = 0.90  # 90% router accuracy (intent classification)
-SLO_COMPANY_EXTRACTION = 0.90  # 90% company extraction accuracy
+SLO_SQL_SUCCESS = 0.95  # 95% SQL query success rate
 
 # Flow Eval SLOs
 SLO_FLOW_PATH_PASS_RATE = 0.85  # 85% of conversation paths should pass
@@ -65,10 +65,10 @@ class FlowStepResult:
     latency_ms: int
     has_answer: bool
     has_sources: bool
-    # Routing metrics
-    expected_company_id: str | None = None
-    actual_company_id: str | None = None
-    company_correct: bool = True
+    # SQL execution metrics
+    sql_queries_total: int = 0
+    sql_queries_success: int = 0
+    # RAG decision metrics
     expected_rag: bool | None = None
     actual_rag: bool = False
     rag_decision_correct: bool = True
@@ -123,9 +123,10 @@ class FlowEvalResults:
     total_questions: int
     questions_passed: int
     questions_failed: int
-    # Routing metrics
-    company_extraction_accuracy: float = 0.0
-    company_sample_count: int = 0  # Number of steps with expected company (0 = N/A)
+    # SQL execution metrics
+    sql_success_rate: float = 0.0  # Percentage of SQL queries that succeeded
+    sql_query_count: int = 0  # Total number of SQL queries executed
+    # RAG decision metrics
     rag_decision_accuracy: float = 0.0
     # RAGAS metrics (0.0-1.0) - answer quality
     avg_relevance: float = 0.0  # RAGAS answer_relevancy
@@ -181,10 +182,10 @@ class FlowEvalResults:
         - Answer Correctness: 15% (factual accuracy)
         - Account Precision: 10% (retrieved relevant chunks)
         - Account Recall: 10% (retrieved all needed chunks)
-        - Routing: 10% (company + intent combined)
+        - Routing: 10% (SQL success + RAG decision combined)
         - Latency: 5% (speed, capped at SLO)
         """
-        routing_score = (self.company_extraction_accuracy + self.rag_decision_accuracy) / 2
+        routing_score = (self.sql_success_rate + self.rag_decision_accuracy) / 2
         latency_score = _latency_score(self.avg_latency_per_question_ms, SLO_FLOW_AVG_LATENCY_MS)
         return (
             0.30 * self.avg_faithfulness
