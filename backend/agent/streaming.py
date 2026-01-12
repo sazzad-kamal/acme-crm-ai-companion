@@ -31,16 +31,16 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
 
     try:
         async for e in agent_graph.astream_events(state, config=config, version="v2"):
-            typ, name = e.get("event"), e.get("name", "")
+            event_type, name = e.get("event"), e.get("name", "")
 
-            if typ == "on_chain_start" and name == ANSWER_NODE:
+            if event_type == "on_chain_start" and name == ANSWER_NODE:
                 in_answer_node = True
 
-            elif typ == "on_chat_model_stream" and in_answer_node:
+            elif event_type == "on_chat_model_stream" and in_answer_node:
                 if content := getattr(e.get("data", {}).get("chunk"), "content", ""):
                     yield _format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": content})
 
-            elif typ == "on_chain_end" and name == "LangGraph":
+            elif event_type == "on_chain_end" and name == "LangGraph":
                 final = e.get("data", {}).get("output") or {}
                 yield _format_sse(StreamEvent.ANSWER_END, {"answer": final.get("answer", "")})
                 yield _format_sse(StreamEvent.DONE, {
