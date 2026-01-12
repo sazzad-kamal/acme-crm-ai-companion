@@ -558,7 +558,7 @@ class TestLangSmithLatency:
                 if kwargs.get("is_root") is False:
                     return [
                         MockRun("route", now, now + timedelta(milliseconds=100)),
-                        MockRun("fetch_account", now, now + timedelta(milliseconds=500)),
+                        MockRun("fetch_rag", now, now + timedelta(milliseconds=500)),
                         MockRun("answer", now, now + timedelta(milliseconds=300)),
                     ]
                 else:
@@ -575,10 +575,10 @@ class TestLangSmithLatency:
         result = get_latency_breakdown()
 
         assert "route" in result
-        assert "fetch_account" in result
+        assert "fetch_rag" in result
         assert "answer" in result
         assert result["route"]["avg_ms"] == 100.0
-        assert result["fetch_account"]["avg_ms"] == 500.0
+        assert result["fetch_rag"]["avg_ms"] == 500.0
         assert result["answer"]["avg_ms"] == 300.0
 
     def test_get_latency_breakdown_api_error(self, monkeypatch):
@@ -1458,7 +1458,7 @@ class TestLangSmithPercentages:
             def list_runs(self, **kwargs):
                 return [
                     MockRun("route", now, now + timedelta(milliseconds=100)),
-                    MockRun("fetch_account", now, now + timedelta(milliseconds=400)),
+                    MockRun("fetch_rag", now, now + timedelta(milliseconds=400)),
                     MockRun("answer", now, now + timedelta(milliseconds=300)),
                     MockRun("followup", now, now + timedelta(milliseconds=200)),
                 ]

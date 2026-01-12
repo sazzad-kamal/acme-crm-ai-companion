@@ -9,7 +9,6 @@ Run with: pytest tests/backend/agent/test_conversation_history.py -v
 import pytest
 
 from backend.agent.core.state import AgentState, Message, format_history_for_prompt
-from backend.agent.graph import clear_thread
 
 
 class TestMessageType:
@@ -120,15 +119,3 @@ class TestFormatHistoryForPrompt:
         assert "Question 9" in result
         assert "Question 0" not in result
         assert "Question 6" not in result
-
-
-class TestClearThread:
-    """Tests for clear_thread function."""
-
-    def test_clear_nonexistent_session(self):
-        """Test clearing a non-existent session is safe."""
-        clear_thread("nonexistent")  # Should not raise
-
-    def test_clear_none_session(self):
-        """Test clearing None session is safe."""
-        clear_thread(None)  # Should not raise

@@ -7,18 +7,12 @@ Import from this module instead of defining constants in individual files.
 
 import logging
 import os
-from pathlib import Path
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Configure module logger
 logger = logging.getLogger(__name__)
-
-# Resolve backend root directory (for default paths)
-# backend/agent/core/config.py -> core -> agent -> backend
-_BACKEND_ROOT = Path(__file__).parent.parent.parent.resolve()
-_DEFAULT_AUDIT_LOG = _BACKEND_ROOT / "eval" / "output" / "audit.jsonl"
 
 
 class AgentConfig(BaseSettings):
@@ -61,13 +55,6 @@ class AgentConfig(BaseSettings):
     )
     max_followup_suggestions: int = Field(
         default=3, description="Maximum number of follow-up suggestions to return"
-    )
-
-    # -------------------------------------------------------------------------
-    # Paths
-    # -------------------------------------------------------------------------
-    audit_log_file: Path = Field(
-        default=_DEFAULT_AUDIT_LOG, description="Path to agent audit log file"
     )
 
     # Pydantic v2 configuration

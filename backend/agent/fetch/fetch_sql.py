@@ -1,4 +1,4 @@
-"""CRM data fetch node using SQL executor."""
+"""SQL data fetch node."""
 
 import logging
 import time
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 MAX_SQL_RETRIES = 1
 
 
-def fetch_crm_node(state: AgentState) -> AgentState:
+def fetch_sql_node(state: AgentState) -> AgentState:
     """
     Execute SQL queries from query_plan and return results.
 
@@ -26,13 +26,13 @@ def fetch_crm_node(state: AgentState) -> AgentState:
 
     # If no query plan (error in route_node), return empty results
     if not query_plan or not query_plan.queries:
-        logger.info("[FetchCRM] No queries to execute")
+        logger.info("[FetchSQL] No queries to execute")
         return {
             "sql_results": {},
             "raw_data": {},
         }
 
-    logger.info(f"[FetchCRM] Executing {len(query_plan.queries)} SQL queries...")
+    logger.info(f"[FetchSQL] Executing {len(query_plan.queries)} SQL queries...")
 
     try:
         # Get DuckDB connection with CSV tables loaded
@@ -48,7 +48,7 @@ def fetch_crm_node(state: AgentState) -> AgentState:
             owner = state.get("owner")
             conversation_history = state.get("conversation_history", "")
 
-            logger.info(f"[FetchCRM] Retrying {stats.failed} failed queries with error feedback")
+            logger.info(f"[FetchSQL] Retrying {stats.failed} failed queries with error feedback")
 
             # Get new query plan with error feedback
             retry_plan = get_query_plan(
@@ -72,7 +72,7 @@ def fetch_crm_node(state: AgentState) -> AgentState:
             # Merge resolved IDs
             resolved.update(retry_resolved)
 
-            logger.info(f"[FetchCRM] Retry recovered {retry_stats.success}/{retry_stats.total} queries")
+            logger.info(f"[FetchSQL] Retry recovered {retry_stats.success}/{retry_stats.total} queries")
 
         # Extract resolved entity IDs for RAG filtering
         resolved_company_id = resolved.get("$company_id")
@@ -84,7 +84,7 @@ def fetch_crm_node(state: AgentState) -> AgentState:
 
         latency_ms = int((time.time() - start_time) * 1000)
         logger.info(
-            f"[FetchCRM] Complete in {latency_ms}ms, "
+            f"[FetchSQL] Complete in {latency_ms}ms, "
             f"results={list(sql_results.keys())}, "
             f"resolved={{company={resolved_company_id}, contact={resolved_contact_id}, opp={resolved_opportunity_id}}}, "
             f"sql_success={stats.success}/{stats.total}"
@@ -103,7 +103,7 @@ def fetch_crm_node(state: AgentState) -> AgentState:
 
     except Exception as e:
         latency_ms = int((time.time() - start_time) * 1000)
-        logger.error(f"[FetchCRM] Failed after {latency_ms}ms: {e}")
+        logger.error(f"[FetchSQL] Failed after {latency_ms}ms: {e}")
         return {
             "sql_results": {},
             "raw_data": {},
@@ -169,4 +169,4 @@ def _build_sources_from_results(
     return sources
 
 
-__all__ = ["fetch_crm_node"]
+__all__ = ["fetch_sql_node"]

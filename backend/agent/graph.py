@@ -1,12 +1,4 @@
-"""
-LangGraph-based agent orchestration.
-
-Implements a sequential fetch graph:
-    Route → fetch_crm → fetch_account → Answer → Followup
-
-Sequential flow allows fetch_crm to resolve company_id before fetch_account needs it.
-DuckDB queries (~5ms) are negligible compared to RAG (~500-2000ms).
-"""
+"""LangGraph agent orchestration: Route → fetch_sql → fetch_rag → Answer → Followup."""
 
 import uuid
 
@@ -15,8 +7,8 @@ from langgraph.graph import END, StateGraph
 
 from backend.agent.answer.node import answer_node
 from backend.agent.core.state import AgentState
-from backend.agent.fetch.fetch_crm import fetch_crm_node
-from backend.agent.fetch.fetch_entity import fetch_account_node
+from backend.agent.fetch.fetch_sql import fetch_sql_node
+from backend.agent.fetch.fetch_rag import fetch_rag_node
 from backend.agent.followup.node import followup_node
 from backend.agent.route.node import route_node
 
@@ -39,35 +31,24 @@ def build_thread_config(session_id: str | None) -> dict:
     return {"configurable": {"thread_id": session_id or str(uuid.uuid4())}}
 
 
-def clear_thread(session_id: str | None) -> None:
-    """Clear conversation history for a session by deleting checkpoint."""
-    if not session_id:
-        return
-    # MemorySaver stores checkpoints keyed by (thread_id, checkpoint_ns, checkpoint_id)
-    keys_to_delete = [k for k in _checkpointer.storage if k[0] == session_id]
-    for key in keys_to_delete:
-        del _checkpointer.storage[key]
-
-
 def _build_graph():
     """Build the LangGraph workflow with sequential fetch nodes."""
     graph = StateGraph(AgentState)
 
     # Add nodes
     graph.add_node("route", route_node)
-    graph.add_node("fetch_crm", fetch_crm_node)
-    graph.add_node("fetch_account", fetch_account_node)
+    graph.add_node("fetch_sql", fetch_sql_node)
+    graph.add_node("fetch_rag", fetch_rag_node)
     graph.add_node(ANSWER_NODE, answer_node)
     graph.add_node("followup", followup_node)
 
     # Entry point
     graph.set_entry_point("route")
 
-    # Sequential flow: route → fetch_crm → fetch_account → answer → followup
-    # fetch_crm resolves company_id from SQL, fetch_account uses it for RAG
-    graph.add_edge("route", "fetch_crm")
-    graph.add_edge("fetch_crm", "fetch_account")
-    graph.add_edge("fetch_account", ANSWER_NODE)
+    # Sequential flow: route → fetch_sql → fetch_rag → answer → followup
+    graph.add_edge("route", "fetch_sql")
+    graph.add_edge("fetch_sql", "fetch_rag")
+    graph.add_edge("fetch_rag", ANSWER_NODE)
     graph.add_edge(ANSWER_NODE, "followup")
     graph.add_edge("followup", END)
 
@@ -76,4 +57,4 @@ def _build_graph():
 
 agent_graph = _build_graph()
 
-__all__ = ["agent_graph", "build_thread_config", "clear_thread", "LangGraphEvent", "GRAPH_NAME", "ANSWER_NODE"]
+__all__ = ["agent_graph", "build_thread_config", "LangGraphEvent", "GRAPH_NAME", "ANSWER_NODE"]

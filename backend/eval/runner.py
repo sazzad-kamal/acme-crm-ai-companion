@@ -132,7 +132,7 @@ def test_single_question(
         account_chunks = result.get("account_chunks", [])
 
         # Account RAG is called automatically when entity IDs are resolved
-        # Use the explicit flag set by fetch_account_node (tracks actual invocations)
+        # Use the explicit flag set by fetch_rag_node (tracks actual invocations)
         account_rag_invoked = result.get("account_rag_invoked", False)
 
         # Build all_contexts from sql_results (JSON stringified)

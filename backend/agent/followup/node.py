@@ -23,7 +23,7 @@ def followup_node(state: AgentState) -> AgentState:
     # Use pre-formatted conversation_history from route_node
     conversation_history = state.get("conversation_history", "")
 
-    # Get SQL results from fetch_crm
+    # Get SQL results from fetch_sql
     sql_results = state.get("sql_results", {})
 
     # Extract company name from sql_results if available

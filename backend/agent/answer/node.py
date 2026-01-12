@@ -20,10 +20,10 @@ def answer_node(state: AgentState) -> AgentState:
     logger.info("[Answer] Synthesizing response...")
 
     try:
-        # Get SQL results from fetch_crm
+        # Get SQL results from fetch_sql
         sql_results = state.get("sql_results", {})
 
-        # Get account context from fetch_account (RAG)
+        # Get account context from fetch_rag
         account_context = state.get("account_context_answer", "")
 
         # Get conversation history (formatted in route_node)

@@ -106,7 +106,7 @@ class AgentState(TypedDict, total=False):
     sources: Annotated[list[Source], add]
 
     # Individual context chunks for RAGAS evaluation
-    account_chunks: list[str]  # From fetch_account (private CRM text RAG)
+    account_chunks: list[str]  # From fetch_rag
 
     # Final outputs
     answer: str
