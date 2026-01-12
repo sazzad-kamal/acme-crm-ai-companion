@@ -218,7 +218,7 @@ def route(
 ) -> None:
     """Run route node evaluation only (tests query planner in isolation)."""
     logging.basicConfig(level=logging.WARNING)
-    from backend.agent.route.eval import print_summary, run_route_eval
+    from backend.eval.route.eval import print_summary, run_route_eval
 
     results = run_route_eval(limit=limit, verbose=verbose)
     print_summary(results)
