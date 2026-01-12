@@ -27,40 +27,6 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# Role-Based Starter Detection (moved from router.py)
-# =============================================================================
-
-# Maps starter question patterns to owner IDs
-# Sales Rep = jsmith, CSM = amartin, Manager = None (sees all)
-STARTER_OWNER_MAP = {
-    # Sales Rep starters
-    "show my open deals": "jsmith",
-    "my open deals": "jsmith",
-    "show my deals": "jsmith",
-    # CSM starters
-    "show my at-risk renewals": "amartin",
-    "at-risk renewals": "amartin",
-    "my at-risk renewals": "amartin",
-    # Manager starters (no owner filter - sees all)
-    "show team pipeline": None,
-    "team pipeline": None,
-    "show all deals": None,
-}
-
-
-def detect_owner_from_starter(question: str) -> str | None:
-    """Detect owner ID from starter question patterns."""
-    q = question.lower().strip().rstrip("?")
-
-    for pattern, owner in STARTER_OWNER_MAP.items():
-        if pattern in q:
-            logger.debug("Detected starter pattern '%s' → owner=%s", pattern, owner)
-            return owner
-
-    return None
-
-
-# =============================================================================
 # Prompt Template
 # =============================================================================
 
@@ -256,6 +222,4 @@ __all__ = [
     "SlotPlan",
     "SlotQuery",
     "get_slot_plan",
-    "detect_owner_from_starter",
-    "STARTER_OWNER_MAP",
 ]
