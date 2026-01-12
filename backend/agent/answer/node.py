@@ -17,20 +17,11 @@ def answer_node(state: AgentState) -> AgentState:
     logger.info("[Answer] Synthesizing response...")
 
     try:
-        # Get SQL results from fetch_sql
-        sql_results = state.get("sql_results", {})
-
-        # Get account context from fetch_rag
-        account_context = state.get("account_context_answer", "")
-
-        conversation_history = format_history_for_prompt(state.get("messages", []))
-
-        # Call answer chain with simplified parameters
         answer, _ = call_answer_chain(
             question=state["question"],
-            sql_results=sql_results,
-            account_context=account_context,
-            conversation_history=conversation_history,
+            sql_results=state.get("sql_results", {}),
+            account_context=state.get("account_context_answer", ""),
+            conversation_history=format_history_for_prompt(state.get("messages", [])),
         )
 
         # Validate answer

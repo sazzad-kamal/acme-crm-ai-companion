@@ -18,9 +18,6 @@ def followup_node(state: AgentState) -> AgentState:
 
     logger.info("[Followup] Generating suggestions...")
 
-    conversation_history = format_history_for_prompt(state.get("messages", []))
-
-    # Get SQL results from fetch_sql
     sql_results = state.get("sql_results", {})
 
     # Extract company name from sql_results if available
@@ -44,7 +41,7 @@ def followup_node(state: AgentState) -> AgentState:
             question=state["question"],
             company_id=state.get("resolved_company_id"),
             company_name=company_name,
-            conversation_history=conversation_history,
+            conversation_history=format_history_for_prompt(state.get("messages", [])),
             available_data=available_data,
         )
 

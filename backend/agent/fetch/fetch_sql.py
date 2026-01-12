@@ -37,19 +37,12 @@ def fetch_sql_node(state: AgentState) -> AgentState:
 
         # Retry with error feedback if any queries failed
         if stats.failed > 0 and stats.errors:
-            error_summary = stats.get_error_summary()
-            question = state.get("question", "")
-            owner = state.get("owner")
-            conversation_history = format_history_for_prompt(state.get("messages", []))
-
             logger.info(f"[FetchSQL] Retrying {stats.failed} failed queries with error feedback")
 
-            # Get new slot plan with error feedback
-            history = f"{conversation_history}\n\n[PREVIOUS QUERY FAILED]\n{error_summary}\nPlease fix the query."
             retry_plan = get_slot_plan(
-                question=question,
-                conversation_history=history,
-                owner=owner,
+                question=state.get("question", ""),
+                conversation_history=f"{format_history_for_prompt(state.get('messages', []))}\n\n[PREVIOUS QUERY FAILED]\n{stats.get_error_summary()}\nPlease fix the query.",
+                owner=state.get("owner"),
             )
 
             # Execute retry plan
