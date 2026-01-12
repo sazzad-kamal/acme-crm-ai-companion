@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 class StreamEvent:
     ANSWER_CHUNK = "answer_chunk"
-    ANSWER_END = "answer_end"
     DONE = "done"
     ERROR = "error"
 
@@ -47,8 +46,8 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
 
             elif event_type == LangGraphEvent.CHAIN_END and name == GRAPH_NAME:
                 final = e.get("data", {}).get("output") or {}
-                yield _format_sse(StreamEvent.ANSWER_END, {"answer": final.get("answer", "")})
                 yield _format_sse(StreamEvent.DONE, {
+                    "answer": final.get("answer", ""),
                     "raw_data": final.get("raw_data", {}),
                     "follow_up_suggestions": final.get("follow_up_suggestions", []),
                 })

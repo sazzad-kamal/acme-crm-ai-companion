@@ -208,11 +208,8 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
                 updateMessageResponse();
                 break;
 
-              case "answer_end":
-                accumulatedAnswer = event.data.answer as string;
-                break;
-
               case "done":
+                accumulatedAnswer = event.data.answer as string;
                 finalResponse = event.data as unknown as ChatResponse;
                 break;
 
@@ -225,11 +222,13 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
           }
         }
 
-        // Apply final response
+        // Apply final response (merge answer with metadata from done event)
         if (finalResponse) {
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.id === messageId ? { ...msg, response: finalResponse } : msg
+              msg.id === messageId
+                ? { ...msg, response: { answer: accumulatedAnswer, ...finalResponse } }
+                : msg
             )
           );
         }

@@ -113,7 +113,6 @@ class TestStreamingModule:
         from backend.agent.streaming import StreamEvent
 
         assert hasattr(StreamEvent, "ANSWER_CHUNK")
-        assert hasattr(StreamEvent, "ANSWER_END")
         assert hasattr(StreamEvent, "DONE")
         assert hasattr(StreamEvent, "ERROR")
 

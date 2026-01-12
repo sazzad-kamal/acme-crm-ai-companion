@@ -233,7 +233,6 @@ describe("useChatStream", () => {
     const events = [
       'event: answer_chunk\ndata: {"chunk": "Hello "}\n\n',
       'event: answer_chunk\ndata: {"chunk": "World"}\n\n',
-      'event: answer_end\ndata: {"answer": "Hello World"}\n\n',
       `event: done\ndata: ${JSON.stringify({ answer: "Hello World", sources: [], steps: [], raw_data: {}, meta: {} })}\n\n`,
     ];
 
