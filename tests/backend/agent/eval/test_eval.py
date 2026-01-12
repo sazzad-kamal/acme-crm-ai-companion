@@ -227,7 +227,7 @@ class TestFlowEvalResults:
             questions_failed=4,
             sql_success_rate=0.95,
             sql_query_count=100,
-            rag_decision_accuracy=0.90,
+            rag_detection_rate=0.90,
             avg_relevance=0.88,
             avg_faithfulness=0.92,
             avg_answer_correctness=0.75,
@@ -236,12 +236,10 @@ class TestFlowEvalResults:
             avg_latency_per_question_ms=3000.0,  # Under SLO, so latency_score = 1.0
         )
 
-        # Composite = 0.30*faith + 0.20*rel + 0.15*ans + 0.10*acct_prec + 0.10*acct_recall + 0.10*routing + 0.05*latency
-        # routing = (0.95 + 0.90) / 2 = 0.925
+        # Composite = 0.30*faith + 0.20*rel + 0.15*ans + 0.10*acct_prec + 0.10*acct_recall + 0.10*sql + 0.05*latency
         # latency_score = 1.0 (3000ms <= 4000ms SLO)
-        # = 0.30*0.92 + 0.20*0.88 + 0.15*0.75 + 0.10*0.85 + 0.10*0.80 + 0.10*0.925 + 0.05*1.0
-        # = 0.276 + 0.176 + 0.1125 + 0.085 + 0.080 + 0.0925 + 0.05 = 0.872
-        expected = 0.30 * 0.92 + 0.20 * 0.88 + 0.15 * 0.75 + 0.10 * 0.85 + 0.10 * 0.80 + 0.10 * 0.925 + 0.05 * 1.0
+        # = 0.30*0.92 + 0.20*0.88 + 0.15*0.75 + 0.10*0.85 + 0.10*0.80 + 0.10*0.95 + 0.05*1.0
+        expected = 0.30 * 0.92 + 0.20 * 0.88 + 0.15 * 0.75 + 0.10 * 0.85 + 0.10 * 0.80 + 0.10 * 0.95 + 0.05 * 1.0
         assert abs(results.composite_score - expected) < 0.001
         assert results.composite_score > 0.85  # Should pass SLO
 
@@ -731,7 +729,7 @@ class TestOutputModule:
             questions_failed=2,
             sql_success_rate=0.98,
             sql_query_count=50,
-            rag_decision_accuracy=0.92,
+            rag_detection_rate=0.92,
             avg_relevance=0.90,
             avg_faithfulness=0.92,
             avg_answer_correctness=0.75,
@@ -805,88 +803,13 @@ class TestOutputModule:
             questions_passed=13,
             questions_failed=2,
             sql_query_count=0,  # No SQL queries executed
-            rag_decision_accuracy=0.95,
+            rag_detection_rate=0.95,
             avg_relevance=0.90,
             avg_faithfulness=0.92,
         )
 
         result = print_summary(results, eval_mode="both")
         assert isinstance(result, bool)
-
-    def test_count_ragas_failures_pipeline_mode(self):
-        """Test _count_ragas_failures in pipeline mode."""
-        from backend.eval.output import _count_ragas_failures
-
-        step = FlowStepResult(
-            question="Q",
-            answer="A",
-            latency_ms=100,
-            has_answer=True,
-            has_sources=True,
-            relevance_score=0.5,  # Below SLO
-            faithfulness_score=0.5,  # Below SLO
-            answer_correctness_score=0.5,  # Below SLO
-        )
-
-        count = _count_ragas_failures(step, eval_mode="pipeline")
-        assert count == 3  # All 3 metrics failed
-
-    def test_count_ragas_failures_rag_mode(self):
-        """Test _count_ragas_failures in rag mode."""
-        from backend.eval.output import _count_ragas_failures
-
-        step = FlowStepResult(
-            question="Q",
-            answer="A",
-            latency_ms=100,
-            has_answer=True,
-            has_sources=True,
-            account_rag_invoked=True,
-            account_precision_score=0.5,  # Below SLO
-            account_recall_score=0.5,  # Below SLO
-        )
-
-        count = _count_ragas_failures(step, eval_mode="rag")
-        assert count == 2  # Both RAG metrics failed
-
-    def test_count_ragas_failures_both_mode(self):
-        """Test _count_ragas_failures in both mode."""
-        from backend.eval.output import _count_ragas_failures
-
-        step = FlowStepResult(
-            question="Q",
-            answer="A",
-            latency_ms=100,
-            has_answer=True,
-            has_sources=True,
-            relevance_score=0.5,  # Below SLO
-            faithfulness_score=0.95,  # Passing
-            answer_correctness_score=0.5,  # Below SLO
-            account_rag_invoked=True,
-            account_precision_score=0.5,  # Below SLO
-            account_recall_score=0.85,  # Passing
-        )
-
-        count = _count_ragas_failures(step, eval_mode="both")
-        assert count == 3  # relevance, answer_correctness, precision failed
-
-    def test_count_ragas_failures_rag_not_invoked(self):
-        """Test _count_ragas_failures when RAG not invoked."""
-        from backend.eval.output import _count_ragas_failures
-
-        step = FlowStepResult(
-            question="Q",
-            answer="A",
-            latency_ms=100,
-            has_answer=True,
-            has_sources=True,
-            account_rag_invoked=False,  # RAG not invoked
-            account_precision_score=0.0,
-            account_recall_score=0.0,
-        )
-
-        count = _count_ragas_failures(step, eval_mode="rag")
-        assert count == 0  # RAG not invoked, so no failures counted
 
     def test_save_results(self, tmp_path):
         """Test save_results writes correct JSON."""
@@ -902,7 +825,7 @@ class TestOutputModule:
             questions_failed=2,
             sql_success_rate=0.95,
             sql_query_count=30,
-            rag_decision_accuracy=0.85,
+            rag_detection_rate=0.85,
             avg_relevance=0.88,
             avg_faithfulness=0.92,
             avg_answer_correctness=0.70,

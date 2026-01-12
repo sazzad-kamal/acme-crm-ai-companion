@@ -206,7 +206,7 @@ def mock_llm():
             name = next(n for n in company_names if n in q)
             queries.append(SlotQuery(
                 table="companies",
-                filters=[Filter(field="name", op="eq", value=name)],
+                filters=[Filter(field="name", op="=", value=name)],
             ))
             queries.append(SlotQuery(
                 table="opportunities",
@@ -222,12 +222,12 @@ def mock_llm():
         elif "pipeline" in q:
             queries.append(SlotQuery(
                 table="opportunities",
-                filters=[Filter(field="stage", op="not_in", value=["Closed Won", "Closed Lost"])],
+                filters=[Filter(field="stage", op="NOT IN", value=["Closed Won", "Closed Lost"])],
             ))
         elif any(kw in q for kw in ["forecast", "weighted"]):
             queries.append(SlotQuery(
                 table="opportunities",
-                filters=[Filter(field="stage", op="not_in", value=["Closed Won", "Closed Lost"])],
+                filters=[Filter(field="stage", op="NOT IN", value=["Closed Won", "Closed Lost"])],
             ))
         elif any(kw in q for kw in ["at risk", "at-risk", "stalled"]):
             queries.append(SlotQuery(

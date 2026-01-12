@@ -16,17 +16,22 @@
               "type": "object",
               "properties": {
                 "field": { "type": "string" },
-                "op": { "type": "string", "enum": ["eq", "neq", "gt", "lt", "gte", "lte", "in", "not_in", "like"] },
-                "value": {}
+                "op": { "type": "string", "enum": ["=", "!=", ">", "<", ">=", "<=", "IN", "NOT IN", "LIKE"] },
+                "value": {
+                  "anyOf": [
+                    { "type": "string" },
+                    { "type": "number" },
+                    { "type": "array", "items": { "type": "string" } }
+                  ]
+                }
               },
               "required": ["field", "op", "value"],
               "additionalProperties": false
             }
           },
-          "columns": { "type": ["array", "null"], "items": { "type": "string" } },
           "order_by": { "type": ["string", "null"] }
         },
-        "required": ["table", "filters", "columns", "order_by"],
+        "required": ["table", "filters", "order_by"],
         "additionalProperties": false
       }
     },

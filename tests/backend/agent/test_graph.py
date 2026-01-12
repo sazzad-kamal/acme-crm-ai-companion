@@ -46,7 +46,7 @@ class TestGraphIntegration:
 
         mock_planner.return_value = SlotPlan(
             queries=[
-                SlotQuery(table="companies", filters=[Filter(field="name", op="eq", value="acme")]),
+                SlotQuery(table="companies", filters=[Filter(field="name", op="=", value="acme")]),
             ],
             needs_rag=True,
         )

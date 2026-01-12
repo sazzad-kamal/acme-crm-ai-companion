@@ -4,7 +4,6 @@ Slot-based query system for reliable SQL generation.
 Instead of LLM generating raw SQL, it outputs structured slots:
 - table: which table to query
 - filters: list of {field, op, value} conditions
-- columns: SELECT columns (optional)
 - order_by: ORDER BY clause (optional)
 
 We then build valid SQL programmatically using pypika.
@@ -24,17 +23,14 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Pydantic Models
 # =============================================================================
-
-
 class Filter(BaseModel):
     """A single filter condition."""
 
     field: str = Field(description="Column name to filter on")
-    op: Literal["eq", "neq", "gt", "lt", "gte", "lte", "in", "not_in", "like"] = Field(
-        description="Operator: eq, neq, gt, lt, gte, lte, in, not_in, like"
+    op: Literal["=", "!=", ">", "<", ">=", "<=", "IN", "NOT IN", "LIKE"] = Field(
+        description="SQL operator"
     )
     value: Any = Field(description="Value to compare against")
-
 
 class SlotQuery(BaseModel):
     """A single slot-based query."""
@@ -44,15 +40,10 @@ class SlotQuery(BaseModel):
         default_factory=list,
         description="List of filter conditions",
     )
-    columns: list[str] | None = Field(
-        default=None,
-        description="Columns to select. None means all columns",
-    )
     order_by: str | None = Field(
         default=None,
         description="ORDER BY clause (e.g., 'value DESC')",
     )
-
 
 class SlotPlan(BaseModel):
     """LLM output containing slot-based queries."""
@@ -66,7 +57,6 @@ class SlotPlan(BaseModel):
         description="Whether RAG context is needed",
     )
 
-
 # =============================================================================
 # SQL Builder with pypika
 # =============================================================================
@@ -74,61 +64,32 @@ class SlotPlan(BaseModel):
 
 def _build_criterion(table: Table, f: Filter) -> Any:
     """Build a pypika criterion from a Filter."""
-    col = table[f.field]
-    val = f.value
+    col, val = table[f.field], f.value
 
-    if f.op == "eq":
-        # Case-insensitive partial match for string fields like 'name'
-        if f.field in ("name", "health_flags") and isinstance(val, str):
-            return Lower(col).like(f"%{val.lower()}%")
-        return col == val
-    elif f.op == "neq":
-        return col != val
-    elif f.op == "gt":
-        return col > val
-    elif f.op == "lt":
-        return col < val
-    elif f.op == "gte":
-        return col >= val
-    elif f.op == "lte":
-        return col <= val
-    elif f.op == "in":
-        return col.isin(val) if isinstance(val, list) else col == val
-    elif f.op == "not_in":
-        return col.notin(val) if isinstance(val, list) else col != val
-    elif f.op == "like":
-        pattern = f"%{val}%" if not val.startswith("%") else val
-        return Lower(col).like(pattern.lower())
-    else:
-        raise ValueError(f"Unknown operator: {f.op}")
-
-
-def _parse_order_by(order_by: str) -> tuple[str, Order]:
-    """Parse 'field DESC' into (field, Order)."""
-    parts = order_by.strip().split()
-    field = parts[0]
-    direction = Order.desc if len(parts) > 1 and parts[1].upper() == "DESC" else Order.asc
-    return field, direction
+    match f.op:
+        case "=": return col == val
+        case "!=": return col != val
+        case ">": return col > val
+        case "<": return col < val
+        case ">=": return col >= val
+        case "<=": return col <= val
+        case "IN": return col.isin(val) if isinstance(val, list) else col == val
+        case "NOT IN": return col.notin(val) if isinstance(val, list) else col != val
+        case "LIKE": return Lower(col).like(f"%{val.lower()}%")
+        case _: raise ValueError(f"Unknown operator: {f.op}")
 
 
 def _build_query(slot: SlotQuery) -> Query:
     """Build a pypika Query from a SlotQuery."""
     table = Table(slot.table)
+    query = Query.from_(table).select("*")
 
-    # SELECT columns (use * if not specified)
-    if slot.columns:
-        query = Query.from_(table).select(*[table[c] for c in slot.columns])
-    else:
-        query = Query.from_(table).select("*")
-
-    # WHERE filters
     for f in slot.filters:
         query = query.where(_build_criterion(table, f))
 
-    # ORDER BY
     if slot.order_by:
-        field, direction = _parse_order_by(slot.order_by)
-        query = query.orderby(table[field], order=direction)
+        field, _, dir = slot.order_by.partition(" ")
+        query = query.orderby(table[field], order=Order.desc if dir.upper() == "DESC" else Order.asc)
 
     return query
 

@@ -267,7 +267,7 @@ class TestExecuteSlotPlan:
             queries=[
                 SlotQuery(
                     table="companies",
-                    filters=[Filter(field="company_id", op="eq", value="ACME-MFG")],
+                    filters=[Filter(field="company_id", op="=", value="ACME-MFG")],
                 )
             ],
             needs_rag=True,
@@ -304,7 +304,7 @@ class TestExecuteSlotPlan:
             queries=[
                 SlotQuery(
                     table="companies",
-                    filters=[Filter(field="company_id", op="in", value=["ACME-MFG", "BETA-TECH"])],
+                    filters=[Filter(field="company_id", op="IN", value=["ACME-MFG", "BETA-TECH"])],
                 )
             ],
             needs_rag=False,
@@ -320,7 +320,7 @@ class TestExecuteSlotPlan:
             queries=[
                 SlotQuery(
                     table="opportunities",
-                    filters=[Filter(field="stage", op="eq", value="Negotiation")],
+                    filters=[Filter(field="stage", op="=", value="Negotiation")],
                 )
             ],
             needs_rag=False,
@@ -337,11 +337,11 @@ class TestExecuteSlotPlan:
             queries=[
                 SlotQuery(
                     table="companies",
-                    filters=[Filter(field="name", op="eq", value="Acme")],
+                    filters=[Filter(field="name", op="=", value="Acme")],
                 ),
                 SlotQuery(
                     table="contacts",
-                    filters=[Filter(field="company_id", op="eq", value="ACME-MFG")],
+                    filters=[Filter(field="company_id", op="=", value="ACME-MFG")],
                 ),
             ],
             needs_rag=True,
@@ -408,7 +408,7 @@ class TestExecuteSlotPlanWithRealData:
             queries=[
                 SlotQuery(
                     table="contacts",
-                    filters=[Filter(field="role", op="eq", value="Decision Maker")],
+                    filters=[Filter(field="role", op="=", value="Decision Maker")],
                 )
             ],
             needs_rag=False,
@@ -444,7 +444,7 @@ class TestExecuteSlotPlanWithRealData:
             queries=[
                 SlotQuery(
                     table="opportunities",
-                    filters=[Filter(field="stage", op="not_in", value=["Closed Won", "Closed Lost"])],
+                    filters=[Filter(field="stage", op="NOT IN", value=["Closed Won", "Closed Lost"])],
                     order_by="value DESC",
                 )
             ],

@@ -211,6 +211,19 @@ def main(
     )
 
 
+@app.command()
+def route(
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of test cases"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output for each case"),
+) -> None:
+    """Run route node evaluation only (tests query planner in isolation)."""
+    logging.basicConfig(level=logging.WARNING)
+    from backend.agent.route.eval import print_summary, run_route_eval
+
+    results = run_route_eval(limit=limit, verbose=verbose)
+    print_summary(results)
+
+
 if __name__ == "__main__":
     print("Checking Qdrant collections...")
     ensure_qdrant_collections()
