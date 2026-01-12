@@ -5,30 +5,27 @@ This module provides a deterministic tree of questions and follow-ups,
 ensuring 100% reliability for demos - no LLM generation variability.
 
 Structure:
-- 3 role-based starter questions:
-  * Sales Rep (jsmith): "How's my pipeline?" - Pipeline focus
-  * CSM (amartin): "Any renewals at risk?" - Retention focus
-  * Manager: "How's the team doing?" - Aggregate view
+- 3 starter questions covering the 3 top CRM entities:
+  * Opportunities: "What deals are in the pipeline?"
+  * Companies: "Which accounts are at risk?"
+  * Contacts: "Who needs a follow-up?"
 - Each question has 3 follow-ups, with varying depths (4-6 levels)
 - Run `python -m backend.agent.followup.tree stats` for current metrics
 
 Usage:
-    from backend.agent.followup.tree import get_follow_ups, get_starters, get_paths_for_role
+    from backend.agent.followup.tree import get_follow_ups, get_starters
 
     # Get starter questions
     starters = get_starters()
 
     # Get follow-ups for a question
-    follow_ups = get_follow_ups("How's my pipeline?")
-
-    # Get all paths for a role (or all roles if None)
-    paths = get_paths_for_role("sales")
+    follow_ups = get_follow_ups("What deals are in the pipeline?")
 
 CLI:
-    python -m backend.agent.followup.tree validate [--role sales|csm|manager]
-    python -m backend.agent.followup.tree tree [--role sales|csm|manager] [--depth N]
-    python -m backend.agent.followup.tree stats [--role sales|csm|manager]
-    python -m backend.agent.followup.tree paths --role sales [--limit N]
+    python -m backend.agent.followup.tree validate
+    python -m backend.agent.followup.tree tree [--depth N]
+    python -m backend.agent.followup.tree stats
+    python -m backend.agent.followup.tree paths [--limit N]
 """
 
 from __future__ import annotations
@@ -46,7 +43,7 @@ if TYPE_CHECKING:
 __all__ = [
     "get_starters",
     "get_follow_ups",
-    "get_paths_for_role",
+    "get_all_paths",
     "get_tree_stats",
     "validate_tree",
     "print_tree",
@@ -89,13 +86,12 @@ _EXPECTED_ANSWERS: dict[str, str] = _load_yaml_fixture("expected_answers.yaml")
 _EXPECTED_RAG: dict[str, bool] = _load_yaml_fixture("expected_rag.yaml")
 _EXPECTED_SQL_RESULTS: dict[str, dict] = _load_yaml_fixture("expected_sql_results.yaml")
 
-# Role mapping - starters are derived from this
-_ROLE_MAP = {
-    "sales": "Show my open deals",
-    "csm": "Show my at-risk renewals",
-    "manager": "Show team pipeline",
-}
-_STARTERS: list[str] = list(_ROLE_MAP.values())
+# Starter questions - the 3 top CRM questions (one per entity type)
+_STARTERS: list[str] = [
+    "What deals are in the pipeline?",
+    "Which accounts are at risk?",
+    "Who needs a follow-up?",
+]
 
 # Build directed graph
 _G = nx.DiGraph()
@@ -109,27 +105,6 @@ for question, follow_ups in _raw_data.items():
 # =============================================================================
 # Internal Helpers
 # =============================================================================
-
-
-def _get_starters_for_role(role: str | None) -> list[str]:
-    """Get starter questions for a role. None means all roles."""
-    if role is None:
-        return _STARTERS.copy()
-    role_lower = role.lower()
-    if role_lower not in _ROLE_MAP:
-        raise ValueError(f"Unknown role: {role}. Use: sales, csm, or manager")
-    return [_ROLE_MAP[role_lower]]
-
-
-def _get_subgraph(role: str | None) -> tuple[list[str], nx.DiGraph]:
-    """Get starters and subgraph for a role. None means all roles."""
-    starters = _get_starters_for_role(role)
-    role_nodes: set[str] = set()
-    for starter in starters:
-        if starter in _G:
-            role_nodes.add(starter)
-            role_nodes |= nx.descendants(_G, starter)
-    return starters, _G.subgraph(role_nodes)
 
 
 def _compute_max_depth(starters: list[str]) -> int:
@@ -158,6 +133,16 @@ def _find_paths(starters: list[str], subgraph: nx.DiGraph, max_depth: int) -> li
             except nx.NetworkXNoPath:
                 continue
     return paths
+
+
+def _get_reachable_subgraph() -> nx.DiGraph:
+    """Get subgraph of all nodes reachable from starters."""
+    reachable: set[str] = set()
+    for starter in _STARTERS:
+        if starter in _G:
+            reachable.add(starter)
+            reachable |= nx.descendants(_G, starter)
+    return _G.subgraph(reachable)
 
 
 # =============================================================================
@@ -355,35 +340,26 @@ def validate_sql_results(question: str, sql_results: dict) -> tuple[bool, list[s
     return passed, errors
 
 
-def get_paths_for_role(role: str | None = None) -> list[list[str]]:
+def get_all_paths() -> list[list[str]]:
     """
-    Get all conversation paths for a specific role.
-
-    Args:
-        role: Filter by role - "sales", "csm", or "manager". If None, returns all paths.
+    Get all conversation paths from starters to leaf nodes.
 
     Returns:
         List of paths, where each path is a list of questions from starter to terminal.
     """
-    starters, subgraph = _get_subgraph(role)
-    max_depth = _compute_max_depth(starters)
-    return _find_paths(starters, subgraph, max_depth)
+    subgraph = _get_reachable_subgraph()
+    max_depth = _compute_max_depth(_STARTERS)
+    return _find_paths(_STARTERS, subgraph, max_depth)
 
 
-def get_tree_stats(role: str | None = None) -> dict:
-    """
-    Get statistics about the question tree.
-
-    Args:
-        role: Filter by role - "sales", "csm", or "manager". If None, shows all.
-    """
-    starters, subgraph = _get_subgraph(role)
-    max_depth = _compute_max_depth(starters)
-    paths = _find_paths(starters, subgraph, max_depth)
+def get_tree_stats() -> dict:
+    """Get statistics about the question tree."""
+    subgraph = _get_reachable_subgraph()
+    max_depth = _compute_max_depth(_STARTERS)
+    paths = _find_paths(_STARTERS, subgraph, max_depth)
 
     return {
-        "role": role or "all",
-        "num_starters": len(starters),
+        "num_starters": len(_STARTERS),
         "num_questions": subgraph.number_of_nodes(),
         "num_edges": subgraph.number_of_edges(),
         "num_paths": len(paths),
@@ -395,29 +371,25 @@ def get_tree_stats(role: str | None = None) -> dict:
     }
 
 
-def validate_tree(role: str | None = None) -> list[str]:
+def validate_tree() -> list[str]:
     """
     Validate the question tree for consistency.
 
-    Args:
-        role: Filter by role - "sales", "csm", or "manager". If None, validates all.
-
     Returns list of any issues found.
     """
-    starters, subgraph = _get_subgraph(role)
+    subgraph = _get_reachable_subgraph()
     reachable = set(subgraph.nodes())
     issues = []
 
     # Check all starters are in tree
-    for starter in starters:
+    for starter in _STARTERS:
         if starter not in _G:
             issues.append(f"Starter not in tree: {starter}")
 
-    # Only check orphans when validating all roles
-    if role is None:
-        for question in _G.nodes():
-            if question not in reachable:
-                issues.append(f"Orphaned question (not reachable): {question}")
+    # Check for orphans
+    for question in _G.nodes():
+        if question not in reachable:
+            issues.append(f"Orphaned question (not reachable): {question}")
 
     # Check subgraph is a valid DAG (no cycles)
     if not nx.is_directed_acyclic_graph(subgraph):
@@ -432,12 +404,11 @@ def validate_tree(role: str | None = None) -> list[str]:
     return issues
 
 
-def print_tree(role: str | None = None, max_depth: int | None = None) -> Tree:
+def print_tree(max_depth: int | None = None) -> Tree:
     """
     Generate a Rich Tree representation of the question tree.
 
     Args:
-        role: Filter by role - "sales", "csm", or "manager". If None, shows all.
         max_depth: Maximum depth to display (default: show all levels)
 
     Returns:
@@ -445,23 +416,16 @@ def print_tree(role: str | None = None, max_depth: int | None = None) -> Tree:
 
     Usage:
         from rich import print
-        print(print_tree())              # All trees
-        print(print_tree("sales"))       # Sales Rep tree only
-        print(print_tree("csm", max_depth=3))  # CSM tree, 3 levels deep
+        print(print_tree())              # Full tree
+        print(print_tree(max_depth=3))   # 3 levels deep
     """
     from rich.tree import Tree
 
-    try:
-        starters = _get_starters_for_role(role)
-    except ValueError as e:
-        # Return a tree with error message
-        return Tree(f"[red]{e}[/red]")
-
-    # Role labels
-    role_labels = {
-        "How's my pipeline?": "[bold cyan]SALES REP (jsmith)[/bold cyan]",
-        "Any renewals at risk?": "[bold green]CSM (amartin)[/bold green]",
-        "How's the team doing?": "[bold yellow]MANAGER[/bold yellow]",
+    # Entity labels for starters
+    entity_labels = {
+        "What deals are in the pipeline?": "[bold cyan]OPPORTUNITIES[/bold cyan]",
+        "Which accounts are at risk?": "[bold green]COMPANIES[/bold green]",
+        "Who needs a follow-up?": "[bold yellow]CONTACTS[/bold yellow]",
     }
 
     def add_children(parent_branch: Tree, node: str, depth: int) -> None:
@@ -475,19 +439,11 @@ def print_tree(role: str | None = None, max_depth: int | None = None) -> Tree:
             add_children(child_branch, child, depth + 1)
 
     # Create root tree
-    if len(starters) == 1:
-        # Single role - use role label as root
-        label = role_labels.get(starters[0], starters[0])
-        root = Tree(label)
-        starter_branch = root.add(f"[bold]{starters[0]}[/bold]")
-        add_children(starter_branch, starters[0], 1)
-    else:
-        # All roles - create a root with children for each role
-        root = Tree("[bold]Question Tree[/bold]")
-        for starter in starters:
-            label = role_labels.get(starter, starter)
-            role_branch = root.add(label)
-            starter_branch = role_branch.add(f"[bold]{starter}[/bold]")
-            add_children(starter_branch, starter, 1)
+    root = Tree("[bold]Question Tree[/bold]")
+    for starter in _STARTERS:
+        label = entity_labels.get(starter, starter)
+        entity_branch = root.add(label)
+        starter_branch = entity_branch.add(f"[bold]{starter}[/bold]")
+        add_children(starter_branch, starter, 1)
 
     return root

@@ -12,10 +12,10 @@ from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, T
 from rich.table import Table
 
 from backend.agent.followup.tree import (
+    get_all_paths,
     get_expected_answer,
     get_expected_rag,
     get_expected_sql_results,
-    get_paths_for_role,
     validate_sql_results,
 )
 from backend.eval.formatting import console, print_eval_header
@@ -351,7 +351,7 @@ def run_flow_eval(
     eval_start_time = time.time()
 
     # Generate all paths
-    all_paths = get_paths_for_role()
+    all_paths = get_all_paths()
     paths_to_test = all_paths[:max_paths] if max_paths else all_paths
 
     # Print header

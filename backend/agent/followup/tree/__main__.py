@@ -2,15 +2,13 @@
 CLI for question tree utilities.
 
 Usage:
-    python -m backend.agent.question_tree validate [--role sales|csm|manager]
-    python -m backend.agent.question_tree tree [--role sales|csm|manager] [--depth N]
-    python -m backend.agent.question_tree stats [--role sales|csm|manager]
-    python -m backend.agent.question_tree paths --role sales
+    python -m backend.agent.followup.tree validate
+    python -m backend.agent.followup.tree tree [--depth N]
+    python -m backend.agent.followup.tree stats
+    python -m backend.agent.followup.tree paths [--limit N]
 """
 
 from collections import defaultdict
-from collections.abc import Callable
-from typing import TypeVar
 
 import typer
 from rich import print as rprint
@@ -18,64 +16,40 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from . import get_paths_for_role, get_tree_stats, print_tree, validate_tree
+from . import get_all_paths, get_tree_stats, print_tree, validate_tree
 
 app = typer.Typer(help="Question tree utilities for demo reliability.")
 console = Console()
 
-ROLE_LABELS = {
-    "sales": "SALES REP (jsmith)",
-    "csm": "CSM (amartin)",
-    "manager": "MANAGER",
-}
-
-T = TypeVar("T")
-
-
-def _call_with_role(func: Callable[..., T], role: str | None, **kwargs: object) -> T:
-    """Call a function with role, handling ValueError consistently."""
-    try:
-        return func(role=role, **kwargs)
-    except ValueError as e:
-        rprint(f"[red]{e}[/red]")
-        raise typer.Exit(1) from None
-
 
 @app.command()
-def validate(
-    role: str | None = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
-) -> None:
+def validate() -> None:
     """Validate the question tree for consistency."""
-    role_label = role.upper() if role else "ALL"
-    issues = _call_with_role(validate_tree, role)
+    issues = validate_tree()
 
     if issues:
-        rprint(f"[red]Validation failed for {role_label}![/red]")
+        rprint("[red]Validation failed![/red]")
         for issue in issues:
             rprint(f"  [red]x[/red] {issue}")
         raise typer.Exit(1)
     else:
-        rprint(f"[green]OK[/green] {role_label} tree is valid")
+        rprint("[green]OK[/green] Question tree is valid")
 
 
 @app.command()
 def tree(
-    role: str | None = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
     depth: int | None = typer.Option(None, "--depth", "-d", help="Max depth to display"),
 ) -> None:
     """Print the question tree in a top-down format."""
-    tree_output = print_tree(role=role, max_depth=depth)
+    tree_output = print_tree(max_depth=depth)
     console.print(tree_output)
 
 
 @app.command()
-def stats(
-    role: str | None = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
-) -> None:
+def stats() -> None:
     """Show statistics about the question tree."""
-    s = _call_with_role(get_tree_stats, role)
-    role_label = s["role"].upper()
-    table = Table(title=f"Question Tree Statistics ({role_label})")
+    s = get_tree_stats()
+    table = Table(title="Question Tree Statistics")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
 
@@ -92,19 +66,17 @@ def stats(
 
 @app.command()
 def paths(
-    role: str | None = typer.Option(None, "--role", "-r", help="Filter by role: sales, csm, or manager"),
     limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of paths shown"),
 ) -> None:
     """List all conversation paths for auditing workflows."""
-    all_paths = _call_with_role(get_paths_for_role, role)
-    role_label = ROLE_LABELS.get(role, "ALL ROLES") if role else "ALL ROLES"
+    all_paths = get_all_paths()
 
     # Group paths by depth
     paths_by_depth: dict[int, list] = defaultdict(list)
     for path in all_paths:
         paths_by_depth[len(path)].append(path)
 
-    console.print(f"\n[bold]{role_label}[/bold] - {len(all_paths)} paths\n")
+    console.print(f"\n[bold]Question Tree[/bold] - {len(all_paths)} paths\n")
 
     path_num = 0
     for depth in sorted(paths_by_depth.keys()):

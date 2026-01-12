@@ -193,7 +193,6 @@ def mock_llm():
     def mock_get_slot_plan(
         question: str,
         conversation_history: str = "",
-        owner: str | None = None,
     ) -> SlotPlan:
         """Mock slot planner that returns reasonable slot queries."""
         q = question.lower()

@@ -108,6 +108,9 @@ def _build_criterion(table: Table, key: str, value: Any) -> Any:
     elif key == "name" and isinstance(value, str):
         # Case-insensitive partial match using LOWER
         return Lower(table.name).like(f"%{value.lower()}%")
+    elif key == "health_flags" and isinstance(value, str):
+        # Partial match for health flags (e.g., "at-risk" matches "at-risk-low-activity")
+        return Lower(table.health_flags).like(f"%{value.lower()}%")
     elif isinstance(value, list):
         return table[key].isin(value)
     else:

@@ -1,11 +1,11 @@
 """
-Tests for backend/agent/question_tree.py - hardcoded question tree for demos.
+Tests for backend/agent/followup/tree - hardcoded question tree for demos.
 """
 
 from backend.agent.followup.tree import (
     get_starters,
     get_follow_ups,
-    get_paths_for_role,
+    get_all_paths,
     get_tree_stats,
     validate_tree,
 )
@@ -24,9 +24,9 @@ class TestGetStarters:
         assert isinstance(starters, list)
 
     def test_returns_expected_count(self):
-        """Returns expected number of starters (role-based)."""
+        """Returns expected number of starters (3 CRM entities)."""
         starters = get_starters()
-        assert len(starters) == 3  # Sales Rep, CSM, Manager
+        assert len(starters) == 3
 
     def test_starters_are_strings(self):
         """All starters are strings."""
@@ -42,12 +42,12 @@ class TestGetStarters:
         starters1.append("modified")
         assert "modified" not in starters2
 
-    def test_contains_role_based_starters(self):
-        """Contains role-based starter questions."""
+    def test_contains_entity_starters(self):
+        """Contains starters for 3 CRM entities."""
         starters = get_starters()
-        assert "How's my pipeline?" in starters  # Sales Rep
-        assert "Any renewals at risk?" in starters  # CSM
-        assert "How's the team doing?" in starters  # Manager
+        assert "What deals are in the pipeline?" in starters  # Opportunities
+        assert "Which accounts are at risk?" in starters  # Companies
+        assert "Who needs a follow-up?" in starters  # Contacts
 
 
 # =============================================================================
@@ -59,14 +59,14 @@ class TestGetFollowUps:
 
     def test_returns_list(self):
         """Returns a list."""
-        follow_ups = get_follow_ups("What's going on with Acme Manufacturing?")
+        follow_ups = get_follow_ups("What deals are in the pipeline?")
         assert isinstance(follow_ups, list)
 
     def test_returns_follow_ups_for_known_question(self):
         """Returns follow-ups for a known question."""
-        follow_ups = get_follow_ups("What's going on with Acme Manufacturing?")
+        follow_ups = get_follow_ups("What deals are in the pipeline?")
         assert len(follow_ups) == 3
-        assert "Show me Acme Manufacturing's opportunities" in follow_ups
+        assert "How are deals distributed by stage?" in follow_ups
 
     def test_returns_empty_for_unknown_question(self):
         """Returns empty list for unknown question."""
@@ -75,76 +75,76 @@ class TestGetFollowUps:
 
     def test_returns_copy(self):
         """Returns a copy, not the original list."""
-        follow_ups1 = get_follow_ups("What's going on with Acme Manufacturing?")
-        follow_ups2 = get_follow_ups("What's going on with Acme Manufacturing?")
+        follow_ups1 = get_follow_ups("What deals are in the pipeline?")
+        follow_ups2 = get_follow_ups("What deals are in the pipeline?")
         follow_ups1.append("modified")
         assert "modified" not in follow_ups2
 
-    def test_layer_2_has_follow_ups(self):
-        """Layer 2 questions have follow-ups."""
-        follow_ups = get_follow_ups("Show me Acme Manufacturing's opportunities")
+    def test_depth_2_has_follow_ups(self):
+        """Depth 2 questions have follow-ups."""
+        follow_ups = get_follow_ups("How are deals distributed by stage?")
         assert len(follow_ups) == 3
 
-    def test_layer_3_has_follow_ups(self):
-        """Layer 3 questions have follow-ups."""
-        follow_ups = get_follow_ups("What stage is the upgrade deal in?")
+    def test_companies_starter_has_follow_ups(self):
+        """Companies starter has follow-ups."""
+        follow_ups = get_follow_ups("Which accounts are at risk?")
         assert len(follow_ups) == 3
+        assert "What's happening with Delta Health?" in follow_ups
+
+    def test_contacts_starter_has_follow_ups(self):
+        """Contacts starter has follow-ups."""
+        follow_ups = get_follow_ups("Who needs a follow-up?")
+        assert len(follow_ups) == 3
+        assert "Which contacts haven't been reached?" in follow_ups
 
 
 # =============================================================================
-# get_paths_for_role Tests
+# get_all_paths Tests
 # =============================================================================
 
-class TestGetPathsForRole:
-    """Tests for get_paths_for_role function."""
+class TestGetAllPaths:
+    """Tests for get_all_paths function."""
 
     def test_returns_list(self):
         """Returns a list of paths."""
-        paths = get_paths_for_role()
+        paths = get_all_paths()
         assert isinstance(paths, list)
 
     def test_paths_are_lists(self):
         """Each path is a list of questions."""
-        paths = get_paths_for_role()
+        paths = get_all_paths()
         for path in paths:
             assert isinstance(path, list)
 
     def test_paths_contain_strings(self):
         """Each path contains string questions."""
-        paths = get_paths_for_role()
+        paths = get_all_paths()
         for path in paths:
             for question in path:
                 assert isinstance(question, str)
 
     def test_all_paths_start_with_starter(self):
         """All paths start with a starter question."""
-        paths = get_paths_for_role()
+        paths = get_all_paths()
         starters = set(get_starters())
         for path in paths:
             assert path[0] in starters
 
     def test_generates_paths(self):
         """Generates multiple paths."""
-        paths = get_paths_for_role()
+        paths = get_all_paths()
         assert len(paths) > 0
 
-    def test_role_filter_sales(self):
-        """Filters paths by sales role."""
-        paths = get_paths_for_role("sales")
-        for path in paths:
-            assert path[0] == "How's my pipeline?"
-
-    def test_role_filter_csm(self):
-        """Filters paths by csm role."""
-        paths = get_paths_for_role("csm")
-        for path in paths:
-            assert path[0] == "Any renewals at risk?"
-
-    def test_role_filter_manager(self):
-        """Filters paths by manager role."""
-        paths = get_paths_for_role("manager")
-        for path in paths:
-            assert path[0] == "How's the team doing?"
+    def test_paths_cover_all_starters(self):
+        """Paths cover all 3 starters."""
+        paths = get_all_paths()
+        starters_covered = {path[0] for path in paths}
+        expected_starters = {
+            "What deals are in the pipeline?",
+            "Which accounts are at risk?",
+            "Who needs a follow-up?",
+        }
+        assert starters_covered == expected_starters
 
 
 # =============================================================================
@@ -201,5 +201,3 @@ class TestValidateTree:
         """Current tree should be valid (no issues)."""
         issues = validate_tree()
         assert len(issues) == 0, f"Tree validation failed: {issues}"
-
-

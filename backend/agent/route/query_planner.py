@@ -1,23 +1,12 @@
-"""
-Slot-based query planner for LLM-driven SQL generation.
-
-The LLM outputs structured slots (table, filters, order_by) which are
-converted to SQL programmatically - more reliable than raw SQL generation.
-"""
+"""Slot-based query planner for LLM-driven SQL generation."""
 
 import json
 import logging
-import os
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 from openai import OpenAI
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from backend.agent.core.config import get_config
 from backend.agent.route.slot_query import SlotPlan, SlotQuery
@@ -25,201 +14,59 @@ from backend.utils.prompt import load_prompt
 
 logger = logging.getLogger(__name__)
 
-
-# =============================================================================
-# Prompt Template
-# =============================================================================
-
-PROMPT_TEMPLATE = load_prompt(Path(__file__).parent / "prompt.txt")
+_DIR = Path(__file__).parent
 
 
-# =============================================================================
-# OpenAI Client
-# =============================================================================
-
-_openai_client: OpenAI | None = None
-
-
-def _get_openai_client() -> OpenAI:
-    """Get or create the cached OpenAI client."""
-    global _openai_client
-    if _openai_client is None:
-        _openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    return _openai_client
+@lru_cache
+def _load_schema() -> dict:
+    """Load JSON schema (cached)."""
+    with open(_DIR / "schema.json") as f:
+        return json.load(f)
 
 
-# =============================================================================
-# Slot-Based Query Planning
-# =============================================================================
-
-# JSON schema for SlotPlan structured output
-# All filter keys must be explicitly defined for strict mode
-SLOT_PLAN_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "queries": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "table": {
-                        "type": "string",
-                        "enum": [
-                            "opportunities",
-                            "contacts",
-                            "activities",
-                            "companies",
-                            "history",
-                            "attachments",
-                        ],
-                    },
-                    "filters": {
-                        "type": "object",
-                        "properties": {
-                            # Opportunities filters
-                            "owner": {"type": ["string", "null"]},
-                            "stage": {"type": ["string", "null"]},
-                            "stage_not_in": {
-                                "type": ["array", "null"],
-                                "items": {"type": "string"},
-                            },
-                            "type": {"type": ["string", "null"]},
-                            "value_gt": {"type": ["number", "null"]},
-                            "value_lt": {"type": ["number", "null"]},
-                            # Contacts/Activities/Companies shared
-                            "company_name": {"type": ["string", "null"]},
-                            "company_id": {"type": ["string", "null"]},
-                            # Contacts filters
-                            "role": {"type": ["string", "null"]},
-                            "lifecycle_stage": {"type": ["string", "null"]},
-                            # Activities filters
-                            "contact_id": {"type": ["string", "null"]},
-                            "date_after": {"type": ["string", "null"]},
-                            # Companies filters
-                            "name": {"type": ["string", "null"]},
-                            "status": {"type": ["string", "null"]},
-                            "health_flags": {"type": ["string", "null"]},
-                            "account_owner": {"type": ["string", "null"]},
-                        },
-                        "required": [
-                            "owner", "stage", "stage_not_in", "type", "value_gt", "value_lt",
-                            "company_name", "company_id", "role", "lifecycle_stage",
-                            "contact_id", "date_after", "name", "status", "health_flags", "account_owner"
-                        ],
-                        "additionalProperties": False,
-                    },
-                    "columns": {
-                        "type": ["array", "null"],
-                        "items": {"type": "string"},
-                    },
-                    "order_by": {
-                        "type": ["string", "null"],
-                    },
-                    "purpose": {
-                        "type": "string",
-                    },
-                },
-                "required": ["table", "filters", "columns", "order_by", "purpose"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    "needs_rag": {
-        "type": "boolean",
-        "description": "True if question needs RAG context (why, what happened, concerns). False for list/show/count questions.",
-    },
-    "required": ["queries", "needs_rag"],
-    "additionalProperties": False,
-}
+@lru_cache
+def _get_client() -> OpenAI:
+    """Get OpenAI client (cached)."""
+    return OpenAI()
 
 
-def _call_chat_completions_slots(
-    client: OpenAI,
-    model: str,
-    system_prompt: str,
-    user_prompt: str,
-) -> SlotPlan:
-    """Call Chat Completions API for slot-based output."""
-    response = client.chat.completions.create(
-        model=model,
-        temperature=0,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {
-                "name": "SlotPlan",
-                "strict": True,
-                "schema": SLOT_PLAN_SCHEMA,
-            },
-        },
-    )
-
-    content = response.choices[0].message.content
-    if content:
-        data = json.loads(content)
-        queries = [SlotQuery(**q) for q in data.get("queries", [])]
-        needs_rag = data.get("needs_rag", False)
-        return SlotPlan(queries=queries, needs_rag=needs_rag)
-    return SlotPlan(queries=[], needs_rag=False)
-
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=10),
-    retry=retry_if_exception_type((TimeoutError, ConnectionError)),
-    reraise=True,
-)
-def get_slot_plan(
-    question: str,
-    conversation_history: str = "",
-    owner: str | None = None,
-) -> SlotPlan:
+def get_slot_plan(question: str, conversation_history: str = "") -> SlotPlan:
     """
     Get slot-based query plan from LLM.
 
-    This is more reliable than raw SQL generation because:
-    - LLM outputs structured slots (table, filters, order_by)
-    - We build SQL programmatically - no syntax errors possible
-
-    Args:
-        question: The user's question
-        conversation_history: Formatted conversation history for context
-        owner: Owner ID for filtering (e.g., "jsmith", "amartin")
-
-    Returns:
-        SlotPlan with slot queries
+    LLM outputs structured slots (table, filters, order_by) which are
+    converted to SQL programmatically - more reliable than raw SQL generation.
     """
-    logger.debug("Slot Planner: Analyzing question: %s...", question[:50])
-
     config = get_config()
-    client = _get_openai_client()
-    model = config.router_model
 
-    # Format the prompt
-    system_prompt = PROMPT_TEMPLATE.format(
+    prompt = load_prompt(_DIR / "prompt.txt").format(
         today=datetime.now().strftime("%Y-%m-%d"),
-        owner=owner or "all",
         conversation_history=conversation_history or "",
         question=question,
     )
 
-    # Call LLM for slots
-    result = _call_chat_completions_slots(client, model, system_prompt, question)
+    response = _get_client().chat.completions.create(
+        model=config.router_model,
+        temperature=0,
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": question},
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {"name": "SlotPlan", "strict": True, "schema": _load_schema()},
+        },
+    )
 
-    logger.info("Slot Planner: %d queries", len(result.queries))
+    content = response.choices[0].message.content
+    if not content:
+        return SlotPlan(queries=[], needs_rag=False)
 
-    # Log each slot query
-    for i, q in enumerate(result.queries, 1):
-        logger.debug("Slot [%d] (%s): table=%s, filters=%s", i, q.purpose, q.table, q.filters)
+    data = json.loads(content)
+    result = SlotPlan(
+        queries=[SlotQuery(**q) for q in data.get("queries", [])],
+        needs_rag=data.get("needs_rag", False),
+    )
 
+    logger.info("Slot Planner: %d queries, needs_rag=%s", len(result.queries), result.needs_rag)
     return result
-
-
-__all__ = [
-    "SlotPlan",
-    "SlotQuery",
-    "get_slot_plan",
-]

@@ -2,7 +2,6 @@
 You are a CRM query planner. Output structured query slots (NOT raw SQL).
 
 Today: {today}
-User: {owner}
 
 ## SCHEMA
 
@@ -56,15 +55,19 @@ RAG stores unstructured text (notes, context) NOT in SQL columns:
 
 ## EXAMPLES
 
-User: "Show my open deals" (owner=jsmith)
+User: "What deals are in the pipeline?"
 Output:
-{{"queries": [{{"table": "opportunities", "filters": {{"owner": "jsmith", "stage": null, "stage_not_in": ["Closed Won", "Closed Lost"], "type": null, "value_gt": null, "value_lt": null, "company_name": null, "company_id": null, "role": null, "lifecycle_stage": null, "contact_id": null, "date_after": null, "name": null, "status": null, "health_flags": null, "account_owner": null}}, "columns": null, "order_by": "value DESC", "purpose": "open_deals"}}], "needs_rag": false}}
+{{"queries": [{{"table": "opportunities", "filters": {{"owner": null, "stage": null, "stage_not_in": ["Closed Won", "Closed Lost"], "type": null, "value_gt": null, "value_lt": null, "company_name": null, "company_id": null, "role": null, "lifecycle_stage": null, "contact_id": null, "date_after": null, "name": null, "status": null, "health_flags": null, "account_owner": null}}, "columns": null, "order_by": "value DESC", "purpose": "pipeline_deals"}}], "needs_rag": false}}
 
-User: "Show Acme contacts"
+User: "Which accounts are at risk?"
 Output:
-{{"queries": [{{"table": "contacts", "filters": {{"owner": null, "stage": null, "stage_not_in": null, "type": null, "value_gt": null, "value_lt": null, "company_name": "Acme", "company_id": null, "role": null, "lifecycle_stage": null, "contact_id": null, "date_after": null, "name": null, "status": null, "health_flags": null, "account_owner": null}}, "columns": null, "order_by": null, "purpose": "acme_contacts"}}], "needs_rag": false}}
+{{"queries": [{{"table": "companies", "filters": {{"owner": null, "stage": null, "stage_not_in": null, "type": null, "value_gt": null, "value_lt": null, "company_name": null, "company_id": null, "role": null, "lifecycle_stage": null, "contact_id": null, "date_after": null, "name": null, "status": null, "health_flags": "at-risk", "account_owner": null}}, "columns": null, "order_by": null, "purpose": "at_risk_accounts"}}], "needs_rag": false}}
 
-User: "Why is Delta Health at risk?" (owner=amartin)
+User: "Who needs a follow-up?"
+Output:
+{{"queries": [{{"table": "contacts", "filters": {{"owner": null, "stage": null, "stage_not_in": null, "type": null, "value_gt": null, "value_lt": null, "company_name": null, "company_id": null, "role": null, "lifecycle_stage": null, "contact_id": null, "date_after": null, "name": null, "status": null, "health_flags": null, "account_owner": null}}, "columns": null, "order_by": null, "purpose": "contacts_needing_followup"}}], "needs_rag": false}}
+
+User: "What's happening with Delta Health?"
 Output:
 {{"queries": [{{"table": "companies", "filters": {{"owner": null, "stage": null, "stage_not_in": null, "type": null, "value_gt": null, "value_lt": null, "company_name": null, "company_id": null, "role": null, "lifecycle_stage": null, "contact_id": null, "date_after": null, "name": "Delta", "status": null, "health_flags": null, "account_owner": null}}, "columns": null, "order_by": null, "purpose": "company_info"}}], "needs_rag": true}}
 

@@ -42,7 +42,6 @@ def fetch_sql_node(state: AgentState) -> AgentState:
             retry_plan = get_slot_plan(
                 question=state.get("question", ""),
                 conversation_history=f"{format_history_for_prompt(state.get('messages', []))}\n\n[PREVIOUS QUERY FAILED]\n{stats.get_error_summary()}\nPlease fix the query.",
-                owner=state.get("owner"),
             )
 
             # Execute retry plan

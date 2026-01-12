@@ -1,5 +1,5 @@
-# Expected SQL Results - EXACT assertions for 100% accuracy
-# Based on actual CSV data - validates "nothing more, nothing less"
+# Expected SQL Results - assertions for query validation
+# Based on actual CSV data - validates correctness of SQL results
 #
 # Assertion types:
 #   row_count: Exact number of rows
@@ -10,202 +10,152 @@
 #   exact_values: Exact column values
 
 # =============================================================================
-# SALES REP BRANCH (jsmith)
-# jsmith owns: Acme (2 open), Crown (1 open), Fusion (1 open + 1 closed won)
-# Total open deals: 4 (Acme x2, Crown x1, Fusion-upsell x1)
+# OPPORTUNITIES BRANCH - Starter: "What deals are in the pipeline?"
+# All deals visible (no owner filtering)
 # =============================================================================
 
-"Show my open deals":
-  row_count: 4
-  must_contain_all: ["Acme", "Crown", "Fusion"]
-  must_not_contain: ["Beta", "Delta", "Green", "Eastern", "Harbor"]
-  total_value: 69000  # 15000 + 24000 + 18000 + 12000
+"What deals are in the pipeline?":
+  row_count_min: 8  # All open opportunities
+  must_contain_all: ["Acme", "Beta", "Crown", "Delta", "Fusion", "Harbor", "Eastern"]
+  must_not_contain: ["Closed Won", "Closed Lost"]
 
-"Show deals by stage":
-  row_count: 4
-  must_contain_all: ["Proposal", "Qualified"]
-  must_not_contain: ["Closed Won", "Closed Lost", "Beta", "Delta"]
+"How are deals distributed by stage?":
+  row_count_min: 8
+  must_contain_all: ["Proposal", "Qualified", "Negotiation", "Discovery"]
+  must_not_contain: ["Closed Won", "Closed Lost"]
 
-"Show my Acme deals":
+"What are the highest value deals?":
+  row_count_min: 4
+  must_contain_all: ["32000", "26000", "24000", "22000"]
+
+"Which deals involve Acme Corp?":
   row_count: 2
   must_contain_all: ["Acme", "15000", "24000"]
-  must_not_contain: ["Crown", "Fusion", "Beta", "Delta"]
-  total_value: 39000  # 15000 + 24000
-
-"Show deals by value":
-  row_count: 4
-  must_contain_all: ["24000", "18000", "15000", "12000"]
-  must_not_contain: ["32000", "22000", "26000"]  # Other owners' deals
-
-"Show deals in Proposal stage":
-  row_count: 2
-  must_contain_all: ["Proposal", "Acme", "Crown"]
-  must_not_contain: ["Qualified", "Negotiation", "Discovery", "Beta", "Delta"]
-
-"Show deals in Qualified stage":
-  row_count: 2
-  must_contain_all: ["Qualified", "Acme", "Fusion"]
-  must_not_contain: ["Proposal", "Negotiation", "Discovery"]
-
-"Show deals in Negotiation stage":
-  row_count: 0
-  # jsmith has no deals in Negotiation (that's ljones with Beta)
-
-"Show Acme contacts":
-  row_count: 3
-  must_contain_all: ["Anna", "Beth", "Joe"]
-  must_not_contain: ["Maria", "Lisa", "Erin", "Carlos"]
-
-"Show Acme deal values":
-  row_count: 2
-  must_contain_all: ["15000", "24000"]
-  must_not_contain: ["18000", "12000", "32000"]  # Other deals
+  must_not_contain: ["Crown", "Beta", "Delta", "Green"]
   total_value: 39000
 
-"Show Acme activities":
+"What deals are in Proposal stage?":
+  row_count_min: 2
+  must_contain: "Proposal"
+  must_not_contain: ["Qualified", "Negotiation", "Discovery", "Closed"]
+
+"What deals are in Qualified stage?":
+  row_count_min: 3
+  must_contain: "Qualified"
+  must_not_contain: ["Proposal", "Negotiation", "Closed"]
+
+"What deals are in Negotiation stage?":
+  row_count: 1
+  must_contain_all: ["Negotiation", "Beta", "32000"]
+  must_not_contain: ["Proposal", "Qualified", "Discovery"]
+
+"Which deals are over $50,000?":
+  row_count: 0
+  # No deals exceed $50,000
+
+"Which deals are under $20,000?":
+  row_count_min: 4
+  must_contain_all: ["15000", "18000", "12000"]
+  must_not_contain: ["32000", "26000", "24000", "22000"]
+
+"What's the total pipeline value?":
+  row_count_min: 1
+
+"Who are the Acme contacts?":
+  row_count: 3
+  must_contain_all: ["Anna", "Beth", "Joe"]
+  must_not_contain: ["Maria", "Erin", "Carlos"]
+
+"What activities happened with Acme?":
   row_count_min: 1
   must_contain: "Acme"
-  must_not_contain: ["Crown", "Beta", "Delta"]
+  must_not_contain: ["Beta", "Delta", "Green"]
 
-"Show deals over 20000":
-  row_count: 1
-  must_contain: "24000"
-  must_not_contain: ["15000", "18000", "12000", "32000"]  # 32000 is ljones
+# =============================================================================
+# COMPANIES BRANCH - Starter: "Which accounts are at risk?"
+# =============================================================================
 
-"Show deals under 20000":
-  row_count: 3
-  must_contain_all: ["15000", "18000", "12000"]
-  must_not_contain: ["24000", "32000", "22000"]
-
-"Show total pipeline value":
+"Which accounts are at risk?":
   row_count_min: 1
-  # Total of jsmith's open deals: 69000
+  must_contain_any: ["at-risk", "Delta", "Green"]
 
-# =============================================================================
-# CSM BRANCH (amartin)
-# amartin owns: Delta Health (2 open opps), Green Energy (churned, 2 closed lost)
-# =============================================================================
+"What's happening with Delta Health?":
+  row_count_min: 1
+  must_contain: "Delta"
+  must_not_contain: ["Acme", "Beta", "Crown"]
 
-"Show my at-risk renewals":
-  row_count: 1
-  must_contain_all: ["Delta", "at-risk"]
-  must_not_contain: ["Green", "Acme", "Beta", "Crown"]  # Green is churned, others are different owners
+"What's happening with Green Energy?":
+  row_count_min: 1
+  must_contain: "Green"
+  must_not_contain: ["Delta", "Acme", "Beta"]
 
-"Show Delta Health deals":
+"Which accounts have health issues?":
+  row_count_min: 1
+  must_contain_any: ["at-risk", "Churned"]
+
+"Who are the Delta Health contacts?":
+  row_count: 3
+  must_contain_all: ["Erin", "Mike", "Priya"]
+  must_not_contain: ["Anna", "Carlos", "Maria"]
+
+"What are the Delta Health deals?":
   row_count: 2
   must_contain_all: ["Delta", "22000", "15000"]
   must_not_contain: ["Green", "Acme", "Beta"]
   total_value: 37000
 
-"Show Green Energy deals":
+"Who are the Green Energy contacts?":
+  row_count: 3
+  must_contain_all: ["Carlos", "Linda", "Tom"]
+  must_not_contain: ["Erin", "Anna", "Maria"]
+
+"What are the Green Energy deals?":
   row_count: 2
   must_contain_all: ["Green", "Closed Lost"]
   must_not_contain: ["Delta", "Acme"]
 
-"Show renewal values":
+"Which accounts are churning?":
   row_count_min: 1
-  must_contain: "Delta"
-  must_not_contain: ["Green"]  # Green is churned
+  must_contain_any: ["Churned", "Green"]
 
-"Show Delta Health contacts":
-  row_count: 3
-  must_contain_all: ["Erin", "Mike", "Priya"]
-  must_not_contain: ["Carlos", "Anna", "Lisa"]
-
-"Show Delta Health activities":
+"Which accounts need attention?":
   row_count_min: 1
-  must_contain: "Delta"
-  must_not_contain: ["Green", "Acme"]
-
-"Show Delta Health deal stages":
-  row_count: 2
-  must_contain_all: ["Delta", "Qualified", "Discovery"]
-  must_not_contain: ["Closed", "Proposal"]
-
-"Show Green Energy contacts":
-  row_count: 3
-  must_contain_all: ["Carlos", "Linda", "Tom"]
-  must_not_contain: ["Erin", "Anna"]
-
-"Show Green Energy activities":
-  row_count_min: 1
-  must_contain: "Green"
-
-"Show Green Energy status":
-  row_count: 1
-  must_contain_any: ["Churned", "Former", "Cancelled"]
-
-"Show upcoming renewals":
-  row_count_min: 1
-  must_contain: "Delta"
-  must_not_contain: ["Green"]  # Churned, no renewal
-
-"Show at-risk accounts":
-  row_count_min: 1
-  must_contain: "Delta"
-
-"Show expansion deals":
-  row_count: 1
-  must_contain_all: ["Expansion", "Delta"]
-  must_not_contain: ["Renewal", "New Business"]
+  must_contain_any: ["at-risk", "Delta"]
 
 # =============================================================================
-# MANAGER BRANCH (all owners)
-# All companies, all opportunities visible
+# CONTACTS BRANCH - Starter: "Who needs a follow-up?"
 # =============================================================================
 
-"Show team pipeline":
-  row_count_min: 8  # All open opportunities across all owners
-  must_contain_all: ["Acme", "Beta", "Crown", "Delta", "Fusion", "Harbor", "Eastern"]
-  must_not_contain: ["Green"]  # Churned account
-
-"Show all open deals":
-  row_count_min: 8
-  must_contain_all: ["Acme", "Beta", "Crown", "Delta"]
-  must_not_contain: ["Closed Won", "Closed Lost"]
-
-"Show pipeline by owner":
-  row_count_min: 3
-  must_contain_all: ["jsmith", "amartin", "ljones"]
-
-"Show recent activities":
+"Who needs a follow-up?":
   row_count_min: 1
 
-"Show deals in Negotiation":
-  row_count: 1
-  must_contain_all: ["Negotiation", "Beta", "32000"]
-  must_not_contain: ["Proposal", "Qualified", "Discovery"]
-
-"Show closed deals":
-  row_count: 3  # Fusion Won + Green x2 Lost
-  must_contain_all: ["Closed"]
-  must_contain_any: ["Won", "Lost"]
-
-"Show Beta Tech deals":
-  row_count: 2
-  must_contain_all: ["Beta", "32000", "8000"]
-  must_not_contain: ["Acme", "Delta", "Crown"]
-  total_value: 40000
-
-"Show biggest deals":
-  row_count_min: 4
-  must_contain_all: ["32000", "26000", "24000", "22000"]
-
-"Show Proposal stage deals":
-  row_count: 2
-  must_contain_all: ["Proposal"]
-  must_not_contain: ["Qualified", "Negotiation", "Discovery", "Closed"]
-
-"Show lost deals":
-  row_count: 2
-  must_contain_all: ["Closed Lost", "Green"]
-  must_not_contain: ["Closed Won", "Acme", "Beta", "Delta"]
-
-"Show won deals":
-  row_count: 1
-  must_contain_all: ["Closed Won", "Fusion"]
-  must_not_contain: ["Closed Lost", "Green"]
-
-"Show recently closed deals":
+"Which contacts haven't been reached?":
   row_count_min: 1
-  must_contain_any: ["Closed Won", "Closed Lost"]
+
+"Who are the decision makers?":
+  row_count_min: 1
+  must_contain_any: ["Decision Maker", "Champion", "Executive"]
+
+"Which contacts had recent activity?":
+  row_count_min: 1
+
+"Who at Acme needs follow-up?":
+  row_count_min: 1
+  must_contain: "Acme"
+  must_not_contain: ["Beta", "Delta", "Green"]
+
+"Who's the contact at Beta Corp?":
+  row_count: 2
+  must_contain_all: ["Maria", "Lisa"]
+  must_not_contain: ["Anna", "Erin", "Carlos"]
+
+"Which executives should I engage?":
+  row_count_min: 1
+  must_contain_any: ["Executive", "Decision Maker"]
+
+"What are their roles?":
+  row_count_min: 1
+  must_contain_any: ["Decision Maker", "Champion", "Technical Contact", "Executive"]
+
+"What were the recent interactions?":
+  row_count_min: 1

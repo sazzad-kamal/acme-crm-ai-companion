@@ -17,7 +17,6 @@ from backend.eval.models import (
     FlowStepResult,
     FlowResult,
     FlowEvalResults,
-    SLO_ROUTER_ACCURACY,
     SLO_FLOW_PATH_PASS_RATE,
     SLO_FLOW_QUESTION_PASS_RATE,
     SLO_FLOW_RELEVANCE,
@@ -254,10 +253,6 @@ class TestFlowEvalResults:
 
 class TestSLOConstants:
     """Tests for SLO constant values."""
-
-    def test_slo_router_accuracy(self):
-        """Test SLO router accuracy threshold."""
-        assert SLO_ROUTER_ACCURACY == 0.90
 
     def test_slo_flow_path_pass_rate(self):
         """Test SLO flow path pass rate threshold."""
@@ -2018,7 +2013,7 @@ class TestRunFlowEval:
         """Test run_flow_eval with basic execution."""
         from backend.eval.runner import run_flow_eval
 
-        def mock_get_paths_for_role(role=None):
+        def mock_get_all_paths(role=None):
             return [["Q1?", "Q2?"]]
 
         def mock_test_flow(questions, path_id, use_judge=True, verbose=False, eval_mode="both"):
@@ -2056,7 +2051,7 @@ class TestRunFlowEval:
 
         import backend.eval.runner
 
-        monkeypatch.setattr(backend.eval.runner, "get_paths_for_role", mock_get_paths_for_role)
+        monkeypatch.setattr(backend.eval.runner, "get_all_paths", mock_get_all_paths)
         monkeypatch.setattr(backend.eval.runner, "test_flow", mock_test_flow)
 
         results = run_flow_eval(max_paths=1, concurrency=1)
@@ -2069,7 +2064,7 @@ class TestRunFlowEval:
         """Test run_flow_eval with failed paths."""
         from backend.eval.runner import run_flow_eval
 
-        def mock_get_paths_for_role(role=None):
+        def mock_get_all_paths(role=None):
             return [["Q1?"]]
 
         def mock_test_flow(questions, path_id, use_judge=True, verbose=False, eval_mode="both"):
@@ -2094,7 +2089,7 @@ class TestRunFlowEval:
 
         import backend.eval.runner
 
-        monkeypatch.setattr(backend.eval.runner, "get_paths_for_role", mock_get_paths_for_role)
+        monkeypatch.setattr(backend.eval.runner, "get_all_paths", mock_get_all_paths)
         monkeypatch.setattr(backend.eval.runner, "test_flow", mock_test_flow)
 
         results = run_flow_eval(max_paths=1, concurrency=1)
@@ -2106,7 +2101,7 @@ class TestRunFlowEval:
         """Test run_flow_eval with RAG metrics."""
         from backend.eval.runner import run_flow_eval
 
-        def mock_get_paths_for_role(role=None):
+        def mock_get_all_paths(role=None):
             return [["Q1?"]]
 
         def mock_test_flow(questions, path_id, use_judge=True, verbose=False, eval_mode="both"):
@@ -2135,7 +2130,7 @@ class TestRunFlowEval:
 
         import backend.eval.runner
 
-        monkeypatch.setattr(backend.eval.runner, "get_paths_for_role", mock_get_paths_for_role)
+        monkeypatch.setattr(backend.eval.runner, "get_all_paths", mock_get_all_paths)
         monkeypatch.setattr(backend.eval.runner, "test_flow", mock_test_flow)
 
         results = run_flow_eval(max_paths=1, concurrency=1, eval_mode="rag")
@@ -2148,7 +2143,7 @@ class TestRunFlowEval:
         """Test run_flow_eval with parallel execution."""
         from backend.eval.runner import run_flow_eval
 
-        def mock_get_paths_for_role(role=None):
+        def mock_get_all_paths(role=None):
             return [["Q1?"], ["Q2?"], ["Q3?"]]
 
         call_count = {"count": 0}
@@ -2175,7 +2170,7 @@ class TestRunFlowEval:
 
         import backend.eval.runner
 
-        monkeypatch.setattr(backend.eval.runner, "get_paths_for_role", mock_get_paths_for_role)
+        monkeypatch.setattr(backend.eval.runner, "get_all_paths", mock_get_all_paths)
         monkeypatch.setattr(backend.eval.runner, "test_flow", mock_test_flow)
 
         results = run_flow_eval(max_paths=3, concurrency=2)

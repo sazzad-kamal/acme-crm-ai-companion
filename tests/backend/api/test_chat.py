@@ -150,8 +150,8 @@ class TestStarterQuestionsEndpoint:
         """Should contain expected starter questions."""
         response = client.get("/api/chat/starter-questions")
         questions = response.json()
-        # Should have at least one company-specific and one general question
-        has_acme = any("Acme" in q for q in questions)
-        has_beta = any("Beta" in q for q in questions)
-        has_renewal = any("renewal" in q.lower() for q in questions)
-        assert has_acme or has_beta or has_renewal
+        # Should have the 3 top CRM questions (opportunities, companies, contacts)
+        has_pipeline = any("pipeline" in q.lower() for q in questions)
+        has_risk = any("risk" in q.lower() for q in questions)
+        has_followup = any("follow" in q.lower() for q in questions)
+        assert has_pipeline or has_risk or has_followup

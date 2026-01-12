@@ -82,7 +82,6 @@ class AgentState(TypedDict, total=False):
     resolved_company_id: str | None
     resolved_contact_id: str | None
     resolved_opportunity_id: str | None
-    owner: str | None  # Role-based owner for filtering
     needs_rag: bool  # Whether RAG context is needed (from slot planner)
 
     # Legacy data outputs (kept for backwards compatibility during migration)

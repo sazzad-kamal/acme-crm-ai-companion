@@ -1,127 +1,131 @@
-# Expected answers - Difficulty 1 questions for reliable demos
+# Expected answers for RAGAS evaluation
+# Based on the new question tree (3 CRM entities: Opportunities, Companies, Contacts)
 
 # =============================================================================
-# SALES REP BRANCH (jsmith)
+# OPPORTUNITIES BRANCH - Starter: "What deals are in the pipeline?"
 # =============================================================================
 
-"Show my open deals": |
-  Your open deals include opportunities with Acme, Crown, and Fusion.
+"What deals are in the pipeline?": |
+  Current pipeline includes deals across multiple accounts and stages.
 
-"Show deals by stage": |
-  Deals are in Proposal, Qualified, and other stages.
+"How are deals distributed by stage?": |
+  Deals are distributed across Proposal, Qualified, Negotiation, and Discovery stages.
 
-"Show my Acme deals": |
-  Acme deals include the upgrade and renewal opportunities.
+"What are the highest value deals?": |
+  Highest value deals include Beta Tech at $32K and Harbor Logistics at $26K.
 
-"Show deals by value": |
-  Deals range from $12K to $24K in value.
+"Which deals involve Acme Corp?": |
+  Acme has two deals: an upgrade ($15K) and a renewal ($24K).
 
-"Show deals in Proposal stage": |
-  Deals in Proposal stage include Acme upgrade.
+"What deals are in Proposal stage?": |
+  Proposal stage deals include Acme upgrade and Crown Foods expansion.
 
-"Show deals in Qualified stage": |
-  Deals in Qualified stage include Acme renewal.
+"What deals are in Qualified stage?": |
+  Qualified stage deals include Acme renewal, Fusion upsell, and Delta renewal.
 
-"Show deals in Negotiation stage": |
-  Deals in Negotiation stage include Beta Tech.
+"What deals are in Negotiation stage?": |
+  Beta Tech security platform is in Negotiation stage at $32K.
 
-"Show Acme contacts": |
+"Which deals are over $50,000?": |
+  No individual deals exceed $50,000.
+
+"Which deals are under $20,000?": |
+  Deals under $20K include Acme upgrade ($15K), Crown Foods ($18K), Fusion upsell ($12K), and Delta expansion ($15K).
+
+"What's the total pipeline value?": |
+  Total pipeline value is the sum of all open opportunities.
+
+"Who are the Acme contacts?": |
   Acme contacts include Anna, Beth, and Joe.
 
-"Show Acme deal values": |
-  Acme deals are valued at $15K and $24K.
+"What's the history with Acme?": |
+  Acme history includes meetings, calls, and proposal activities.
 
-"Show Acme activities": |
-  Recent activities with Acme include calls and meetings.
-
-"Show deals over 20000": |
-  Deals over $20K include Acme renewal and others.
-
-"Show deals under 20000": |
-  Deals under $20K include Acme upgrade and Crown Foods.
-
-"Show total pipeline value": |
-  Total pipeline value across all open deals.
+"What activities happened with Acme?": |
+  Recent Acme activities include sales calls and meetings.
 
 # =============================================================================
-# CSM BRANCH (amartin)
+# COMPANIES BRANCH - Starter: "Which accounts are at risk?"
 # =============================================================================
 
-"Show my at-risk renewals": |
-  At-risk renewals include Delta Health.
+"Which accounts are at risk?": |
+  At-risk accounts include Delta Health (low activity) and Green Energy (churned).
 
-"Show Delta Health deals": |
-  Delta Health has renewal and expansion opportunities.
+"What's happening with Delta Health?": |
+  Delta Health is flagged as at-risk due to low activity, with renewal and expansion deals in progress.
 
-"Show Green Energy deals": |
-  Green Energy deals are closed (churned).
+"What's happening with Green Energy?": |
+  Green Energy has churned - account status is inactive with lost opportunities.
 
-"Show renewal values": |
-  Renewal values include Delta at $22K.
+"Which accounts have health issues?": |
+  Accounts with health issues include those flagged as at-risk or churned.
 
-"Show Delta Health contacts": |
-  Delta contacts include Erin, Mike, and Priya.
+"Who are the Delta Health contacts?": |
+  Delta Health contacts include Erin, Mike, and Priya.
 
-"Show Delta Health activities": |
-  Recent activities with Delta include calls and meetings.
+"What are the Delta Health deals?": |
+  Delta Health has a renewal deal ($22K) and expansion deal ($15K).
 
-"Show Delta Health deal stages": |
-  Delta deals are in Qualified and Discovery stages.
+"What's the Delta Health history?": |
+  Delta Health history includes support calls and renewal discussions.
 
-"Show Green Energy contacts": |
+"Who are the Green Energy contacts?": |
   Green Energy contacts included Carlos, Linda, and Tom.
 
-"Show Green Energy activities": |
-  Green Energy activities included support and onboarding.
+"What are the Green Energy deals?": |
+  Green Energy deals are closed lost (churned account).
 
-"Show Green Energy status": |
-  Green Energy status is Churned.
+"What's the Green Energy history?": |
+  Green Energy history shows declining engagement leading to churn.
 
-"Show upcoming renewals": |
-  Upcoming renewals include Delta Health.
+"Which accounts are churning?": |
+  Green Energy has churned.
 
-"Show at-risk accounts": |
-  At-risk accounts include Delta Health.
+"Which accounts need attention?": |
+  Delta Health needs attention due to at-risk status.
 
-"Show expansion deals": |
-  Expansion deals include Delta Health clinics.
+"What are the warning signs?": |
+  Warning signs include low activity and at-risk health flags.
 
 # =============================================================================
-# MANAGER BRANCH (all owners)
+# CONTACTS BRANCH - Starter: "Who needs a follow-up?"
 # =============================================================================
 
-"Show team pipeline": |
-  Team pipeline includes deals across all owners.
+"Who needs a follow-up?": |
+  Contacts needing follow-up include those without recent activity.
 
-"Show all open deals": |
-  Open deals span multiple accounts and stages.
+"Which contacts haven't been reached?": |
+  Contacts without recent activity may need outreach.
 
-"Show pipeline by owner": |
-  Pipeline is distributed across team members.
+"Who are the decision makers?": |
+  Decision makers include executives and champions across accounts.
 
-"Show recent activities": |
-  Recent activities include calls, meetings, and emails.
+"Which contacts had recent activity?": |
+  Contacts with recent activity include those engaged in calls and meetings.
 
-"Show deals in Negotiation": |
-  Deals in Negotiation include Beta Tech.
+"Who at Acme needs follow-up?": |
+  Acme contacts for follow-up include Anna, Beth, and Joe.
 
-"Show closed deals": |
-  Closed deals include won and lost opportunities.
+"Which leads are going cold?": |
+  Leads without recent engagement may be going cold.
 
-"Show Beta Tech deals": |
-  Beta Tech has a deal in Negotiation.
+"What's the best way to reach them?": |
+  Contact information includes email and phone for each contact.
 
-"Show biggest deals": |
-  Biggest deals include Beta Tech and Harbor Logistics.
+"Who's the contact at Beta Corp?": |
+  Beta Corp contacts include Maria and Lisa.
 
-"Show Proposal stage deals": |
-  Proposal stage deals include Acme and Crown.
+"Which executives should I engage?": |
+  Executives include decision makers and champions across accounts.
 
-"Show lost deals": |
-  Lost deals include Green Energy opportunities.
+"What are their roles?": |
+  Roles include Decision Maker, Champion, Technical Contact, and Executive.
 
-"Show won deals": |
-  Won deals include Fusion Retail renewal.
+"Who opened emails recently?": |
+  Email engagement data from recent activities.
 
-"Show recently closed deals": |
-  Recently closed deals include 2025 closes.
+"Who attended meetings?": |
+  Meeting attendance from recent activities.
+
+"What were the recent interactions?": |
+  Recent interactions include calls, meetings, and emails.
