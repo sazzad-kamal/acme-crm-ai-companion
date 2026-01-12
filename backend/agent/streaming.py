@@ -3,7 +3,6 @@
 import json
 import logging
 from collections.abc import AsyncGenerator
-from typing import Any
 
 from fastapi.encoders import jsonable_encoder
 
@@ -28,8 +27,6 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
     """Stream agent execution as SSE events."""
     config = build_thread_config(session_id)
     state: AgentState = {"question": question}
-
-    final: dict[str, Any] = {}
     in_answer_node = False
 
     try:
@@ -45,16 +42,15 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
 
             elif typ == "on_chain_end" and name == "LangGraph":
                 final = e.get("data", {}).get("output") or {}
-
-        yield _format_sse(StreamEvent.ANSWER_END, {"answer": final.get("answer", "")})
-        yield _format_sse(StreamEvent.DONE, {
-            "raw_data": final.get("raw_data", {}),
-            "follow_up_suggestions": final.get("follow_up_suggestions", []),
-        })
+                yield _format_sse(StreamEvent.ANSWER_END, {"answer": final.get("answer", "")})
+                yield _format_sse(StreamEvent.DONE, {
+                    "raw_data": final.get("raw_data", {}),
+                    "follow_up_suggestions": final.get("follow_up_suggestions", []),
+                })
 
     except Exception as ex:
         logger.error("[Stream] %s", ex)
         yield _format_sse(StreamEvent.ERROR, {"message": str(ex)})
 
 
-__all__ = ["stream_agent", "StreamEvent"]
+__all__ = ["stream_agent"]
