@@ -7,14 +7,9 @@ Tests the routing node for query planning.
 import os
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 os.environ["MOCK_LLM"] = "1"
-
-
-# =============================================================================
-# Route Node Tests
-# =============================================================================
 
 
 class TestRouteNode:
@@ -70,52 +65,6 @@ class TestRouteNode:
         assert len(call_kwargs["conversation_history"]) > 0
 
     @patch('backend.agent.route.node.get_slot_plan')
-    def test_route_node_records_latency(self, mock_slot_planner):
-        """Records routing latency in steps."""
-        from backend.agent.route.node import route_node
-        from backend.agent.route.slot_query import SlotPlan, SlotQuery
-
-        mock_slot_plan = SlotPlan(
-            queries=[SlotQuery(table="companies", filters={}, purpose="companies")],
-            needs_rag=False
-        )
-        mock_slot_planner.return_value = mock_slot_plan
-
-        state = {
-            "question": "Test question",
-            "messages": [],
-        }
-
-        result = route_node(state)
-
-        assert "steps" in result
-        assert result["steps"][0]["latency_ms"] >= 0
-
-    @patch('backend.agent.route.node.get_slot_plan')
-    def test_route_node_returns_steps(self, mock_slot_planner):
-        """Returns steps for progress tracking."""
-        from backend.agent.route.node import route_node
-        from backend.agent.route.slot_query import SlotPlan, SlotQuery
-
-        mock_slot_plan = SlotPlan(
-            queries=[SlotQuery(table="companies", filters={}, purpose="companies")],
-            needs_rag=False
-        )
-        mock_slot_planner.return_value = mock_slot_plan
-
-        state = {
-            "question": "Test",
-            "messages": [],
-        }
-
-        result = route_node(state)
-
-        assert "steps" in result
-        assert len(result["steps"]) > 0
-        assert result["steps"][0]["id"] == "router"
-        assert result["steps"][0]["status"] == "done"
-
-    @patch('backend.agent.route.node.get_slot_plan')
     def test_route_node_handles_exception_with_fallback(self, mock_slot_planner):
         """Handles exception and uses fallback query plan."""
         from backend.agent.route.node import route_node
@@ -129,11 +78,9 @@ class TestRouteNode:
 
         result = route_node(state)
 
-        # Should fallback with default query plan
         assert "query_plan" in result
         assert result["needs_rag"] is False
         assert "error" in result
-        assert result["steps"][0]["status"] == "error"
 
     @patch('backend.agent.route.node.get_slot_plan')
     def test_route_node_handles_empty_messages(self, mock_slot_planner):
@@ -154,6 +101,5 @@ class TestRouteNode:
 
         result = route_node(state)
 
-        # Should work without messages
         call_kwargs = mock_slot_planner.call_args[1]
         assert call_kwargs["conversation_history"] == ""

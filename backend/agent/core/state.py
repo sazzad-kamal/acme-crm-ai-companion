@@ -117,8 +117,5 @@ class AgentState(TypedDict, total=False):
     # Error handling
     error: str | None
 
-    # Progress tracking
-    steps: list[dict[str, Any]]
-
 
 __all__ = ["Source", "AgentState", "Message", "format_history_for_prompt"]

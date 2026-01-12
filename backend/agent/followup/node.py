@@ -59,32 +59,12 @@ def followup_node(state: AgentState) -> AgentState:
         latency_ms = int((time.time() - start_time) * 1000)
         logger.info(f"[Followup] Generated {len(suggestions)} suggestions in {latency_ms}ms")
 
-        return {
-            "follow_up_suggestions": suggestions,
-            "steps": [
-                {
-                    "id": "followup",
-                    "label": "Generating suggestions",
-                    "status": "done",
-                    "latency_ms": latency_ms,
-                }
-            ],
-        }
+        return {"follow_up_suggestions": suggestions}
 
     except Exception as e:
         latency_ms = int((time.time() - start_time) * 1000)
         logger.warning(f"[Followup] Failed after {latency_ms}ms: {e}")
-        return {
-            "follow_up_suggestions": [],
-            "steps": [
-                {
-                    "id": "followup",
-                    "label": "Generating suggestions",
-                    "status": "error",
-                    "latency_ms": latency_ms,
-                }
-            ],
-        }
+        return {"follow_up_suggestions": []}
 
 
 __all__ = ["followup_node"]

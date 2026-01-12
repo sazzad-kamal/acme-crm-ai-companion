@@ -64,15 +64,7 @@ def answer_node(state: AgentState) -> AgentState:
 
         return {
             "answer": answer,
-            "messages": messages,  # Updated messages for next turn
-            "steps": [
-                {
-                    "id": "answer",
-                    "label": "Synthesizing answer",
-                    "status": "done",
-                    "latency_ms": total_latency_ms,
-                }
-            ],
+            "messages": messages,
         }
 
     except Exception as e:
@@ -101,14 +93,6 @@ def answer_node(state: AgentState) -> AgentState:
             "answer": error_answer,
             "messages": messages,
             "error": str(e),
-            "steps": [
-                {
-                    "id": "answer",
-                    "label": "Synthesizing answer",
-                    "status": "error",
-                    "latency_ms": total_latency_ms,
-                }
-            ],
         }
 
 

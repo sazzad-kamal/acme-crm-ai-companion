@@ -58,14 +58,6 @@ def route_node(state: AgentState) -> AgentState:
             "owner": owner,
             "needs_rag": needs_rag,
             "conversation_history": conversation_history,
-            "steps": [
-                {
-                    "id": "router",
-                    "label": "Understanding your question",
-                    "status": "done",
-                    "latency_ms": latency_ms,
-                }
-            ],
         }
 
     except Exception as e:
@@ -78,12 +70,4 @@ def route_node(state: AgentState) -> AgentState:
             "needs_rag": False,
             "conversation_history": conversation_history,
             "error": f"Query planning failed: {e}",
-            "steps": [
-                {
-                    "id": "router",
-                    "label": "Understanding your question",
-                    "status": "error",
-                    "latency_ms": latency_ms,
-                }
-            ],
         }

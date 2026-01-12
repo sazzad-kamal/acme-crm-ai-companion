@@ -6,6 +6,7 @@ followup_node (backend/agent/followup/node.py).
 """
 
 import os
+
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -95,44 +96,6 @@ class TestAnswerNode:
         assert "error" in result
         assert result["error"] == "LLM error"
         assert "error" in result["answer"].lower()
-
-    @patch('backend.agent.answer.node.call_answer_chain')
-    def test_answer_node_records_latency(self, mock_chain):
-        """Records answer latency."""
-        from backend.agent.answer.node import answer_node
-
-        mock_chain.return_value = ("Answer text", 200)
-
-        state = {
-            "question": "Test",
-            "messages": [],
-            "sql_results": {},
-        }
-
-        result = answer_node(state)
-
-        assert "answer_latency_ms" in result
-        assert result["llm_latency_ms"] == 200
-
-    @patch('backend.agent.answer.node.call_answer_chain')
-    def test_answer_node_returns_steps(self, mock_chain):
-        """Returns steps for progress tracking."""
-        from backend.agent.answer.node import answer_node
-
-        mock_chain.return_value = ("Answer", 100)
-
-        state = {
-            "question": "Test",
-            "messages": [],
-            "sql_results": {},
-        }
-
-        result = answer_node(state)
-
-        assert "steps" in result
-        assert len(result["steps"]) > 0
-        assert result["steps"][0]["id"] == "answer"
-        assert result["steps"][0]["status"] == "done"
 
     @patch('backend.agent.answer.node.call_answer_chain')
     def test_answer_node_passes_sql_results(self, mock_chain):
@@ -277,28 +240,6 @@ class TestFollowupNode:
         result = followup_node(state)
 
         assert result["follow_up_suggestions"] == []
-        assert result["steps"][0]["status"] == "error"
-
-    @patch('backend.agent.followup.node.generate_follow_up_suggestions')
-    @patch('backend.agent.followup.node.get_config')
-    def test_followup_node_records_latency(self, mock_config, mock_generate):
-        """Records follow-up generation latency."""
-        from backend.agent.followup.node import followup_node
-
-        mock_config.return_value.enable_follow_up_suggestions = True
-        mock_config.return_value.max_followup_suggestions = 3
-        mock_generate.return_value = ["Suggestion"]
-
-        state = {
-            "question": "Test",
-            "messages": [],
-            "sql_results": {},
-        }
-
-        result = followup_node(state)
-
-        assert "followup_latency_ms" in result
-        assert result["followup_latency_ms"] >= 0
 
     @patch('backend.agent.followup.node.generate_follow_up_suggestions')
     @patch('backend.agent.followup.node.get_config')
@@ -349,25 +290,3 @@ class TestFollowupNode:
         call_kwargs = mock_generate.call_args[1]
         assert call_kwargs["available_data"]["contacts"] == 2
         assert call_kwargs["available_data"]["activities"] == 1
-
-    @patch('backend.agent.followup.node.generate_follow_up_suggestions')
-    @patch('backend.agent.followup.node.get_config')
-    def test_followup_node_returns_steps(self, mock_config, mock_generate):
-        """Returns steps for progress tracking."""
-        from backend.agent.followup.node import followup_node
-
-        mock_config.return_value.enable_follow_up_suggestions = True
-        mock_config.return_value.max_followup_suggestions = 3
-        mock_generate.return_value = ["Suggestion"]
-
-        state = {
-            "question": "Test",
-            "messages": [],
-            "sql_results": {},
-        }
-
-        result = followup_node(state)
-
-        assert "steps" in result
-        assert result["steps"][0]["id"] == "followup"
-        assert result["steps"][0]["status"] == "done"
