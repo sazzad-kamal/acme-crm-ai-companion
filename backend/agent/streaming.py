@@ -3,11 +3,10 @@
 import json
 import logging
 from collections.abc import AsyncGenerator
-
-from fastapi.encoders import jsonable_encoder
+from typing import Any
 
 from backend.agent.core.state import AgentState
-from backend.agent.graph import ANSWER_NODE, agent_graph, build_thread_config
+from backend.agent.graph import ANSWER_NODE, GRAPH_NAME, agent_graph, build_thread_config
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +18,8 @@ class StreamEvent:
     ERROR = "error"
 
 
-def _format_sse(event: str, data: dict) -> str:
-    return f"event: {event}\ndata: {json.dumps(jsonable_encoder(data))}\n\n"
+def _format_sse(event: str, data: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 async def stream_agent(question: str, session_id: str | None = None) -> AsyncGenerator[str, None]:
@@ -40,7 +39,7 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
                 if content := getattr(e.get("data", {}).get("chunk"), "content", ""):
                     yield _format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": content})
 
-            elif event_type == "on_chain_end" and name == "LangGraph":
+            elif event_type == "on_chain_end" and name == GRAPH_NAME:
                 final = e.get("data", {}).get("output") or {}
                 yield _format_sse(StreamEvent.ANSWER_END, {"answer": final.get("answer", "")})
                 yield _format_sse(StreamEvent.DONE, {

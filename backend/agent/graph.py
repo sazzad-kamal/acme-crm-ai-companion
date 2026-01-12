@@ -20,8 +20,9 @@ from backend.agent.fetch.fetch_entity import fetch_account_node
 from backend.agent.followup.node import followup_node
 from backend.agent.route.node import route_node
 
-# Node name constant (used in streaming.py to filter events)
+# Constants (used in streaming.py to filter events)
 ANSWER_NODE = "answer"
+GRAPH_NAME = "LangGraph"  # Standard LangGraph name for whole graph completion
 
 _checkpointer = MemorySaver()
 
@@ -68,4 +69,4 @@ def _build_graph():
 
 agent_graph = _build_graph()
 
-__all__ = ["agent_graph", "build_thread_config", "clear_thread", "ANSWER_NODE"]
+__all__ = ["agent_graph", "build_thread_config", "clear_thread", "ANSWER_NODE", "GRAPH_NAME"]
