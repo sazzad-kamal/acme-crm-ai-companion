@@ -6,7 +6,13 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from backend.agent.core.state import AgentState
-from backend.agent.graph import ANSWER_NODE, GRAPH_NAME, agent_graph, build_thread_config
+from backend.agent.graph import (
+    ANSWER_NODE,
+    GRAPH_NAME,
+    LangGraphEvent,
+    agent_graph,
+    build_thread_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +38,14 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
         async for e in agent_graph.astream_events(state, config=config, version="v2"):
             event_type, name = e.get("event"), e.get("name", "")
 
-            if event_type == "on_chain_start" and name == ANSWER_NODE:
+            if event_type == LangGraphEvent.CHAIN_START and name == ANSWER_NODE:
                 in_answer_node = True
 
-            elif event_type == "on_chat_model_stream" and in_answer_node:
+            elif event_type == LangGraphEvent.CHAT_MODEL_STREAM and in_answer_node:
                 if content := getattr(e.get("data", {}).get("chunk"), "content", ""):
                     yield _format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": content})
 
-            elif event_type == "on_chain_end" and name == GRAPH_NAME:
+            elif event_type == LangGraphEvent.CHAIN_END and name == GRAPH_NAME:
                 final = e.get("data", {}).get("output") or {}
                 yield _format_sse(StreamEvent.ANSWER_END, {"answer": final.get("answer", "")})
                 yield _format_sse(StreamEvent.DONE, {

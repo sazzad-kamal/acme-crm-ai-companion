@@ -20,9 +20,16 @@ from backend.agent.fetch.fetch_entity import fetch_account_node
 from backend.agent.followup.node import followup_node
 from backend.agent.route.node import route_node
 
-# Constants (used in streaming.py to filter events)
+# LangGraph event constants (not exported by langgraph package)
+class LangGraphEvent:
+    CHAIN_START = "on_chain_start"
+    CHAIN_END = "on_chain_end"
+    CHAT_MODEL_STREAM = "on_chat_model_stream"
+
+GRAPH_NAME = "LangGraph"  # Name used for whole graph in events
+
+# Our node names
 ANSWER_NODE = "answer"
-GRAPH_NAME = "LangGraph"  # Standard LangGraph name for whole graph completion
 
 _checkpointer = MemorySaver()
 
@@ -69,4 +76,4 @@ def _build_graph():
 
 agent_graph = _build_graph()
 
-__all__ = ["agent_graph", "build_thread_config", "clear_thread", "ANSWER_NODE", "GRAPH_NAME"]
+__all__ = ["agent_graph", "build_thread_config", "clear_thread", "LangGraphEvent", "GRAPH_NAME", "ANSWER_NODE"]
