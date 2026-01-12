@@ -124,8 +124,9 @@ def execute_slot_plan(
     resolved: dict[str, str] = {}  # $company_id, $contact_id
     stats = SQLExecutionStats()
 
-    for slot in plan.queries:
+    for idx, slot in enumerate(plan.queries):
         stats.total += 1
+        query_key = f"{slot.table}_{idx}" if len(plan.queries) > 1 else slot.table
         try:
             # Build SQL from slot using pypika
             sql = slot_to_sql(slot)
@@ -140,7 +141,7 @@ def execute_slot_plan(
             if "LIMIT" not in sql.upper():
                 sql = f"{sql} LIMIT {max_rows}"
 
-            logger.debug(f"Executing SQL for '{slot.purpose}': {sql[:100]}...")
+            logger.debug(f"Executing SQL for '{slot.table}': {sql[:100]}...")
 
             # Execute query
             result = conn.execute(sql)
@@ -153,11 +154,11 @@ def execute_slot_plan(
             # Enforce max_rows limit
             if len(data) > max_rows:
                 logger.warning(
-                    f"Query '{slot.purpose}' returned {len(data)} rows, truncating to {max_rows}"
+                    f"Query '{slot.table}' returned {len(data)} rows, truncating to {max_rows}"
                 )
                 data = data[:max_rows]
 
-            results[slot.purpose] = data
+            results[query_key] = data
             stats.success += 1
 
             # Cache IDs for subsequent queries and RAG filtering
@@ -167,7 +168,7 @@ def execute_slot_plan(
                     if key in first_row and first_row[key] and f"${key}" not in resolved:
                         resolved[f"${key}"] = str(first_row[key])
 
-            logger.debug(f"Query '{slot.purpose}' returned {len(data)} rows")
+            logger.debug(f"Query '{slot.table}' returned {len(data)} rows")
 
         except SQLValidationError:
             # Re-raise validation errors
@@ -175,11 +176,11 @@ def execute_slot_plan(
 
         except Exception as e:
             error_msg = str(e)
-            logger.error(f"SQL execution failed for '{slot.purpose}': {error_msg}")
+            logger.error(f"SQL execution failed for '{slot.table}': {error_msg}")
             # Store error for retry feedback
-            stats.errors[slot.purpose] = error_msg
+            stats.errors[query_key] = error_msg
             # Store empty result for failed queries instead of failing entirely
-            results[slot.purpose] = []
+            results[query_key] = []
 
     return results, resolved, stats
 

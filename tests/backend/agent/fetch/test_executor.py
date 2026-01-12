@@ -250,14 +250,14 @@ class TestExecuteSlotPlan:
     def test_execute_simple_select(self, duckdb_connection):
         """Executes simple SELECT query from slot."""
         plan = SlotPlan(
-            queries=[SlotQuery(table="companies", filters={}, purpose="all_companies")],
+            queries=[SlotQuery(table="companies", filters={})],
             needs_rag=False,
         )
 
         results, resolved, stats = execute_slot_plan(plan, duckdb_connection)
 
-        assert "all_companies" in results
-        assert len(results["all_companies"]) == 3
+        assert "companies" in results
+        assert len(results["companies"]) == 3
         assert stats.total == 1
         assert stats.success == 1
 
@@ -268,7 +268,6 @@ class TestExecuteSlotPlan:
                 SlotQuery(
                     table="companies",
                     filters={"company_id": "ACME-MFG"},
-                    purpose="company_info",
                 )
             ],
             needs_rag=True,
@@ -276,9 +275,9 @@ class TestExecuteSlotPlan:
 
         results, resolved, stats = execute_slot_plan(plan, duckdb_connection)
 
-        assert "company_info" in results
-        assert len(results["company_info"]) == 1
-        assert results["company_info"][0]["name"] == "Acme Manufacturing"
+        assert "companies" in results
+        assert len(results["companies"]) == 1
+        assert results["companies"][0]["name"] == "Acme Manufacturing"
 
     def test_execute_with_order_by(self, duckdb_connection):
         """Executes query with ORDER BY from slot."""
@@ -288,7 +287,6 @@ class TestExecuteSlotPlan:
                     table="opportunities",
                     filters={},
                     order_by="value DESC",
-                    purpose="sorted_opps",
                 )
             ],
             needs_rag=False,
@@ -296,9 +294,9 @@ class TestExecuteSlotPlan:
 
         results, resolved, stats = execute_slot_plan(plan, duckdb_connection)
 
-        assert len(results["sorted_opps"]) == 3
+        assert len(results["opportunities"]) == 3
         # Highest value deal should be first (32000)
-        assert results["sorted_opps"][0]["value"] == 32000
+        assert results["opportunities"][0]["value"] == 32000
 
     def test_execute_with_list_filter(self, duckdb_connection):
         """Executes query with IN filter."""
@@ -307,7 +305,6 @@ class TestExecuteSlotPlan:
                 SlotQuery(
                     table="companies",
                     filters={"company_id": ["ACME-MFG", "BETA-TECH"]},
-                    purpose="selected_companies",
                 )
             ],
             needs_rag=False,
@@ -315,7 +312,7 @@ class TestExecuteSlotPlan:
 
         results, resolved, stats = execute_slot_plan(plan, duckdb_connection)
 
-        assert len(results["selected_companies"]) == 2
+        assert len(results["companies"]) == 2
 
     def test_execute_with_stage_filter(self, duckdb_connection):
         """Executes query with stage filter."""
@@ -324,7 +321,6 @@ class TestExecuteSlotPlan:
                 SlotQuery(
                     table="opportunities",
                     filters={"stage": "Negotiation"},
-                    purpose="negotiation_deals",
                 )
             ],
             needs_rag=False,
@@ -332,8 +328,8 @@ class TestExecuteSlotPlan:
 
         results, resolved, stats = execute_slot_plan(plan, duckdb_connection)
 
-        assert len(results["negotiation_deals"]) == 1
-        assert results["negotiation_deals"][0]["value"] == 32000
+        assert len(results["opportunities"]) == 1
+        assert results["opportunities"][0]["value"] == 32000
 
     def test_execute_resolves_company_id(self, duckdb_connection):
         """First query resolves $company_id for subsequent queries."""
@@ -342,12 +338,10 @@ class TestExecuteSlotPlan:
                 SlotQuery(
                     table="companies",
                     filters={"name": "Acme"},  # Case-insensitive partial match
-                    purpose="find_company",
                 ),
                 SlotQuery(
                     table="contacts",
                     filters={"company_id": "ACME-MFG"},  # Resolved after first query
-                    purpose="company_contacts",
                 ),
             ],
             needs_rag=True,
@@ -356,12 +350,12 @@ class TestExecuteSlotPlan:
         results, resolved, stats = execute_slot_plan(plan, duckdb_connection)
 
         assert resolved.get("$company_id") == "ACME-MFG"
-        assert len(results["company_contacts"]) == 2  # Anna and Joe
+        assert len(results["contacts_1"]) == 2  # Anna and Joe
 
     def test_execute_adds_limit_if_missing(self, duckdb_connection):
         """Adds LIMIT to queries without one."""
         plan = SlotPlan(
-            queries=[SlotQuery(table="companies", filters={}, purpose="test")],
+            queries=[SlotQuery(table="companies", filters={})],
             needs_rag=False,
         )
 
@@ -369,15 +363,15 @@ class TestExecuteSlotPlan:
         results, _, stats = execute_slot_plan(plan, duckdb_connection, max_rows=2)
 
         # Should return at most 2 rows due to added LIMIT
-        assert len(results["test"]) <= 2
+        assert len(results["companies"]) <= 2
 
     def test_execute_multiple_queries(self, duckdb_connection):
         """Executes multiple queries in a plan."""
         plan = SlotPlan(
             queries=[
-                SlotQuery(table="companies", filters={}, purpose="companies"),
-                SlotQuery(table="contacts", filters={}, purpose="contacts"),
-                SlotQuery(table="opportunities", filters={}, purpose="opps"),
+                SlotQuery(table="companies", filters={}),
+                SlotQuery(table="contacts", filters={}),
+                SlotQuery(table="opportunities", filters={}),
             ],
             needs_rag=False,
         )
@@ -386,9 +380,9 @@ class TestExecuteSlotPlan:
 
         assert stats.total == 3
         assert stats.success == 3
-        assert len(results["companies"]) == 3
-        assert len(results["contacts"]) == 4
-        assert len(results["opps"]) == 3
+        assert len(results["companies_0"]) == 3
+        assert len(results["contacts_1"]) == 4
+        assert len(results["opportunities_2"]) == 3
 
 
 # =============================================================================
@@ -413,7 +407,6 @@ class TestExecuteSlotPlanWithRealData:
                 SlotQuery(
                     table="contacts",
                     filters={"role": "Decision Maker"},
-                    purpose="decision_makers",
                 )
             ],
             needs_rag=False,
@@ -422,8 +415,8 @@ class TestExecuteSlotPlanWithRealData:
         results, _, stats = execute_slot_plan(plan, real_connection)
 
         assert stats.success == 1
-        assert len(results["decision_makers"]) > 0
-        for row in results["decision_makers"]:
+        assert len(results["contacts"]) > 0
+        for row in results["contacts"]:
             assert row["role"] == "Decision Maker"
 
     def test_get_activities(self, real_connection):
@@ -433,7 +426,6 @@ class TestExecuteSlotPlanWithRealData:
                 SlotQuery(
                     table="activities",
                     filters={},
-                    purpose="all_activities",
                 )
             ],
             needs_rag=False,
@@ -442,7 +434,7 @@ class TestExecuteSlotPlanWithRealData:
         results, _, stats = execute_slot_plan(plan, real_connection)
 
         assert stats.success == 1
-        assert len(results["all_activities"]) > 0
+        assert len(results["activities"]) > 0
 
     def test_filter_opportunities_by_stage(self, real_connection):
         """Filter opportunities by stage."""
@@ -452,7 +444,6 @@ class TestExecuteSlotPlanWithRealData:
                     table="opportunities",
                     filters={"stage_not_in": ["Closed Won", "Closed Lost"]},
                     order_by="value DESC",
-                    purpose="open_deals",
                 )
             ],
             needs_rag=False,
@@ -462,5 +453,5 @@ class TestExecuteSlotPlanWithRealData:
 
         assert stats.success == 1
         # All results should be open deals
-        for row in results["open_deals"]:
+        for row in results["opportunities"]:
             assert row["stage"] not in ["Closed Won", "Closed Lost"]

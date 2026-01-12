@@ -18,12 +18,10 @@
           "date_after": null,
           "name": null,
           "status": null,
-          "health_flags": null,
-          "account_owner": null
+          "health_flags": null
         },
         "columns": null,
-        "order_by": "value DESC",
-        "purpose": "pipeline_deals"
+        "order_by": "value DESC"
       }],
       "needs_rag": false
     }
@@ -47,12 +45,10 @@
           "date_after": null,
           "name": null,
           "status": null,
-          "health_flags": "at-risk",
-          "account_owner": null
+          "health_flags": "at-risk"
         },
         "columns": null,
-        "order_by": null,
-        "purpose": "at_risk_accounts"
+        "order_by": null
       }],
       "needs_rag": false
     }
@@ -76,12 +72,10 @@
           "date_after": null,
           "name": null,
           "status": null,
-          "health_flags": null,
-          "account_owner": null
+          "health_flags": null
         },
         "columns": null,
-        "order_by": null,
-        "purpose": "contacts_needing_followup"
+        "order_by": null
       }],
       "needs_rag": false
     }
@@ -105,12 +99,10 @@
           "date_after": null,
           "name": "Delta",
           "status": null,
-          "health_flags": null,
-          "account_owner": null
+          "health_flags": null
         },
         "columns": null,
-        "order_by": null,
-        "purpose": "company_info"
+        "order_by": null
       }],
       "needs_rag": true
     }

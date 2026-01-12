@@ -26,17 +26,15 @@
               "date_after": { "type": ["string", "null"] },
               "name": { "type": ["string", "null"] },
               "status": { "type": ["string", "null"] },
-              "health_flags": { "type": ["string", "null"] },
-              "account_owner": { "type": ["string", "null"] }
+              "health_flags": { "type": ["string", "null"] }
             },
-            "required": ["stage", "stage_not_in", "type", "value_gt", "value_lt", "company_name", "company_id", "role", "lifecycle_stage", "contact_id", "date_after", "name", "status", "health_flags", "account_owner"],
+            "required": ["stage", "stage_not_in", "type", "value_gt", "value_lt", "company_name", "company_id", "role", "lifecycle_stage", "contact_id", "date_after", "name", "status", "health_flags"],
             "additionalProperties": false
           },
           "columns": { "type": ["array", "null"], "items": { "type": "string" } },
-          "order_by": { "type": ["string", "null"] },
-          "purpose": { "type": "string" }
+          "order_by": { "type": ["string", "null"] }
         },
-        "required": ["table", "filters", "columns", "order_by", "purpose"],
+        "required": ["table", "filters", "columns", "order_by"],
         "additionalProperties": false
       }
     },

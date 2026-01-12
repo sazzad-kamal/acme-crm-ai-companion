@@ -66,10 +66,6 @@ class SlotQuery(BaseModel):
         default=None,
         description="ORDER BY clause (e.g., 'value DESC')",
     )
-    purpose: str = Field(
-        default="data",
-        description="What this query fetches (for logging)",
-    )
 
 
 class SlotPlan(BaseModel):
@@ -199,7 +195,7 @@ def slot_to_sql(slot: SlotQuery) -> str:
         query = _build_query(slot)
 
     sql: str = query.get_sql()
-    logger.debug("Built SQL for '%s': %s", slot.purpose, sql)
+    logger.debug("Built SQL for '%s': %s", slot.table, sql)
     return sql
 
 
