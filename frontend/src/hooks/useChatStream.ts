@@ -31,7 +31,6 @@ interface StreamEvent {
 
 interface UseChatStreamOptions {
   onError?: (error: Error) => void;
-  onStatusUpdate?: (message: string) => void;
 }
 
 interface UseChatStreamReturn {
@@ -39,7 +38,6 @@ interface UseChatStreamReturn {
   isLoading: boolean;
   isStreaming: boolean;
   error: string | null;
-  currentStatus: string | null;
   sendMessage: (question: string) => Promise<void>;
   clearMessages: () => void;
   clearError: () => void;
@@ -53,10 +51,10 @@ interface UseChatStreamReturn {
 function parseSSE(text: string): StreamEvent[] {
   const events: StreamEvent[] = [];
   const lines = text.split("\n");
-  
+
   let currentEvent = "";
   let currentData = "";
-  
+
   for (const line of lines) {
     if (line.startsWith("event: ")) {
       currentEvent = line.slice(7).trim();
@@ -75,7 +73,7 @@ function parseSSE(text: string): StreamEvent[] {
       currentData = "";
     }
   }
-  
+
   return events;
 }
 
@@ -96,7 +94,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentStatus, setCurrentStatus] = useState<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
@@ -117,7 +114,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
     readerRef.current?.cancel();
     setIsStreaming(false);
     setIsLoading(false);
-    setCurrentStatus(null);
   }, []);
 
   const sendMessage = useCallback(
@@ -133,7 +129,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
       setError(null);
       setIsLoading(true);
       setIsStreaming(true);
-      setCurrentStatus("Thinking...");
 
       const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -192,31 +187,22 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
 
         while (true) {
           const { done, value } = await reader.read();
-          
+
           if (done) break;
-          
+
           buffer += decoder.decode(value, { stream: true });
-          
+
           // Process complete events in buffer
           const events = parseSSE(buffer);
-          
+
           // Keep incomplete data in buffer
           const lastNewline = buffer.lastIndexOf("\n\n");
           if (lastNewline !== -1) {
             buffer = buffer.slice(lastNewline + 2);
           }
-          
+
           for (const event of events) {
             switch (event.type) {
-              case "status":
-                setCurrentStatus(event.data.message as string);
-                options.onStatusUpdate?.(event.data.message as string);
-                break;
-
-              case "answer_start":
-                setCurrentStatus("Generating answer...");
-                break;
-
               case "answer_chunk":
                 accumulatedAnswer += event.data.chunk as string;
                 updateMessageResponse();
@@ -228,13 +214,11 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
 
               case "done":
                 finalResponse = event.data as unknown as ChatResponse;
-                setCurrentStatus(null);
                 break;
 
               case "error":
                 throw new Error(event.data.message as string);
 
-              // Ignore step, sources, followup events (not displayed in UI)
               default:
                 break;
             }
@@ -265,7 +249,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
       } finally {
         setIsLoading(false);
         setIsStreaming(false);
-        setCurrentStatus(null);
         readerRef.current = null;
       }
     },
@@ -275,7 +258,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
   const clearMessages = useCallback(() => {
     setMessages([]);
     setError(null);
-    setCurrentStatus(null);
   }, []);
 
   const clearError = useCallback(() => {
@@ -287,7 +269,6 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
     isLoading,
     isStreaming,
     error,
-    currentStatus,
     sendMessage,
     clearMessages,
     clearError,

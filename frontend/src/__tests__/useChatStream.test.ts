@@ -39,7 +39,6 @@ describe("useChatStream", () => {
     expect(result.current.isLoading).toBe(false);
     expect(result.current.isStreaming).toBe(false);
     expect(result.current.error).toBeNull();
-    expect(result.current.currentStatus).toBeNull();
   });
 
   it("provides required functions", () => {
@@ -91,7 +90,6 @@ describe("useChatStream", () => {
 
     expect(result.current.isLoading).toBe(true);
     expect(result.current.isStreaming).toBe(true);
-    expect(result.current.currentStatus).toBe("Thinking...");
   });
 
   it("adds message optimistically", async () => {
@@ -114,27 +112,6 @@ describe("useChatStream", () => {
     expect(result.current.messages[0].response).toBeNull();
   });
 
-  it("updates currentStatus from status events", async () => {
-    const events = [
-      'event: status\ndata: {"message": "Fetching CRM data..."}\n\n',
-    ];
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      body: createMockSSEStream(events),
-    });
-
-    const { result } = renderHook(() => useChatStream());
-
-    await act(async () => {
-      await result.current.sendMessage("Test question");
-    });
-
-    // Status should have been updated during stream
-    // After stream ends, it resets to null
-    expect(result.current.currentStatus).toBeNull();
-  });
-
   it("parses done event and sets final response", async () => {
     const finalResponse = {
       answer: "Test answer",
@@ -146,7 +123,6 @@ describe("useChatStream", () => {
     };
 
     const events = [
-      'event: status\ndata: {"message": "Processing..."}\n\n',
       `event: done\ndata: ${JSON.stringify(finalResponse)}\n\n`,
     ];
 
@@ -255,7 +231,6 @@ describe("useChatStream", () => {
 
   it("accumulates answer chunks", async () => {
     const events = [
-      'event: answer_start\ndata: {}\n\n',
       'event: answer_chunk\ndata: {"chunk": "Hello "}\n\n',
       'event: answer_chunk\ndata: {"chunk": "World"}\n\n',
       'event: answer_end\ndata: {"answer": "Hello World"}\n\n',

@@ -112,24 +112,10 @@ class TestStreamingModule:
         """Test that all expected stream event types are defined."""
         from backend.agent.streaming import StreamEvent
 
-        assert hasattr(StreamEvent, "STATUS")
-        assert hasattr(StreamEvent, "ANSWER_START")
         assert hasattr(StreamEvent, "ANSWER_CHUNK")
         assert hasattr(StreamEvent, "ANSWER_END")
-        assert hasattr(StreamEvent, "FOLLOWUP")
         assert hasattr(StreamEvent, "DONE")
         assert hasattr(StreamEvent, "ERROR")
-
-    def test_node_messages_defined(self):
-        """Test that node messages are defined for expected nodes (including parallel fetch)."""
-        from backend.agent.streaming import NODE_MESSAGES
-
-        assert "route" in NODE_MESSAGES
-        # Parallel fetch nodes
-        assert "fetch_crm" in NODE_MESSAGES
-        assert "fetch_account" in NODE_MESSAGES
-        assert "answer" in NODE_MESSAGES
-        assert "followup" in NODE_MESSAGES
 
 
 # =============================================================================
