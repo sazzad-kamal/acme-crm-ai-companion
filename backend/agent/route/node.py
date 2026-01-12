@@ -9,10 +9,9 @@ import time
 
 from backend.agent.core.state import AgentState, format_history_for_prompt
 from backend.agent.route.query_planner import (
-    QueryPlan,
+    SlotPlan,
     detect_owner_from_starter,
     get_slot_plan,
-    slot_plan_to_query_plan,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,27 +36,23 @@ def route_node(state: AgentState) -> AgentState:
     owner = detect_owner_from_starter(question)
 
     try:
-        # Get query plan from LLM using slot-based planning
+        # Get slot-based query plan from LLM
         slot_plan = get_slot_plan(
             question=question,
             conversation_history=conversation_history,
             owner=owner,
         )
-        query_plan = slot_plan_to_query_plan(slot_plan)
-        needs_rag = slot_plan.needs_rag
-        logger.debug(f"[Route] Slot planning: {len(slot_plan.queries)} queries, needs_rag={needs_rag}")
 
         latency_ms = int((time.time() - start_time) * 1000)
 
         logger.info(
-            f"[Route] Result: {len(query_plan.queries)} queries, latency={latency_ms}ms"
+            f"[Route] Result: {len(slot_plan.queries)} queries, needs_rag={slot_plan.needs_rag}, latency={latency_ms}ms"
         )
 
         return {
-            "query_plan": query_plan,
+            "slot_plan": slot_plan,
             "owner": owner,
-            "needs_rag": needs_rag,
-            "conversation_history": conversation_history,
+            "needs_rag": slot_plan.needs_rag,
         }
 
     except Exception as e:
@@ -65,9 +60,8 @@ def route_node(state: AgentState) -> AgentState:
         logger.error(f"[Route] Failed after {latency_ms}ms: {e}")
 
         return {
-            "query_plan": QueryPlan(queries=[]),
+            "slot_plan": SlotPlan(queries=[], needs_rag=False),
             "owner": owner,
             "needs_rag": False,
-            "conversation_history": conversation_history,
             "error": f"Query planning failed: {e}",
         }

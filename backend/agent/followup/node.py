@@ -4,7 +4,7 @@ import logging
 import time
 
 from backend.agent.core.config import get_config
-from backend.agent.core.state import AgentState
+from backend.agent.core.state import AgentState, format_history_for_prompt
 from backend.agent.followup.llm import generate_follow_up_suggestions
 
 logger = logging.getLogger(__name__)
@@ -20,8 +20,9 @@ def followup_node(state: AgentState) -> AgentState:
 
     logger.info("[Followup] Generating suggestions...")
 
-    # Use pre-formatted conversation_history from route_node
-    conversation_history = state.get("conversation_history", "")
+    # Format conversation history from messages
+    messages = state.get("messages", [])
+    conversation_history = format_history_for_prompt(messages) if messages else ""
 
     # Get SQL results from fetch_sql
     sql_results = state.get("sql_results", {})

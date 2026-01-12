@@ -54,16 +54,6 @@ class TestAgentStateWithMessages:
         }
         assert len(state["messages"]) == 2
 
-    def test_state_with_conversation_history(self):
-        """Test that conversation_history field works."""
-        state: AgentState = {
-            "question": "Follow up",
-            "messages": [],
-            "conversation_history": "User: Hello\nAssistant: Hi there!",
-        }
-        assert "Hello" in state["conversation_history"]
-
-
 class TestFormatHistoryForPrompt:
     """Tests for the format_history_for_prompt function."""
 

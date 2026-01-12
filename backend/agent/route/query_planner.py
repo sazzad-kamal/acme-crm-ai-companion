@@ -12,7 +12,6 @@ from datetime import datetime
 from pathlib import Path
 
 from openai import OpenAI
-from pydantic import BaseModel, Field
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -21,32 +20,10 @@ from tenacity import (
 )
 
 from backend.agent.core.config import get_config
-from backend.agent.route.slot_query import SlotPlan, SlotQuery, slot_to_sql
+from backend.agent.route.slot_query import SlotPlan, SlotQuery
 from backend.utils.prompt import load_prompt
 
 logger = logging.getLogger(__name__)
-
-
-# =============================================================================
-# Pydantic Models for Structured Output
-# =============================================================================
-
-
-class SQLQuery(BaseModel):
-    """A single SQL query with its purpose."""
-
-    sql: str = Field(description="The SQL query to execute against DuckDB")
-    purpose: str = Field(
-        description="What this query fetches (e.g., 'company_info', 'open_deals', 'contact_info')"
-    )
-
-
-class QueryPlan(BaseModel):
-    """LLM output containing SQL queries."""
-
-    queries: list[SQLQuery] = Field(
-        default_factory=list, description="List of SQL queries to execute"
-    )
 
 
 # =============================================================================
@@ -275,57 +252,10 @@ def get_slot_plan(
     return result
 
 
-def slot_plan_to_query_plan(slot_plan: SlotPlan) -> QueryPlan:
-    """
-    Convert a SlotPlan to a QueryPlan by building SQL from slots.
-
-    This allows slot-based planning to work with existing executor code.
-    """
-    queries = []
-    for slot in slot_plan.queries:
-        sql = slot_to_sql(slot)
-        queries.append(SQLQuery(sql=sql, purpose=slot.purpose))
-    return QueryPlan(queries=queries)
-
-
-def get_query_plan(
-    question: str,
-    conversation_history: str = "",
-    owner: str | None = None,
-    error_feedback: str | None = None,
-) -> QueryPlan:
-    """
-    Get SQL query plan from LLM (uses slot-based planning internally).
-
-    Args:
-        question: The user's question
-        conversation_history: Formatted conversation history for context
-        owner: Owner ID for filtering (e.g., "jsmith", "amartin")
-        error_feedback: Optional error message from failed SQL execution for retry
-
-    Returns:
-        QueryPlan with SQL queries
-    """
-    # Include error feedback in conversation history for retry
-    history = conversation_history or ""
-    if error_feedback:
-        history = f"{history}\n\n[PREVIOUS QUERY FAILED]\n{error_feedback}\nPlease fix the query."
-        logger.info("Query Planner: Retrying with error feedback: %s...", error_feedback[:100])
-
-    slot_plan = get_slot_plan(
-        question=question,
-        conversation_history=history,
-        owner=owner,
-    )
-    return slot_plan_to_query_plan(slot_plan)
-
-
 __all__ = [
-    "SQLQuery",
-    "QueryPlan",
-    "get_query_plan",
+    "SlotPlan",
+    "SlotQuery",
     "get_slot_plan",
-    "slot_plan_to_query_plan",
     "detect_owner_from_starter",
     "STARTER_OWNER_MAP",
 ]

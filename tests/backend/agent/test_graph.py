@@ -39,16 +39,16 @@ class TestGraphIntegration:
 
     @pytest.mark.integration
     @patch("backend.agent.answer.llm.call_answer_chain")
-    @patch("backend.agent.route.query_planner.get_query_plan")
+    @patch("backend.agent.route.query_planner.get_slot_plan")
     def test_graph_execution(self, mock_planner, mock_answer_chain):
         """Test graph execution with company query."""
-        from backend.agent.route.query_planner import QueryPlan, SQLQuery
+        from backend.agent.route.slot_query import SlotPlan, SlotQuery
 
-        mock_planner.return_value = QueryPlan(
+        mock_planner.return_value = SlotPlan(
             queries=[
-                SQLQuery(sql="SELECT * FROM companies WHERE LOWER(name) LIKE '%acme%' LIMIT 1", purpose="company_info"),
+                SlotQuery(table="companies", filters={"name": "acme"}, purpose="company_info"),
             ],
-            needs_account_rag=True,
+            needs_rag=True,
         )
         mock_answer_chain.return_value = ("Acme Manufacturing is doing well.", 100)
 

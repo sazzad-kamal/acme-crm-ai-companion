@@ -4,7 +4,7 @@ import logging
 import time
 
 from backend.agent.answer.llm import call_answer_chain
-from backend.agent.core.state import AgentState
+from backend.agent.core.state import AgentState, format_history_for_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +26,9 @@ def answer_node(state: AgentState) -> AgentState:
         # Get account context from fetch_rag
         account_context = state.get("account_context_answer", "")
 
-        # Get conversation history (formatted in route_node)
-        conversation_history = state.get("conversation_history", "")
+        # Format conversation history from messages
+        messages = state.get("messages", [])
+        conversation_history = format_history_for_prompt(messages) if messages else ""
 
         # Call answer chain with simplified parameters
         answer, llm_latency = call_answer_chain(

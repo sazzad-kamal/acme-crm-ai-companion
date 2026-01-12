@@ -16,8 +16,8 @@ class TestRouteNode:
     """Tests for route_node function."""
 
     @patch('backend.agent.route.node.get_slot_plan')
-    def test_route_node_returns_query_plan(self, mock_slot_planner):
-        """Returns query plan in state."""
+    def test_route_node_returns_slot_plan(self, mock_slot_planner):
+        """Returns slot plan in state."""
         from backend.agent.route.node import route_node
         from backend.agent.route.slot_query import SlotPlan, SlotQuery
 
@@ -34,8 +34,8 @@ class TestRouteNode:
 
         result = route_node(state)
 
-        assert result["query_plan"] is not None
-        assert len(result["query_plan"].queries) == 1
+        assert result["slot_plan"] is not None
+        assert len(result["slot_plan"].queries) == 1
         assert result["needs_rag"] is True
 
     @patch('backend.agent.route.node.get_slot_plan')
@@ -66,7 +66,7 @@ class TestRouteNode:
 
     @patch('backend.agent.route.node.get_slot_plan')
     def test_route_node_handles_exception_with_fallback(self, mock_slot_planner):
-        """Handles exception and uses fallback query plan."""
+        """Handles exception and uses fallback slot plan."""
         from backend.agent.route.node import route_node
 
         mock_slot_planner.side_effect = Exception("Planner error")
@@ -78,7 +78,7 @@ class TestRouteNode:
 
         result = route_node(state)
 
-        assert "query_plan" in result
+        assert "slot_plan" in result
         assert result["needs_rag"] is False
         assert "error" in result
 

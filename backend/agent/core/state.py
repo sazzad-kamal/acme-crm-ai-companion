@@ -71,10 +71,9 @@ class AgentState(TypedDict, total=False):
 
     # Conversation history (persisted by LangGraph checkpointer)
     messages: list[Message]
-    conversation_history: str  # Formatted once in route_node, reused by other nodes
 
-    # Query planner output (new schema-driven architecture)
-    query_plan: Any  # QueryPlan object from route_node
+    # Slot-based query plan (LLM outputs structured slots, SQL built at execution)
+    slot_plan: Any  # SlotPlan from route_node (table, filters, order_by)
     sql_results: dict[str, Any]  # Results from SQL queries, keyed by purpose
     sql_queries_total: int  # Total number of SQL queries executed
     sql_queries_success: int  # Number of SQL queries that succeeded

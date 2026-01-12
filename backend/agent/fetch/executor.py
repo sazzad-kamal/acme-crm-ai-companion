@@ -1,7 +1,7 @@
 """
-SQL query executor for schema-driven query architecture.
+SQL query executor for slot-based query architecture.
 
-Executes QueryPlan queries against DuckDB and resolves placeholders.
+Executes SlotPlan queries against DuckDB - builds SQL from slots using pypika.
 """
 
 import logging
@@ -10,7 +10,7 @@ from typing import Any
 
 import duckdb
 
-from backend.agent.route.query_planner import QueryPlan
+from backend.agent.route.slot_query import SlotPlan, slot_to_sql
 
 logger = logging.getLogger(__name__)
 
@@ -99,16 +99,18 @@ class SQLExecutionStats:
         return "; ".join(f"{purpose}: {error}" for purpose, error in self.errors.items())
 
 
-def execute_query_plan(
-    plan: QueryPlan,
+def execute_slot_plan(
+    plan: SlotPlan,
     conn: duckdb.DuckDBPyConnection,
     max_rows: int = 100,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str], SQLExecutionStats]:
     """
-    Execute SQL queries from a QueryPlan and return results.
+    Execute SlotPlan queries against DuckDB.
+
+    Builds SQL from slots using pypika, then executes against DuckDB.
 
     Args:
-        plan: QueryPlan containing SQL queries
+        plan: SlotPlan containing slot queries
         conn: DuckDB connection
         max_rows: Maximum rows to return per query (safety limit)
 
@@ -117,26 +119,28 @@ def execute_query_plan(
 
     Raises:
         SQLValidationError: If SQL contains dangerous keywords
-        SQLExecutionError: If SQL execution fails
     """
     results: dict[str, list[dict[str, Any]]] = {}
     resolved: dict[str, str] = {}  # $company_id, $contact_id
     stats = SQLExecutionStats()
 
-    for query in plan.queries:
+    for slot in plan.queries:
         stats.total += 1
         try:
+            # Build SQL from slot using pypika
+            sql = slot_to_sql(slot)
+
             # Validate SQL for safety
-            validate_sql(query.sql)
+            validate_sql(sql)
 
             # Resolve placeholders from previous query results
-            sql = resolve_placeholders(query.sql, resolved)
+            sql = resolve_placeholders(sql, resolved)
 
             # Add LIMIT if not present (safety)
             if "LIMIT" not in sql.upper():
                 sql = f"{sql} LIMIT {max_rows}"
 
-            logger.debug(f"Executing SQL for '{query.purpose}': {sql[:100]}...")
+            logger.debug(f"Executing SQL for '{slot.purpose}': {sql[:100]}...")
 
             # Execute query
             result = conn.execute(sql)
@@ -149,11 +153,11 @@ def execute_query_plan(
             # Enforce max_rows limit
             if len(data) > max_rows:
                 logger.warning(
-                    f"Query '{query.purpose}' returned {len(data)} rows, truncating to {max_rows}"
+                    f"Query '{slot.purpose}' returned {len(data)} rows, truncating to {max_rows}"
                 )
                 data = data[:max_rows]
 
-            results[query.purpose] = data
+            results[slot.purpose] = data
             stats.success += 1
 
             # Cache IDs for subsequent queries and RAG filtering
@@ -163,7 +167,7 @@ def execute_query_plan(
                     if key in first_row and first_row[key] and f"${key}" not in resolved:
                         resolved[f"${key}"] = str(first_row[key])
 
-            logger.debug(f"Query '{query.purpose}' returned {len(data)} rows")
+            logger.debug(f"Query '{slot.purpose}' returned {len(data)} rows")
 
         except SQLValidationError:
             # Re-raise validation errors
@@ -171,17 +175,17 @@ def execute_query_plan(
 
         except Exception as e:
             error_msg = str(e)
-            logger.error(f"SQL execution failed for '{query.purpose}': {error_msg}")
+            logger.error(f"SQL execution failed for '{slot.purpose}': {error_msg}")
             # Store error for retry feedback
-            stats.errors[query.purpose] = error_msg
+            stats.errors[slot.purpose] = error_msg
             # Store empty result for failed queries instead of failing entirely
-            results[query.purpose] = []
+            results[slot.purpose] = []
 
     return results, resolved, stats
 
 
 __all__ = [
-    "execute_query_plan",
+    "execute_slot_plan",
     "resolve_placeholders",
     "validate_sql",
     "SQLExecutionError",

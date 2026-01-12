@@ -3,60 +3,61 @@
 import logging
 import time
 
-from backend.agent.core.state import AgentState, Source
+from backend.agent.core.state import AgentState, Source, format_history_for_prompt
 from backend.agent.datastore.connection import get_connection
-from backend.agent.fetch.executor import execute_query_plan
-from backend.agent.route.query_planner import QueryPlan, get_query_plan
+from backend.agent.fetch.executor import execute_slot_plan
+from backend.agent.route.query_planner import SlotPlan, get_slot_plan
 
 logger = logging.getLogger(__name__)
 
 
 def fetch_sql_node(state: AgentState) -> AgentState:
     """
-    Execute SQL queries from query_plan and return results.
+    Execute SQL queries from slot_plan and return results.
 
     Sets sql_results and resolved_company_id in state for downstream nodes.
     """
     start_time = time.time()
 
-    query_plan: QueryPlan | None = state.get("query_plan")
+    slot_plan: SlotPlan | None = state.get("slot_plan")
 
-    # If no query plan (error in route_node), return empty results
-    if not query_plan or not query_plan.queries:
+    # If no slot plan (error in route_node), return empty results
+    if not slot_plan or not slot_plan.queries:
         logger.info("[FetchSQL] No queries to execute")
         return {
             "sql_results": {},
             "raw_data": {},
         }
 
-    logger.info(f"[FetchSQL] Executing {len(query_plan.queries)} SQL queries...")
+    logger.info(f"[FetchSQL] Executing {len(slot_plan.queries)} SQL queries...")
 
     try:
         # Get DuckDB connection with CSV tables loaded
         conn = get_connection()
 
         # Execute all queries in the plan
-        sql_results, resolved, stats = execute_query_plan(query_plan, conn)
+        sql_results, resolved, stats = execute_slot_plan(slot_plan, conn)
 
         # Retry with error feedback if any queries failed
         if stats.failed > 0 and stats.errors:
             error_summary = stats.get_error_summary()
             question = state.get("question", "")
             owner = state.get("owner")
-            conversation_history = state.get("conversation_history", "")
+            messages = state.get("messages", [])
+            conversation_history = format_history_for_prompt(messages) if messages else ""
 
             logger.info(f"[FetchSQL] Retrying {stats.failed} failed queries with error feedback")
 
-            # Get new query plan with error feedback
-            retry_plan = get_query_plan(
+            # Get new slot plan with error feedback
+            history = f"{conversation_history}\n\n[PREVIOUS QUERY FAILED]\n{error_summary}\nPlease fix the query."
+            retry_plan = get_slot_plan(
                 question=question,
-                conversation_history=conversation_history,
+                conversation_history=history,
                 owner=owner,
-                error_feedback=error_summary,
             )
 
             # Execute retry plan
-            retry_results, retry_resolved, retry_stats = execute_query_plan(retry_plan, conn)
+            retry_results, retry_resolved, retry_stats = execute_slot_plan(retry_plan, conn)
 
             # Merge results - retry results override empty results from first attempt
             for purpose, data in retry_results.items():
@@ -105,7 +106,7 @@ def fetch_sql_node(state: AgentState) -> AgentState:
             "sql_results": {},
             "raw_data": {},
             "error": f"SQL execution failed: {e}",
-            "sql_queries_total": len(query_plan.queries) if query_plan else 0,
+            "sql_queries_total": len(slot_plan.queries) if slot_plan else 0,
             "sql_queries_success": 0,
         }
 

@@ -156,7 +156,7 @@ def mock_llm():
     a real API key or make actual network requests.
     """
     from backend.agent.core import Source
-    from backend.agent.route.query_planner import QueryPlan, SQLQuery
+    from backend.agent.route.slot_query import SlotPlan, SlotQuery
 
     def mock_call_answer_chain(*args, **kwargs) -> tuple[str, int]:
         question = kwargs.get("question", args[0] if args else "")
@@ -190,12 +190,12 @@ def mock_llm():
                 return follow_ups[:3]
         return _mock_follow_up_suggestions(company_name, available_data)
 
-    def mock_get_query_plan(
+    def mock_get_slot_plan(
         question: str,
         conversation_history: str = "",
         owner: str | None = None,
-    ) -> QueryPlan:
-        """Mock query planner that returns reasonable SQL queries."""
+    ) -> SlotPlan:
+        """Mock slot planner that returns reasonable slot queries."""
         q = question.lower()
         queries = []
         needs_rag = False
@@ -204,51 +204,58 @@ def mock_llm():
         company_names = ["acme", "beta", "crown", "delta", "echo"]
         if any(name in q for name in company_names):
             needs_rag = True
-            queries.append(SQLQuery(
-                sql="SELECT * FROM companies LIMIT 1",
+            queries.append(SlotQuery(
+                table="companies",
+                filters={"name": next(n for n in company_names if n in q)},
                 purpose="company_info"
             ))
-            queries.append(SQLQuery(
-                sql="SELECT * FROM opportunities WHERE company_id = '$company_id' LIMIT 20",
+            queries.append(SlotQuery(
+                table="opportunities",
+                filters={},
                 purpose="open_deals"
             ))
 
         # Detect aggregate queries
         if "renewal" in q:
-            queries.append(SQLQuery(
-                sql="SELECT * FROM companies WHERE renewal_date IS NOT NULL LIMIT 20",
+            queries.append(SlotQuery(
+                table="companies",
+                filters={},
                 purpose="renewals"
             ))
         elif "pipeline" in q:
-            queries.append(SQLQuery(
-                sql="SELECT * FROM opportunities WHERE stage NOT LIKE '%Closed%' LIMIT 50",
+            queries.append(SlotQuery(
+                table="opportunities",
+                filters={"stage_not_in": ["Closed Won", "Closed Lost"]},
                 purpose="pipeline"
             ))
         elif any(kw in q for kw in ["forecast", "weighted"]):
-            queries.append(SQLQuery(
-                sql="SELECT stage, COUNT(*) as count, SUM(value) as total FROM opportunities WHERE stage NOT LIKE '%Closed%' GROUP BY stage",
+            queries.append(SlotQuery(
+                table="opportunities",
+                filters={"stage_not_in": ["Closed Won", "Closed Lost"]},
                 purpose="forecast"
             ))
         elif any(kw in q for kw in ["at risk", "at-risk", "stalled"]):
-            queries.append(SQLQuery(
-                sql="SELECT * FROM opportunities WHERE days_in_stage > 45 LIMIT 20",
+            queries.append(SlotQuery(
+                table="opportunities",
+                filters={},
                 purpose="stale_deals"
             ))
 
         # Default: return something
         if not queries:
-            queries.append(SQLQuery(
-                sql="SELECT * FROM companies LIMIT 10",
+            queries.append(SlotQuery(
+                table="companies",
+                filters={},
                 purpose="companies"
             ))
 
-        return QueryPlan(queries=queries, needs_account_rag=needs_rag)
+        return SlotPlan(queries=queries, needs_rag=needs_rag)
 
     with patch("backend.agent.answer.llm.call_answer_chain", mock_call_answer_chain), \
          patch("backend.agent.answer.llm.stream_answer_chain", mock_stream_answer_chain), \
          patch("backend.agent.fetch.fetch_rag._call_account_rag", mock_call_account_rag), \
          patch("backend.agent.followup.llm.generate_follow_up_suggestions", mock_generate_follow_up_suggestions), \
-         patch("backend.agent.route.query_planner.get_query_plan", mock_get_query_plan):
+         patch("backend.agent.route.query_planner.get_slot_plan", mock_get_slot_plan):
         yield
 
 

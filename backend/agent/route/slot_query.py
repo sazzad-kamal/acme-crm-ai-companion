@@ -36,10 +36,11 @@ TableName = Literal[
 
 # SQL columns per table (excludes RAG fields: notes, description)
 # RAG fields come from vector search, not SQL
+# Columns match the actual CSV schema in backend/data/csv/
 TABLE_COLUMNS: dict[TableName, list[str]] = {
-    "opportunities": ["opportunity_id", "company_id", "name", "stage", "value", "owner", "close_date", "type"],
+    "opportunities": ["opportunity_id", "company_id", "name", "stage", "value", "owner", "expected_close_date", "type"],
     "contacts": ["contact_id", "company_id", "first_name", "last_name", "email", "phone", "job_title", "role"],
-    "activities": ["activity_id", "company_id", "contact_id", "opportunity_id", "type", "subject", "date"],
+    "activities": ["activity_id", "company_id", "contact_id", "opportunity_id", "type", "subject", "due_datetime"],
     "companies": ["company_id", "name", "status", "plan", "account_owner", "health_flags", "renewal_date"],
     "history": ["history_id", "company_id", "contact_id", "type", "date"],
     "attachments": ["attachment_id", "company_id", "name", "type", "url"],
@@ -196,7 +197,7 @@ def slot_to_sql(slot: SlotQuery) -> str:
     else:
         query = _build_query(slot)
 
-    sql = query.get_sql()
+    sql: str = query.get_sql()
     logger.debug("Built SQL for '%s': %s", slot.purpose, sql)
     return sql
 
