@@ -16,7 +16,7 @@ from backend.agent.fetch.executor import (
     SQLExecutionStats,
     SQLValidationError,
 )
-from backend.agent.route.slot_query import SlotPlan, SlotQuery
+from backend.agent.route.slot_query import Filter, SlotPlan, SlotQuery
 
 
 # =============================================================================
@@ -250,7 +250,7 @@ class TestExecuteSlotPlan:
     def test_execute_simple_select(self, duckdb_connection):
         """Executes simple SELECT query from slot."""
         plan = SlotPlan(
-            queries=[SlotQuery(table="companies", filters={})],
+            queries=[SlotQuery(table="companies", filters=[])],
             needs_rag=False,
         )
 
@@ -267,7 +267,7 @@ class TestExecuteSlotPlan:
             queries=[
                 SlotQuery(
                     table="companies",
-                    filters={"company_id": "ACME-MFG"},
+                    filters=[Filter(field="company_id", op="eq", value="ACME-MFG")],
                 )
             ],
             needs_rag=True,
@@ -285,7 +285,7 @@ class TestExecuteSlotPlan:
             queries=[
                 SlotQuery(
                     table="opportunities",
-                    filters={},
+                    filters=[],
                     order_by="value DESC",
                 )
             ],
@@ -304,7 +304,7 @@ class TestExecuteSlotPlan:
             queries=[
                 SlotQuery(
                     table="companies",
-                    filters={"company_id": ["ACME-MFG", "BETA-TECH"]},
+                    filters=[Filter(field="company_id", op="in", value=["ACME-MFG", "BETA-TECH"])],
                 )
             ],
             needs_rag=False,
@@ -320,7 +320,7 @@ class TestExecuteSlotPlan:
             queries=[
                 SlotQuery(
                     table="opportunities",
-                    filters={"stage": "Negotiation"},
+                    filters=[Filter(field="stage", op="eq", value="Negotiation")],
                 )
             ],
             needs_rag=False,
@@ -337,11 +337,11 @@ class TestExecuteSlotPlan:
             queries=[
                 SlotQuery(
                     table="companies",
-                    filters={"name": "Acme"},  # Case-insensitive partial match
+                    filters=[Filter(field="name", op="eq", value="Acme")],
                 ),
                 SlotQuery(
                     table="contacts",
-                    filters={"company_id": "ACME-MFG"},  # Resolved after first query
+                    filters=[Filter(field="company_id", op="eq", value="ACME-MFG")],
                 ),
             ],
             needs_rag=True,
@@ -350,12 +350,13 @@ class TestExecuteSlotPlan:
         results, resolved, stats = execute_slot_plan(plan, duckdb_connection)
 
         assert resolved.get("$company_id") == "ACME-MFG"
+        # Multiple queries use {table}_{idx} keys
         assert len(results["contacts_1"]) == 2  # Anna and Joe
 
     def test_execute_adds_limit_if_missing(self, duckdb_connection):
         """Adds LIMIT to queries without one."""
         plan = SlotPlan(
-            queries=[SlotQuery(table="companies", filters={})],
+            queries=[SlotQuery(table="companies", filters=[])],
             needs_rag=False,
         )
 
@@ -369,9 +370,9 @@ class TestExecuteSlotPlan:
         """Executes multiple queries in a plan."""
         plan = SlotPlan(
             queries=[
-                SlotQuery(table="companies", filters={}),
-                SlotQuery(table="contacts", filters={}),
-                SlotQuery(table="opportunities", filters={}),
+                SlotQuery(table="companies", filters=[]),
+                SlotQuery(table="contacts", filters=[]),
+                SlotQuery(table="opportunities", filters=[]),
             ],
             needs_rag=False,
         )
@@ -380,6 +381,7 @@ class TestExecuteSlotPlan:
 
         assert stats.total == 3
         assert stats.success == 3
+        # Multiple queries use {table}_{idx} keys
         assert len(results["companies_0"]) == 3
         assert len(results["contacts_1"]) == 4
         assert len(results["opportunities_2"]) == 3
@@ -406,7 +408,7 @@ class TestExecuteSlotPlanWithRealData:
             queries=[
                 SlotQuery(
                     table="contacts",
-                    filters={"role": "Decision Maker"},
+                    filters=[Filter(field="role", op="eq", value="Decision Maker")],
                 )
             ],
             needs_rag=False,
@@ -425,7 +427,7 @@ class TestExecuteSlotPlanWithRealData:
             queries=[
                 SlotQuery(
                     table="activities",
-                    filters={},
+                    filters=[],
                 )
             ],
             needs_rag=False,
@@ -442,7 +444,7 @@ class TestExecuteSlotPlanWithRealData:
             queries=[
                 SlotQuery(
                     table="opportunities",
-                    filters={"stage_not_in": ["Closed Won", "Closed Lost"]},
+                    filters=[Filter(field="stage", op="not_in", value=["Closed Won", "Closed Lost"])],
                     order_by="value DESC",
                 )
             ],

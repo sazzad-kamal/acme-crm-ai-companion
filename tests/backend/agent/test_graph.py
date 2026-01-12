@@ -42,11 +42,11 @@ class TestGraphIntegration:
     @patch("backend.agent.route.query_planner.get_slot_plan")
     def test_graph_execution(self, mock_planner, mock_answer_chain):
         """Test graph execution with company query."""
-        from backend.agent.route.slot_query import SlotPlan, SlotQuery
+        from backend.agent.route.slot_query import Filter, SlotPlan, SlotQuery
 
         mock_planner.return_value = SlotPlan(
             queries=[
-                SlotQuery(table="companies", filters={"name": "acme"}, purpose="company_info"),
+                SlotQuery(table="companies", filters=[Filter(field="name", op="eq", value="acme")]),
             ],
             needs_rag=True,
         )

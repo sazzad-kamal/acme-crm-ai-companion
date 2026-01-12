@@ -3,7 +3,7 @@ Slot-based query system for reliable SQL generation.
 
 Instead of LLM generating raw SQL, it outputs structured slots:
 - table: which table to query
-- filters: WHERE conditions
+- filters: list of {field, op, value} conditions
 - columns: SELECT columns (optional)
 - order_by: ORDER BY clause (optional)
 
@@ -34,7 +34,6 @@ TableName = Literal[
 ]
 
 # SQL columns per table (excludes RAG fields: notes, description)
-# RAG fields come from vector search, not SQL
 # Columns match the actual CSV schema in backend/data/csv/
 TABLE_COLUMNS: dict[TableName, list[str]] = {
     "opportunities": ["opportunity_id", "company_id", "name", "stage", "value", "owner", "expected_close_date", "type"],
@@ -50,17 +49,27 @@ TABLE_COLUMNS: dict[TableName, list[str]] = {
 # =============================================================================
 
 
+class Filter(BaseModel):
+    """A single filter condition."""
+
+    field: str = Field(description="Column name to filter on")
+    op: Literal["eq", "neq", "gt", "lt", "gte", "lte", "in", "not_in", "like"] = Field(
+        description="Operator: eq, neq, gt, lt, gte, lte, in, not_in, like"
+    )
+    value: Any = Field(description="Value to compare against")
+
+
 class SlotQuery(BaseModel):
     """A single slot-based query."""
 
     table: TableName = Field(description="Which table to query")
-    filters: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Filter conditions as column: value pairs",
+    filters: list[Filter] = Field(
+        default_factory=list,
+        description="List of filter conditions",
     )
     columns: list[str] | None = Field(
         default=None,
-        description="Columns to select. None means SELECT *",
+        description="Columns to select. None means all columns",
     )
     order_by: str | None = Field(
         default=None,
@@ -77,7 +86,7 @@ class SlotPlan(BaseModel):
     )
     needs_rag: bool = Field(
         default=False,
-        description="Whether RAG context is needed (for 'why', 'what happened', discussion questions)",
+        description="Whether RAG context is needed",
     )
 
 
@@ -86,29 +95,35 @@ class SlotPlan(BaseModel):
 # =============================================================================
 
 
-def _build_criterion(table: Table, key: str, value: Any) -> Any:
-    """Build a pypika criterion from a filter key-value pair."""
-    # Handle special filter keys
-    if key == "value_gt":
-        return table.value > value
-    elif key == "value_lt":
-        return table.value < value
-    elif key == "date_after":
-        return table.date > value
-    elif key == "stage_not_in":
-        if isinstance(value, list):
-            return table.stage.notin(value)
-        return table.stage != value
-    elif key == "name" and isinstance(value, str):
-        # Case-insensitive partial match using LOWER
-        return Lower(table.name).like(f"%{value.lower()}%")
-    elif key == "health_flags" and isinstance(value, str):
-        # Partial match for health flags (e.g., "at-risk" matches "at-risk-low-activity")
-        return Lower(table.health_flags).like(f"%{value.lower()}%")
-    elif isinstance(value, list):
-        return table[key].isin(value)
+def _build_criterion(table: Table, f: Filter) -> Any:
+    """Build a pypika criterion from a Filter."""
+    col = table[f.field]
+    val = f.value
+
+    if f.op == "eq":
+        # Case-insensitive partial match for string fields like 'name'
+        if f.field in ("name", "health_flags") and isinstance(val, str):
+            return Lower(col).like(f"%{val.lower()}%")
+        return col == val
+    elif f.op == "neq":
+        return col != val
+    elif f.op == "gt":
+        return col > val
+    elif f.op == "lt":
+        return col < val
+    elif f.op == "gte":
+        return col >= val
+    elif f.op == "lte":
+        return col <= val
+    elif f.op == "in":
+        return col.isin(val) if isinstance(val, list) else col == val
+    elif f.op == "not_in":
+        return col.notin(val) if isinstance(val, list) else col != val
+    elif f.op == "like":
+        pattern = f"%{val}%" if not val.startswith("%") else val
+        return Lower(col).like(pattern.lower())
     else:
-        return table[key] == value
+        raise ValueError(f"Unknown operator: {f.op}")
 
 
 def _parse_order_by(order_by: str) -> tuple[str, Order]:
@@ -124,13 +139,12 @@ def _build_query(slot: SlotQuery) -> Query:
     table = Table(slot.table)
 
     # SELECT columns
-    cols = slot.columns or TABLE_COLUMNS[slot.table]
+    cols = slot.columns or TABLE_COLUMNS.get(slot.table, ["*"])
     query = Query.from_(table).select(*[table[c] for c in cols])
 
-    # WHERE filters - skip None values
-    for key, value in slot.filters.items():
-        if value is not None:
-            query = query.where(_build_criterion(table, key, value))
+    # WHERE filters
+    for f in slot.filters:
+        query = query.where(_build_criterion(table, f))
 
     # ORDER BY
     if slot.order_by:
@@ -140,20 +154,31 @@ def _build_query(slot: SlotQuery) -> Query:
     return query
 
 
+def _get_company_name_filter(filters: list[Filter]) -> tuple[str | None, list[Filter]]:
+    """Extract company_name filter from list, return (company_name, remaining_filters)."""
+    company_name = None
+    remaining = []
+    for f in filters:
+        if f.field == "company_name":
+            company_name = f.value
+        else:
+            remaining.append(f)
+    return company_name, remaining
+
+
 def _build_query_with_company_join(slot: SlotQuery) -> Query:
     """Build a pypika Query with JOIN to companies table."""
     table = Table(slot.table)
     companies = Table("companies")
 
-    # Get company_name filter
-    filters = {k: v for k, v in slot.filters.items() if v is not None}
-    company_name = filters.pop("company_name", None)
+    # Extract company_name filter
+    company_name, remaining_filters = _get_company_name_filter(slot.filters)
 
     # SELECT columns - include company name
     if slot.columns:
         cols = [table[c] for c in slot.columns]
     else:
-        cols = [table[c] for c in TABLE_COLUMNS[slot.table]]
+        cols = [table[c] for c in TABLE_COLUMNS.get(slot.table, [])]
         cols.append(companies.name.as_("company_name"))
 
     # Build query with JOIN
@@ -169,8 +194,8 @@ def _build_query_with_company_join(slot: SlotQuery) -> Query:
         query = query.where(Lower(companies.name).like(f"%{company_name.lower()}%"))
 
     # Add remaining filters
-    for key, value in filters.items():
-        query = query.where(_build_criterion(table, key, value))
+    for f in remaining_filters:
+        query = query.where(_build_criterion(table, f))
 
     # ORDER BY
     if slot.order_by:
@@ -188,8 +213,8 @@ def slot_to_sql(slot: SlotQuery) -> str:
     on tables that have company_id.
     """
     # Check if company_name filter is present and not on companies table
-    company_name = slot.filters.get("company_name")
-    if company_name is not None and slot.table != "companies":
+    has_company_name = any(f.field == "company_name" for f in slot.filters)
+    if has_company_name and slot.table != "companies":
         query = _build_query_with_company_join(slot)
     else:
         query = _build_query(slot)
@@ -199,4 +224,4 @@ def slot_to_sql(slot: SlotQuery) -> str:
     return sql
 
 
-__all__ = ["SlotQuery", "SlotPlan", "slot_to_sql", "TABLE_COLUMNS", "TableName"]
+__all__ = ["Filter", "SlotQuery", "SlotPlan", "slot_to_sql", "TABLE_COLUMNS", "TableName"]

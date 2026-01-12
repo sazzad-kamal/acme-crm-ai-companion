@@ -4,22 +4,23 @@
     "output": {
       "queries": [{
         "table": "opportunities",
-        "filters": {
-          "stage": null,
-          "stage_not_in": ["Closed Won", "Closed Lost"],
-          "type": null,
-          "value_gt": null,
-          "value_lt": null,
-          "company_name": null,
-          "company_id": null,
-          "role": null,
-          "lifecycle_stage": null,
-          "contact_id": null,
-          "date_after": null,
-          "name": null,
-          "status": null,
-          "health_flags": null
-        },
+        "filters": [
+          {"field": "stage", "op": "not_in", "value": ["Closed Won", "Closed Lost"]}
+        ],
+        "columns": null,
+        "order_by": "value DESC"
+      }],
+      "needs_rag": false
+    }
+  },
+  {
+    "question": "Show me high value opportunities",
+    "output": {
+      "queries": [{
+        "table": "opportunities",
+        "filters": [
+          {"field": "value", "op": "gt", "value": 50000}
+        ],
         "columns": null,
         "order_by": "value DESC"
       }],
@@ -31,22 +32,9 @@
     "output": {
       "queries": [{
         "table": "companies",
-        "filters": {
-          "stage": null,
-          "stage_not_in": null,
-          "type": null,
-          "value_gt": null,
-          "value_lt": null,
-          "company_name": null,
-          "company_id": null,
-          "role": null,
-          "lifecycle_stage": null,
-          "contact_id": null,
-          "date_after": null,
-          "name": null,
-          "status": null,
-          "health_flags": "at-risk"
-        },
+        "filters": [
+          {"field": "health_flags", "op": "like", "value": "at-risk"}
+        ],
         "columns": null,
         "order_by": null
       }],
@@ -54,26 +42,13 @@
     }
   },
   {
-    "question": "Who needs a follow-up?",
+    "question": "Who are the decision makers?",
     "output": {
       "queries": [{
         "table": "contacts",
-        "filters": {
-          "stage": null,
-          "stage_not_in": null,
-          "type": null,
-          "value_gt": null,
-          "value_lt": null,
-          "company_name": null,
-          "company_id": null,
-          "role": null,
-          "lifecycle_stage": null,
-          "contact_id": null,
-          "date_after": null,
-          "name": null,
-          "status": null,
-          "health_flags": null
-        },
+        "filters": [
+          {"field": "role", "op": "eq", "value": "Decision Maker"}
+        ],
         "columns": null,
         "order_by": null
       }],
@@ -85,26 +60,53 @@
     "output": {
       "queries": [{
         "table": "companies",
-        "filters": {
-          "stage": null,
-          "stage_not_in": null,
-          "type": null,
-          "value_gt": null,
-          "value_lt": null,
-          "company_name": null,
-          "company_id": null,
-          "role": null,
-          "lifecycle_stage": null,
-          "contact_id": null,
-          "date_after": null,
-          "name": "Delta",
-          "status": null,
-          "health_flags": null
-        },
+        "filters": [
+          {"field": "name", "op": "eq", "value": "Delta"}
+        ],
         "columns": null,
         "order_by": null
       }],
       "needs_rag": true
+    }
+  },
+  {
+    "question": "Show deals closing this month",
+    "output": {
+      "queries": [{
+        "table": "opportunities",
+        "filters": [
+          {"field": "stage", "op": "not_in", "value": ["Closed Won", "Closed Lost"]}
+        ],
+        "columns": null,
+        "order_by": "expected_close_date ASC"
+      }],
+      "needs_rag": false
+    }
+  },
+  {
+    "question": "List all contacts at Acme",
+    "output": {
+      "queries": [{
+        "table": "contacts",
+        "filters": [
+          {"field": "company_name", "op": "eq", "value": "Acme"}
+        ],
+        "columns": null,
+        "order_by": null
+      }],
+      "needs_rag": false
+    }
+  },
+  {
+    "question": "What renewals are coming up?",
+    "output": {
+      "queries": [{
+        "table": "companies",
+        "filters": [],
+        "columns": ["company_id", "name", "renewal_date", "plan"],
+        "order_by": "renewal_date ASC"
+      }],
+      "needs_rag": false
     }
   }
 ]

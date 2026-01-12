@@ -22,7 +22,7 @@ class TestRouteNode:
         from backend.agent.route.slot_query import SlotPlan, SlotQuery
 
         mock_slot_plan = SlotPlan(
-            queries=[SlotQuery(table="companies", filters={}, purpose="company_info")],
+            queries=[SlotQuery(table="companies", filters=[])],
             needs_rag=True
         )
         mock_slot_planner.return_value = mock_slot_plan
@@ -45,7 +45,7 @@ class TestRouteNode:
         from backend.agent.route.slot_query import SlotPlan, SlotQuery
 
         mock_slot_plan = SlotPlan(
-            queries=[SlotQuery(table="opportunities", filters={}, purpose="pipeline")],
+            queries=[SlotQuery(table="opportunities", filters=[])],
             needs_rag=False
         )
         mock_slot_planner.return_value = mock_slot_plan
@@ -89,7 +89,7 @@ class TestRouteNode:
         from backend.agent.route.slot_query import SlotPlan, SlotQuery
 
         mock_slot_plan = SlotPlan(
-            queries=[SlotQuery(table="companies", filters={}, purpose="companies")],
+            queries=[SlotQuery(table="companies", filters=[])],
             needs_rag=False
         )
         mock_slot_planner.return_value = mock_slot_plan

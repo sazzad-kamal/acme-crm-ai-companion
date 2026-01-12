@@ -156,7 +156,7 @@ def mock_llm():
     a real API key or make actual network requests.
     """
     from backend.agent.core import Source
-    from backend.agent.route.slot_query import SlotPlan, SlotQuery
+    from backend.agent.route.slot_query import Filter, SlotPlan, SlotQuery
 
     def mock_call_answer_chain(*args, **kwargs) -> tuple[str, int]:
         question = kwargs.get("question", args[0] if args else "")
@@ -203,49 +203,43 @@ def mock_llm():
         company_names = ["acme", "beta", "crown", "delta", "echo"]
         if any(name in q for name in company_names):
             needs_rag = True
+            name = next(n for n in company_names if n in q)
             queries.append(SlotQuery(
                 table="companies",
-                filters={"name": next(n for n in company_names if n in q)},
-                purpose="company_info"
+                filters=[Filter(field="name", op="eq", value=name)],
             ))
             queries.append(SlotQuery(
                 table="opportunities",
-                filters={},
-                purpose="open_deals"
+                filters=[],
             ))
 
         # Detect aggregate queries
         if "renewal" in q:
             queries.append(SlotQuery(
                 table="companies",
-                filters={},
-                purpose="renewals"
+                filters=[],
             ))
         elif "pipeline" in q:
             queries.append(SlotQuery(
                 table="opportunities",
-                filters={"stage_not_in": ["Closed Won", "Closed Lost"]},
-                purpose="pipeline"
+                filters=[Filter(field="stage", op="not_in", value=["Closed Won", "Closed Lost"])],
             ))
         elif any(kw in q for kw in ["forecast", "weighted"]):
             queries.append(SlotQuery(
                 table="opportunities",
-                filters={"stage_not_in": ["Closed Won", "Closed Lost"]},
-                purpose="forecast"
+                filters=[Filter(field="stage", op="not_in", value=["Closed Won", "Closed Lost"])],
             ))
         elif any(kw in q for kw in ["at risk", "at-risk", "stalled"]):
             queries.append(SlotQuery(
                 table="opportunities",
-                filters={},
-                purpose="stale_deals"
+                filters=[],
             ))
 
         # Default: return something
         if not queries:
             queries.append(SlotQuery(
                 table="companies",
-                filters={},
-                purpose="companies"
+                filters=[],
             ))
 
         return SlotPlan(queries=queries, needs_rag=needs_rag)
