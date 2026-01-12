@@ -33,16 +33,6 @@ TableName = Literal[
     "history",
 ]
 
-# SQL columns per table (excludes RAG fields: notes, description)
-# Columns match the actual CSV schema in backend/data/csv/
-TABLE_COLUMNS: dict[TableName, list[str]] = {
-    "opportunities": ["opportunity_id", "company_id", "name", "stage", "value", "owner", "expected_close_date", "type"],
-    "contacts": ["contact_id", "company_id", "first_name", "last_name", "email", "phone", "job_title", "role"],
-    "activities": ["activity_id", "company_id", "contact_id", "opportunity_id", "type", "subject", "due_datetime"],
-    "companies": ["company_id", "name", "status", "plan", "account_owner", "health_flags", "renewal_date"],
-    "history": ["history_id", "company_id", "contact_id", "type", "date"],
-}
-
 
 # =============================================================================
 # Pydantic Models
@@ -138,9 +128,11 @@ def _build_query(slot: SlotQuery) -> Query:
     """Build a pypika Query from a SlotQuery."""
     table = Table(slot.table)
 
-    # SELECT columns
-    cols = slot.columns or TABLE_COLUMNS.get(slot.table, ["*"])
-    query = Query.from_(table).select(*[table[c] for c in cols])
+    # SELECT columns (use * if not specified)
+    if slot.columns:
+        query = Query.from_(table).select(*[table[c] for c in slot.columns])
+    else:
+        query = Query.from_(table).select("*")
 
     # WHERE filters
     for f in slot.filters:
@@ -154,74 +146,12 @@ def _build_query(slot: SlotQuery) -> Query:
     return query
 
 
-def _get_company_name_filter(filters: list[Filter]) -> tuple[str | None, list[Filter]]:
-    """Extract company_name filter from list, return (company_name, remaining_filters)."""
-    company_name = None
-    remaining = []
-    for f in filters:
-        if f.field == "company_name":
-            company_name = f.value
-        else:
-            remaining.append(f)
-    return company_name, remaining
-
-
-def _build_query_with_company_join(slot: SlotQuery) -> Query:
-    """Build a pypika Query with JOIN to companies table."""
-    table = Table(slot.table)
-    companies = Table("companies")
-
-    # Extract company_name filter
-    company_name, remaining_filters = _get_company_name_filter(slot.filters)
-
-    # SELECT columns - include company name
-    if slot.columns:
-        cols = [table[c] for c in slot.columns]
-    else:
-        cols = [table[c] for c in TABLE_COLUMNS.get(slot.table, [])]
-        cols.append(companies.name.as_("company_name"))
-
-    # Build query with JOIN
-    query = (
-        Query.from_(table)
-        .join(companies)
-        .on(table.company_id == companies.company_id)
-        .select(*cols)
-    )
-
-    # Add company name filter (case-insensitive partial match)
-    if company_name:
-        query = query.where(Lower(companies.name).like(f"%{company_name.lower()}%"))
-
-    # Add remaining filters
-    for f in remaining_filters:
-        query = query.where(_build_criterion(table, f))
-
-    # ORDER BY
-    if slot.order_by:
-        field, direction = _parse_order_by(slot.order_by)
-        query = query.orderby(table[field], order=direction)
-
-    return query
-
-
 def slot_to_sql(slot: SlotQuery) -> str:
-    """
-    Convert a SlotQuery to SQL using pypika.
-
-    Handles company name joins automatically when filtering by company_name
-    on tables that have company_id.
-    """
-    # Check if company_name filter is present and not on companies table
-    has_company_name = any(f.field == "company_name" for f in slot.filters)
-    if has_company_name and slot.table != "companies":
-        query = _build_query_with_company_join(slot)
-    else:
-        query = _build_query(slot)
-
+    """Convert a SlotQuery to SQL using pypika."""
+    query = _build_query(slot)
     sql: str = query.get_sql()
     logger.debug("Built SQL for '%s': %s", slot.table, sql)
     return sql
 
 
-__all__ = ["Filter", "SlotQuery", "SlotPlan", "slot_to_sql", "TABLE_COLUMNS", "TableName"]
+__all__ = ["Filter", "SlotQuery", "SlotPlan", "slot_to_sql", "TableName"]

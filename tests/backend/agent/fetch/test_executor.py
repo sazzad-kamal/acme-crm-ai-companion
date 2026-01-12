@@ -162,7 +162,7 @@ def duckdb_connection():
     """Create in-memory DuckDB connection with test data."""
     conn = duckdb.connect(":memory:")
 
-    # Create companies table (matches TABLE_COLUMNS in slot_query.py)
+    # Create companies table
     conn.execute("""
         CREATE TABLE companies (
             company_id VARCHAR PRIMARY KEY,
@@ -181,7 +181,7 @@ def duckdb_connection():
         ('DELTA-HEALTH', 'Delta Health Clinics', 'Active', 'Standard', 'amartin', NULL, '2026-02-01')
     """)
 
-    # Create contacts table (matches TABLE_COLUMNS in slot_query.py)
+    # Create contacts table
     conn.execute("""
         CREATE TABLE contacts (
             contact_id VARCHAR PRIMARY KEY,
@@ -202,7 +202,7 @@ def duckdb_connection():
         ('C-DELTA-ERIN', 'DELTA-HEALTH', 'Erin', 'Cho', 'erin.cho@deltahealth.org', '555-3234', 'CFO', 'Decision Maker')
     """)
 
-    # Create opportunities table (matches TABLE_COLUMNS in slot_query.py)
+    # Create opportunities table
     conn.execute("""
         CREATE TABLE opportunities (
             opportunity_id VARCHAR PRIMARY KEY,
@@ -222,7 +222,7 @@ def duckdb_connection():
         ('OPP-BETA-NEW', 'BETA-TECH', 'New Rollout', 'Negotiation', 32000, 'amartin', '2026-02-15', 'New')
     """)
 
-    # Create activities table (matches TABLE_COLUMNS in slot_query.py)
+    # Create activities table
     conn.execute("""
         CREATE TABLE activities (
             activity_id VARCHAR PRIMARY KEY,

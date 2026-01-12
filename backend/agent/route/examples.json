@@ -86,14 +86,20 @@
   {
     "question": "List all contacts at Acme",
     "output": {
-      "queries": [{
-        "table": "contacts",
-        "filters": [
-          {"field": "company_name", "op": "eq", "value": "Acme"}
-        ],
-        "columns": null,
-        "order_by": null
-      }],
+      "queries": [
+        {
+          "table": "companies",
+          "filters": [{"field": "name", "op": "eq", "value": "Acme"}],
+          "columns": null,
+          "order_by": null
+        },
+        {
+          "table": "contacts",
+          "filters": [{"field": "company_id", "op": "eq", "value": "$company_id"}],
+          "columns": null,
+          "order_by": null
+        }
+      ],
       "needs_rag": false
     }
   },
