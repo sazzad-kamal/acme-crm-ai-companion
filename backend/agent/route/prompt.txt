@@ -23,8 +23,13 @@ history(history_id, company_id, contact_id, opportunity_id, type, subject, sourc
 ## KEYS
 - contacts.company_id -> companies.company_id
 - opportunities.company_id -> companies.company_id
+- opportunities.primary_contact_id -> contacts.contact_id
 - activities.company_id -> companies.company_id
+- activities.contact_id -> contacts.contact_id
+- activities.opportunity_id -> opportunities.opportunity_id
 - history.company_id -> companies.company_id
+- history.contact_id -> contacts.contact_id
+- history.opportunity_id -> opportunities.opportunity_id
 
 ## NEEDS_RAG DECISION
 
