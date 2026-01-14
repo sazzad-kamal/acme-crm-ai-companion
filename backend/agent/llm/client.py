@@ -7,9 +7,8 @@ Provides ChatOpenAI factory and chain creation used by both agent/ and eval/.
 import logging
 import os
 from functools import lru_cache
-from typing import Any
-
 from pathlib import Path
+from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser

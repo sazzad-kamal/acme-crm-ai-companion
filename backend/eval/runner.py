@@ -11,17 +11,16 @@ from typing import Any
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from backend.agent.followup.tree import (
+from backend.eval.formatting import console, print_eval_header
+from backend.eval.judge import evaluate_single
+from backend.eval.models import FlowEvalResults, FlowResult, FlowStepResult
+from backend.eval.tree import (
     get_all_paths,
     get_expected_answer,
     get_expected_rag,
     get_expected_sql_results,
     validate_sql_results,
 )
-from backend.eval.formatting import console, print_eval_header
-from backend.eval.judge import evaluate_single
-from backend.eval.models import FlowEvalResults, FlowResult, FlowStepResult
-from backend.eval.parallel import calculate_p95_latency
 
 logger = logging.getLogger(__name__)
 
@@ -458,10 +457,6 @@ def run_flow_eval(
     total_latency = sum(r.total_latency_ms for r in results)
     avg_latency = total_latency / total_questions if total_questions > 0 else 0
 
-    # Calculate P95 latency per question
-    step_latencies: list[float | int] = [s.latency_ms for s in all_steps]
-    p95_latency = calculate_p95_latency(step_latencies)
-
     failed_paths = [r for r in results if not r.success]
     wall_clock_ms = int((time.time() - eval_start_time) * 1000)
 
@@ -490,7 +485,6 @@ def run_flow_eval(
         ragas_metrics_failed=ragas_metrics_failed,
         total_latency_ms=total_latency,
         avg_latency_per_question_ms=avg_latency,
-        p95_latency_ms=p95_latency,
         wall_clock_ms=wall_clock_ms,
         failed_paths=failed_paths,
         all_results=results,

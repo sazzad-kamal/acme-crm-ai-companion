@@ -149,7 +149,6 @@ class FlowEvalResults:
     # Latency
     total_latency_ms: int = 0
     avg_latency_per_question_ms: float = 0.0
-    p95_latency_ms: float = 0.0  # P95 latency per question
     wall_clock_ms: int = 0  # Total wall-clock time for the eval
     # Latency breakdown by node (percentage of total)
     latency_routing_pct: float = 0.0

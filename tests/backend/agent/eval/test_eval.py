@@ -179,7 +179,6 @@ class TestFlowEvalResults:
             avg_faithfulness=0.80,
             total_latency_ms=5000,
             avg_latency_per_question_ms=166.7,
-            p95_latency_ms=300.0,
         )
 
         assert results.paths_passed == 8
@@ -390,43 +389,6 @@ class TestPrintFunctions:
         ]
 
         print_debug_failures(failures, "Test Failures")
-
-
-# =============================================================================
-# Parallel Runner Tests
-# =============================================================================
-
-
-class TestLatencyCalculation:
-    """Tests for latency calculation functions."""
-
-    def test_calculate_p95_latency_empty_list(self):
-        """Test calculate_p95_latency with empty list."""
-        from backend.eval.parallel import calculate_p95_latency
-
-        assert calculate_p95_latency([]) == 0.0
-
-    def test_calculate_p95_latency_single_value(self):
-        """Test calculate_p95_latency with single value."""
-        from backend.eval.parallel import calculate_p95_latency
-
-        assert calculate_p95_latency([1000]) == 1000.0
-
-    def test_calculate_p95_latency_multiple_values(self):
-        """Test calculate_p95_latency with multiple values."""
-        from backend.eval.parallel import calculate_p95_latency
-
-        latencies = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
-        p95 = calculate_p95_latency(latencies)
-        assert p95 == 1000.0
-
-    def test_calculate_p95_latency_with_outliers(self):
-        """Test calculate_p95_latency with outliers."""
-        from backend.eval.parallel import calculate_p95_latency
-
-        latencies = [100] * 95 + [10000] * 5
-        p95 = calculate_p95_latency(latencies)
-        assert p95 >= 100
 
 
 # =============================================================================
@@ -1144,8 +1106,8 @@ class TestTestSingleQuestion:
         monkeypatch.setattr(backend.eval.runner, "_invoke_agent", mock_invoke_agent)
         monkeypatch.setattr(backend.eval.runner, "judge_answer", mock_judge_answer)
 
-        import backend.agent.followup.tree
-        monkeypatch.setattr(backend.agent.followup.tree, "get_expected_answer", mock_get_expected_answer)
+        import backend.eval.tree
+        monkeypatch.setattr(backend.eval.tree, "get_expected_answer", mock_get_expected_answer)
 
         result = test_single_question("What is Acme's status?", [], "session1")
 
@@ -1173,8 +1135,8 @@ class TestTestSingleQuestion:
         import backend.eval.runner
         monkeypatch.setattr(backend.eval.runner, "_invoke_agent", mock_invoke_agent)
 
-        import backend.agent.followup.tree
-        monkeypatch.setattr(backend.agent.followup.tree, "get_expected_answer", mock_get_expected_answer)
+        import backend.eval.tree
+        monkeypatch.setattr(backend.eval.tree, "get_expected_answer", mock_get_expected_answer)
 
         result = test_single_question("Hello?", [], "session1", use_judge=False)
 
@@ -1232,8 +1194,8 @@ class TestTestSingleQuestion:
         monkeypatch.setattr(backend.eval.runner, "_invoke_agent", mock_invoke_agent)
         monkeypatch.setattr(backend.eval.runner, "judge_answer", mock_judge_answer)
 
-        import backend.agent.followup.tree
-        monkeypatch.setattr(backend.agent.followup.tree, "get_expected_answer", mock_get_expected_answer)
+        import backend.eval.tree
+        monkeypatch.setattr(backend.eval.tree, "get_expected_answer", mock_get_expected_answer)
 
         result = test_single_question("Q?", [], "session1", eval_mode="rag")
 
@@ -1275,8 +1237,8 @@ class TestTestSingleQuestion:
         monkeypatch.setattr(backend.eval.runner, "_invoke_agent", mock_invoke_agent)
         monkeypatch.setattr(backend.eval.runner, "judge_answer", mock_judge_answer)
 
-        import backend.agent.followup.tree
-        monkeypatch.setattr(backend.agent.followup.tree, "get_expected_answer", mock_get_expected_answer)
+        import backend.eval.tree
+        monkeypatch.setattr(backend.eval.tree, "get_expected_answer", mock_get_expected_answer)
 
         result = test_single_question("Pipeline?", [], "session1", eval_mode="pipeline")
 
@@ -1746,13 +1708,13 @@ class TestCliModule:
 
         import backend.eval.cli
         import backend.agent.fetch.rag.tools
-        import backend.agent.followup.tree
+        import backend.eval.tree
         import backend.eval.runner
         import backend.eval.langsmith
 
         monkeypatch.setattr(backend.eval.cli, "check_qdrant_access", mock_check_qdrant_access)
         monkeypatch.setattr(backend.agent.fetch.rag.tools, "tool_entity_rag", mock_tool_entity_rag)
-        monkeypatch.setattr(backend.agent.followup.tree, "get_tree_stats", mock_get_tree_stats)
+        monkeypatch.setattr(backend.eval.tree, "get_tree_stats", mock_get_tree_stats)
         monkeypatch.setattr(backend.eval.runner, "run_flow_eval", mock_run_flow_eval)
         monkeypatch.setattr(backend.eval.langsmith, "get_latency_percentages", mock_get_latency_percentages)
 
@@ -1795,14 +1757,13 @@ class TestCliModule:
 
         import backend.eval.cli
         import backend.agent.fetch.rag.tools
-        import backend.agent.followup.tree
         import backend.eval.runner
         import backend.eval.langsmith
 
         # Must patch in cli module where it's imported
         monkeypatch.setattr(backend.eval.cli, "check_qdrant_access", mock_check_qdrant_access)
         monkeypatch.setattr(backend.agent.fetch.rag.tools, "tool_entity_rag", mock_tool_entity_rag)
-        monkeypatch.setattr(backend.agent.followup.tree, "get_tree_stats", mock_get_tree_stats)
+        monkeypatch.setattr(backend.eval.cli, "get_tree_stats", mock_get_tree_stats)
         monkeypatch.setattr(backend.eval.runner, "run_flow_eval", mock_run_flow_eval)
         monkeypatch.setattr(backend.eval.langsmith, "get_latency_percentages", mock_get_latency_percentages)
 
@@ -1867,13 +1828,12 @@ class TestCliModule:
 
         import backend.eval.cli
         import backend.agent.fetch.rag.tools
-        import backend.agent.followup.tree
         import backend.eval.runner
         import backend.eval.langsmith
 
         monkeypatch.setattr(backend.eval.cli, "check_qdrant_access", mock_check_qdrant_access)
         monkeypatch.setattr(backend.agent.fetch.rag.tools, "tool_entity_rag", mock_tool_entity_rag)
-        monkeypatch.setattr(backend.agent.followup.tree, "get_tree_stats", mock_get_tree_stats)
+        monkeypatch.setattr(backend.eval.cli, "get_tree_stats", mock_get_tree_stats)
         monkeypatch.setattr(backend.eval.runner, "run_flow_eval", mock_run_flow_eval)
         monkeypatch.setattr(backend.eval.langsmith, "get_latency_percentages", mock_get_latency_percentages)
 
@@ -1905,12 +1865,11 @@ class TestCliModule:
 
         import backend.eval.cli
         import backend.agent.fetch.rag.tools
-        import backend.agent.followup.tree
         import backend.eval.runner
 
         monkeypatch.setattr(backend.eval.cli, "check_qdrant_access", mock_check_qdrant_access)
         monkeypatch.setattr(backend.agent.fetch.rag.tools, "tool_entity_rag", mock_tool_entity_rag)
-        monkeypatch.setattr(backend.agent.followup.tree, "get_tree_stats", mock_get_tree_stats)
+        monkeypatch.setattr(backend.eval.cli, "get_tree_stats", mock_get_tree_stats)
         monkeypatch.setattr(backend.eval.runner, "run_flow_eval", mock_run_flow_eval)
 
         # Should handle exception gracefully (not raise)

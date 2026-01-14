@@ -23,11 +23,11 @@ _project_root = Path(__file__).parent.parent.parent
 load_dotenv(_project_root / ".env")
 
 from backend.agent.fetch.rag.client import close_qdrant_client
-from backend.agent.followup.tree import get_tree_stats
 from backend.eval.formatting import console, print_debug_failures
 from backend.eval.langsmith import get_latency_percentages
 from backend.eval.output import check_qdrant_access, print_summary, save_results
 from backend.eval.runner import run_flow_eval
+from backend.eval.tree import get_tree_stats
 
 # Register cleanup to prevent shutdown errors
 atexit.register(close_qdrant_client)

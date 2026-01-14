@@ -2,10 +2,10 @@
 CLI for question tree utilities.
 
 Usage:
-    python -m backend.agent.followup.tree validate
-    python -m backend.agent.followup.tree tree [--depth N]
-    python -m backend.agent.followup.tree stats
-    python -m backend.agent.followup.tree paths [--limit N]
+    python -m backend.eval.tree validate
+    python -m backend.eval.tree tree [--depth N]
+    python -m backend.eval.tree stats
+    python -m backend.eval.tree paths [--limit N]
 """
 
 from collections import defaultdict

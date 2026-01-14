@@ -8,7 +8,7 @@ from rich.console import Console
 
 from backend.agent.fetch.planner import get_sql_plan
 from backend.agent.fetch.sql.connection import get_connection
-from backend.agent.followup.tree import get_expected_sql_results, validate_sql_results
+from backend.eval.tree import get_expected_sql_results, validate_sql_results
 
 console = Console()
 
