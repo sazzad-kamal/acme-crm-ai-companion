@@ -112,7 +112,7 @@ def tool_entity_rag(
         if RERANKER_ENABLED and len(nodes) > RERANKER_TOP_K:
             from backend.agent.fetch.rag.reranker import rerank_nodes
 
-            nodes = rerank_nodes(nodes, question, top_k=RERANKER_TOP_K)
+            nodes = rerank_nodes(nodes, question)
             logger.info(f"Entity RAG: reranked to {len(nodes)} chunks with filters={filters}")
         else:
             logger.info(f"Entity RAG: retrieved {len(nodes)} chunks with filters={filters}")

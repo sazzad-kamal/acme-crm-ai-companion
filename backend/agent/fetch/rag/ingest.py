@@ -64,7 +64,6 @@ def ingest_private_texts(recreate: bool = True) -> int:  # pragma: no cover
                     text=record.get("text", ""),
                     metadata={
                         "doc_id": record.get("id", ""),
-                        "source_id": record.get("id", ""),
                         "company_id": record.get("company_id", ""),
                         "type": record.get("type", ""),
                         "title": record.get("title", ""),
@@ -90,41 +89,40 @@ def ingest_private_texts(recreate: bool = True) -> int:  # pragma: no cover
     QDRANT_PATH.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(QDRANT_PATH))
 
-    # Delete existing collection if recreate=True
-    if recreate and client.collection_exists(PRIVATE_COLLECTION):
-        logger.info(f"Deleting existing collection: {PRIVATE_COLLECTION}")
-        client.delete_collection(PRIVATE_COLLECTION)
+    try:
+        # Delete existing collection if recreate=True
+        if recreate and client.collection_exists(PRIVATE_COLLECTION):
+            logger.info(f"Deleting existing collection: {PRIVATE_COLLECTION}")
+            client.delete_collection(PRIVATE_COLLECTION)
 
-    # Create vector store with storage context
-    vector_store_kwargs = {
-        "client": client,
-        "collection_name": PRIVATE_COLLECTION,
-    }
-    if HYBRID_SEARCH_ENABLED:
-        vector_store_kwargs["enable_hybrid"] = True
-        vector_store_kwargs["fastembed_sparse_model"] = SPARSE_EMBEDDING_MODEL
-        logger.info(f"Hybrid search enabled with sparse model: {SPARSE_EMBEDDING_MODEL}")
+        # Create vector store with storage context
+        vector_store_kwargs = {
+            "client": client,
+            "collection_name": PRIVATE_COLLECTION,
+        }
+        if HYBRID_SEARCH_ENABLED:
+            vector_store_kwargs["enable_hybrid"] = True
+            vector_store_kwargs["fastembed_sparse_model"] = SPARSE_EMBEDDING_MODEL
+            logger.info(f"Hybrid search enabled with sparse model: {SPARSE_EMBEDDING_MODEL}")
 
-    vector_store = QdrantVectorStore(**vector_store_kwargs)  # type: ignore[arg-type]
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        vector_store = QdrantVectorStore(**vector_store_kwargs)  # type: ignore[arg-type]
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-    # Build index (this ingests the documents)
-    logger.info("Building vector index...")
-    VectorStoreIndex.from_documents(
-        documents,
-        storage_context=storage_context,
-        show_progress=True,
-    )
+        # Build index (this ingests the documents)
+        logger.info("Building vector index...")
+        VectorStoreIndex.from_documents(
+            documents,
+            storage_context=storage_context,
+            show_progress=True,
+        )
 
-    # Persist to ensure data is written
-    storage_context.persist()
+        # Get actual chunk count from Qdrant (documents are split into multiple chunks)
+        chunk_count = client.count(collection_name=PRIVATE_COLLECTION).count
+        logger.info(f"Ingested {chunk_count} chunks into '{PRIVATE_COLLECTION}'")
 
-    chunk_count = len(documents)
-    logger.info(f"Ingested {chunk_count} documents into '{PRIVATE_COLLECTION}'")
-
-    # Close client to persist data (singleton will be recreated on next access)
-    client.close()
-    return chunk_count
+        return chunk_count
+    finally:
+        client.close()
 
 
 __all__ = [
