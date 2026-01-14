@@ -23,7 +23,7 @@ def _get_reranker():
             if _reranker is None:
                 from llama_index.core.postprocessor import SentenceTransformerRerank
 
-                from backend.agent.rag.config import RERANKER_MODEL, RERANKER_TOP_K
+                from backend.agent.fetch.rag.config import RERANKER_MODEL, RERANKER_TOP_K
 
                 logger.info(f"Loading reranker model: {RERANKER_MODEL}")
                 _reranker = SentenceTransformerRerank(
@@ -52,7 +52,7 @@ def rerank_nodes(
     if not nodes:
         return nodes
 
-    from backend.agent.rag.config import RERANKER_TOP_K
+    from backend.agent.fetch.rag.config import RERANKER_TOP_K
 
     effective_top_k = top_k if top_k is not None else RERANKER_TOP_K
 

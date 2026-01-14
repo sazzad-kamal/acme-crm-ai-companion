@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from backend.agent.route.sql_planner import get_sql_plan  # noqa: E402
+from backend.agent.fetch.planner import get_sql_plan  # noqa: E402
 
 TEST_QUESTIONS = [
     "What deals are in the pipeline?",

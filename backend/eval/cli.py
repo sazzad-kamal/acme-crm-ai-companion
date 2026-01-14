@@ -22,8 +22,8 @@ if platform.system() == "Windows":
 _project_root = Path(__file__).parent.parent.parent
 load_dotenv(_project_root / ".env")
 
+from backend.agent.fetch.rag.client import close_qdrant_client
 from backend.agent.followup.tree import get_tree_stats
-from backend.agent.rag.client import close_qdrant_client
 from backend.eval.formatting import console, print_debug_failures
 from backend.eval.langsmith import get_latency_percentages
 from backend.eval.output import check_qdrant_access, print_summary, save_results
@@ -37,9 +37,9 @@ app = typer.Typer()
 
 def ensure_qdrant_collections() -> None:
     """Ensure Qdrant collections exist, ingesting data if needed."""
-    from backend.agent.rag.client import close_qdrant_client, get_qdrant_client
-    from backend.agent.rag.config import PRIVATE_COLLECTION, QDRANT_PATH
-    from backend.agent.rag.ingest import ingest_private_texts
+    from backend.agent.fetch.rag.client import close_qdrant_client, get_qdrant_client
+    from backend.agent.fetch.rag.config import PRIVATE_COLLECTION, QDRANT_PATH
+    from backend.agent.fetch.rag.ingest import ingest_private_texts
 
     QDRANT_PATH.mkdir(parents=True, exist_ok=True)
     qdrant = get_qdrant_client()
@@ -95,7 +95,7 @@ def _run_eval(
     # Warmup: trigger model loading (suppress expected "no results" warning)
     console.print("\n[dim]Warming up models...[/dim]")
     try:
-        from backend.agent.rag.tools import tool_entity_rag
+        from backend.agent.fetch.rag.tools import tool_entity_rag
 
         # Temporarily suppress RAG warnings during warmup (expected to fail with fake company)
         rag_logger = logging.getLogger("backend.agent.rag.tools")

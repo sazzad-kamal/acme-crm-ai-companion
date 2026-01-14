@@ -450,7 +450,7 @@ def check_qdrant_access() -> bool:
         True if accessible, False if locked
     """
     try:
-        from backend.agent.rag.client import get_qdrant_client
+        from backend.agent.fetch.rag.client import get_qdrant_client
 
         client = get_qdrant_client()
         client.get_collections()

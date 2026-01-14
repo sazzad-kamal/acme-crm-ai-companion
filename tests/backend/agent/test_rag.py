@@ -17,7 +17,7 @@ class TestRagClient:
 
     def test_get_qdrant_client_creates_singleton(self):
         """Test that get_qdrant_client returns a singleton."""
-        from backend.agent.rag import client
+        from backend.agent.fetch.rag import client
 
         # Reset singleton
         client._qdrant_client = None
@@ -42,7 +42,7 @@ class TestRagClient:
 
     def test_close_qdrant_client(self):
         """Test that close_qdrant_client closes and clears singleton."""
-        from backend.agent.rag import client
+        from backend.agent.fetch.rag import client
 
         mock_instance = MagicMock()
         client._qdrant_client = mock_instance
@@ -54,7 +54,7 @@ class TestRagClient:
 
     def test_close_qdrant_client_when_none(self):
         """Test close_qdrant_client when no client exists."""
-        from backend.agent.rag import client
+        from backend.agent.fetch.rag import client
 
         client._qdrant_client = None
         # Should not raise
@@ -63,7 +63,7 @@ class TestRagClient:
 
     def test_get_embed_model_lazy_load(self):
         """Test that embed model is lazily loaded and cached (singleton)."""
-        from backend.agent.rag import tools
+        from backend.agent.fetch.rag import tools
 
         # Reset the singleton to test lazy loading
         original_embed_model = tools._embed_model
@@ -95,16 +95,16 @@ class TestRagIngest:
         """Test ingest_private_texts returns 0 when JSONL doesn't exist."""
         # This is a simpler test that just checks the file-not-exists path
         # without needing to mock llama_index since it returns early
-        from backend.agent.rag.ingest import ingest_private_texts
+        from backend.agent.fetch.rag.ingest import ingest_private_texts
 
-        with patch("backend.agent.rag.ingest.JSONL_PATH") as mock_path:
+        with patch("backend.agent.fetch.rag.ingest.JSONL_PATH") as mock_path:
             mock_path.exists.return_value = False
             result = ingest_private_texts()
             assert result == 0
 
     def test_jsonl_path_configured(self):
         """Test JSONL_PATH is properly configured."""
-        from backend.agent.rag.config import JSONL_PATH
+        from backend.agent.fetch.rag.config import JSONL_PATH
         assert JSONL_PATH is not None
         assert str(JSONL_PATH).endswith(".jsonl")
 

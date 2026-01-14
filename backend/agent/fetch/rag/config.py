@@ -6,8 +6,8 @@ Centralized configuration for Qdrant paths, collection names, and models.
 
 from pathlib import Path
 
-# Directory paths
-_BACKEND_ROOT = Path(__file__).parent.parent.parent
+# Directory paths (backend/agent/fetch/rag/config.py -> backend/)
+_BACKEND_ROOT = Path(__file__).parent.parent.parent.parent
 QDRANT_PATH = _BACKEND_ROOT / "data" / "qdrant"
 JSONL_PATH = _BACKEND_ROOT / "data" / "csv" / "private_texts.jsonl"
 

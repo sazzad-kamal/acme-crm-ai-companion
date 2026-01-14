@@ -13,8 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.agent.core.config import get_config
-from backend.agent.llm.client import create_chain
-from backend.utils.prompt import load_prompt
+from backend.agent.llm.client import create_chain, load_prompt
 
 logger = logging.getLogger(__name__)
 

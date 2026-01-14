@@ -30,10 +30,10 @@ class TestGetEmbedModel:
 
         with patch.dict(sys.modules, {"llama_index.embeddings.huggingface": mock_hf}):
             # Clear any cached imports
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag.tools import _get_embed_model
+            from backend.agent.fetch.rag.tools import _get_embed_model
 
             result = _get_embed_model()
 
@@ -89,10 +89,10 @@ class TestToolEntityRag:
 
         with patch.dict(sys.modules, llama_mocks):
             # Clear cached import
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             # Patch where it's used, not where it's defined
             with patch.object(tools, "get_qdrant_client") as mock_client:
@@ -114,10 +114,10 @@ class TestToolEntityRag:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -128,8 +128,8 @@ class TestToolEntityRag:
 
     def test_tool_entity_rag_exception(self):
         """Test account RAG handles exceptions gracefully."""
-        with patch("backend.agent.rag.tools.get_qdrant_client", side_effect=Exception("Client error")):
-            from backend.agent.rag.tools import tool_entity_rag
+        with patch("backend.agent.fetch.rag.tools.get_qdrant_client", side_effect=Exception("Client error")):
+            from backend.agent.fetch.rag.tools import tool_entity_rag
 
             context, sources = tool_entity_rag("Any question", {"company_id": "COMP001"})
 
@@ -166,11 +166,11 @@ class TestToolEntityRag:
         }
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
             # Import after setting up llama_index mocks
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             # Patch where it's used, not where it's defined
             with patch.object(tools, "get_qdrant_client") as mock_client_fn:
@@ -211,10 +211,10 @@ class TestToolEntityRag:
         }
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client_fn:
                 mock_client_fn.return_value = MagicMock()
@@ -235,10 +235,10 @@ class TestToolEntityRag:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -268,10 +268,10 @@ class TestToolEntityRag:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -302,10 +302,10 @@ class TestToolEntityRag:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -336,10 +336,10 @@ class TestToolEntityRag:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -369,10 +369,10 @@ class TestToolEntityRag:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -401,10 +401,10 @@ class TestToolEntityRag:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -434,10 +434,10 @@ class TestToolEntityRag:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -469,10 +469,10 @@ class TestToolEntityRag:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with patch.object(tools, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()

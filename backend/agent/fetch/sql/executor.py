@@ -6,11 +6,12 @@ Executes SQL queries against DuckDB.
 
 import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import duckdb
 
-from backend.agent.route.sql_planner import SQLPlan
+if TYPE_CHECKING:
+    from backend.agent.fetch.planner import SQLPlan
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ class SQLExecutionStats:
 
 
 def execute_sql_plan(
-    plan: SQLPlan,
+    plan: "SQLPlan",
     conn: duckdb.DuckDBPyConnection,
     max_rows: int = 100,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str], SQLExecutionStats]:

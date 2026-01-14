@@ -14,7 +14,7 @@ class TestHybridConfig:
 
     def test_hybrid_config_exists(self):
         """Test that hybrid config values are present."""
-        from backend.agent.rag.config import (
+        from backend.agent.fetch.rag.config import (
             HYBRID_SEARCH_ENABLED,
             SPARSE_EMBEDDING_MODEL,
             SPARSE_TOP_K,
@@ -26,7 +26,7 @@ class TestHybridConfig:
 
     def test_hybrid_config_exported(self):
         """Test hybrid config is in __all__."""
-        from backend.agent.rag import config
+        from backend.agent.fetch.rag import config
 
         assert "HYBRID_SEARCH_ENABLED" in config.__all__
         assert "SPARSE_EMBEDDING_MODEL" in config.__all__
@@ -38,7 +38,7 @@ class TestHybridIngestion:
 
     def test_hybrid_config_imported_in_ingest(self):
         """Test that ingest module imports hybrid config."""
-        from backend.agent.rag import ingest
+        from backend.agent.fetch.rag import ingest
 
         # Verify hybrid config is available in the module
         assert hasattr(ingest, "HYBRID_SEARCH_ENABLED")
@@ -97,10 +97,10 @@ class TestHybridRetrieval:
         mock_index = mocks["mock_index"]
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with (
                 patch.object(tools, "get_qdrant_client") as mock_client,
@@ -137,10 +137,10 @@ class TestHybridRetrieval:
         mock_index = mocks["mock_index"]
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with (
                 patch.object(tools, "get_qdrant_client") as mock_client,
@@ -171,10 +171,10 @@ class TestHybridRetrieval:
         mock_vector_store_cls = mocks["mock_vector_store_cls"]
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with (
                 patch.object(tools, "get_qdrant_client") as mock_client,

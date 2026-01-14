@@ -84,16 +84,6 @@ class AgentState(TypedDict, total=False):
     resolved_opportunity_id: str | None
     needs_rag: bool  # Whether RAG context is needed
 
-    # Legacy data outputs (kept for backwards compatibility during migration)
-    company_data: dict[str, Any] | None
-    activities_data: dict[str, Any] | None
-    history_data: dict[str, Any] | None
-    pipeline_data: dict[str, Any] | None
-    renewals_data: dict[str, Any] | None
-    contacts_data: dict[str, Any] | None
-    groups_data: dict[str, Any] | None
-    attachments_data: dict[str, Any] | None
-
     # Account RAG output (private CRM text: notes, attachments)
     account_context_answer: str
     account_context_sources: list[Source]

@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 def _ensure_rag_collections() -> None:
     from qdrant_client import QdrantClient
 
-    from backend.agent.rag.config import PRIVATE_COLLECTION, QDRANT_PATH
-    from backend.agent.rag.ingest import ingest_private_texts
+    from backend.agent.fetch.rag.config import PRIVATE_COLLECTION, QDRANT_PATH
+    from backend.agent.fetch.rag.ingest import ingest_private_texts
 
     qdrant = QdrantClient(path=str(QDRANT_PATH))
     exists = qdrant.collection_exists(PRIVATE_COLLECTION)

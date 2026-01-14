@@ -10,8 +10,8 @@ import logging
 
 from qdrant_client import QdrantClient
 
-from backend.agent.rag.client import close_qdrant_client
-from backend.agent.rag.config import (
+from backend.agent.fetch.rag.client import close_qdrant_client
+from backend.agent.fetch.rag.config import (
     EMBEDDING_MODEL,
     HYBRID_SEARCH_ENABLED,
     JSONL_PATH,

@@ -13,7 +13,7 @@ class TestRerankerConfig:
 
     def test_reranker_config_exists(self):
         """Test that reranker config values are present."""
-        from backend.agent.rag.config import (
+        from backend.agent.fetch.rag.config import (
             RERANKER_ENABLED,
             RERANKER_MODEL,
             RERANKER_TOP_K,
@@ -31,7 +31,7 @@ class TestRerankNodes:
 
     def test_rerank_empty_list(self):
         """Test reranking handles empty input."""
-        from backend.agent.rag.reranker import rerank_nodes
+        from backend.agent.fetch.rag.reranker import rerank_nodes
 
         result = rerank_nodes([], "any query")
         assert result == []
@@ -43,7 +43,7 @@ class TestRerankNodes:
         for i, node in enumerate(mock_nodes):
             node.text = f"Node {i} content"
 
-        from backend.agent.rag.reranker import rerank_nodes
+        from backend.agent.fetch.rag.reranker import rerank_nodes
 
         # With top_k=5 and only 3 nodes, should return as-is
         result = rerank_nodes(mock_nodes, "test query", top_k=5)
@@ -61,8 +61,8 @@ class TestRerankNodes:
         mock_reranker = MagicMock()
         mock_reranker.postprocess_nodes.return_value = mock_nodes[:3]  # Return top 3
 
-        with patch("backend.agent.rag.reranker._get_reranker", return_value=mock_reranker):
-            from backend.agent.rag.reranker import rerank_nodes
+        with patch("backend.agent.fetch.rag.reranker._get_reranker", return_value=mock_reranker):
+            from backend.agent.fetch.rag.reranker import rerank_nodes
 
             result = rerank_nodes(mock_nodes, "test query", top_k=3)
 
@@ -78,8 +78,8 @@ class TestRerankNodes:
         mock_reranker = MagicMock()
         mock_reranker.postprocess_nodes.return_value = mock_nodes[:5]
 
-        with patch("backend.agent.rag.reranker._get_reranker", return_value=mock_reranker):
-            from backend.agent.rag.reranker import rerank_nodes
+        with patch("backend.agent.fetch.rag.reranker._get_reranker", return_value=mock_reranker):
+            from backend.agent.fetch.rag.reranker import rerank_nodes
 
             # Don't specify top_k, should use default from config (5)
             result = rerank_nodes(mock_nodes, "test query")
@@ -95,8 +95,8 @@ class TestRerankNodes:
         mock_reranker = MagicMock()
         mock_reranker.postprocess_nodes.return_value = mock_nodes[:5]
 
-        with patch("backend.agent.rag.reranker._get_reranker", return_value=mock_reranker):
-            from backend.agent.rag.reranker import rerank_nodes
+        with patch("backend.agent.fetch.rag.reranker._get_reranker", return_value=mock_reranker):
+            from backend.agent.fetch.rag.reranker import rerank_nodes
 
             rerank_nodes(mock_nodes, "my specific query", top_k=5)
 
@@ -124,7 +124,7 @@ class TestGetReranker:
             {"llama_index.core.postprocessor": mock_postprocessor},
         ):
             # Reset the global singleton
-            from backend.agent.rag import reranker
+            from backend.agent.fetch.rag import reranker
 
             reranker._reranker = None
 
@@ -191,17 +191,17 @@ class TestToolAccountRagWithReranker:
         reranked_nodes = mock_nodes[:5]
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with (
                 patch.object(tools, "get_qdrant_client") as mock_client,
                 patch.object(tools, "RERANKER_ENABLED", True),
                 patch.object(tools, "RERANKER_TOP_K", 5),
                 patch.object(tools, "RETRIEVAL_TOP_K", 15),
-                patch("backend.agent.rag.reranker.rerank_nodes", return_value=reranked_nodes) as mock_rerank,
+                patch("backend.agent.fetch.rag.reranker.rerank_nodes", return_value=reranked_nodes) as mock_rerank,
             ):
                 mock_client.return_value = MagicMock()
                 context, sources = tools.tool_entity_rag("test query", {"company_id": "COMP001"})
@@ -224,10 +224,10 @@ class TestToolAccountRagWithReranker:
         llama_mocks = self._setup_llama_mocks(mock_retriever)
 
         with patch.dict(sys.modules, llama_mocks):
-            if "backend.agent.rag.tools" in sys.modules:
-                del sys.modules["backend.agent.rag.tools"]
+            if "backend.agent.fetch.rag.tools" in sys.modules:
+                del sys.modules["backend.agent.fetch.rag.tools"]
 
-            from backend.agent.rag import tools
+            from backend.agent.fetch.rag import tools
 
             with (
                 patch.object(tools, "get_qdrant_client") as mock_client,

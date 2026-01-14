@@ -9,8 +9,11 @@ import os
 from functools import lru_cache
 from typing import Any
 
+from pathlib import Path
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
@@ -155,8 +158,51 @@ def call_llm(
     return str(result)
 
 
+def load_prompt(path: Path) -> ChatPromptTemplate:
+    """Load and parse a prompt.txt file into a ChatPromptTemplate.
+
+    The file should contain [system] and [human] section markers.
+
+    Args:
+        path: Path to the prompt.txt file
+
+    Returns:
+        ChatPromptTemplate with system and human messages
+    """
+    text = path.read_text(encoding="utf-8")
+
+    sections: dict[str, str] = {}
+    current_section: str | None = None
+    current_lines: list[str] = []
+
+    for line in text.split("\n"):
+        if line.strip() == "[system]":
+            if current_section:
+                sections[current_section] = "\n".join(current_lines).strip()
+            current_section = "system"
+            current_lines = []
+        elif line.strip() == "[human]":
+            if current_section:
+                sections[current_section] = "\n".join(current_lines).strip()
+            current_section = "human"
+            current_lines = []
+        else:
+            current_lines.append(line)
+
+    if current_section:
+        sections[current_section] = "\n".join(current_lines).strip()
+
+    return ChatPromptTemplate.from_messages(
+        [
+            ("system", sections.get("system", "")),
+            ("human", sections.get("human", "")),
+        ]
+    )
+
+
 __all__ = [
     "get_chat_model",
     "create_chain",
     "call_llm",
+    "load_prompt",
 ]

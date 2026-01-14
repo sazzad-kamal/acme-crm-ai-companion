@@ -11,8 +11,8 @@ import threading
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from backend.agent.core.state import Source
-from backend.agent.rag.client import get_qdrant_client
-from backend.agent.rag.config import (
+from backend.agent.fetch.rag.client import get_qdrant_client
+from backend.agent.fetch.rag.config import (
     EMBEDDING_MODEL,
     HYBRID_SEARCH_ENABLED,
     PRIVATE_COLLECTION,
@@ -110,7 +110,7 @@ def tool_entity_rag(
 
         # Rerank if enabled and we have more nodes than needed
         if RERANKER_ENABLED and len(nodes) > RERANKER_TOP_K:
-            from backend.agent.rag.reranker import rerank_nodes
+            from backend.agent.fetch.rag.reranker import rerank_nodes
 
             nodes = rerank_nodes(nodes, question, top_k=RERANKER_TOP_K)
             logger.info(f"Entity RAG: reranked to {len(nodes)} chunks with filters={filters}")

@@ -1,4 +1,4 @@
-"""LangGraph agent orchestration: Route → fetch_sql → fetch_rag → Answer → Followup."""
+"""LangGraph agent orchestration: Fetch → Answer → Followup."""
 
 import uuid
 
@@ -7,10 +7,8 @@ from langgraph.graph import END, StateGraph
 
 from backend.agent.answer.node import answer_node
 from backend.agent.core.state import AgentState
-from backend.agent.fetch.fetch_rag import fetch_rag_node
-from backend.agent.fetch.fetch_sql import fetch_sql_node
+from backend.agent.fetch import fetch_node
 from backend.agent.followup.node import followup_node
-from backend.agent.route.node import route_node
 
 
 # LangGraph event constants (not exported by langgraph package)
@@ -22,9 +20,7 @@ class LangGraphEvent:
 GRAPH_NAME = "LangGraph"  # Name used for whole graph in events
 
 # Node names
-ROUTE_NODE = "route"
-FETCH_SQL_NODE = "fetch_sql"
-FETCH_RAG_NODE = "fetch_rag"
+FETCH_NODE = "fetch"
 ANSWER_NODE = "answer"
 FOLLOWUP_NODE = "followup"
 
@@ -38,19 +34,15 @@ def _build_graph():
     graph = StateGraph(AgentState)
 
     # Add nodes
-    graph.add_node(ROUTE_NODE, route_node)
-    graph.add_node(FETCH_SQL_NODE, fetch_sql_node)
-    graph.add_node(FETCH_RAG_NODE, fetch_rag_node)
+    graph.add_node(FETCH_NODE, fetch_node)
     graph.add_node(ANSWER_NODE, answer_node)
     graph.add_node(FOLLOWUP_NODE, followup_node)
 
     # Entry point
-    graph.set_entry_point(ROUTE_NODE)
+    graph.set_entry_point(FETCH_NODE)
 
-    # Sequential flow: route → fetch_sql → fetch_rag → answer → followup
-    graph.add_edge(ROUTE_NODE, FETCH_SQL_NODE)
-    graph.add_edge(FETCH_SQL_NODE, FETCH_RAG_NODE)
-    graph.add_edge(FETCH_RAG_NODE, ANSWER_NODE)
+    # Sequential flow: fetch → answer → followup
+    graph.add_edge(FETCH_NODE, ANSWER_NODE)
     graph.add_edge(ANSWER_NODE, FOLLOWUP_NODE)
     graph.add_edge(FOLLOWUP_NODE, END)
 

@@ -7,7 +7,7 @@ Covers execute_sql_plan, validate_sql, resolve_placeholders.
 import pytest
 import duckdb
 
-from backend.agent.fetch.executor import (
+from backend.agent.fetch.sql.executor import (
     execute_sql_plan,
     validate_sql,
     resolve_placeholders,
@@ -15,7 +15,7 @@ from backend.agent.fetch.executor import (
     SQLExecutionStats,
     SQLValidationError,
 )
-from backend.agent.route.sql_planner import SQLPlan
+from backend.agent.fetch.planner import SQLPlan
 
 
 # =============================================================================
@@ -354,7 +354,7 @@ class TestExecuteSQLPlanWithRealData:
     @pytest.fixture
     def real_connection(self):
         """Get connection to real CRM data."""
-        from backend.agent.datastore.connection import get_connection
+        from backend.agent.fetch.sql.connection import get_connection
 
         return get_connection()
 

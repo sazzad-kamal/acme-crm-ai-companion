@@ -10,7 +10,7 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from backend.agent.core.config import get_config
-from backend.utils.prompt import load_prompt
+from backend.agent.llm.client import load_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -30,27 +30,36 @@ def _get_client() -> OpenAI:
     return OpenAI()
 
 
-def _extract_sql(response: str) -> str:
-    """Extract SQL from response, handling markdown code blocks."""
-    # Try to extract from ```sql ... ``` block
+def _parse_response(response: str) -> tuple[str, bool]:
+    """
+    Parse LLM response to extract SQL and needs_rag flag.
+
+    Returns:
+        Tuple of (sql_string, needs_rag_bool)
+    """
+    # Extract SQL from ```sql ... ``` block
+    sql = ""
     match = re.search(r"```sql\s*(.*?)\s*```", response, re.DOTALL | re.IGNORECASE)
     if match:
-        return match.group(1).strip()
+        sql = match.group(1).strip()
+    else:
+        # Try to extract from ``` ... ``` block
+        match = re.search(r"```\s*(.*?)\s*```", response, re.DOTALL)
+        if match:
+            sql = match.group(1).strip()
+        else:
+            # No code blocks - take everything before needs_rag line
+            lines = response.strip().split("\n")
+            sql_lines = [l for l in lines if not l.strip().lower().startswith("needs_rag")]
+            sql = "\n".join(sql_lines).strip()
 
-    # Try to extract from ``` ... ``` block
-    match = re.search(r"```\s*(.*?)\s*```", response, re.DOTALL)
-    if match:
-        return match.group(1).strip()
+    # Extract needs_rag flag
+    needs_rag = False
+    rag_match = re.search(r"needs_rag:\s*(true|false)", response, re.IGNORECASE)
+    if rag_match:
+        needs_rag = rag_match.group(1).lower() == "true"
 
-    # Return as-is if no code blocks
-    return response.strip()
-
-
-def _needs_rag(question: str) -> bool:
-    """Determine if question needs RAG context."""
-    rag_keywords = ["why", "reason", "concern", "note", "comment", "history", "happening"]
-    q_lower = question.lower()
-    return any(kw in q_lower for kw in rag_keywords)
+    return sql, needs_rag
 
 
 def get_sql_plan(question: str, conversation_history: str = "") -> SQLPlan:
@@ -61,7 +70,7 @@ def get_sql_plan(question: str, conversation_history: str = "") -> SQLPlan:
     """
     config = get_config()
 
-    prompt = load_prompt(_DIR / "sql_prompt.txt").format(
+    prompt = load_prompt(_DIR / "prompt.txt").format(
         today=datetime.now().strftime("%Y-%m-%d"),
         conversation_history=conversation_history or "",
         question=question,
@@ -77,14 +86,14 @@ def get_sql_plan(question: str, conversation_history: str = "") -> SQLPlan:
     )
 
     content = response.choices[0].message.content or ""
-    sql = _extract_sql(content)
+    sql, needs_rag = _parse_response(content)
 
     result = SQLPlan(
         sql=sql,
-        needs_rag=_needs_rag(question),
+        needs_rag=needs_rag,
     )
 
-    logger.info("SQL Planner: %s", sql[:80])
+    logger.info("SQL Planner: %s (needs_rag=%s)", sql[:80], needs_rag)
     return result
 
 

@@ -32,7 +32,8 @@ def get_csv_base_path() -> Path:
     1. data/crm/ (if exists)
     2. data/csv/ (fallback)
     """
-    backend_root = Path(__file__).parent.parent.parent
+    # backend/agent/fetch/sql/connection.py -> backend/
+    backend_root = Path(__file__).parent.parent.parent.parent
 
     preferred = backend_root / "data" / "crm"
     if preferred.exists() and preferred.is_dir():

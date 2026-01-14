@@ -9,7 +9,7 @@ import threading
 
 from qdrant_client import QdrantClient
 
-from backend.agent.rag.config import QDRANT_PATH
+from backend.agent.fetch.rag.config import QDRANT_PATH
 
 logger = logging.getLogger(__name__)
 

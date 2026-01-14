@@ -61,7 +61,7 @@ def db_connection():
     This fixture provides access to the in-memory CRM data for testing
     data-related functionality.
     """
-    from backend.agent.datastore.connection import get_connection
+    from backend.agent.fetch.sql.connection import get_connection
     return get_connection()
 
 
@@ -156,7 +156,7 @@ def mock_llm():
     a real API key or make actual network requests.
     """
     from backend.agent.core import Source
-    from backend.agent.route.sql_planner import SQLPlan
+    from backend.agent.fetch.planner import SQLPlan
 
     def mock_call_answer_chain(*args, **kwargs) -> tuple[str, int]:
         question = kwargs.get("question", args[0] if args else "")
@@ -166,12 +166,16 @@ def mock_llm():
         question = kwargs.get("question", args[0] if args else "")
         yield _mock_answer_response(question)
 
-    def mock_call_account_rag(question: str, filters: dict[str, str]) -> tuple[str, list]:
+    def mock_call_account_rag(question: str, filters: dict[str, str]) -> tuple[str, list, list]:
         company_id = filters.get("company_id", "unknown")
-        return (
+        context = (
             "Based on the account notes, the customer mentioned concerns about "
-            "integration timeline during our last call.",
+            "integration timeline during our last call."
+        )
+        return (
+            context,
             [Source(type="account_note", id=f"{company_id}_notes", label="Account Notes")],
+            [context],  # chunks for RAGAS evaluation
         )
 
     def mock_generate_follow_up_suggestions(
@@ -238,9 +242,9 @@ def mock_llm():
 
     with patch("backend.agent.answer.llm.call_answer_chain", mock_call_answer_chain), \
          patch("backend.agent.answer.llm.stream_answer_chain", mock_stream_answer_chain), \
-         patch("backend.agent.fetch.fetch_rag._call_account_rag", mock_call_account_rag), \
+         patch("backend.agent.fetch.node._fetch_rag_context", mock_call_account_rag), \
          patch("backend.agent.followup.llm.generate_follow_up_suggestions", mock_generate_follow_up_suggestions), \
-         patch("backend.agent.route.sql_planner.get_sql_plan", mock_get_sql_plan):
+         patch("backend.agent.fetch.planner.get_sql_plan", mock_get_sql_plan):
         yield
 
 

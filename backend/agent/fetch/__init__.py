@@ -1,15 +1,19 @@
 """
-Fetch nodes - sequential data retrieval for LangGraph workflow.
+Fetch node - unified data retrieval for LangGraph workflow.
+
+Combines SQL planning, execution, and RAG retrieval into a single node.
 
 Exports:
-    fetch_sql_node: Execute SQL queries from query plan
-    fetch_rag_node: Fetch account context via RAG
+    fetch_node: Unified fetch node
+    SQLPlan: SQL plan model
+    get_sql_plan: Generate SQL from question
 """
 
-from backend.agent.fetch.fetch_rag import fetch_rag_node
-from backend.agent.fetch.fetch_sql import fetch_sql_node
+from backend.agent.fetch.node import fetch_node
+from backend.agent.fetch.planner import SQLPlan, get_sql_plan
 
 __all__ = [
-    "fetch_sql_node",
-    "fetch_rag_node",
+    "fetch_node",
+    "SQLPlan",
+    "get_sql_plan",
 ]
