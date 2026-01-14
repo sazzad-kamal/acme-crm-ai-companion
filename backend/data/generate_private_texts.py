@@ -24,7 +24,7 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 CSV_DIR = Path(__file__).parent / "csv"
 
@@ -182,61 +182,52 @@ def merge_opportunity_descriptions(csv_dir: Path) -> None:
     print(f"Updated opportunities.csv with notes column ({len(rows)} rows)")
 
 
-def process_csv_source(source: CsvSource, csv_dir: Path, output_file: Any) -> int:
-    """Process a single CSV source and write records to output file.
-
-    Returns the number of records written.
-    """
+def process_csv_source(source: CsvSource, csv_dir: Path) -> list[dict]:
+    """Process a single CSV source and return records."""
     csv_path = csv_dir / source.filename
     if not csv_path.exists():
-        return 0
+        return []
 
-    count = 0
+    records = []
     with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            try:
-                text = row.get(source.text_field, "").strip()
-                if not text:
-                    continue
+            text = row.get(source.text_field, "").strip()
+            if not text:
+                continue
 
-                record = {
-                    "id": f"{source.record_type}::{row.get(source.id_field, '')}",
-                    "company_id": row.get(source.company_id_field, "") if source.company_id_field else "",
-                    "contact_id": row.get(source.contact_id_field, "") if source.contact_id_field else "",
-                    "opportunity_id": row.get(source.opportunity_id_field, "") if source.opportunity_id_field else "",
-                    "type": source.record_type,
-                    "title": source.title_fn(row),
-                    "text": text,
-                    "metadata": source.metadata_fn(row),
-                }
+            records.append({
+                "id": f"{source.record_type}::{row.get(source.id_field, '')}",
+                "company_id": row.get(source.company_id_field, "") if source.company_id_field else "",
+                "contact_id": row.get(source.contact_id_field, "") if source.contact_id_field else "",
+                "opportunity_id": row.get(source.opportunity_id_field, "") if source.opportunity_id_field else "",
+                "type": source.record_type,
+                "title": source.title_fn(row),
+                "text": text,
+                "metadata": source.metadata_fn(row),
+            })
 
-                output_file.write(json.dumps(record, ensure_ascii=False) + "\n")
-                count += 1
-            except Exception as e:
-                print(f"  Warning: Error processing row in {source.filename}: {e}", file=sys.stderr)
-
-    return count
+    return records
 
 
 def generate_private_texts(csv_dir: Path) -> int:
-    """Generate private_texts.jsonl from source CSVs.
-
-    Uses streaming writes to handle large datasets efficiently.
-    """
+    """Generate private_texts.jsonl from source CSVs."""
     output_path = csv_dir / "private_texts.jsonl"
-    total_count = 0
+    all_records = []
 
     print("Processing sources:")
-    with open(output_path, "w", encoding="utf-8") as output_file:
-        for source in SOURCES:
-            count = process_csv_source(source, csv_dir, output_file)
-            if count > 0:
-                print(f"  {source.record_type.capitalize()}: {count} records")
-            total_count += count
+    for source in SOURCES:
+        records = process_csv_source(source, csv_dir)
+        if records:
+            print(f"  {source.record_type.capitalize()}: {len(records)} records")
+            all_records.extend(records)
 
-    print(f"\nGenerated {output_path.name} with {total_count} total records")
-    return total_count
+    with open(output_path, "w", encoding="utf-8") as f:
+        for record in all_records:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    print(f"\nGenerated {output_path.name} with {len(all_records)} total records")
+    return len(all_records)
 
 
 def main() -> int:
