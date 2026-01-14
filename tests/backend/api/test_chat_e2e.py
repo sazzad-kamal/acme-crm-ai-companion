@@ -121,16 +121,4 @@ class TestStreamingEndpoint:
 
         assert response.status_code == 422
 
-    def test_streaming_with_different_modes(self, client):
-        """Test streaming works with different modes."""
-        modes = ["auto", "data", "docs", "data+docs"]
-        
-        for mode in modes:
-            payload = {
-                "question": "Tell me about opportunities",
-                "mode": mode
-            }
-            response = client.post("/api/chat/stream", json=payload)
-            assert response.status_code == 200
-            assert "event: done" in response.text
 

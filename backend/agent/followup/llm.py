@@ -2,7 +2,7 @@
 Followup node LLM functions.
 
 Chain creation and invocation for follow-up question generation.
-Loads prompt from prompt.txt for clean separation.
+Uses hardcoded tree first, falls back to LLM for contextual suggestions.
 """
 
 import logging
@@ -40,7 +40,7 @@ def _get_followup_chain() -> Any:
         config = get_config()
         _followup_chain = create_chain(
             FOLLOW_UP_PROMPT_TEMPLATE,
-            model=config.llm_model,  # Use general LLM (not Codex)
+            model=config.llm_model,
             temperature=0.7,
             max_tokens=150,
             structured_output=FollowUpSuggestions,
@@ -73,15 +73,16 @@ def generate_follow_up_suggestions(
     if not config.enable_follow_up_suggestions:
         return []
 
-    # Try hardcoded tree first (100% reliable for demos)
+    # Try hardcoded tree first (fast, deterministic)
     if use_hardcoded_tree:
         from backend.agent.followup.tree import get_follow_ups
+
         follow_ups = get_follow_ups(question)
-        if follow_ups:  # Empty list means terminal/leaf node
+        if follow_ups:
             logger.debug(f"Using hardcoded follow-ups for: {question[:50]}...")
             return follow_ups[:3]
 
-    # LLM generation
+    # LLM fallback for contextual suggestions
     try:
         chain = _get_followup_chain()
         data_context = _format_available_data(available_data, company_name)
@@ -94,7 +95,7 @@ def generate_follow_up_suggestions(
             "conversation_history_section": history_section,
         })
 
-        logger.debug(f"Generated {len(result.suggestions)} follow-up suggestions")
+        logger.debug(f"Generated {len(result.suggestions)} follow-up suggestions via LLM")
         return result.suggestions[:3]
 
     except Exception as e:

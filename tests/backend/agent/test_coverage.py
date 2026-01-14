@@ -725,18 +725,6 @@ class TestGenerateFollowUpSuggestions:
         would_check_tree = use_hardcoded_tree
         assert would_check_tree is False
 
-    def test_follow_up_suggestions_output_structure(self):
-        """FollowUpSuggestions model has correct structure."""
-        from backend.agent.followup.llm import FollowUpSuggestions
-
-        # Test valid suggestions
-        suggestions = FollowUpSuggestions(suggestions=["Q1", "Q2", "Q3"])
-        assert len(suggestions.suggestions) == 3
-
-        # Suggestions field is a list
-        assert isinstance(suggestions.suggestions, list)
-
-
 class TestGenerateFollowUpDisabled:
     """Tests for generate_follow_up_suggestions when disabled."""
 

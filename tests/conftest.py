@@ -271,5 +271,5 @@ def chat_request_company():
 
 @pytest.fixture
 def chat_request_data():
-    """Sample chat request for data mode."""
-    return {"question": "Show me the pipeline", "mode": "data"}
+    """Sample chat request for data queries."""
+    return {"question": "Show me the pipeline"}

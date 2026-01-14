@@ -46,9 +46,6 @@ class AgentConfig(BaseSettings):
     # -------------------------------------------------------------------------
     # Node Configuration
     # -------------------------------------------------------------------------
-    default_days: int = Field(
-        default=90, description="Default time window in days for data queries"
-    )
     max_followup_suggestions: int = Field(
         default=3, description="Maximum number of follow-up suggestions to return"
     )
