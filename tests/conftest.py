@@ -148,14 +148,19 @@ def _mock_follow_up_suggestions(company_name: str | None, available_data: dict |
 
 
 @pytest.fixture(autouse=True)
-def mock_llm():
+def mock_llm(request):
     """
     Auto-patches all LLM functions for testing.
 
     This fixture automatically patches LLM API calls so tests don't require
     a real API key or make actual network requests.
+
+    Use @pytest.mark.no_mock_llm to disable this fixture for specific tests.
     """
-    from backend.agent.core import Source
+    # Skip mock for tests marked with no_mock_llm
+    if request.node.get_closest_marker("no_mock_llm"):
+        yield
+        return
     from backend.agent.fetch.planner import SQLPlan
 
     def mock_call_answer_chain(*args, **kwargs) -> tuple[str, int]:
@@ -166,7 +171,8 @@ def mock_llm():
         question = kwargs.get("question", args[0] if args else "")
         yield _mock_answer_response(question)
 
-    def mock_call_account_rag(question: str, filters: dict[str, str]) -> tuple[str, list, list]:
+    def mock_tool_entity_rag(question: str, filters: dict[str, str]) -> tuple[str, list[dict]]:
+        """Mock for tool_entity_rag used by _fetch_rag_if_needed."""
         company_id = filters.get("company_id", "unknown")
         context = (
             "Based on the account notes, the customer mentioned concerns about "
@@ -174,8 +180,7 @@ def mock_llm():
         )
         return (
             context,
-            [Source(type="account_note", id=f"{company_id}_notes", label="Account Notes")],
-            [context],  # chunks for RAGAS evaluation
+            [{"type": "account_note", "id": f"{company_id}_notes", "label": "Account Notes"}],
         )
 
     def mock_generate_follow_up_suggestions(
@@ -242,7 +247,7 @@ def mock_llm():
 
     with patch("backend.agent.answer.llm.call_answer_chain", mock_call_answer_chain), \
          patch("backend.agent.answer.llm.stream_answer_chain", mock_stream_answer_chain), \
-         patch("backend.agent.fetch.node._fetch_rag_context", mock_call_account_rag), \
+         patch("backend.agent.fetch.rag.tools.tool_entity_rag", mock_tool_entity_rag), \
          patch("backend.agent.followup.llm.generate_follow_up_suggestions", mock_generate_follow_up_suggestions), \
          patch("backend.agent.fetch.planner.get_sql_plan", mock_get_sql_plan):
         yield

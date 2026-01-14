@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from backend.agent.core.config import get_config
-from backend.agent.llm.client import create_chain, load_prompt
+from backend.agent.core.llm import create_chain, load_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,6 @@ def _get_followup_chain() -> Any:
 
 def generate_follow_up_suggestions(
     question: str,
-    company_id: str | None = None,
     company_name: str | None = None,
     conversation_history: str = "",
     available_data: dict | None = None,
@@ -61,7 +60,6 @@ def generate_follow_up_suggestions(
 
     Args:
         question: The user's original question
-        company_id: Optional company ID for context
         company_name: Optional company name for context
         conversation_history: Previous conversation context
         available_data: Dict of available data types and counts
@@ -91,7 +89,7 @@ def generate_follow_up_suggestions(
 
         result: FollowUpSuggestions = chain.invoke({
             "question": question,
-            "company": company_name or company_id or "None specified",
+            "company": company_name or "None specified",
             "available_data": data_context,
             "conversation_history_section": history_section,
         })

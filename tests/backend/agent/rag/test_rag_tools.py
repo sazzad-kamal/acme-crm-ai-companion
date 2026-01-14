@@ -102,9 +102,9 @@ class TestToolEntityRag:
         assert "Meeting notes" in context
         assert "Proposal document" in context
         assert len(sources) == 2
-        assert sources[0].type == "note"
-        assert sources[0].id == "note_001"
-        assert sources[1].type == "attachment"
+        assert sources[0]["type"] == "note"
+        assert sources[0]["id"] == "note_001"
+        assert sources[1]["type"] == "attachment"
 
     def test_tool_entity_rag_empty_results(self):
         """Test entity RAG with no results."""
@@ -126,6 +126,7 @@ class TestToolEntityRag:
         assert context == ""
         assert sources == []
 
+    @pytest.mark.no_mock_llm
     def test_tool_entity_rag_exception(self):
         """Test account RAG handles exceptions gracefully."""
         with patch("backend.agent.fetch.rag.tools.get_qdrant_client", side_effect=Exception("Client error")):
@@ -178,8 +179,8 @@ class TestToolEntityRag:
                 context, sources = tools.tool_entity_rag("Question", {"company_id": "COMP001"})
 
         assert len(sources) == 1
-        assert sources[0].type == "note"  # Default type
-        assert sources[0].id == "unknown"  # Default id
+        assert sources[0]["type"] == "note"  # Default type
+        assert sources[0]["id"] == "unknown"  # Default id
 
     def test_tool_entity_rag_doc_id_fallback(self):
         """Test account RAG uses doc_id when source_id missing."""
@@ -221,7 +222,7 @@ class TestToolEntityRag:
                 context, sources = tools.tool_entity_rag("Question", {"company_id": "COMP001"})
 
         assert len(sources) == 1
-        assert sources[0].id == "doc_123"
+        assert sources[0]["id"] == "doc_123"
 
     def test_tool_entity_rag_multi_entity_filter(self):
         """Test account RAG builds compound filter from multiple entity IDs."""
@@ -281,8 +282,8 @@ class TestToolEntityRag:
                 )
 
         assert "Enterprise customer" in context
-        assert sources[0].type == "company"
-        assert sources[0].label == "Acme Manufacturing"
+        assert sources[0]["type"] == "company"
+        assert sources[0]["label"] == "Acme Manufacturing"
 
     def test_tool_entity_rag_contact_type(self):
         """Test entity RAG returns contact notes content."""
@@ -315,8 +316,8 @@ class TestToolEntityRag:
                 )
 
         assert "Prefers email" in context
-        assert sources[0].type == "contact"
-        assert sources[0].label == "Anna Lopez"
+        assert sources[0]["type"] == "contact"
+        assert sources[0]["label"] == "Anna Lopez"
 
     def test_tool_entity_rag_opportunity_type(self):
         """Test entity RAG returns opportunity notes content."""
@@ -349,7 +350,7 @@ class TestToolEntityRag:
                 )
 
         assert "pricing concerns" in context
-        assert sources[0].type == "opportunity"
+        assert sources[0]["type"] == "opportunity"
 
     def test_tool_entity_rag_activity_type(self):
         """Test entity RAG returns activity description content."""
@@ -382,7 +383,7 @@ class TestToolEntityRag:
                 )
 
         assert "CFO approval" in context
-        assert sources[0].type == "activity"
+        assert sources[0]["type"] == "activity"
 
     def test_tool_entity_rag_history_type(self):
         """Test entity RAG returns history description content."""
@@ -414,7 +415,7 @@ class TestToolEntityRag:
                 )
 
         assert "expansion to marketing" in context
-        assert sources[0].type == "history"
+        assert sources[0]["type"] == "history"
 
     def test_tool_entity_rag_attachment_type(self):
         """Test entity RAG returns attachment summary content."""
@@ -447,7 +448,7 @@ class TestToolEntityRag:
                 )
 
         assert "pricing tier" in context
-        assert sources[0].type == "attachment"
+        assert sources[0]["type"] == "attachment"
 
     def test_tool_entity_rag_mixed_entity_types(self):
         """Test entity RAG returns mixed content types for a company query."""
@@ -483,7 +484,7 @@ class TestToolEntityRag:
 
         # Should have all three content types
         assert len(sources) == 3
-        source_types = {s.type for s in sources}
+        source_types = {s["type"] for s in sources}
         assert source_types == {"company", "contact", "history"}
         # Context should include all text
         assert "Enterprise customer" in context

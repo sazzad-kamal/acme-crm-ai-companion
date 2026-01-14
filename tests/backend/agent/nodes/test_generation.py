@@ -50,7 +50,6 @@ class TestAnswerNode:
             "question": "Tell me about Acme",
             "messages": [{"role": "user", "content": "Previous message"}],
             "sql_results": {},
-            "resolved_company_id": "ACME-001",
         }
 
         result = answer_node(state)

@@ -69,6 +69,7 @@ def ingest_private_texts(recreate: bool = True) -> int:  # pragma: no cover
                         "title": record.get("title", ""),
                         "contact_id": record.get("contact_id"),
                         "opportunity_id": record.get("opportunity_id"),
+                        "activity_id": record.get("activity_id"),
                     },
                 )
                 documents.append(doc)

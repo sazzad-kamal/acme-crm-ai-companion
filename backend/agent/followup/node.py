@@ -3,7 +3,7 @@
 import logging
 
 from backend.agent.core.config import get_config
-from backend.agent.core.state import AgentState, format_history_for_prompt
+from backend.agent.core.state import AgentState, format_conversation_for_prompt
 from backend.agent.followup.llm import generate_follow_up_suggestions
 
 logger = logging.getLogger(__name__)
@@ -39,9 +39,8 @@ def followup_node(state: AgentState) -> AgentState:
     try:
         suggestions = generate_follow_up_suggestions(
             question=state["question"],
-            company_id=state.get("resolved_company_id"),
             company_name=company_name,
-            conversation_history=format_history_for_prompt(state.get("messages", [])),
+            conversation_history=format_conversation_for_prompt(state.get("messages", [])),
             available_data=available_data,
         )
 

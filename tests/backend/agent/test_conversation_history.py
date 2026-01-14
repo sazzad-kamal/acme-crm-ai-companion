@@ -8,7 +8,7 @@ Run with: pytest tests/backend/agent/test_conversation_history.py -v
 
 import pytest
 
-from backend.agent.core.state import AgentState, Message, format_history_for_prompt
+from backend.agent.core.state import AgentState, Message, format_conversation_for_prompt
 
 
 class TestMessageType:
@@ -54,12 +54,12 @@ class TestAgentStateWithMessages:
         }
         assert len(state["messages"]) == 2
 
-class TestFormatHistoryForPrompt:
-    """Tests for the format_history_for_prompt function."""
+class TestFormatConversationForPrompt:
+    """Tests for format_conversation_for_prompt function."""
 
     def test_format_empty(self):
         """Test formatting empty history."""
-        result = format_history_for_prompt([])
+        result = format_conversation_for_prompt([])
         assert result == ""
 
     def test_format_single_turn(self):
@@ -67,7 +67,7 @@ class TestFormatHistoryForPrompt:
         messages: list[Message] = [
             {"role": "user", "content": "What is Acme's status?"},
         ]
-        result = format_history_for_prompt(messages)
+        result = format_conversation_for_prompt(messages)
         assert "User: What is Acme's status?" in result
 
     def test_format_multi_turn(self):
@@ -77,7 +77,7 @@ class TestFormatHistoryForPrompt:
             {"role": "assistant", "content": "Acme Manufacturing is a mid-market account"},
             {"role": "user", "content": "What about their contacts?"},
         ]
-        result = format_history_for_prompt(messages)
+        result = format_conversation_for_prompt(messages)
 
         assert "User: Tell me about Acme" in result
         assert "Assistant: Acme Manufacturing is a mid-market account" in result
@@ -89,7 +89,7 @@ class TestFormatHistoryForPrompt:
         messages: list[Message] = [
             {"role": "assistant", "content": long_content},
         ]
-        result = format_history_for_prompt(messages)
+        result = format_conversation_for_prompt(messages)
 
         assert "..." in result
         # Should be truncated to ~200 chars + "..."
@@ -101,7 +101,7 @@ class TestFormatHistoryForPrompt:
             {"role": "user", "content": f"Question {i}"}
             for i in range(10)
         ]
-        result = format_history_for_prompt(messages, max_messages=3)
+        result = format_conversation_for_prompt(messages, max_messages=3)
 
         # Should only have the last 3
         assert "Question 7" in result

@@ -11,6 +11,7 @@ from typing import Any
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
+from backend.eval.callback import get_eval_capture, reset_eval_capture
 from backend.eval.formatting import console, print_eval_header
 from backend.eval.judge import evaluate_single
 from backend.eval.models import FlowEvalResults, FlowResult, FlowStepResult
@@ -82,13 +83,25 @@ def judge_answer(
         }
 
 
-def _invoke_agent(question: str, session_id: str | None = None) -> dict[str, Any]:
-    """Invoke the agent graph and return state."""
+def _invoke_agent(question: str, session_id: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Invoke the agent graph and return state + eval capture.
+
+    Returns:
+        Tuple of (state, eval_data) where eval_data contains metrics captured out-of-band.
+    """
     from backend.agent.graph import agent_graph, build_thread_config
 
-    state: dict[str, Any] = {"question": question, "session_id": session_id, "sources": []}
+    # Reset eval capture before invoke
+    reset_eval_capture()
+
+    state: dict[str, Any] = {"question": question, "session_id": session_id}
     config = build_thread_config(session_id)
-    return agent_graph.invoke(state, config=config)  # type: ignore[no-any-return]
+    result = agent_graph.invoke(state, config=config)
+
+    # Get captured eval data
+    eval_data = get_eval_capture()
+
+    return result, eval_data
 
 
 def test_single_question(
@@ -115,24 +128,19 @@ def test_single_question(
 
     try:
         # Invoke agent synchronously
-        result = _invoke_agent(question=question, session_id=session_id)
+        result, eval_data = _invoke_agent(question=question, session_id=session_id)
 
         latency_ms = int((time.time() - start_time) * 1000)
 
         answer = result.get("answer", "")
-        sources = result.get("sources", [])
         has_answer = bool(answer and len(answer) > 10)
 
-        # Get SQL execution stats
-        sql_queries_total = result.get("sql_queries_total", 0)
-        sql_queries_success = result.get("sql_queries_success", 0)
-
-        # Get RAG chunks for precision/recall evaluation
-        account_chunks = result.get("account_chunks", [])
-
-        # Account RAG is called automatically when entity IDs are resolved
-        # Use the explicit flag set by fetch_rag_node (tracks actual invocations)
-        account_rag_invoked = result.get("account_rag_invoked", False)
+        # Get eval-specific data from out-of-band capture
+        sql_queries_total = eval_data.get("sql_queries_total", 0)
+        sql_queries_success = eval_data.get("sql_queries_success", 0)
+        account_chunks = eval_data.get("account_chunks", [])
+        account_rag_invoked = eval_data.get("account_rag_invoked", False)
+        sql_plan = eval_data.get("sql_plan")
 
         # Build all_contexts from sql_results (JSON stringified)
         all_contexts = []
@@ -152,12 +160,12 @@ def test_single_question(
                 sql_data_validated = passed
                 sql_data_errors = errors if errors else None
 
-        # Check RAG detection accuracy (needs_rag decision from slot planner vs expected)
+        # Check RAG detection accuracy (needs_rag decision from sql_plan vs expected)
         rag_decision_correct: bool | None = None
         expected_rag = get_expected_rag(question)
         if expected_rag is not None:
-            # Compare actual needs_rag decision (use account_rag_invoked as proxy if needs_rag not in result)
-            actual_needs_rag = result.get("needs_rag", account_rag_invoked)
+            # Get needs_rag from sql_plan (from eval capture), fallback to account_rag_invoked
+            actual_needs_rag = sql_plan.needs_rag if sql_plan else account_rag_invoked
             rag_decision_correct = actual_needs_rag == expected_rag
 
         # Get expected answer for answer_correctness metric
@@ -225,7 +233,7 @@ def test_single_question(
             answer=answer,
             latency_ms=latency_ms,
             has_answer=has_answer,
-            has_sources=len(sources) > 0,
+            has_sources=False,  # Sources removed from workflow state
             sql_queries_total=sql_queries_total,
             sql_queries_success=sql_queries_success,
             sql_data_validated=sql_data_validated,

@@ -86,7 +86,7 @@ export interface RawData {
 
 export interface ChatResponse {
   answer: string;
-  raw_data?: RawData;
+  sql_results?: RawData;
   follow_up_suggestions?: string[];
 }
 

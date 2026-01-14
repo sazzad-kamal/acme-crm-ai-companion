@@ -111,7 +111,7 @@ class TestStreamingEndpoint:
 
         assert done_data is not None
         assert "answer" in done_data
-        assert "raw_data" in done_data
+        assert "sql_results" in done_data
         assert "follow_up_suggestions" in done_data
     
     def test_streaming_rejects_empty_question(self, client):

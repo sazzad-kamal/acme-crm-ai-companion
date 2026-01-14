@@ -73,8 +73,8 @@ export const MessageBlock = memo(function MessageBlock({
               </div>
 
               {/* Data Tables (collapsed) */}
-              {config.features.showDataTables && response.raw_data && (
-                <DataTables rawData={response.raw_data} />
+              {config.features.showDataTables && response.sql_results && (
+                <DataTables rawData={response.sql_results} />
               )}
 
               {/* Follow-up Suggestions */}

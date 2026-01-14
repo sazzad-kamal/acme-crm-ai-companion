@@ -5,20 +5,9 @@ This module defines the central state structure that flows through the graph.
 """
 
 import logging
-from operator import add
-from typing import Annotated, Any, TypedDict
-
-from pydantic import BaseModel
+from typing import Any, TypedDict
 
 logger = logging.getLogger(__name__)
-
-
-class Source(BaseModel):
-    """A source reference for citations."""
-
-    type: str  # "company", "activity", "opportunity", "history", "note", "attachment"
-    id: str
-    label: str
 
 
 class Message(TypedDict):
@@ -28,7 +17,7 @@ class Message(TypedDict):
     content: str
 
 
-def format_history_for_prompt(
+def format_conversation_for_prompt(
     messages: list["Message"],
     max_messages: int = 6,
 ) -> str:
@@ -64,6 +53,9 @@ class AgentState(TypedDict, total=False):
     State that flows through the LangGraph workflow.
 
     This is the central data structure that each node can read/write.
+    Only includes fields needed by workflow nodes or final output.
+    Eval-specific data (sql_plan, account_chunks, etc.) is captured
+    out-of-band via backend.eval.callback.
     """
 
     # Input
@@ -72,38 +64,18 @@ class AgentState(TypedDict, total=False):
     # Conversation history (persisted by LangGraph checkpointer)
     messages: list[Message]
 
-    # SQL query plan (LLM generates SQL directly)
-    sql_plan: Any  # SQLPlan from route_node (raw SQL string)
-    sql_results: dict[str, Any]  # Results from SQL queries, keyed by table
-    sql_queries_total: int  # Total number of SQL queries executed
-    sql_queries_success: int  # Number of SQL queries that succeeded
-
-    # Router output - resolved entity IDs from SQL query results
-    resolved_company_id: str | None
-    resolved_contact_id: str | None
-    resolved_opportunity_id: str | None
-    needs_rag: bool  # Whether RAG context is needed
+    # SQL results from fetch node
+    sql_results: dict[str, Any]
 
     # Account RAG output (private CRM text: notes, attachments)
     account_context_answer: str
-    account_context_sources: list[Source]
-    account_rag_invoked: bool  # True if RAG was actually called (even if empty/error)
-
-    # Sources accumulated from all steps (using reducer to append)
-    sources: Annotated[list[Source], add]
-
-    # Individual context chunks for RAGAS evaluation
-    account_chunks: list[str]  # From fetch_rag
 
     # Final outputs
     answer: str
     follow_up_suggestions: list[str]
 
-    # Raw data for UI (same as sql_results for compatibility)
-    raw_data: dict[str, Any]
-
     # Error handling
     error: str | None
 
 
-__all__ = ["Source", "AgentState", "Message", "format_history_for_prompt"]
+__all__ = ["AgentState", "Message", "format_conversation_for_prompt"]

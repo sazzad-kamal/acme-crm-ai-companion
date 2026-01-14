@@ -10,7 +10,6 @@ import threading
 
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-from backend.agent.core.state import Source
 from backend.agent.fetch.rag.client import get_qdrant_client
 from backend.agent.fetch.rag.config import (
     EMBEDDING_MODEL,
@@ -47,20 +46,20 @@ def tool_entity_rag(
     question: str,
     filters: dict[str, str],
     top_k: int = 5,
-) -> tuple[str, list[Source]]:
+) -> tuple[str, list[dict]]:
     """
     Search entity-scoped CRM text (notes, attachments).
 
     Uses over-retrieval + reranking for better precision when enabled.
-    Filters by all provided entity IDs for precise results.
+    Filters by ANY provided entity ID (OR logic) to get all related documents.
 
     Args:
         question: User's question
-        filters: Dict of entity IDs to filter by (company_id, contact_id, opportunity_id)
+        filters: Dict of entity IDs to filter by (company_id, contact_id, opportunity_id, activity_id)
         top_k: Number of chunks to return (after reranking if enabled)
 
     Returns:
-        Tuple of (context_text, sources)
+        Tuple of (context_text, source_metadata)
     """
     try:
         from llama_index.core import Settings, VectorStoreIndex
@@ -70,15 +69,15 @@ def tool_entity_rag(
 
         client = get_qdrant_client()
 
-        # Build compound filter from all provided entity IDs
-        must_conditions = []
+        # Build OR filter - match documents with ANY of the provided entity IDs
+        should_conditions = []
         for key, value in filters.items():
             if value:
-                must_conditions.append(
+                should_conditions.append(
                     FieldCondition(key=key, match=MatchValue(value=value))
                 )
 
-        qdrant_filter = Filter(must=must_conditions) if must_conditions else None  # type: ignore[arg-type]
+        qdrant_filter = Filter(should=should_conditions) if should_conditions else None  # type: ignore[arg-type]
 
         # Configure vector store with hybrid if enabled
         vector_store_kwargs = {
@@ -125,7 +124,7 @@ def tool_entity_rag(
             source_type = node.metadata.get("type", "note")
             source_id = node.metadata.get("source_id", node.metadata.get("doc_id", "unknown"))
             label = node.metadata.get("title", source_type.replace("_", " ").title())
-            sources.append(Source(type=source_type, id=source_id, label=label))
+            sources.append({"type": source_type, "id": source_id, "label": label})
 
         context = "\n\n---\n\n".join(context_parts)
         return context, sources

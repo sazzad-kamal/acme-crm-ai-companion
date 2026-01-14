@@ -117,7 +117,7 @@ describe("useChatStream", () => {
       answer: "Test answer",
       sources: [{ type: "company", id: "1", label: "Acme" }],
       steps: [],
-      raw_data: {},
+      sql_results: {},
       meta: { mode_used: "data", latency_ms: 100 },
       follow_up_suggestions: ["What else?"],
     };
@@ -184,7 +184,7 @@ describe("useChatStream", () => {
 
   it("clears messages", async () => {
     const events = [
-      `event: done\ndata: ${JSON.stringify({ answer: "Answer", sources: [], steps: [], raw_data: {}, meta: {} })}\n\n`,
+      `event: done\ndata: ${JSON.stringify({ answer: "Answer", sources: [], steps: [], sql_results: {}, meta: {} })}\n\n`,
     ];
 
     mockFetch.mockResolvedValueOnce({
@@ -233,7 +233,7 @@ describe("useChatStream", () => {
     const events = [
       'event: answer_chunk\ndata: {"chunk": "Hello "}\n\n',
       'event: answer_chunk\ndata: {"chunk": "World"}\n\n',
-      `event: done\ndata: ${JSON.stringify({ answer: "Hello World", sources: [], steps: [], raw_data: {}, meta: {} })}\n\n`,
+      `event: done\ndata: ${JSON.stringify({ answer: "Hello World", sources: [], steps: [], sql_results: {}, meta: {} })}\n\n`,
     ];
 
     mockFetch.mockResolvedValueOnce({

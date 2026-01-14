@@ -48,7 +48,7 @@ describe("App", () => {
           answer: "Default response",
           sources: [],
           steps: [],
-          raw_data: {},
+          sql_results: {},
           meta: { mode_used: "data", latency_ms: 100 },
         }),
       });
@@ -93,7 +93,7 @@ describe("App", () => {
           answer: "Test answer",
           sources: [],
           steps: [],
-          raw_data: {},
+          sql_results: {},
           meta: { mode_used: "data", latency_ms: 100 },
         }),
       });
@@ -141,7 +141,7 @@ describe("App", () => {
           answer: "Answer",
           sources: [],
           steps: [],
-          raw_data: {},
+          sql_results: {},
           meta: { mode_used: "data", latency_ms: 50 },
         }),
       });
@@ -211,7 +211,7 @@ describe("App", () => {
             answer: "Here is the answer",
             sources: [],
             steps: [],
-            raw_data: {},
+            sql_results: {},
             follow_up_suggestions: ["What about renewals?", "Show me the pipeline"],
             meta: { mode_used: "data", latency_ms: 50 },
           };
@@ -226,7 +226,7 @@ describe("App", () => {
           answer: "Follow-up answer",
           sources: [],
           steps: [],
-          raw_data: {},
+          sql_results: {},
           meta: { mode_used: "data", latency_ms: 50 },
         };
         const events = [`event: done\ndata: ${JSON.stringify(followUpResponse)}\n\n`];
@@ -294,7 +294,7 @@ describe("App", () => {
         answer: "Default response",
         sources: [],
         steps: [],
-        raw_data: {},
+        sql_results: {},
         meta: { mode_used: "data", latency_ms: 100 },
       };
       const events = [`event: done\ndata: ${JSON.stringify(response)}\n\n`];

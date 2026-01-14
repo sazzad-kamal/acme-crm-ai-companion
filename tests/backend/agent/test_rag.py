@@ -110,11 +110,11 @@ class TestRagIngest:
 
 
 class TestLlmClient:
-    """Tests for backend.agent.llm.client module."""
+    """Tests for backend.agent.core.llm module."""
 
     def test_requires_max_completion_tokens_o1(self):
         """Test that o1 models require max_completion_tokens."""
-        from backend.agent.llm.client import _requires_max_completion_tokens
+        from backend.agent.core.llm import _requires_max_completion_tokens
 
         assert _requires_max_completion_tokens("o1-preview") is True
         assert _requires_max_completion_tokens("o1-mini") is True
@@ -122,7 +122,7 @@ class TestLlmClient:
 
     def test_requires_max_completion_tokens_gpt4(self):
         """Test that gpt-4 models don't require max_completion_tokens."""
-        from backend.agent.llm.client import _requires_max_completion_tokens
+        from backend.agent.core.llm import _requires_max_completion_tokens
 
         assert _requires_max_completion_tokens("gpt-4o") is False
         assert _requires_max_completion_tokens("gpt-4o-mini") is False
@@ -130,7 +130,7 @@ class TestLlmClient:
 
     def test_get_chat_model_no_api_key(self):
         """Test get_chat_model raises when no API key."""
-        from backend.agent.llm.client import get_chat_model
+        from backend.agent.core.llm import get_chat_model
 
         # Clear cache
         get_chat_model.cache_clear()
@@ -141,13 +141,13 @@ class TestLlmClient:
 
     def test_get_chat_model_with_api_key(self):
         """Test get_chat_model creates ChatOpenAI with API key."""
-        from backend.agent.llm.client import get_chat_model
+        from backend.agent.core.llm import get_chat_model
 
         # Clear cache
         get_chat_model.cache_clear()
 
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}), \
-             patch("backend.agent.llm.client.ChatOpenAI") as mock_chat:
+             patch("backend.agent.core.llm.ChatOpenAI") as mock_chat:
 
             mock_instance = MagicMock()
             mock_chat.return_value = mock_instance
@@ -166,12 +166,12 @@ class TestLlmClient:
 
     def test_get_chat_model_o1_uses_max_completion_tokens(self):
         """Test that o1 models use max_completion_tokens parameter."""
-        from backend.agent.llm.client import get_chat_model
+        from backend.agent.core.llm import get_chat_model
 
         get_chat_model.cache_clear()
 
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}), \
-             patch("backend.agent.llm.client.ChatOpenAI") as mock_chat:
+             patch("backend.agent.core.llm.ChatOpenAI") as mock_chat:
 
             mock_instance = MagicMock()
             mock_chat.return_value = mock_instance
@@ -188,12 +188,12 @@ class TestLlmClient:
 
     def test_call_llm_with_system_prompt(self):
         """Test call_llm with system prompt."""
-        from backend.agent.llm.client import call_llm, get_chat_model
+        from backend.agent.core.llm import call_llm, get_chat_model
 
         get_chat_model.cache_clear()
 
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}), \
-             patch("backend.agent.llm.client.ChatOpenAI") as mock_chat:
+             patch("backend.agent.core.llm.ChatOpenAI") as mock_chat:
 
             mock_response = MagicMock()
             mock_response.content = "Test response"
@@ -212,12 +212,12 @@ class TestLlmClient:
 
     def test_call_llm_without_system_prompt(self):
         """Test call_llm without system prompt."""
-        from backend.agent.llm.client import call_llm, get_chat_model
+        from backend.agent.core.llm import call_llm, get_chat_model
 
         get_chat_model.cache_clear()
 
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}), \
-             patch("backend.agent.llm.client.ChatOpenAI") as mock_chat:
+             patch("backend.agent.core.llm.ChatOpenAI") as mock_chat:
 
             mock_response = MagicMock()
             mock_response.content = "Test response"

@@ -6,11 +6,36 @@ Tests the evaluation models, formatting, and shared utilities.
 
 import json
 import os
+from typing import Any
 
 import pytest
 
 # Set mock mode
 os.environ["MOCK_LLM"] = "1"
+
+
+def make_invoke_mock(
+    result: dict[str, Any],
+    eval_data: dict[str, Any] | None = None
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Helper to create _invoke_agent return value with new signature.
+
+    Args:
+        result: The workflow state result dict
+        eval_data: Optional eval capture data (defaults to empty metrics)
+
+    Returns:
+        Tuple of (result, eval_data) as expected by _invoke_agent
+    """
+    default_eval = {
+        "sql_plan": None,
+        "sql_queries_total": result.get("sql_queries_total", 0),
+        "sql_queries_success": result.get("sql_queries_success", 0),
+        "account_rag_invoked": result.get("account_rag_invoked", False),
+        "account_chunks": result.get("account_chunks", []),
+    }
+    return (result, eval_data or default_eval)
+
 
 from backend.eval.models import (
     _latency_score,
@@ -1074,18 +1099,20 @@ class TestTestSingleQuestion:
         from backend.eval.runner import test_single_question
 
         def mock_invoke_agent(question, session_id=None):
-            return {
-                "answer": "This is a good answer with enough content.",
-                "sources": [{"type": "note", "id": "1"}],
-                "resolved_company_id": "ACME001",
-                "needs_account_rag": True,
-                "account_chunks": ["context chunk"],
-                "account_rag_invoked": True,
-                "sql_results": {"company_info": [{"name": "Acme", "company_id": "ACME001"}]},
-                "sql_queries_total": 2,
-                "sql_queries_success": 2,
-                "account_context_answer": "Account context from RAG",
-            }
+            return make_invoke_mock(
+                {
+                    "answer": "This is a good answer with enough content.",
+                    "sql_results": {"company_info": [{"name": "Acme", "company_id": "ACME001"}]},
+                    "account_context_answer": "Account context from RAG",
+                },
+                {
+                    "sql_plan": None,
+                    "sql_queries_total": 2,
+                    "sql_queries_success": 2,
+                    "account_rag_invoked": True,
+                    "account_chunks": ["context chunk"],
+                }
+            )
 
         def mock_get_expected_answer(question):
             return "Expected answer"
@@ -1121,13 +1148,7 @@ class TestTestSingleQuestion:
         from backend.eval.runner import test_single_question
 
         def mock_invoke_agent(question, session_id=None):
-            return {
-                "answer": "",  # Empty answer
-                "sources": [],
-                "intent": "general",
-                "sql_queries_total": 0,
-                "sql_queries_success": 0,
-            }
+            return make_invoke_mock({"answer": "", "sql_results": {}})
 
         def mock_get_expected_answer(question):
             return None
@@ -1164,16 +1185,20 @@ class TestTestSingleQuestion:
         from backend.eval.runner import test_single_question
 
         def mock_invoke_agent(question, session_id=None):
-            return {
-                "answer": "Good answer with sufficient length.",
-                "sources": [],
-                "intent": "account_context",
-                "account_chunks": ["chunk1", "chunk2"],
-                "account_rag_invoked": True,
-                "account_context_answer": "context",
-                "sql_queries_total": 1,
-                "sql_queries_success": 1,
-            }
+            return make_invoke_mock(
+                {
+                    "answer": "Good answer with sufficient length.",
+                    "sql_results": {},
+                    "account_context_answer": "context",
+                },
+                {
+                    "sql_plan": None,
+                    "sql_queries_total": 1,
+                    "sql_queries_success": 1,
+                    "account_rag_invoked": True,
+                    "account_chunks": ["chunk1", "chunk2"],
+                }
+            )
 
         def mock_get_expected_answer(question):
             return "Expected"
@@ -1207,16 +1232,19 @@ class TestTestSingleQuestion:
         from backend.eval.runner import test_single_question
 
         def mock_invoke_agent(question, session_id=None):
-            return {
-                "answer": "Good answer with sufficient length for testing.",
-                "sources": [],
-                "needs_account_rag": False,
-                "sql_results": {
-                    "pipeline": [{"stage": "Discovery", "count": 5}],
+            return make_invoke_mock(
+                {
+                    "answer": "Good answer with sufficient length for testing.",
+                    "sql_results": {"pipeline": [{"stage": "Discovery", "count": 5}]},
                 },
-                "sql_queries_total": 1,
-                "sql_queries_success": 1,
-            }
+                {
+                    "sql_plan": None,
+                    "sql_queries_total": 1,
+                    "sql_queries_success": 1,
+                    "account_rag_invoked": False,
+                    "account_chunks": [],
+                }
+            )
 
         def mock_get_expected_answer(question):
             return "Expected"
@@ -3196,13 +3224,19 @@ class TestRunnerEdgeCases:
         from backend.eval.runner import test_single_question
 
         def mock_invoke_agent(question, session_id=None):
-            return {
-                "answer": "Test answer with good content",
-                "sources": [],
-                "sql_results": {"query": [{"company": "Acme", "value": 100}]},
-                "account_chunks": [],
-                "needs_rag": False,
-            }
+            return make_invoke_mock(
+                result={
+                    "answer": "Test answer with good content",
+                    "sql_results": {"query": [{"company": "Acme", "value": 100}]},
+                },
+                eval_data={
+                    "sql_plan": None,
+                    "sql_queries_total": 1,
+                    "sql_queries_success": 1,
+                    "account_rag_invoked": False,
+                    "account_chunks": [],
+                },
+            )
 
         def mock_judge_answer(*args, **kwargs):
             return {
@@ -3240,14 +3274,19 @@ class TestRunnerEdgeCases:
         from backend.eval.runner import test_single_question
 
         def mock_invoke_agent(question, session_id=None):
-            return {
-                "answer": "Test answer",
-                "sources": [],
-                "sql_results": {},
-                "account_chunks": ["Some context"],
-                "account_rag_invoked": True,  # Must be True for RAG metrics to be evaluated
-                "needs_rag": True,
-            }
+            return make_invoke_mock(
+                result={
+                    "answer": "Test answer",
+                    "sql_results": {},
+                },
+                eval_data={
+                    "sql_plan": None,
+                    "sql_queries_total": 0,
+                    "sql_queries_success": 0,
+                    "account_rag_invoked": True,  # Must be True for RAG metrics to be evaluated
+                    "account_chunks": ["Some context"],
+                },
+            )
 
         def mock_judge_answer(*args, **kwargs):
             return {
@@ -3279,13 +3318,19 @@ class TestRunnerEdgeCases:
         from backend.eval.runner import test_single_question
 
         def mock_invoke_agent(question, session_id=None):
-            return {
-                "answer": "Test answer",
-                "sources": [],
-                "sql_results": {"query": [{"a": 1}]},
-                "account_chunks": [],
-                "needs_rag": False,
-            }
+            return make_invoke_mock(
+                result={
+                    "answer": "Test answer",
+                    "sql_results": {"query": [{"a": 1}]},
+                },
+                eval_data={
+                    "sql_plan": None,
+                    "sql_queries_total": 1,
+                    "sql_queries_success": 1,
+                    "account_rag_invoked": False,
+                    "account_chunks": [],
+                },
+            )
 
         def mock_judge_answer(*args, **kwargs):
             return {
@@ -3318,14 +3363,19 @@ class TestRunnerEdgeCases:
         from backend.eval.runner import test_single_question
 
         def mock_invoke_agent(question, session_id=None):
-            return {
-                "answer": "Test answer",
-                "sources": [],
-                "sql_results": {"query": [{"a": 1}]},
-                "account_chunks": ["context"],
-                "account_rag_invoked": True,  # Must be True for RAG metrics to be evaluated
-                "needs_rag": True,
-            }
+            return make_invoke_mock(
+                result={
+                    "answer": "Test answer",
+                    "sql_results": {"query": [{"a": 1}]},
+                },
+                eval_data={
+                    "sql_plan": None,
+                    "sql_queries_total": 1,
+                    "sql_queries_success": 1,
+                    "account_rag_invoked": True,  # Must be True for RAG metrics to be evaluated
+                    "account_chunks": ["context"],
+                },
+            )
 
         call_count = {"count": 0}
 

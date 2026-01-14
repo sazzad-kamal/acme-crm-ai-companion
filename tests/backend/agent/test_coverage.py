@@ -15,90 +15,6 @@ from pathlib import Path
 # =============================================================================
 
 
-class TestBuildSourcesFromResults:
-    """Tests for _build_sources_from_results function."""
-
-    def test_empty_results(self):
-        """Empty results return empty sources."""
-        from backend.agent.fetch.node import _build_sources_from_results
-
-        sources = _build_sources_from_results({})
-        assert sources == []
-
-    def test_results_with_empty_data(self):
-        """Results with empty data lists are skipped."""
-        from backend.agent.fetch.node import _build_sources_from_results
-
-        sources = _build_sources_from_results({"companies": []})
-        assert sources == []
-
-    def test_single_result_with_company_id(self):
-        """Single result with company_id creates correct source."""
-        from backend.agent.fetch.node import _build_sources_from_results
-
-        results = {"companies": [{"company_id": "comp_123", "name": "Acme"}]}
-        sources = _build_sources_from_results(results)
-
-        assert len(sources) == 1
-        assert sources[0].type == "company"
-        assert sources[0].id == "comp_123"
-        assert sources[0].label == "company"
-
-    def test_multiple_results_creates_plural_label(self):
-        """Multiple results create plural label."""
-        from backend.agent.fetch.node import _build_sources_from_results
-
-        results = {
-            "opportunities": [
-                {"opportunity_id": "opp_1"},
-                {"opportunity_id": "opp_2"},
-                {"opportunity_id": "opp_3"},
-            ]
-        }
-        sources = _build_sources_from_results(results)
-
-        assert len(sources) == 1
-        assert "3" in sources[0].label
-
-    def test_contact_id_fallback(self):
-        """Falls back to contact_id when no company_id."""
-        from backend.agent.fetch.node import _build_sources_from_results
-
-        results = {"contacts": [{"contact_id": "cont_456", "name": "John"}]}
-        sources = _build_sources_from_results(results)
-
-        assert sources[0].id == "cont_456"
-
-    def test_opportunity_id_fallback(self):
-        """Falls back to opportunity_id when no company_id or contact_id."""
-        from backend.agent.fetch.node import _build_sources_from_results
-
-        results = {"open_deals": [{"opportunity_id": "opp_789", "value": 1000}]}
-        sources = _build_sources_from_results(results)
-
-        assert sources[0].id == "opp_789"
-        assert sources[0].type == "opportunities"
-
-    def test_purpose_fallback_for_id(self):
-        """Falls back to purpose for ID when no entity IDs present."""
-        from backend.agent.fetch.node import _build_sources_from_results
-
-        results = {"weighted_forecast": [{"total": 500000}]}
-        sources = _build_sources_from_results(results)
-
-        assert sources[0].id == "weighted_forecast"
-        assert sources[0].type == "forecast"
-
-    def test_unknown_purpose_uses_purpose_as_type(self):
-        """Unknown purpose uses purpose as type."""
-        from backend.agent.fetch.node import _build_sources_from_results
-
-        results = {"custom_query": [{"data": "value"}]}
-        sources = _build_sources_from_results(results)
-
-        assert sources[0].type == "custom_query"
-
-
 class TestFetchRagContext:
     """Tests for _fetch_rag_context function.
 
@@ -148,7 +64,6 @@ class TestFetchNode:
 
             assert "error" in result
             assert "planning failed" in result["error"].lower()
-            assert result["needs_rag"] is False
 
     def test_successful_sql_execution(self):
         """Successful SQL execution populates results."""
@@ -177,8 +92,7 @@ class TestFetchNode:
             result = fetch_node(state)
 
             assert "sql_results" in result
-            assert result["sql_queries_success"] == 1
-            assert result["resolved_company_id"] == "comp_1"
+            assert result["sql_results"]["opportunities"][0]["opportunity_id"] == "opp_1"
 
     def test_sql_execution_with_retry(self):
         """SQL execution retries on failure."""
@@ -217,7 +131,7 @@ class TestFetchNode:
             result = fetch_node(state)
 
             assert call_count[0] == 2  # Initial + retry
-            assert result["sql_queries_success"] == 1
+            assert "companies" in result["sql_results"]
 
     def test_sql_execution_failure(self):
         """SQL execution exception is handled."""
@@ -237,7 +151,7 @@ class TestFetchNode:
             result = fetch_node(state)
 
             assert "error" in result
-            assert result["sql_queries_success"] == 0
+            assert "DB error" in result["error"]
 
     def test_empty_sql_skips_execution(self):
         """Empty SQL skips execution step."""
@@ -258,7 +172,7 @@ class TestFetchNode:
     def test_rag_with_resolved_entities(self):
         """RAG is invoked when needs_rag=True and entities resolved."""
         from backend.agent.fetch.node import fetch_node
-        from backend.agent.core.state import AgentState, Source
+        from backend.agent.core.state import AgentState
         from backend.agent.fetch.planner import SQLPlan
         from backend.agent.fetch.sql.executor import SQLExecutionStats
 
@@ -272,19 +186,18 @@ class TestFetchNode:
         with patch("backend.agent.fetch.node.get_sql_plan", return_value=mock_plan), \
              patch("backend.agent.fetch.node.get_connection"), \
              patch("backend.agent.fetch.node.execute_sql_plan") as mock_exec, \
-             patch("backend.agent.fetch.node._fetch_rag_context") as mock_rag:
+             patch("backend.agent.fetch.rag.tools.tool_entity_rag") as mock_rag:
 
             mock_exec.return_value = (
                 {"companies": [{"company_id": "delta_1"}]},
                 {"$company_id": "delta_1"},
                 mock_stats,
             )
-            mock_rag.return_value = ("RAG context", [Source(type="note", id="n1", label="Note")], ["chunk1"])
+            mock_rag.return_value = ("RAG context", [{"type": "note", "id": "n1", "label": "Note"}])
 
             result = fetch_node(state)
 
             mock_rag.assert_called_once()
-            assert result["account_rag_invoked"] is True
             assert result["account_context_answer"] == "RAG context"
 
     def test_rag_skipped_no_entities(self):
@@ -304,7 +217,7 @@ class TestFetchNode:
         with patch("backend.agent.fetch.node.get_sql_plan", return_value=mock_plan), \
              patch("backend.agent.fetch.node.get_connection"), \
              patch("backend.agent.fetch.node.execute_sql_plan") as mock_exec, \
-             patch("backend.agent.fetch.node._fetch_rag_context") as mock_rag:
+             patch("backend.agent.fetch.rag.tools.tool_entity_rag") as mock_rag:
 
             # No resolved IDs
             mock_exec.return_value = ({"query": [{"count": 10}]}, {}, mock_stats)
@@ -312,7 +225,49 @@ class TestFetchNode:
             result = fetch_node(state)
 
             mock_rag.assert_not_called()
-            assert result["account_rag_invoked"] is False
+            # RAG not invoked means no account_context_answer
+            assert result.get("account_context_answer", "") == ""
+
+    def test_capture_eval_data_import_error(self):
+        """_capture_eval_data handles ImportError when eval module unavailable."""
+        from backend.agent.fetch.node import _capture_eval_data
+
+        # Patch the import inside _capture_eval_data to raise ImportError
+        with patch.dict("sys.modules", {"backend.eval.callback": None}):
+            # Should not raise - gracefully handles missing eval module
+            _capture_eval_data(None, None, False, [])
+
+    def test_rag_fetch_exception_handled(self):
+        """RAG fetch exception is caught and returns empty result."""
+        from backend.agent.fetch.node import fetch_node
+        from backend.agent.core.state import AgentState
+        from backend.agent.fetch.planner import SQLPlan
+        from backend.agent.fetch.sql.executor import SQLExecutionStats
+
+        state: AgentState = {"question": "What are Delta's notes?"}
+        mock_plan = SQLPlan(sql="SELECT * FROM companies WHERE name = 'Delta'", needs_rag=True)
+
+        mock_stats = SQLExecutionStats()
+        mock_stats.total = 1
+        mock_stats.success = 1
+
+        with patch("backend.agent.fetch.node.get_sql_plan", return_value=mock_plan), \
+             patch("backend.agent.fetch.node.get_connection"), \
+             patch("backend.agent.fetch.node.execute_sql_plan") as mock_exec, \
+             patch("backend.agent.fetch.node.tool_entity_rag") as mock_rag:
+
+            mock_exec.return_value = (
+                {"companies": [{"company_id": "delta_1"}]},
+                {"$company_id": "delta_1"},
+                mock_stats,
+            )
+            # RAG raises exception
+            mock_rag.side_effect = Exception("RAG service unavailable")
+
+            result = fetch_node(state)
+
+            # Should not crash, RAG context should be empty
+            assert result.get("account_context_answer", "") == ""
 
     def test_rag_with_contact_and_opportunity_ids(self):
         """RAG filters include contact_id and opportunity_id."""
@@ -331,14 +286,14 @@ class TestFetchNode:
         with patch("backend.agent.fetch.node.get_sql_plan", return_value=mock_plan), \
              patch("backend.agent.fetch.node.get_connection"), \
              patch("backend.agent.fetch.node.execute_sql_plan") as mock_exec, \
-             patch("backend.agent.fetch.node._fetch_rag_context") as mock_rag:
+             patch("backend.agent.fetch.rag.tools.tool_entity_rag") as mock_rag:
 
             mock_exec.return_value = (
                 {"contacts": [{"contact_id": "cont_1", "opportunity_id": "opp_1"}]},
                 {"$contact_id": "cont_1", "$opportunity_id": "opp_1"},
                 mock_stats,
             )
-            mock_rag.return_value = ("context", [], [])
+            mock_rag.return_value = ("context", [])
 
             result = fetch_node(state)
 
@@ -459,58 +414,6 @@ class TestStreamAgent:
 # =============================================================================
 
 
-class TestParseResponse:
-    """Tests for _parse_response function."""
-
-    def test_parse_sql_code_block(self):
-        """Parse SQL from ```sql block."""
-        from backend.agent.fetch.planner import _parse_response
-
-        response = "```sql\nSELECT * FROM companies\n```\nneeds_rag: false"
-        sql, needs_rag = _parse_response(response)
-
-        assert sql == "SELECT * FROM companies"
-        assert needs_rag is False
-
-    def test_parse_generic_code_block(self):
-        """Parse SQL from generic ``` block when no sql block."""
-        from backend.agent.fetch.planner import _parse_response
-
-        response = "```\nSELECT * FROM contacts\n```"
-        sql, needs_rag = _parse_response(response)
-
-        assert sql == "SELECT * FROM contacts"
-        assert needs_rag is False
-
-    def test_parse_no_code_blocks(self):
-        """Parse SQL when no code blocks present."""
-        from backend.agent.fetch.planner import _parse_response
-
-        response = "SELECT * FROM opportunities\nneeds_rag: true"
-        sql, needs_rag = _parse_response(response)
-
-        assert sql == "SELECT * FROM opportunities"
-        assert needs_rag is True
-
-    def test_parse_needs_rag_true(self):
-        """Parse needs_rag: true flag."""
-        from backend.agent.fetch.planner import _parse_response
-
-        response = "```sql\nSELECT 1\n```\nneeds_rag: TRUE"
-        sql, needs_rag = _parse_response(response)
-
-        assert needs_rag is True
-
-    def test_parse_needs_rag_case_insensitive(self):
-        """Parse needs_rag with case-insensitive match."""
-        from backend.agent.fetch.planner import _parse_response
-
-        response = "```sql\nSELECT 1\n```\nNEEDS_RAG: True"
-        sql, needs_rag = _parse_response(response)
-
-        assert needs_rag is True
-
-
 class TestGetSqlPlan:
     """Tests for get_sql_plan function."""
 
@@ -536,6 +439,29 @@ class TestGetSqlPlan:
 
             assert result.sql == "SELECT * FROM companies"
             assert result.needs_rag is False
+
+        _get_client.cache_clear()
+
+    def test_get_sql_plan_none_result_raises(self):
+        """get_sql_plan raises ValueError when OpenAI returns None parsed result."""
+        from backend.agent.fetch.planner import get_sql_plan, _get_client
+
+        # Clear cache
+        _get_client.cache_clear()
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.parsed = None  # Simulates unparseable response
+
+        with patch("backend.agent.fetch.planner.OpenAI") as mock_openai, \
+             patch("backend.agent.fetch.planner.load_prompt", return_value="prompt {today} {conversation_history} {question}"):
+
+            mock_client = MagicMock()
+            mock_client.beta.chat.completions.parse.return_value = mock_response
+            mock_openai.return_value = mock_client
+
+            with pytest.raises(ValueError, match="Failed to parse SQL plan"):
+                get_sql_plan("What companies do we have?")
 
         _get_client.cache_clear()
 
@@ -1141,7 +1067,7 @@ class TestLoadPrompt:
 
     def test_load_prompt_reads_file(self):
         """load_prompt reads and returns ChatPromptTemplate."""
-        from backend.agent.llm.client import load_prompt
+        from backend.agent.core.llm import load_prompt
         from langchain_core.prompts import ChatPromptTemplate
 
         # Use an existing prompt file from the codebase

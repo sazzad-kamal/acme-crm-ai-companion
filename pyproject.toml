@@ -49,6 +49,7 @@ python_classes = "Test*"
 asyncio_mode = "auto"
 markers = [
     "integration: marks tests as integration tests",
+    "no_mock_llm: marks tests to skip autouse mock_llm fixture",
 ]
 addopts = "-v --tb=short"
 

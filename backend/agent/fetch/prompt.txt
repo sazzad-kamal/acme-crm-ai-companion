@@ -86,12 +86,7 @@ The following private text is available via RAG search (not in SQL tables). Set 
 
 Set needs_rag=false for pure data queries (counts, lists, values, dates, stages).
 
-## OUTPUT FORMAT
-Return your response in this exact format:
-```sql
-<your SQL query here>
-```
-needs_rag: <true or false>
+Output JSON with `sql` (the DuckDB query) and `needs_rag` (boolean).
 
 {conversation_history}
 

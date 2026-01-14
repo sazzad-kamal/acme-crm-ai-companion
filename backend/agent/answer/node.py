@@ -3,7 +3,7 @@
 import logging
 
 from backend.agent.answer.llm import call_answer_chain
-from backend.agent.core.state import AgentState, format_history_for_prompt
+from backend.agent.core.state import AgentState, format_conversation_for_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def answer_node(state: AgentState) -> AgentState:
             question=state["question"],
             sql_results=state.get("sql_results", {}),
             account_context=state.get("account_context_answer", ""),
-            conversation_history=format_history_for_prompt(state.get("messages", [])),
+            conversation_history=format_conversation_for_prompt(state.get("messages", [])),
         )
 
         # Validate answer
@@ -33,20 +33,8 @@ def answer_node(state: AgentState) -> AgentState:
 
         # Update messages for conversation memory (persisted via LangGraph checkpoint)
         messages = list(state.get("messages", []))
-        messages.append(
-            {  # type: ignore[typeddict-unknown-key]
-                "role": "user",
-                "content": state["question"],
-                "company_id": state.get("resolved_company_id"),
-            }
-        )
-        messages.append(
-            {  # type: ignore[typeddict-unknown-key]
-                "role": "assistant",
-                "content": answer,
-                "company_id": state.get("resolved_company_id"),
-            }
-        )
+        messages.append({"role": "user", "content": state["question"]})
+        messages.append({"role": "assistant", "content": answer})
 
         return {
             "answer": answer,
@@ -59,20 +47,8 @@ def answer_node(state: AgentState) -> AgentState:
 
         # Still update messages for conversation continuity
         messages = list(state.get("messages", []))
-        messages.append(
-            {  # type: ignore[typeddict-unknown-key]
-                "role": "user",
-                "content": state["question"],
-                "company_id": state.get("resolved_company_id"),
-            }
-        )
-        messages.append(
-            {  # type: ignore[typeddict-unknown-key]
-                "role": "assistant",
-                "content": error_answer,
-                "company_id": state.get("resolved_company_id"),
-            }
-        )
+        messages.append({"role": "user", "content": state["question"]})
+        messages.append({"role": "assistant", "content": error_answer})
 
         return {
             "answer": error_answer,

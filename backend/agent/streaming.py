@@ -51,7 +51,7 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
                 final = e.get("data", {}).get("output") or {}
                 yield _format_sse(StreamEvent.DONE, {
                     "answer": final.get("answer", ""),
-                    "raw_data": final.get("raw_data", {}),
+                    "sql_results": final.get("sql_results", {}),
                     "follow_up_suggestions": final.get("follow_up_suggestions", []),
                 })
 

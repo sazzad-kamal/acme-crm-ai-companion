@@ -195,13 +195,13 @@ describe("MessageBlock", () => {
   // Data Tables
   // =========================================================================
 
-  it("renders data tables when raw_data available", () => {
+  it("renders data tables when sql_results available", () => {
     const message: ChatMessage = {
       id: "msg1",
       question: "Test question",
       response: {
         answer: "Test answer",
-        raw_data: {
+        sql_results: {
           companies: [
             { company_id: "1", name: "Acme", plan: "Enterprise", renewal_date: "2024-12-31" },
           ],
@@ -215,13 +215,13 @@ describe("MessageBlock", () => {
     expect(screen.getByTestId("data-tables")).toBeInTheDocument();
   });
 
-  it("does not render data tables when raw_data is empty", () => {
+  it("does not render data tables when sql_results is empty", () => {
     const message: ChatMessage = {
       id: "msg1",
       question: "Test question",
       response: {
         answer: "Test answer",
-        raw_data: {},
+        sql_results: {},
       },
       timestamp: new Date(),
     };
@@ -231,7 +231,7 @@ describe("MessageBlock", () => {
     expect(screen.getByTestId("data-tables")).toBeInTheDocument();
   });
 
-  it("does not render data tables when raw_data not provided", () => {
+  it("does not render data tables when sql_results not provided", () => {
     const message: ChatMessage = {
       id: "msg1",
       question: "Test question",
@@ -362,7 +362,7 @@ describe("MessageBlock", () => {
       response: {
         answer: "Complete answer",
         follow_up_suggestions: ["Follow-up 1"],
-        raw_data: {
+        sql_results: {
           companies: [{ company_id: "1", name: "Test", plan: "Pro", renewal_date: "2024-12-31" }],
         },
       },

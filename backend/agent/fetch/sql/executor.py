@@ -160,7 +160,7 @@ def execute_sql_plan(
         # Cache IDs for RAG filtering
         if data:
             first_row = data[0]
-            for key in ["company_id", "contact_id", "opportunity_id"]:
+            for key in ["company_id", "contact_id", "opportunity_id", "activity_id"]:
                 if key in first_row and first_row[key]:
                     resolved[f"${key}"] = str(first_row[key])
 

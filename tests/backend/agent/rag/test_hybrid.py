@@ -78,6 +78,7 @@ class TestHybridRetrieval:
             "mock_index": mock_index,
         }
 
+    @pytest.mark.no_mock_llm
     def test_retriever_uses_hybrid_mode_when_enabled(self):
         """Test retriever sets vector_store_query_mode='hybrid' when enabled."""
         mock_nodes = [MagicMock() for _ in range(3)]
@@ -118,6 +119,7 @@ class TestHybridRetrieval:
         assert call_kwargs.get("vector_store_query_mode") == "hybrid"
         assert call_kwargs.get("sparse_top_k") == 15
 
+    @pytest.mark.no_mock_llm
     def test_retriever_uses_dense_only_when_hybrid_disabled(self):
         """Test retriever uses dense-only mode when hybrid is disabled."""
         mock_nodes = [MagicMock() for _ in range(3)]
@@ -156,6 +158,7 @@ class TestHybridRetrieval:
         assert "vector_store_query_mode" not in call_kwargs
         assert "sparse_top_k" not in call_kwargs
 
+    @pytest.mark.no_mock_llm
     def test_vector_store_created_with_hybrid_params(self):
         """Test QdrantVectorStore is created with hybrid params when enabled."""
         mock_nodes = []
