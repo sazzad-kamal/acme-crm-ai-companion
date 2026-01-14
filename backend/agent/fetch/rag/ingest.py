@@ -43,7 +43,8 @@ def ingest_private_texts(recreate: bool = True) -> int:  # pragma: no cover
 
     logger.info(f"Ingesting private texts from {JSONL_PATH}")
 
-    # Configure LlamaIndex
+    # Configure LlamaIndex (disable LLM since we only need embeddings)
+    Settings.llm = None
     Settings.embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
     Settings.node_parser = SentenceSplitter(chunk_size=512, chunk_overlap=50)
 

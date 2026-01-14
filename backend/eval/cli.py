@@ -102,7 +102,7 @@ def _run_eval(
         original_level = rag_logger.level
         rag_logger.setLevel(logging.ERROR)
         try:
-            tool_entity_rag("warmup", {"company_id": "test_company"}, top_k=1)
+            tool_entity_rag("warmup", {"company_id": "test_company"})
         finally:
             rag_logger.setLevel(original_level)
         console.print("[dim]Models loaded.[/dim]")

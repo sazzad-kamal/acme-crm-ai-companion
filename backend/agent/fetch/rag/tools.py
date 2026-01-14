@@ -24,50 +24,67 @@ from backend.agent.fetch.rag.config import (
 
 logger = logging.getLogger(__name__)
 
-# Thread-safe lazy initialization for embedding model
+# Thread-safe lazy initialization
 _embed_model = None
-_embed_model_lock = threading.Lock()
+_vector_index = None
+_init_lock = threading.Lock()
+_settings_initialized = False
 
 
-def _get_embed_model():
-    """Get the embedding model (thread-safe lazy initialization)."""
-    global _embed_model
-    if _embed_model is None:
-        with _embed_model_lock:
-            # Double-check after acquiring lock
-            if _embed_model is None:
-                from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+def _ensure_initialized():
+    """Initialize embedding model, settings, and vector index (thread-safe)."""
+    global _embed_model, _vector_index, _settings_initialized
+    if _vector_index is not None:
+        return
 
-                _embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
-    return _embed_model
+    with _init_lock:
+        if _vector_index is not None:
+            return
+
+        from llama_index.core import Settings, VectorStoreIndex
+        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+        from llama_index.vector_stores.qdrant import QdrantVectorStore
+
+        # Initialize embedding model once
+        _embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
+        Settings.embed_model = _embed_model
+        _settings_initialized = True
+
+        # Build vector store config
+        client = get_qdrant_client()
+        vector_store_kwargs = {
+            "client": client,
+            "collection_name": PRIVATE_COLLECTION,
+        }
+        if HYBRID_SEARCH_ENABLED:
+            vector_store_kwargs["enable_hybrid"] = True
+            vector_store_kwargs["fastembed_sparse_model"] = SPARSE_EMBEDDING_MODEL
+
+        vector_store = QdrantVectorStore(**vector_store_kwargs)  # type: ignore[arg-type]
+        _vector_index = VectorStoreIndex.from_vector_store(vector_store)
+
+        logger.debug("Initialized RAG vector index")
 
 
 def tool_entity_rag(
     question: str,
     filters: dict[str, str],
-    top_k: int = 5,
 ) -> tuple[str, list[dict]]:
     """
     Search entity-scoped CRM text (notes, attachments).
 
-    Uses over-retrieval + reranking for better precision when enabled.
+    Uses over-retrieval + reranking for better precision.
     Filters by ANY provided entity ID (OR logic) to get all related documents.
 
     Args:
         question: User's question
         filters: Dict of entity IDs to filter by (company_id, contact_id, opportunity_id, activity_id)
-        top_k: Number of chunks to return (after reranking if enabled)
 
     Returns:
         Tuple of (context_text, source_metadata)
     """
     try:
-        from llama_index.core import Settings, VectorStoreIndex
-        from llama_index.vector_stores.qdrant import QdrantVectorStore
-
-        Settings.embed_model = _get_embed_model()
-
-        client = get_qdrant_client()
+        _ensure_initialized()
 
         # Build OR filter - match documents with ANY of the provided entity IDs
         should_conditions = []
@@ -79,32 +96,16 @@ def tool_entity_rag(
 
         qdrant_filter = Filter(should=should_conditions) if should_conditions else None  # type: ignore[arg-type]
 
-        # Configure vector store with hybrid if enabled
-        vector_store_kwargs = {
-            "client": client,
-            "collection_name": PRIVATE_COLLECTION,
-        }
-        if HYBRID_SEARCH_ENABLED:
-            vector_store_kwargs["enable_hybrid"] = True
-            vector_store_kwargs["fastembed_sparse_model"] = SPARSE_EMBEDDING_MODEL
-
-        vector_store = QdrantVectorStore(**vector_store_kwargs)  # type: ignore[arg-type]
-
-        # Over-retrieve if reranker is enabled, otherwise use top_k directly
-        retrieval_k = RETRIEVAL_TOP_K if RERANKER_ENABLED else top_k
-
-        index = VectorStoreIndex.from_vector_store(vector_store)
-
-        # Configure retriever with hybrid mode if enabled
+        # Configure retriever
         retriever_kwargs = {
-            "similarity_top_k": retrieval_k,
+            "similarity_top_k": RETRIEVAL_TOP_K,
             "vector_store_kwargs": {"qdrant_filters": qdrant_filter},
         }
         if HYBRID_SEARCH_ENABLED:
             retriever_kwargs["sparse_top_k"] = SPARSE_TOP_K
             retriever_kwargs["vector_store_query_mode"] = "hybrid"
 
-        retriever = index.as_retriever(**retriever_kwargs)
+        retriever = _vector_index.as_retriever(**retriever_kwargs)  # type: ignore[union-attr]
         nodes = retriever.retrieve(question)
 
         # Rerank if enabled and we have more nodes than needed
