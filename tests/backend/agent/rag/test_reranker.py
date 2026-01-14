@@ -37,40 +37,19 @@ class TestRerankNodes:
         assert result == []
 
     def test_rerank_under_limit_passthrough(self):
-        """Test nodes under top_k are returned as-is without reranking."""
-        # Create mock nodes
+        """Test nodes under RERANKER_TOP_K are returned as-is."""
         mock_nodes = [MagicMock() for _ in range(3)]
         for i, node in enumerate(mock_nodes):
             node.text = f"Node {i} content"
 
         from backend.agent.fetch.rag.reranker import rerank_nodes
 
-        # With top_k=5 and only 3 nodes, should return as-is
-        result = rerank_nodes(mock_nodes, "test query", top_k=5)
+        # With only 3 nodes (< RERANKER_TOP_K=5), should return as-is
+        result = rerank_nodes(mock_nodes, "test query")
         assert result == mock_nodes
 
-    def test_rerank_returns_top_k(self):
-        """Test reranking returns correct number of nodes."""
-        # Create mock nodes
-        mock_nodes = [MagicMock() for _ in range(10)]
-        for i, node in enumerate(mock_nodes):
-            node.text = f"Node {i} content"
-            node.score = 1.0 - (i * 0.1)  # Decreasing scores
-
-        # Mock the reranker postprocessor
-        mock_reranker = MagicMock()
-        mock_reranker.postprocess_nodes.return_value = mock_nodes[:3]  # Return top 3
-
-        with patch("backend.agent.fetch.rag.reranker._get_reranker", return_value=mock_reranker):
-            from backend.agent.fetch.rag.reranker import rerank_nodes
-
-            result = rerank_nodes(mock_nodes, "test query", top_k=3)
-
-        assert len(result) == 3
-        mock_reranker.postprocess_nodes.assert_called_once()
-
-    def test_rerank_uses_config_default(self):
-        """Test reranking uses config RERANKER_TOP_K when top_k not specified."""
+    def test_rerank_returns_reranked_nodes(self):
+        """Test reranking returns reranked nodes."""
         mock_nodes = [MagicMock() for _ in range(10)]
         for i, node in enumerate(mock_nodes):
             node.text = f"Node {i} content"
@@ -81,10 +60,10 @@ class TestRerankNodes:
         with patch("backend.agent.fetch.rag.reranker._get_reranker", return_value=mock_reranker):
             from backend.agent.fetch.rag.reranker import rerank_nodes
 
-            # Don't specify top_k, should use default from config (5)
             result = rerank_nodes(mock_nodes, "test query")
 
         assert len(result) == 5
+        mock_reranker.postprocess_nodes.assert_called_once()
 
     def test_rerank_passes_query_bundle(self):
         """Test reranking passes correct query to postprocessor."""
@@ -98,9 +77,8 @@ class TestRerankNodes:
         with patch("backend.agent.fetch.rag.reranker._get_reranker", return_value=mock_reranker):
             from backend.agent.fetch.rag.reranker import rerank_nodes
 
-            rerank_nodes(mock_nodes, "my specific query", top_k=5)
+            rerank_nodes(mock_nodes, "my specific query")
 
-        # Verify query was passed correctly
         call_args = mock_reranker.postprocess_nodes.call_args
         assert call_args is not None
         query_bundle = call_args[0][1]
