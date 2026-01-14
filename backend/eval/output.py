@@ -200,7 +200,7 @@ def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
             "Composite Score",
             format_percentage(results.composite_score) if eval_mode == "both" else "N/A",
             f">={format_percentage(SLO_FLOW_COMPOSITE_SCORE)}" if eval_mode == "both" else "-",
-            composite_pass,
+            composite_pass if composite_pass is not None else False,
         ),
     )
     console.print(summary_table)
@@ -225,7 +225,7 @@ def print_summary(results: FlowEvalResults, eval_mode: str = "both") -> bool:
     # SLO Failures Detail
     _print_slo_failures(results, eval_mode)
 
-    return all_slos_passed
+    return bool(all_slos_passed)
 
 
 def _count_slo_failures(step: FlowStepResult, eval_mode: str = "both") -> int:

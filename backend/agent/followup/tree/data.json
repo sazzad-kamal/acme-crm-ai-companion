@@ -23,7 +23,7 @@
   "Which accounts are at risk?": [
     "What's happening with Delta Health?",
     "What's happening with Green Energy?",
-    "Which accounts have health issues?"
+    "Which accounts aren't healthy?"
   ],
   "What's happening with Delta Health?": [
     "Who are the Delta Health contacts?",
@@ -35,26 +35,26 @@
     "What are the Green Energy deals?",
     "What's the Green Energy history?"
   ],
-  "Which accounts have health issues?": [
+  "Which accounts aren't healthy?": [
     "Which accounts are churning?",
-    "Which accounts need attention?",
-    "What are the warning signs?"
+    "Which accounts are renewing soon?",
+    "Which deals have been stuck in stage the longest?"
   ],
 
-  "Who needs a follow-up?": [
+  "Which contacts haven't been contacted recently?": [
     "Which contacts haven't been reached?",
     "Who are the decision makers?",
     "Which contacts had recent activity?"
   ],
   "Which contacts haven't been reached?": [
     "Who at Acme needs follow-up?",
-    "Which leads are going cold?",
-    "What's the best way to reach them?"
+    "Which leads have no recent activity?",
+    "What are the contact emails for at-risk accounts?"
   ],
   "Who are the decision makers?": [
     "Who's the contact at Beta Corp?",
-    "Which executives should I engage?",
-    "What are their roles?"
+    "Who are the executives?",
+    "What roles do the Beta Tech contacts have?"
   ],
   "Which contacts had recent activity?": [
     "What emails were sent recently?",

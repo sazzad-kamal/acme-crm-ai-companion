@@ -40,12 +40,6 @@ def _get_answer_chain() -> Any:
     return _answer_chain
 
 
-def reset_answer_chain() -> None:
-    """Reset the cached answer chain (for testing)."""
-    global _answer_chain
-    _answer_chain = None
-
-
 def get_answer_chain() -> Any:
     """Get the answer chain for use with LangGraph streaming.
 
@@ -161,7 +155,6 @@ async def stream_answer_chain(
 
 __all__ = [
     "get_answer_chain",
-    "reset_answer_chain",
     "build_answer_input",
     "call_answer_chain",
     "stream_answer_chain",

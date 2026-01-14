@@ -3,9 +3,8 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from rich.console import Console
-from rich.table import Table
 
 from backend.agent.datastore.connection import get_connection
 from backend.agent.followup.tree import get_expected_sql_results, validate_sql_results
@@ -81,8 +80,6 @@ def run_sql_eval(
             plan = get_sql_plan(question)
             sql = plan.sql
 
-            if verbose:
-                console.print(f"  SQL: {sql[:80]}...")
 
             # Execute SQL
             try:
@@ -152,18 +149,17 @@ def print_summary(results: EvalResults) -> None:
     console.print(f"Pass Rate: {results.passed / results.total * 100:.1f}%")
     console.print(f"SQL Executed: {results.sql_executed}, SQL Failed: {results.sql_failed}")
 
-    # Failed cases table
+    # Failed cases with SQL
     failed = [c for c in results.cases if not c.passed]
     if failed:
-        table = Table(title=f"Failed Cases ({len(failed)})")
-        table.add_column("Question", style="cyan", max_width=40)
-        table.add_column("Error", style="red", max_width=50)
-
-        for c in failed[:10]:
-            error = c.error or "; ".join(c.errors[:2])
-            table.add_row(c.question[:40], error[:50])
-
-        console.print(table)
+        console.print(f"\n[bold red]Failed Cases ({len(failed)})[/bold red]\n")
+        for i, c in enumerate(failed, 1):
+            error = c.error or "; ".join(c.errors)
+            console.print(f"[bold cyan]{i}. {c.question}[/bold cyan]")
+            console.print(f"   [red]Error:[/red] {error}")
+            if c.sql:
+                console.print(f"   [dim]SQL:[/dim] {c.sql}")
+            console.print()
 
 
 def main() -> None:

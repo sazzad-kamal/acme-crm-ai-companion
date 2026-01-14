@@ -47,7 +47,7 @@ class TestGetStarters:
         starters = get_starters()
         assert "What deals are in the pipeline?" in starters  # Opportunities
         assert "Which accounts are at risk?" in starters  # Companies
-        assert "Who needs a follow-up?" in starters  # Contacts
+        assert "Which contacts haven't been contacted recently?" in starters  # Contacts
 
 
 # =============================================================================
@@ -93,7 +93,7 @@ class TestGetFollowUps:
 
     def test_contacts_starter_has_follow_ups(self):
         """Contacts starter has follow-ups."""
-        follow_ups = get_follow_ups("Who needs a follow-up?")
+        follow_ups = get_follow_ups("Which contacts haven't been contacted recently?")
         assert len(follow_ups) == 3
         assert "Which contacts haven't been reached?" in follow_ups
 
@@ -142,7 +142,7 @@ class TestGetAllPaths:
         expected_starters = {
             "What deals are in the pipeline?",
             "Which accounts are at risk?",
-            "Who needs a follow-up?",
+            "Which contacts haven't been contacted recently?",
         }
         assert starters_covered == expected_starters
 

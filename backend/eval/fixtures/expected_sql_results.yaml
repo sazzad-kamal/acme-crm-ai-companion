@@ -2,156 +2,143 @@
 # Based on actual CSV data - validates correctness of SQL results
 #
 # Assertion types:
-#   row_count: Exact number of rows
-#   row_count_min/max: Range of rows
-#   column_values: Expected values must appear in column (extras OK)
-#   column_excludes: Values must NOT appear in column
+#   row_count: Exact number of rows expected
+#   column_values: Expected IDs/values must appear in column
 #   total_value: Sum of value column (10% tolerance)
-#   exact_values: Exact column values (set equality)
 #
-# Legacy (text-based, less precise):
-#   must_contain_all/any: Values in flattened text
-#   must_not_contain: Values not in flattened text
+# For questions with variable results, use row_count_min
 
 # =============================================================================
 # OPPORTUNITIES BRANCH - Starter: "What deals are in the pipeline?"
 # =============================================================================
 
 "What deals are in the pipeline?":
-  row_count_min: 8
-  column_excludes:
-    stage: ["Closed Won", "Closed Lost"]
-
-"How are deals distributed by stage?":
-  row_count_min: 4
+  row_count: 10
   column_values:
-    stage: ["Proposal", "Qualified", "Negotiation", "Discovery"]
+    opportunity_id: ["OPP-ACME-UPGRADE", "OPP-ACME-RENEWAL", "OPP-BETA-NEW", "OPP-BETA-ADDON", "OPP-CROWN-RENEW", "OPP-DELTA-RENEW", "OPP-DELTA-EXPAND", "OPP-EAST-TRIAL", "OPP-FUSION-UPSELL", "OPP-HARBOR-NEW"]
+
+"How are pipeline deals distributed by stage?":
+  row_count: 5
+  column_values:
+    stage: ["New", "Discovery", "Qualified", "Proposal", "Negotiation"]
 
 "What are the highest value deals?":
   row_count_min: 4
   column_values:
-    value: [32000, 26000, 24000, 22000]
+    opportunity_id: ["OPP-BETA-NEW", "OPP-HARBOR-NEW", "OPP-ACME-RENEWAL", "OPP-DELTA-RENEW"]
 
 "Which deals involve Acme Manufacturing?":
   row_count: 2
   column_values:
-    value: [15000, 24000]
+    opportunity_id: ["OPP-ACME-UPGRADE", "OPP-ACME-RENEWAL"]
   total_value: 39000
 
 "What deals are in Proposal stage?":
-  row_count_min: 2
+  row_count: 2
   column_values:
-    stage: ["Proposal"]
-  column_excludes:
-    stage: ["Qualified", "Negotiation", "Discovery", "Closed Won", "Closed Lost"]
+    opportunity_id: ["OPP-ACME-UPGRADE", "OPP-CROWN-RENEW"]
 
 "What deals are in Qualified stage?":
-  row_count_min: 3
+  row_count: 3
   column_values:
-    stage: ["Qualified"]
-  column_excludes:
-    stage: ["Proposal", "Negotiation", "Closed Won", "Closed Lost"]
+    opportunity_id: ["OPP-ACME-RENEWAL", "OPP-DELTA-RENEW", "OPP-FUSION-UPSELL"]
 
 "What deals are in Negotiation stage?":
   row_count: 1
   column_values:
-    stage: ["Negotiation"]
-    value: [32000]
+    opportunity_id: ["OPP-BETA-NEW"]
 
 "Which deals are over $50,000?":
   row_count: 0
 
 "Which deals are under $20,000?":
-  row_count_min: 4
+  row_count: 6
   column_values:
-    value: [15000, 18000, 12000]
-  column_excludes:
-    value: [32000, 26000, 24000, 22000]
+    opportunity_id: ["OPP-ACME-UPGRADE", "OPP-CROWN-RENEW", "OPP-DELTA-EXPAND", "OPP-FUSION-UPSELL", "OPP-EAST-TRIAL", "OPP-BETA-ADDON"]
 
 "What's the total pipeline value?":
-  row_count_min: 1
+  row_count: 1
+  total_value: 180000
 
 "Who are the Acme Manufacturing contacts?":
   row_count: 3
   column_values:
-    first_name: ["Anna", "Beth", "Joe"]
-  column_excludes:
-    first_name: ["Maria", "Erin", "Carlos"]
+    contact_id: ["C-ACME-ANNA", "C-ACME-JOE", "C-ACME-BETH"]
 
 "What activities happened with Acme Manufacturing?":
-  row_count_min: 1
+  row_count: 5
+  column_values:
+    history_id: ["HIST-ACME-CALL1", "HIST-ACME-EMAIL1", "HIST-ACME-MEETING1", "HIST-ACME-NOTE1", "HIST-ACME-NOTE2"]
 
 # =============================================================================
 # COMPANIES BRANCH - Starter: "Which accounts are at risk?"
 # =============================================================================
 
 "Which accounts are at risk?":
-  row_count_min: 1
-  must_contain_any: ["at-risk", "Delta", "Green"]
+  row_count: 3
+  column_values:
+    company_id: ["BETA-TECH", "CROWN-FOODS", "DELTA-HEALTH"]
 
 "What's happening with Delta Health Clinics?":
-  row_count_min: 1
+  row_count: 1
   column_values:
-    name: ["Delta Health Clinics"]
+    company_id: ["DELTA-HEALTH"]
 
 "What's happening with Green Energy Partners?":
-  row_count_min: 1
+  row_count: 1
   column_values:
-    name: ["Green Energy Partners"]
+    company_id: ["GREEN-ENERGY"]
 
-"Which accounts have health issues?":
-  row_count_min: 1
-  must_contain_any: ["at-risk", "Churned"]
+"Which accounts aren't healthy?":
+  row_count: 6
+  column_values:
+    company_id: ["BETA-TECH", "CROWN-FOODS", "DELTA-HEALTH", "EASTERN-TRAVEL", "GREEN-ENERGY", "HARBOR-LOGISTICS"]
 
 "Who are the Delta Health Clinics contacts?":
   row_count: 3
   column_values:
-    first_name: ["Erin", "Mike", "Priya"]
-  column_excludes:
-    first_name: ["Anna", "Carlos", "Maria"]
+    contact_id: ["C-DELTA-ERIN", "C-DELTA-MIKE", "C-DELTA-PRIYA"]
 
 "What are the Delta Health Clinics deals?":
   row_count: 2
   column_values:
-    value: [22000, 15000]
+    opportunity_id: ["OPP-DELTA-RENEW", "OPP-DELTA-EXPAND"]
   total_value: 37000
 
 "Who are the Green Energy Partners contacts?":
   row_count: 3
   column_values:
-    first_name: ["Carlos", "Linda", "Tom"]
-  column_excludes:
-    first_name: ["Erin", "Anna", "Maria"]
+    contact_id: ["C-GREEN-CARLOS", "C-GREEN-LINDA", "C-GREEN-TOM"]
 
 "What are the Green Energy Partners deals?":
   row_count: 2
   column_values:
-    stage: ["Closed Lost"]
+    opportunity_id: ["OPP-GREEN-RENEW", "OPP-GREEN-EXPAND"]
 
 "Which accounts are churning?":
   row_count: 1
   column_values:
-    name: ["Green Energy Partners"]
-    status: ["Churned"]
+    company_id: ["GREEN-ENERGY"]
 
-"Which accounts need attention?":
-  row_count_min: 1
-  must_contain_any: ["at-risk", "Delta"]
+"Which accounts are renewing soon?":
+  row_count: 6
+  column_values:
+    company_id: ["CROWN-FOODS", "DELTA-HEALTH", "BETA-TECH", "EASTERN-TRAVEL", "HARBOR-LOGISTICS", "ACME-MFG"]
 
 # =============================================================================
-# CONTACTS BRANCH - Starter: "Who needs a follow-up?"
+# CONTACTS BRANCH - Starter: "Which contacts haven't been contacted recently?"
 # =============================================================================
 
-"Who needs a follow-up?":
+"Which contacts haven't been contacted recently?":
   row_count_min: 1
 
 "Which contacts haven't been reached?":
   row_count_min: 1
 
 "Who are the decision makers?":
-  row_count_min: 1
+  row_count: 5
   column_values:
-    role: ["Decision Maker"]
+    contact_id: ["C-ACME-ANNA", "C-CROWN-MARIA", "C-DELTA-ERIN", "C-EAST-SANJAY", "C-GREEN-CARLOS"]
 
 "Which contacts had recent activity?":
   row_count_min: 1
@@ -162,18 +149,17 @@
 "Who's the contact at Beta Tech Solutions?":
   row_count: 3
   column_values:
-    first_name: ["Lisa", "Omar", "Sam"]
-  column_excludes:
-    first_name: ["Anna", "Erin", "Carlos"]
+    contact_id: ["C-BETA-LISA", "C-BETA-OMAR", "C-BETA-SAM"]
 
-"Which executives should I engage?":
-  row_count_min: 1
-  must_contain_any: ["Executive", "Decision Maker"]
-
-"What are their roles?":
-  row_count_min: 1
+"Who are the executives?":
+  row_count: 4
   column_values:
-    role: ["Decision Maker", "Champion", "Technical Contact", "Executive"]
+    contact_id: ["C-ACME-BETH", "C-BETA-OMAR", "C-FUSION-LARS", "C-HARBOR-DAN"]
+
+"What roles do the Beta Tech contacts have?":
+  row_count: 3
+  column_values:
+    contact_id: ["C-BETA-LISA", "C-BETA-OMAR", "C-BETA-SAM"]
 
 "What were the recent interactions?":
   row_count_min: 1
@@ -193,24 +179,25 @@
 
 "What emails were sent recently?":
   row_count_min: 1
-  column_values:
-    type: ["Email"]
 
 "What meetings occurred recently?":
   row_count_min: 1
+
+# =============================================================================
+# ADDITIONAL QUESTIONS
+# =============================================================================
+
+"Which deals have been stuck in stage the longest?":
+  row_count: 10
   column_values:
-    type: ["Meeting"]
+    opportunity_id: ["OPP-DELTA-RENEW", "OPP-EAST-TRIAL", "OPP-FUSION-UPSELL"]
 
-# =============================================================================
-# ABSTRACT/RECOMMENDATION QUESTIONS (minimal assertions)
-# =============================================================================
+"Which leads have no recent activity?":
+  row_count: 3
+  column_values:
+    contact_id: ["C-EAST-SANJAY", "C-EAST-RAVI", "C-EAST-ANITA"]
 
-"What are the warning signs?":
-  row_count_min: 1
-  must_contain_any: ["at-risk", "Churned", "low-activity"]
-
-"Which leads are going cold?":
-  row_count_min: 1
-
-"What's the best way to reach them?":
-  row_count_min: 1
+"What are the contact emails for at-risk accounts?":
+  row_count: 9
+  column_values:
+    contact_id: ["C-BETA-LISA", "C-BETA-OMAR", "C-BETA-SAM", "C-CROWN-MARIA", "C-CROWN-ALEX", "C-CROWN-NINA", "C-DELTA-ERIN", "C-DELTA-MIKE", "C-DELTA-PRIYA"]

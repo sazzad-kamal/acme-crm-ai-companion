@@ -82,7 +82,7 @@ def _mock_evaluate_single(
     answer: str,
     contexts: list[str],
     reference_answer: str | None = None,
-) -> dict[str, float | str | None]:
+) -> dict[str, float | str | list[str] | None]:
     """Return mock RAGAS scores for testing without OpenAI API."""
     # Return realistic mock scores based on content presence
     has_answer = bool(answer and len(answer) > 10)
@@ -96,6 +96,7 @@ def _mock_evaluate_single(
             "context_recall": 0.70 if reference_answer else 0.0,
             "answer_correctness": 0.65 if reference_answer else 0.0,
             "error": None,
+            "nan_metrics": [],
         }
     elif has_answer:
         return {
@@ -105,6 +106,7 @@ def _mock_evaluate_single(
             "context_recall": 0.0,
             "answer_correctness": 0.40 if reference_answer else 0.0,
             "error": None,
+            "nan_metrics": [],
         }
     else:
         return {
@@ -114,6 +116,7 @@ def _mock_evaluate_single(
             "context_recall": 0.0,
             "answer_correctness": 0.0,
             "error": None,
+            "nan_metrics": [],
         }
 
 
@@ -165,7 +168,7 @@ def evaluate_single(
     contexts: list[str],
     reference_answer: str | None = None,
     verbose: bool = False,
-) -> dict[str, float | str | None]:
+) -> dict[str, float | str | list[str] | None]:
     """
     Evaluate a single Q&A pair using RAGAS metrics.
 
@@ -251,7 +254,7 @@ def evaluate_single(
                     return float(val)
                 return 0.0
 
-            result = {
+            result: dict[str, float | str | list[str] | None] = {
                 "answer_relevancy": get_score("answer_relevancy"),
                 "faithfulness": get_score("faithfulness"),
                 "context_precision": get_score("context_precision"),

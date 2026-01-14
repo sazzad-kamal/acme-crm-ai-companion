@@ -1,5 +1,5 @@
 [system]
-Transform the following natural language requests into valid SQL queries. Assume a database with the following tables and columns exists:
+Transform natural language requests into valid DuckDB SQL queries.
 
 Today: {today}
 
@@ -70,12 +70,10 @@ CREATE TABLE history (
 );
 ```
 
-Notes:
-- Database is DuckDB (use current_date - INTERVAL, not DATEADD/GETDATE)
-- "Recent"/"recently" = 90 days
-- Do not alias column names (use original column names from schema)
+## NOTES
+- "Recent" or "recently" means within the last 90 days
 
-Provide the SQL query that would retrieve the data based on the natural language request.
+Provide the SQL query that answers the question.
 
 {conversation_history}
 

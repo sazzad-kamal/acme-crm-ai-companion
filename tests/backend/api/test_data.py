@@ -111,42 +111,6 @@ class TestOpportunitiesEndpoint:
         assert "notes" in data["columns"]
 
 
-class TestGroupsEndpoint:
-    """Tests for GET /api/data/groups."""
-
-    def test_returns_groups(self, client: TestClient):
-        """Should return list of groups."""
-        response = client.get("/api/data/groups")
-        assert response.status_code == 200
-        data = response.json()
-        assert "data" in data
-        assert isinstance(data["data"], list)
-
-    def test_returns_correct_columns(self, client: TestClient):
-        """Should return expected group columns."""
-        response = client.get("/api/data/groups")
-        data = response.json()
-        expected_columns = ["group_id", "name", "description"]
-        for col in expected_columns:
-            assert col in data["columns"]
-
-    def test_includes_nested_members(self, client: TestClient):
-        """Should include nested members for groups."""
-        response = client.get("/api/data/groups")
-        data = response.json()
-        for group in data["data"]:
-            assert "_members" in group
-            assert isinstance(group["_members"], list)
-
-    def test_members_have_company_id(self, client: TestClient):
-        """Group members should have company_id."""
-        response = client.get("/api/data/groups")
-        data = response.json()
-        for group in data["data"]:
-            for member in group["_members"]:
-                assert "company_id" in member
-
-
 class TestActivitiesEndpoint:
     """Tests for GET /api/data/activities."""
 
@@ -192,7 +156,6 @@ class TestDataResponseFormat:
         "/api/data/contacts",
         "/api/data/opportunities",
         "/api/data/activities",
-        "/api/data/groups",
         "/api/data/history",
     ])
     def test_response_has_required_fields(self, client: TestClient, endpoint: str):
@@ -209,7 +172,6 @@ class TestDataResponseFormat:
         "/api/data/contacts",
         "/api/data/opportunities",
         "/api/data/activities",
-        "/api/data/groups",
         "/api/data/history",
     ])
     def test_endpoint_returns_non_empty_data(self, client: TestClient, endpoint: str):

@@ -46,7 +46,7 @@ def judge_answer(
 
         # Check if RAGAS itself reported an error
         ragas_error = result.get("error")
-        nan_metrics = result.get("nan_metrics", [])
+        nan_metrics: list[str] = result.get("nan_metrics", [])  # type: ignore[assignment]
         return {
             "relevance": result["answer_relevancy"],
             "faithfulness": result["faithfulness"],

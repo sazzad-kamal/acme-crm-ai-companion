@@ -100,7 +100,7 @@ def ingest_private_texts(recreate: bool = True) -> int:
         vector_store_kwargs["fastembed_sparse_model"] = SPARSE_EMBEDDING_MODEL
         logger.info(f"Hybrid search enabled with sparse model: {SPARSE_EMBEDDING_MODEL}")
 
-    vector_store = QdrantVectorStore(**vector_store_kwargs)
+    vector_store = QdrantVectorStore(**vector_store_kwargs)  # type: ignore[arg-type]
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
     # Build index (this ingests the documents)

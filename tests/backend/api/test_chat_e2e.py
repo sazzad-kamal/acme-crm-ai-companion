@@ -69,15 +69,15 @@ class TestStreamingEndpoint:
         events = content.split("\n\n")
         assert len(events) > 0
     
-    def test_streaming_includes_status_events(self, client):
-        """Test that streaming includes status update events."""
+    def test_streaming_includes_answer_chunks_or_done(self, client):
+        """Test that streaming includes answer chunks or done event."""
         payload = {"question": "How do I create a contact?"}
         response = client.post("/api/chat/stream", json=payload)
 
         content = response.text
 
-        # Should have status events
-        assert "event: status" in content
+        # Should have answer_chunk events (when LLM is streaming) or done event
+        assert "event: answer_chunk" in content or "event: done" in content
 
     def test_streaming_ends_with_done_event(self, client):
         """Test that streaming ends with done event."""

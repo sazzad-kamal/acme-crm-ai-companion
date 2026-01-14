@@ -8,7 +8,7 @@ Structure:
 - 3 starter questions covering the 3 top CRM entities:
   * Opportunities: "What deals are in the pipeline?"
   * Companies: "Which accounts are at risk?"
-  * Contacts: "Who needs a follow-up?"
+  * Contacts: "Which contacts haven't been contacted recently?"
 - Each question has 3 follow-ups, with varying depths (4-6 levels)
 - Run `python -m backend.agent.followup.tree stats` for current metrics
 
@@ -90,7 +90,7 @@ _EXPECTED_SQL_RESULTS: dict[str, dict] = _load_yaml_fixture("expected_sql_result
 _STARTERS: list[str] = [
     "What deals are in the pipeline?",
     "Which accounts are at risk?",
-    "Who needs a follow-up?",
+    "Which contacts haven't been contacted recently?",
 ]
 
 # Build directed graph
@@ -282,8 +282,8 @@ def validate_sql_results(question: str, sql_results: dict) -> tuple[bool, list[s
         expected_total = expected["total_value"]
         actual_total: float = 0.0
         for row in all_rows:
-            # Check for both "value" and "total_value" columns (handles GROUP BY queries)
-            for col in ("value", "total_value"):
+            # Check for value columns (handles GROUP BY and SUM queries)
+            for col in ("value", "total_value", "total_pipeline_value"):
                 if col in row:
                     with contextlib.suppress(ValueError, TypeError):
                         actual_total += float(row[col])
@@ -443,7 +443,7 @@ def print_tree(max_depth: int | None = None) -> Tree:
     entity_labels = {
         "What deals are in the pipeline?": "[bold cyan]OPPORTUNITIES[/bold cyan]",
         "Which accounts are at risk?": "[bold green]COMPANIES[/bold green]",
-        "Who needs a follow-up?": "[bold yellow]CONTACTS[/bold yellow]",
+        "Which contacts haven't been contacted recently?": "[bold yellow]CONTACTS[/bold yellow]",
     }
 
     def add_children(parent_branch: Tree, node: str, depth: int) -> None:

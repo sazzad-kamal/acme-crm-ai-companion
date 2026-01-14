@@ -31,7 +31,7 @@ class AgentConfig(BaseSettings):
         description="LLM model for agent orchestration and synthesis",
     )
     router_model: str = Field(
-        default="gpt-5.2-pro", description="LLM model for routing and SQL generation"
+        default="gpt-5.2", description="LLM model for routing and SQL generation"
     )
     llm_temperature: float = Field(default=0.1, description="LLM temperature for agent responses")
     llm_max_tokens: int = Field(default=1024, description="Maximum tokens in LLM response")
@@ -91,12 +91,6 @@ def _validate_startup_config(config: AgentConfig) -> None:
     )
 
 
-def reset_config() -> None:
-    """Reset the global config (useful for testing)."""
-    global _config
-    _config = None
-
-
 # Convenience exports
 def is_mock_mode() -> bool:
     """Check if we're in mock mode (for testing)."""
@@ -106,6 +100,5 @@ def is_mock_mode() -> bool:
 __all__ = [
     "AgentConfig",
     "get_config",
-    "reset_config",
     "is_mock_mode",
 ]

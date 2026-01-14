@@ -78,7 +78,7 @@ def tool_entity_rag(
                     FieldCondition(key=key, match=MatchValue(value=value))
                 )
 
-        qdrant_filter = Filter(must=must_conditions) if must_conditions else None
+        qdrant_filter = Filter(must=must_conditions) if must_conditions else None  # type: ignore[arg-type]
 
         # Configure vector store with hybrid if enabled
         vector_store_kwargs = {
@@ -89,7 +89,7 @@ def tool_entity_rag(
             vector_store_kwargs["enable_hybrid"] = True
             vector_store_kwargs["fastembed_sparse_model"] = SPARSE_EMBEDDING_MODEL
 
-        vector_store = QdrantVectorStore(**vector_store_kwargs)
+        vector_store = QdrantVectorStore(**vector_store_kwargs)  # type: ignore[arg-type]
 
         # Over-retrieve if reranker is enabled, otherwise use top_k directly
         retrieval_k = RETRIEVAL_TOP_K if RERANKER_ENABLED else top_k

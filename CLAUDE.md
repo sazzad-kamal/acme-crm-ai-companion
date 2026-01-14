@@ -20,3 +20,11 @@ After completing a **significant implementation** (new features, refactors, bug 
    ```
 
 **Note:** Include these steps in implementation plans for significant work. Use judgment - a one-line fix doesn't need full CI validation.
+
+## OpenAI GPT-5 Model Pricing (per 1M tokens)
+
+| Model | Input | Output |
+|-------|-------|--------|
+| gpt-5 | $1.25 | $10 |
+| gpt-5.2 | $1.75 | $14 |
+| gpt-5.2-pro | $21 | $168 |
