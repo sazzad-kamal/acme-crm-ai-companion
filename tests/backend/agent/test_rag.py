@@ -86,22 +86,6 @@ class TestRagIngest:
 class TestLlmClient:
     """Tests for backend.agent.core.llm module."""
 
-    def test_requires_max_completion_tokens_o1(self):
-        """Test that o1 models require max_completion_tokens."""
-        from backend.agent.core.llm import _requires_max_completion_tokens
-
-        assert _requires_max_completion_tokens("o1-preview") is True
-        assert _requires_max_completion_tokens("o1-mini") is True
-        assert _requires_max_completion_tokens("O1-preview") is True
-
-    def test_requires_max_completion_tokens_gpt4(self):
-        """Test that gpt-4 models don't require max_completion_tokens."""
-        from backend.agent.core.llm import _requires_max_completion_tokens
-
-        assert _requires_max_completion_tokens("gpt-4o") is False
-        assert _requires_max_completion_tokens("gpt-4o-mini") is False
-        assert _requires_max_completion_tokens("gpt-4-turbo") is False
-
     def test_get_chat_model_no_api_key(self):
         """Test get_chat_model raises when no API key."""
         from backend.agent.core.llm import get_chat_model

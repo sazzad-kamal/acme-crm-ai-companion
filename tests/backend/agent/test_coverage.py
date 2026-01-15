@@ -373,24 +373,26 @@ class TestStreamAgent:
 class TestGetSqlPlan:
     """Tests for get_sql_plan function."""
 
-    def test_get_sql_plan_calls_openai(self):
-        """get_sql_plan calls OpenAI and parses response."""
+    @pytest.mark.no_mock_llm
+    def test_get_sql_plan_calls_anthropic(self):
+        """get_sql_plan calls Anthropic and parses response."""
         from backend.agent.fetch.planner import get_sql_plan, _get_client
 
-        # Clear cache
         _get_client.cache_clear()
 
+        mock_block = MagicMock()
+        mock_block.text = '{"sql": "SELECT * FROM companies", "needs_rag": false}'
+
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "```sql\nSELECT * FROM companies\n```\nneeds_rag: false"
+        mock_response.content = [mock_block]
 
-        with patch("backend.agent.fetch.planner.OpenAI") as mock_openai, \
-             patch("backend.agent.fetch.planner.load_prompt", return_value="prompt {today} {conversation_history} {question}"):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_response
 
-            mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value = mock_response
-            mock_openai.return_value = mock_client
+        with patch("backend.agent.fetch.planner._get_client", return_value=mock_client), \
+             patch("backend.agent.fetch.planner.load_prompt") as mock_prompt:
 
+            mock_prompt.return_value.format.return_value = "test prompt"
             result = get_sql_plan("What companies do we have?")
 
             assert result.sql == "SELECT * FROM companies"
@@ -399,61 +401,55 @@ class TestGetSqlPlan:
         _get_client.cache_clear()
 
     @pytest.mark.no_mock_llm
-    def test_get_sql_plan_none_result_raises(self):
-        """get_sql_plan raises ValueError when OpenAI returns None parsed result."""
+    def test_get_sql_plan_parses_markdown_json(self):
+        """get_sql_plan extracts JSON from markdown code blocks."""
         from backend.agent.fetch.planner import get_sql_plan, _get_client
 
-        # Clear cache first
         _get_client.cache_clear()
 
+        mock_block = MagicMock()
+        mock_block.text = '```json\n{"sql": "SELECT * FROM contacts", "needs_rag": true}\n```'
+
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.parsed = None  # Simulates unparseable response
+        mock_response.content = [mock_block]
 
         mock_client = MagicMock()
-        mock_client.beta.chat.completions.parse.return_value = mock_response
-
-        # Mock prompt that returns a string when .format() is called
-        mock_prompt = MagicMock()
-        mock_prompt.format.return_value = "test prompt"
+        mock_client.messages.create.return_value = mock_response
 
         with patch("backend.agent.fetch.planner._get_client", return_value=mock_client), \
-             patch("backend.agent.fetch.planner.load_prompt", return_value=mock_prompt):
+             patch("backend.agent.fetch.planner.load_prompt") as mock_prompt:
 
-            with pytest.raises(ValueError, match="Failed to parse SQL plan"):
-                get_sql_plan("What companies do we have?")
+            mock_prompt.return_value.format.return_value = "test prompt"
+            result = get_sql_plan("Who are the contacts?")
+
+            assert result.sql == "SELECT * FROM contacts"
+            assert result.needs_rag is True
 
         _get_client.cache_clear()
 
     @pytest.mark.no_mock_llm
-    def test_get_sql_plan_success_path(self):
-        """get_sql_plan returns valid SQLPlan on success."""
-        from backend.agent.fetch.planner import get_sql_plan, _get_client, SQLPlan
+    def test_get_sql_plan_raises_on_invalid_json(self):
+        """get_sql_plan raises ValueError on invalid JSON response."""
+        from backend.agent.fetch.planner import get_sql_plan, _get_client
 
-        # Clear cache first
         _get_client.cache_clear()
 
-        # Create a valid SQLPlan response
-        expected_plan = SQLPlan(sql="SELECT * FROM companies", needs_rag=True)
+        mock_block = MagicMock()
+        mock_block.text = "not valid json at all"
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.parsed = expected_plan
+        mock_response.content = [mock_block]
 
         mock_client = MagicMock()
-        mock_client.beta.chat.completions.parse.return_value = mock_response
-
-        # Mock prompt that returns a string when .format() is called
-        mock_prompt = MagicMock()
-        mock_prompt.format.return_value = "test prompt"
+        mock_client.messages.create.return_value = mock_response
 
         with patch("backend.agent.fetch.planner._get_client", return_value=mock_client), \
-             patch("backend.agent.fetch.planner.load_prompt", return_value=mock_prompt):
+             patch("backend.agent.fetch.planner.load_prompt") as mock_prompt:
 
-            result = get_sql_plan("What companies do we have?")
+            mock_prompt.return_value.format.return_value = "test prompt"
 
-            assert result.sql == "SELECT * FROM companies"
-            assert result.needs_rag is True
+            with pytest.raises(ValueError, match="Failed to parse JSON"):
+                get_sql_plan("What companies?")
 
         _get_client.cache_clear()
 
@@ -859,8 +855,8 @@ class TestResetConnection:
 class TestExecuteSql:
     """Tests for execute_sql function."""
 
-    def test_max_rows_truncation(self):
-        """Results are truncated to max_rows."""
+    def test_adds_limit_to_sql(self):
+        """Adds LIMIT clause to SQL without one."""
         from backend.agent.fetch.sql.executor import execute_sql
         from backend.agent.fetch.planner import SQLPlan
 
@@ -868,13 +864,15 @@ class TestExecuteSql:
 
         mock_conn = MagicMock()
         mock_result = MagicMock()
-        mock_result.fetchall.return_value = [(i,) for i in range(200)]
+        mock_result.fetchall.return_value = []
         mock_result.description = [("id",)]
         mock_conn.execute.return_value = mock_result
 
-        rows, ids, error = execute_sql(plan, mock_conn, max_rows=50)
+        execute_sql(plan, mock_conn, max_rows=50)
 
-        assert len(rows) == 50
+        # Check that LIMIT was added to the SQL
+        call_args = mock_conn.execute.call_args[0][0]
+        assert "LIMIT 50" in call_args
 
     def test_sql_execution_generic_exception(self):
         """Test generic exception handling during SQL execution."""

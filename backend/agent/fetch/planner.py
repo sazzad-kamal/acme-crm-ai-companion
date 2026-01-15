@@ -51,7 +51,8 @@ def get_sql_plan(question: str, conversation_history: str = "") -> SQLPlan:
     )
 
     # Parse JSON from response
-    text = response.content[0].text
+    block = response.content[0]
+    text = block.text if hasattr(block, "text") else ""
     try:
         data = json.loads(text)
     except json.JSONDecodeError as err:
