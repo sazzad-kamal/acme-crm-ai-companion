@@ -15,14 +15,7 @@ from backend.agent.fetch.schema import get_all_table_columns, get_table_names
 
 logger = logging.getLogger(__name__)
 
-
-def _get_csv_base_path() -> Path:
-    """Get the base path for CSV files (data/crm/ or data/csv/)."""
-    backend_root = Path(__file__).parent.parent.parent.parent
-    preferred = backend_root / "data" / "crm"
-    if preferred.exists() and preferred.is_dir():
-        return preferred
-    return backend_root / "data" / "csv"
+_CSV_PATH = Path(__file__).parent.parent.parent.parent / "data" / "csv"
 
 
 def _load_csvs(conn: duckdb.DuckDBPyConnection, csv_path: Path) -> None:
@@ -59,7 +52,7 @@ def get_connection(csv_path: Path | None = None) -> duckdb.DuckDBPyConnection:
     """
     if not hasattr(_thread_local, "conn") or _thread_local.conn is None:
         _thread_local.conn = duckdb.connect(":memory:")
-        _load_csvs(_thread_local.conn, csv_path or _get_csv_base_path())
+        _load_csvs(_thread_local.conn, csv_path or _CSV_PATH)
         logger.debug("Created new DuckDB connection with CSV tables")
     conn: duckdb.DuckDBPyConnection = _thread_local.conn
     return conn

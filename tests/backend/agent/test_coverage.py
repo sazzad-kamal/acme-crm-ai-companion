@@ -787,42 +787,6 @@ class TestIngestTexts:
 
 
 # =============================================================================
-# fetch/sql/connection.py Tests
-# =============================================================================
-
-
-class TestGetCsvBasePath:
-    """Tests for _get_csv_base_path function."""
-
-    def test_prefers_crm_directory(self):
-        """Prefers data/crm/ when it exists."""
-        from backend.agent.fetch.sql.connection import _get_csv_base_path
-
-        with patch("backend.agent.fetch.sql.connection.Path") as mock_path_class:
-            mock_crm_path = MagicMock()
-            mock_crm_path.exists.return_value = True
-            mock_crm_path.is_dir.return_value = True
-
-            mock_path_instance = MagicMock()
-            mock_path_instance.__truediv__ = lambda self, x: mock_crm_path if "crm" in str(x) else MagicMock()
-            mock_path_class.return_value = mock_path_instance
-            mock_path_class.return_value.parent = mock_path_instance
-
-            # The function uses chained parent.parent.parent.parent
-            result = _get_csv_base_path()
-            # Just verify it doesn't crash
-
-    def test_falls_back_to_csv(self):
-        """Falls back to data/csv/ when crm doesn't exist."""
-        from backend.agent.fetch.sql import connection
-
-        # Test the fallback logic
-        with patch.object(Path, "exists", return_value=False):
-            result = connection._get_csv_base_path()
-            assert "csv" in str(result) or "crm" in str(result)
-
-
-# =============================================================================
 # fetch/sql/executor.py Tests
 # =============================================================================
 
