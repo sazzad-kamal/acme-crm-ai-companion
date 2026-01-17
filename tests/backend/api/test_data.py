@@ -27,20 +27,11 @@ class TestCompaniesEndpoint:
         for col in expected_columns:
             assert col in data["columns"]
 
-    def test_includes_nested_private_texts(self, client: TestClient):
-        """Should include nested private texts for each company."""
+    def test_includes_notes_column(self, client: TestClient):
+        """Should include notes column for companies."""
         response = client.get("/api/data/companies")
         data = response.json()
-        # At least one company should have _private_texts field
-        assert any("_private_texts" in company for company in data["data"])
-
-    def test_private_texts_is_list(self, client: TestClient):
-        """Private texts should be a list."""
-        response = client.get("/api/data/companies")
-        data = response.json()
-        for company in data["data"]:
-            if "_private_texts" in company:
-                assert isinstance(company["_private_texts"], list)
+        assert "notes" in data["columns"]
 
     def test_total_matches_data_length(self, client: TestClient):
         """Total should match the number of records."""
@@ -68,13 +59,11 @@ class TestContactsEndpoint:
         for col in expected_columns:
             assert col in data["columns"]
 
-    def test_includes_nested_private_texts(self, client: TestClient):
-        """Should include nested private texts for contacts."""
+    def test_includes_notes_column(self, client: TestClient):
+        """Should include notes column for contacts."""
         response = client.get("/api/data/contacts")
         data = response.json()
-        for contact in data["data"]:
-            assert "_private_texts" in contact
-            assert isinstance(contact["_private_texts"], list)
+        assert "notes" in data["columns"]
 
 
 class TestOpportunitiesEndpoint:
@@ -95,14 +84,6 @@ class TestOpportunitiesEndpoint:
         expected_columns = ["opportunity_id", "name", "stage", "value"]
         for col in expected_columns:
             assert col in data["columns"]
-
-    def test_includes_nested_private_texts(self, client: TestClient):
-        """Should include nested private texts for opportunities."""
-        response = client.get("/api/data/opportunities")
-        data = response.json()
-        for opp in data["data"]:
-            assert "_private_texts" in opp
-            assert isinstance(opp["_private_texts"], list)
 
     def test_includes_notes_column(self, client: TestClient):
         """Should include notes column in opportunities."""

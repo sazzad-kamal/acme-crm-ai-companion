@@ -291,7 +291,7 @@ describe("DataTables", () => {
           history_id: "1",
           event_type: "Status Change",
           occurred_at: "2024-01-15T10:00:00",
-          description: "Changed from Lead to Customer",
+          notes: "Changed from Lead to Customer",
         },
       ],
     };

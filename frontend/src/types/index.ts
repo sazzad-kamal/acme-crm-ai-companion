@@ -51,7 +51,7 @@ interface HistoryEntry {
   history_id: string;
   event_type: string;
   occurred_at: string;
-  description?: string;
+  notes?: string;
 }
 
 export interface RawData {

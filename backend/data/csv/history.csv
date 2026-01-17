@@ -1,4 +1,4 @@
-history_id,company_id,contact_id,opportunity_id,type,subject,description,source,occurred_at,owner,created_at
+history_id,company_id,contact_id,opportunity_id,type,subject,notes,source,occurred_at,owner,created_at
 HIST-ACME-CALL1,ACME-MFG,C-ACME-ANNA,OPP-ACME-UPGRADE,Call,Initial upgrade conversation,Discussed benefits of Enterprise plan,ManualLog,2025-10-05T15:30:00Z,jsmith,2025-10-05T16:00:00Z
 HIST-ACME-EMAIL1,ACME-MFG,C-ACME-JOE,OPP-ACME-UPGRADE,Email,Sent proposal,Shared pricing and proposal PDF,EmailSync,2025-10-08T11:20:00Z,jsmith,2025-10-08T11:25:00Z
 HIST-ACME-MEETING1,ACME-MFG,C-ACME-ANNA,OPP-ACME-UPGRADE,Meeting,Demo and Q&A,Walked through reporting and dashboards,Calendar,2025-10-20T14:00:00Z,jsmith,2025-10-20T15:30:00Z

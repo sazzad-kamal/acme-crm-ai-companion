@@ -220,7 +220,7 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
                   <tr>
                     <th scope="col">Event</th>
                     <th scope="col">Occurred At</th>
-                    <th scope="col">Description</th>
+                    <th scope="col">Notes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -228,7 +228,7 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
                     <tr key={h.history_id}>
                       <td>{h.event_type}</td>
                       <td>{formatDateTime(h.occurred_at)}</td>
-                      <td>{h.description || "—"}</td>
+                      <td>{h.notes || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

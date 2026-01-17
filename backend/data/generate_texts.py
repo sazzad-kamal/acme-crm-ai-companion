@@ -45,7 +45,7 @@ SOURCES: list[CsvSource] = [
     CsvSource(
         filename="companies.csv",
         id_field="company_id",
-        text_field="description",
+        text_field="notes",
         record_type="company",
         contact_id_field="",  # Companies don't have contact_id
         opportunity_id_field="",  # Companies don't have opportunity_id
@@ -67,13 +67,13 @@ SOURCES: list[CsvSource] = [
     CsvSource(
         filename="history.csv",
         id_field="history_id",
-        text_field="description",
+        text_field="notes",
         record_type="history",
     ),
     CsvSource(
         filename="activities.csv",
         id_field="activity_id",
-        text_field="description",
+        text_field="notes",
         record_type="activity",
     ),
 ]
