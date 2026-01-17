@@ -10,7 +10,7 @@ from pathlib import Path
 
 import duckdb
 
-from backend.agent.fetch.schema import get_all_table_columns, get_table_names
+from backend.agent.fetch.sql.schema import get_all_table_columns, get_table_names
 
 logger = logging.getLogger(__name__)
 

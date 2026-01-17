@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from backend.agent.core.config import get_config
 from backend.agent.core.llm import load_prompt
-from backend.agent.fetch.schema import get_schema_sql
+from backend.agent.fetch.sql.schema import get_schema_sql
 
 logger = logging.getLogger(__name__)
 
