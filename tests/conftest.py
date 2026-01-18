@@ -167,10 +167,6 @@ def mock_llm(request):
         question = kwargs.get("question", args[0] if args else "")
         return _mock_answer_response(question), 100
 
-    async def mock_stream_answer_chain(*args, **kwargs):
-        question = kwargs.get("question", args[0] if args else "")
-        yield _mock_answer_response(question)
-
     def mock_search_entity_context(question: str, filters: dict[str, str]) -> tuple[str, list[dict]]:
         """Mock for search_entity_context used by _fetch_rag_if_needed."""
         company_id = filters.get("company_id", "unknown")
@@ -246,7 +242,6 @@ def mock_llm(request):
         )
 
     with patch("backend.agent.answer.answerer.call_answer_chain", mock_call_answer_chain), \
-         patch("backend.agent.answer.answerer.stream_answer_chain", mock_stream_answer_chain), \
          patch("backend.agent.fetch.rag.search.search_entity_context", mock_search_entity_context), \
          patch("backend.agent.followup.suggester.generate_follow_up_suggestions", mock_generate_follow_up_suggestions), \
          patch("backend.agent.fetch.planner.get_sql_plan", mock_get_sql_plan):

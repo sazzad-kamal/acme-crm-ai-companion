@@ -979,7 +979,7 @@ class TestTestSingleQuestion:
         import backend.eval.integration.tree
         monkeypatch.setattr(backend.eval.integration.tree, "get_expected_answer", mock_get_expected_answer)
 
-        result = test_single_question("What is Acme's status?", [], "session1")
+        result = test_single_question("What is Acme's status?", "session1")
 
         assert result.has_answer is True
         assert result.relevance_score == 0.90
@@ -1000,7 +1000,7 @@ class TestTestSingleQuestion:
         import backend.eval.integration.tree
         monkeypatch.setattr(backend.eval.integration.tree, "get_expected_answer", mock_get_expected_answer)
 
-        result = test_single_question("Hello?", [], "session1", use_judge=False)
+        result = test_single_question("Hello?", "session1", use_judge=False)
 
         assert result.has_answer is False
         assert result.relevance_score == 0.0
@@ -1015,7 +1015,7 @@ class TestTestSingleQuestion:
         import backend.eval.integration.runner
         monkeypatch.setattr(backend.eval.integration.runner, "_invoke_agent", mock_invoke_agent)
 
-        result = test_single_question("Q?", [], "session1")
+        result = test_single_question("Q?", "session1")
 
         assert result.has_answer is False
         assert result.error is not None
@@ -1052,7 +1052,7 @@ class TestTestSingleQuestion:
         import backend.eval.integration.tree
         monkeypatch.setattr(backend.eval.integration.tree, "get_expected_answer", mock_get_expected_answer)
 
-        result = test_single_question("Q?", [], "session1")
+        result = test_single_question("Q?", "session1")
 
         assert result.relevance_score == 0.85
         assert result.faithfulness_score == 0.80
@@ -1087,7 +1087,7 @@ class TestTestSingleQuestion:
         import backend.eval.integration.tree
         monkeypatch.setattr(backend.eval.integration.tree, "get_expected_answer", mock_get_expected_answer)
 
-        result = test_single_question("Pipeline?", [], "session1")
+        result = test_single_question("Pipeline?", "session1")
 
         assert result.relevance_score == 0.90
         assert result.faithfulness_score == 0.88
@@ -1102,7 +1102,7 @@ class TestTestFlow:
 
         call_count = {"count": 0}
 
-        def mock_test_single_question(question, history, session_id, use_judge=True, verbose=False):
+        def mock_test_single_question(question, session_id, use_judge=True, verbose=False):
             call_count["count"] += 1
             return FlowStepResult(
                 question=question,
@@ -1127,7 +1127,7 @@ class TestTestFlow:
         """Test test_flow when a step fails."""
         from backend.eval.integration.runner import test_flow
 
-        def mock_test_single_question(question, history, session_id, use_judge=True, verbose=False):
+        def mock_test_single_question(question, session_id, use_judge=True, verbose=False):
             if "fail" in question.lower():
                 return FlowStepResult(
                     question=question,
@@ -2464,7 +2464,7 @@ class TestRunnerEdgeCases:
         monkeypatch.setattr(backend.eval.integration.runner, "judge_answer", mock_judge_answer)
         monkeypatch.setattr(backend.eval.integration.runner, "get_expected_answer", mock_get_expected_answer)
 
-        result = test_single_question("Test Q?", [], "session1")
+        result = test_single_question("Test Q?", "session1")
 
         assert result.relevance_score == 0.90
         assert result.faithfulness_score == 0.88
@@ -2498,7 +2498,7 @@ class TestRunnerEdgeCases:
         monkeypatch.setattr(backend.eval.integration.runner, "judge_answer", mock_judge_answer)
         monkeypatch.setattr(backend.eval.integration.runner, "get_expected_answer", mock_get_expected_answer)
 
-        result = test_single_question("Q?", [], "session1")
+        result = test_single_question("Q?", "session1")
 
         assert result.ragas_metrics_failed >= 3
 
@@ -2532,7 +2532,7 @@ class TestRunnerEdgeCases:
         monkeypatch.setattr(backend.eval.integration.runner, "judge_answer", mock_judge_answer)
         monkeypatch.setattr(backend.eval.integration.tree, "get_expected_answer", mock_get_expected_answer)
 
-        result = test_single_question("Q?", [], "session1")
+        result = test_single_question("Q?", "session1")
 
         assert result.relevance_score == 0.85
 
@@ -2601,7 +2601,7 @@ class TestRunnerTimeoutHandling:
         import backend.eval.integration.runner
         monkeypatch.setattr(backend.eval.integration.runner, "_invoke_agent", mock_invoke_agent)
 
-        result = test_single_question("Q?", [], "session1")
+        result = test_single_question("Q?", "session1")
 
         assert result.has_answer is False
         assert "Timeout" in result.error

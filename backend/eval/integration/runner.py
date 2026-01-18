@@ -18,6 +18,15 @@ from backend.eval.shared.ragas import evaluate_single
 
 logger = logging.getLogger(__name__)
 
+# Minimum answer length to be considered valid (shorter answers are likely errors/empty)
+MIN_ANSWER_LENGTH = 10
+
+# Timeout in seconds for agent invocation
+AGENT_TIMEOUT_SECONDS = 120
+
+# Timeout in seconds for RAGAS judge evaluation
+RAGAS_TIMEOUT_SECONDS = 180
+
 
 def _create_failed_judge_result(explanation: str) -> dict:
     """Create a failed RAGAS judge result with zeroed metrics."""
@@ -37,7 +46,7 @@ def judge_answer(
     contexts: list[str],
     reference_answer: str | None = None,
     verbose: bool = False,
-    timeout: int = 180,
+    timeout: int = RAGAS_TIMEOUT_SECONDS,
 ) -> dict:
     """Judge an answer using RAGAS metrics with timeout."""
     try:
@@ -68,13 +77,21 @@ def judge_answer(
         return _create_failed_judge_result(f"RAGAS error: {e}")
 
 
-def _invoke_agent(question: str, session_id: str | None = None) -> dict[str, Any]:
-    """Invoke the agent graph and return result."""
+def _invoke_agent(
+    question: str,
+    session_id: str | None = None,
+    timeout: int = AGENT_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
+    """Invoke the agent graph and return result with timeout."""
     from backend.agent.graph import agent_graph, build_thread_config
 
     state: dict[str, Any] = {"question": question, "session_id": session_id}
     config = build_thread_config(session_id)
-    return agent_graph.invoke(state, config=config)
+
+    # Run agent with timeout to prevent hanging
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(agent_graph.invoke, state, config=config)
+        return future.result(timeout=timeout)
 
 
 class RagasMetrics(TypedDict):
@@ -116,10 +133,10 @@ def _evaluate_ragas(
 
     result = judge_answer(question, answer, contexts, reference_answer=expected_answer, verbose=verbose)
     return {
-        "relevance": result.get("relevance", 0.0),
-        "faithfulness": result.get("faithfulness", 0.0),
-        "answer_correctness": result.get("answer_correctness", 0.0),
-        "explanation": result.get("explanation", ""),
+        "relevance": result["relevance"],
+        "faithfulness": result["faithfulness"],
+        "answer_correctness": result["answer_correctness"],
+        "explanation": result["explanation"],
         "ragas_metrics_total": 3,
         "ragas_metrics_failed": _count_failed_metrics(
             result, ("answer_relevancy", "faithfulness", "answer_correctness")
@@ -144,18 +161,16 @@ def _create_error_step_result(question: str, latency_ms: int, error: str) -> Flo
 
 def test_single_question(
     question: str,
-    history: list[dict],
     session_id: str,
     use_judge: bool = True,
     verbose: bool = False,
 ) -> FlowStepResult:
     """
-    Test a single question with conversation history.
+    Test a single question.
 
     Args:
         question: The question to ask
-        history: List of {question, answer} dicts for memory
-        session_id: Session ID for the conversation
+        session_id: Session ID for the conversation (memory is handled by the agent)
         use_judge: Whether to run LLM-as-judge evaluation
         verbose: Show detailed RAGAS output
 
@@ -169,7 +184,7 @@ def test_single_question(
         latency_ms = int((time.time() - start_time) * 1000)
 
         answer = result.get("answer", "")
-        has_answer = bool(answer and len(answer) > 10)
+        has_answer = bool(answer and len(answer) > MIN_ANSWER_LENGTH)
 
         # Build contexts from result
         contexts = []
@@ -210,8 +225,8 @@ def test_single_question(
 
     except TimeoutError:
         latency_ms = int((time.time() - start_time) * 1000)
-        logger.warning(f"Timeout testing question '{question}' after 120s")
-        return _create_error_step_result(question, latency_ms, "Timeout after 120s")
+        logger.warning(f"Timeout testing question '{question}' after {AGENT_TIMEOUT_SECONDS}s")
+        return _create_error_step_result(question, latency_ms, f"Timeout after {AGENT_TIMEOUT_SECONDS}s")
     except Exception as e:
         latency_ms = int((time.time() - start_time) * 1000)
         logger.error(f"Error testing question '{question}': {e}")
@@ -237,26 +252,21 @@ def test_flow(
         FlowResult with all step results
     """
     session_id = f"flow_eval_{path_id}_{int(time.time())}"
-    history: list[dict] = []
     steps: list[FlowStepResult] = []
     total_latency = 0
     success = True
+    first_error: str | None = None
 
     # Questions within a flow must be sequential (memory dependency)
     for question in path:
-        step_result = test_single_question(question, history, session_id, use_judge, verbose)
+        step_result = test_single_question(question, session_id, use_judge, verbose)
         steps.append(step_result)
         total_latency += step_result.latency_ms
 
         if not step_result.passed:
             success = False
-
-        history.append(
-            {
-                "question": question,
-                "answer": step_result.answer,
-            }
-        )
+            if first_error is None and step_result.error:
+                first_error = step_result.error
 
     return FlowResult(
         path_id=path_id,
@@ -264,7 +274,7 @@ def test_flow(
         steps=steps,
         total_latency_ms=total_latency,
         success=success,
-        error=steps[-1].error if steps and steps[-1].error else None,
+        error=first_error,
     )
 
 

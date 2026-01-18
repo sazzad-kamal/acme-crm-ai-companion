@@ -84,8 +84,7 @@ def _run_eval(
                 "[red bold]ERROR: Qdrant storage is locked by another process![/red bold]\n\n"
                 "[bold]Solutions:[/bold]\n"
                 "  1. Stop the backend server: Ctrl+C in the uvicorn terminal\n"
-                "  2. Close any Jupyter notebooks using RAG\n"
-                "  3. Run with --mock for testing without real LLM/RAG",
+                "  2. Close any Jupyter notebooks using RAG",
                 border_style="red",
             )
         )

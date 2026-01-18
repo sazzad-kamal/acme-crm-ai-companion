@@ -317,7 +317,10 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_openai_client", mock_client)
+        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(
+            sql_judge_module, "parse_json_response", lambda x: {"passed": True, "reasoning": "Good", "errors": []}
+        )
 
         from backend.eval.fetch.sql_judge import judge_sql_results
 
@@ -344,7 +347,12 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_openai_client", mock_client)
+        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(
+            sql_judge_module,
+            "parse_json_response",
+            lambda x: {"passed": False, "reasoning": "Wrong count", "errors": ["Count mismatch"]},
+        )
 
         from backend.eval.fetch.sql_judge import judge_sql_results
 
@@ -369,7 +377,12 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_openai_client", mock_client)
+        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(
+            sql_judge_module,
+            "parse_json_response",
+            lambda x: {"passed": False, "reasoning": "Data is incomplete", "errors": []},
+        )
 
         from backend.eval.fetch.sql_judge import judge_sql_results
 
@@ -393,7 +406,12 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_openai_client", mock_client)
+        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+
+        def raise_value_error(x):
+            raise ValueError("Invalid JSON")
+
+        monkeypatch.setattr(sql_judge_module, "parse_json_response", raise_value_error)
 
         from backend.eval.fetch.sql_judge import judge_sql_results
 
@@ -413,7 +431,7 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.side_effect = Exception("API connection error")
 
-        monkeypatch.setattr(sql_judge_module, "_openai_client", mock_client)
+        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
 
         from backend.eval.fetch.sql_judge import judge_sql_results
 
@@ -444,7 +462,10 @@ class TestJudgeSqlResults:
             mock_response,
         ]
 
-        monkeypatch.setattr(sql_judge_module, "_openai_client", mock_client)
+        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(
+            sql_judge_module, "parse_json_response", lambda x: {"passed": True, "reasoning": "Good", "errors": []}
+        )
 
         from backend.eval.fetch.sql_judge import judge_sql_results
 
@@ -470,7 +491,10 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_openai_client", mock_client)
+        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(
+            sql_judge_module, "parse_json_response", lambda x: {"passed": True, "reasoning": "OK", "errors": []}
+        )
 
         from backend.eval.fetch.sql_judge import judge_sql_results
 
@@ -497,7 +521,12 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_openai_client", mock_client)
+        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(
+            sql_judge_module,
+            "parse_json_response",
+            lambda x: {"passed": False, "reasoning": "Bad", "errors": "single error"},
+        )
 
         from backend.eval.fetch.sql_judge import judge_sql_results
 
@@ -658,10 +687,17 @@ class TestEvaluateRag:
         from backend.eval.fetch.runner import _evaluate_rag
 
         results = EvalResults()
+        # Note: keys must exactly match what the function looks for
         data = [{"company_id": "ACME-001", "name": "Acme"}]
         latency, precision, recall = _evaluate_rag("Test question", data, results, False)
 
-        assert latency > 0
+        # Verify the search was called with correct entity_ids
+        mock_search.assert_called_once()
+        call_args = mock_search.call_args
+        assert call_args[0][0] == "Test question"
+        assert "company_id" in call_args[0][1]
+
+        assert latency >= 0  # Latency can be very small in tests
         assert precision == 0.9
         assert recall == 0.8
         assert results.rag_invoked == 1
@@ -679,10 +715,14 @@ class TestEvaluateRag:
         data = [{"company_id": "ACME-001"}]
         latency, precision, recall = _evaluate_rag("Test question", data, results, False)
 
+        # Verify search was called
+        mock_search.assert_called_once()
+
         # Should still record latency but no precision/recall without evaluate_single call
-        assert latency > 0
+        assert latency >= 0  # Can be very small in tests
         assert precision is None
         assert recall is None
+        assert results.rag_invoked == 1
 
     def test_evaluate_rag_exception(self, monkeypatch):
         """Test RAG evaluation handles exceptions."""
@@ -1018,31 +1058,27 @@ class TestMainCli:
 
     def test_main_basic(self, monkeypatch):
         """Test main function runs without error."""
-        from backend.eval.fetch.__main__ import main
+        import backend.eval.fetch.__main__ as main_module
 
         mock_results = EvalResults(total=1, passed=1)
 
-        import backend.eval.fetch.runner as runner_module
-
-        monkeypatch.setattr(runner_module, "run_sql_eval", MagicMock(return_value=mock_results))
-        monkeypatch.setattr(runner_module, "print_summary", MagicMock())
+        monkeypatch.setattr(main_module, "run_sql_eval", MagicMock(return_value=mock_results))
+        monkeypatch.setattr(main_module, "print_summary", MagicMock())
 
         # Should not raise
-        main(limit=1, verbose=False, difficulty=None)
+        main_module.main(limit=1, verbose=False, difficulty=None)
 
     def test_main_with_difficulty_filter(self, monkeypatch):
         """Test main function with difficulty filter."""
-        from backend.eval.fetch.__main__ import main
+        import backend.eval.fetch.__main__ as main_module
 
         mock_results = EvalResults(total=1, passed=1)
         mock_run_sql_eval = MagicMock(return_value=mock_results)
 
-        import backend.eval.fetch.runner as runner_module
+        monkeypatch.setattr(main_module, "run_sql_eval", mock_run_sql_eval)
+        monkeypatch.setattr(main_module, "print_summary", MagicMock())
 
-        monkeypatch.setattr(runner_module, "run_sql_eval", mock_run_sql_eval)
-        monkeypatch.setattr(runner_module, "print_summary", MagicMock())
-
-        main(limit=None, verbose=False, difficulty="1,3,5")
+        main_module.main(limit=None, verbose=False, difficulty="1,3,5")
 
         # Verify difficulty filter was parsed correctly
         call_kwargs = mock_run_sql_eval.call_args.kwargs
@@ -1050,17 +1086,15 @@ class TestMainCli:
 
     def test_main_with_single_difficulty(self, monkeypatch):
         """Test main function with single difficulty."""
-        from backend.eval.fetch.__main__ import main
+        import backend.eval.fetch.__main__ as main_module
 
         mock_results = EvalResults(total=1, passed=1)
         mock_run_sql_eval = MagicMock(return_value=mock_results)
 
-        import backend.eval.fetch.runner as runner_module
+        monkeypatch.setattr(main_module, "run_sql_eval", mock_run_sql_eval)
+        monkeypatch.setattr(main_module, "print_summary", MagicMock())
 
-        monkeypatch.setattr(runner_module, "run_sql_eval", mock_run_sql_eval)
-        monkeypatch.setattr(runner_module, "print_summary", MagicMock())
-
-        main(limit=None, verbose=True, difficulty="2")
+        main_module.main(limit=None, verbose=True, difficulty="2")
 
         call_kwargs = mock_run_sql_eval.call_args.kwargs
         assert call_kwargs["difficulty_filter"] == [2]
@@ -1071,22 +1105,20 @@ class TestMainCli:
 
         import typer
 
-        with pytest.raises(SystemExit):
+        with pytest.raises(typer.Exit):
             main(limit=None, verbose=False, difficulty="invalid")
 
     def test_main_with_verbose(self, monkeypatch):
         """Test main function with verbose flag."""
-        from backend.eval.fetch.__main__ import main
+        import backend.eval.fetch.__main__ as main_module
 
         mock_results = EvalResults(total=1, passed=1)
         mock_run_sql_eval = MagicMock(return_value=mock_results)
 
-        import backend.eval.fetch.runner as runner_module
+        monkeypatch.setattr(main_module, "run_sql_eval", mock_run_sql_eval)
+        monkeypatch.setattr(main_module, "print_summary", MagicMock())
 
-        monkeypatch.setattr(runner_module, "run_sql_eval", mock_run_sql_eval)
-        monkeypatch.setattr(runner_module, "print_summary", MagicMock())
-
-        main(limit=5, verbose=True, difficulty=None)
+        main_module.main(limit=5, verbose=True, difficulty=None)
 
         call_kwargs = mock_run_sql_eval.call_args.kwargs
         assert call_kwargs["verbose"] is True

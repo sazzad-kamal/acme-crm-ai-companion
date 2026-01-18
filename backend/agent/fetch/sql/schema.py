@@ -2,8 +2,8 @@
 Schema loader - single source of truth for CRM database schema.
 
 Loads schema.yaml and provides:
-- get_table_columns(): For connection.py views
 - get_schema_sql(): For prompt.txt LLM context
+- get_all_table_columns(): For connection.py views
 """
 
 from functools import lru_cache
@@ -25,11 +25,6 @@ def _load_schema() -> dict:
 def get_table_names() -> list[str]:
     """Get list of table names."""
     return list(_load_schema()["tables"].keys())
-
-
-def get_table_columns(table: str) -> list[str]:
-    """Get column names for a table (excludes notes)."""
-    return list(_load_schema()["tables"][table]["columns"].keys())
 
 
 def get_all_table_columns() -> dict[str, list[str]]:
@@ -55,4 +50,4 @@ def get_schema_sql() -> str:
     return "\n\n".join(statements)
 
 
-__all__ = ["get_table_names", "get_table_columns", "get_all_table_columns", "get_schema_sql"]
+__all__ = ["get_table_names", "get_all_table_columns", "get_schema_sql"]

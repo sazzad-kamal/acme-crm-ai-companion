@@ -6,6 +6,7 @@ Uses hardcoded tree first, falls back to LLM for contextual suggestions.
 """
 
 import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -34,23 +35,18 @@ class FollowUpSuggestions(BaseModel):
     )
 
 
-# Cached chain (lazy initialization)
-_followup_chain: Any = None
-
-
+@lru_cache
 def _get_followup_chain() -> Any:
-    """Get or create the followup chain."""
-    global _followup_chain
-    if _followup_chain is None:
-        _followup_chain = create_chain(
-            FOLLOW_UP_PROMPT_TEMPLATE,
-            model=FAST_MODEL,
-            temperature=CREATIVE_TEMPERATURE,
-            max_tokens=SHORT_RESPONSE_MAX_TOKENS,
-            structured_output=FollowUpSuggestions,
-        )
-        logger.debug("Created followup chain")
-    return _followup_chain
+    """Get or create the followup chain (cached singleton)."""
+    chain = create_chain(
+        FOLLOW_UP_PROMPT_TEMPLATE,
+        model=FAST_MODEL,
+        temperature=CREATIVE_TEMPERATURE,
+        max_tokens=SHORT_RESPONSE_MAX_TOKENS,
+        structured_output=FollowUpSuggestions,
+    )
+    logger.debug("Created followup chain")
+    return chain
 
 
 def generate_follow_up_suggestions(
@@ -121,9 +117,6 @@ def _format_available_data(data: dict | None, company_name: str | None) -> str:
     for key, template in mappings:
         if data.get(key, 0) > 0:
             lines.append(f"- {template.format(data[key])}")
-
-    if data.get("pipeline_summary"):
-        lines.append("- Pipeline: Overall pipeline summary available")
 
     return "\n".join(lines) if lines else "No specific data available. Suggest general CRM questions."
 

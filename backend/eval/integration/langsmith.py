@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from backend.eval.shared.formatting import console
 
@@ -40,7 +40,7 @@ def get_latency_breakdown(
     client = Client()
 
     # Get runs from recent time window
-    start_time = datetime.utcnow() - timedelta(minutes=minutes_ago)
+    start_time = datetime.now(UTC) - timedelta(minutes=minutes_ago)
 
     try:
         # Fetch only child runs (is_root=False) to exclude RAGAS top-level runs
@@ -91,7 +91,7 @@ def get_latency_percentages(
     """
     Get latency percentages by section for display in eval summary.
 
-    Returns dict with keys: routing, retrieval, answer, followup
+    Returns dict with keys: fetch, answer, followup
     Values are percentages (0.0 to 1.0)
     """
     breakdown = get_latency_breakdown(minutes_ago, project_name)

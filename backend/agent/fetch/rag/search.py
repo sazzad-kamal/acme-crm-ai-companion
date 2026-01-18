@@ -6,7 +6,7 @@ Provides:
 """
 
 import logging
-import threading
+from functools import lru_cache
 
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
@@ -22,46 +22,34 @@ from backend.agent.fetch.rag.config import (
 
 logger = logging.getLogger(__name__)
 
-# Thread-safe lazy initialization
-_embed_model = None
-_vector_index = None
-_reranker = None
-_init_lock = threading.Lock()
 
+@lru_cache
+def _get_rag_components():
+    """Initialize and cache RAG components (embedding model, vector index, reranker)."""
+    from llama_index.core import Settings, VectorStoreIndex
+    from llama_index.core.postprocessor import SentenceTransformerRerank
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    from llama_index.vector_stores.qdrant import QdrantVectorStore
 
-def _ensure_initialized():
-    """Initialize embedding model, vector index, and reranker (thread-safe)."""
-    global _embed_model, _vector_index, _reranker
-    if _vector_index is not None:
-        return
+    # Initialize embedding model
+    embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
+    Settings.embed_model = embed_model
 
-    with _init_lock:
-        if _vector_index is not None:
-            return
+    # Build vector store with hybrid search
+    client = get_qdrant_client()
+    vector_store = QdrantVectorStore(
+        client=client,
+        collection_name=TEXT_COLLECTION,
+        enable_hybrid=True,
+        fastembed_sparse_model=SPARSE_EMBEDDING_MODEL,
+    )
+    vector_index = VectorStoreIndex.from_vector_store(vector_store)
 
-        from llama_index.core import Settings, VectorStoreIndex
-        from llama_index.core.postprocessor import SentenceTransformerRerank
-        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-        from llama_index.vector_stores.qdrant import QdrantVectorStore
+    # Initialize reranker
+    reranker = SentenceTransformerRerank(model=RERANKER_MODEL, top_n=RERANKER_TOP_K)
 
-        # Initialize embedding model
-        _embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
-        Settings.embed_model = _embed_model
-
-        # Build vector store with hybrid search
-        client = get_qdrant_client()
-        vector_store = QdrantVectorStore(
-            client=client,
-            collection_name=TEXT_COLLECTION,
-            enable_hybrid=True,
-            fastembed_sparse_model=SPARSE_EMBEDDING_MODEL,
-        )
-        _vector_index = VectorStoreIndex.from_vector_store(vector_store)
-
-        # Initialize reranker
-        _reranker = SentenceTransformerRerank(model=RERANKER_MODEL, top_n=RERANKER_TOP_K)
-
-        logger.debug("Initialized RAG components")
+    logger.debug("Initialized RAG components")
+    return vector_index, reranker
 
 
 def search_entity_context(
@@ -82,20 +70,19 @@ def search_entity_context(
         Tuple of (context_text, source_metadata)
     """
     try:
-        _ensure_initialized()
+        vector_index, reranker = _get_rag_components()
 
         # Build OR filter - match documents with ANY of the provided entity IDs
-        should_conditions = []
-        for key, value in filters.items():
-            if value:
-                should_conditions.append(
-                    FieldCondition(key=key, match=MatchValue(value=value))
-                )
+        should_conditions = [
+            FieldCondition(key=key, match=MatchValue(value=value))
+            for key, value in filters.items()
+            if value
+        ]
 
         qdrant_filter = Filter(should=should_conditions) if should_conditions else None  # type: ignore[arg-type]
 
         # Configure hybrid retriever (dense + sparse)
-        retriever = _vector_index.as_retriever(  # type: ignore[union-attr]
+        retriever = vector_index.as_retriever(
             similarity_top_k=SEARCH_TOP_K,
             sparse_top_k=SEARCH_TOP_K,
             vector_store_query_mode="hybrid",
@@ -107,7 +94,7 @@ def search_entity_context(
         if len(nodes) > RERANKER_TOP_K:
             from llama_index.core.schema import QueryBundle
 
-            nodes = _reranker.postprocess_nodes(nodes, QueryBundle(query_str=question))  # type: ignore[union-attr]
+            nodes = reranker.postprocess_nodes(nodes, QueryBundle(query_str=question))
         logger.info(f"Entity RAG: {len(nodes)} chunks with filters={filters}")
 
         context_parts = []

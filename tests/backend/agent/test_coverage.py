@@ -515,39 +515,6 @@ class TestFormatSqlResults:
         assert result is not None
 
 
-class TestStreamAnswerChain:
-    """Tests for stream_answer_chain async function.
-
-    Note: The stream_answer_chain function is tested via integration tests.
-    These tests verify the expected behavior patterns.
-    """
-
-    def test_chunk_filtering_logic(self):
-        """Verify empty chunk filtering logic."""
-        # Simulates the filtering in stream_answer_chain
-        raw_chunks = ["Hello", "", None, " ", "World", ""]
-        filtered = [chunk for chunk in raw_chunks if chunk]
-
-        assert filtered == ["Hello", " ", "World"]
-
-    def test_chain_input_structure(self):
-        """Verify expected input dict structure for answer chain."""
-        question = "test question"
-        sql_results = {"data": [{"id": 1}]}
-        rag_context = "Some context"
-
-        # This is the expected input format
-        input_dict = {
-            "question": question,
-            "sql_results": json.dumps(sql_results, indent=2, default=str),
-            "rag_context": rag_context,
-        }
-
-        assert "question" in input_dict
-        assert "sql_results" in input_dict
-        assert "rag_context" in input_dict
-
-
 class TestCallAnswerChain:
     """Tests for call_answer_chain function.
 
@@ -706,7 +673,6 @@ class TestFormatAvailableData:
             "opportunities": 2,
             "history": 15,
             "renewals": 1,
-            "pipeline_summary": True,
         }
         result = _format_available_data(data, "Test Co")
 
@@ -715,7 +681,6 @@ class TestFormatAvailableData:
         assert "Opportunities:" in result
         assert "History:" in result
         assert "Renewals:" in result
-        assert "Pipeline:" in result
 
     def test_zero_values_excluded(self):
         """Zero values are not included."""

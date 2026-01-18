@@ -2,7 +2,7 @@
 Data models for agent evaluation results.
 """
 
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field, computed_field
 
 # =============================================================================
 # Composite Score Helpers
@@ -43,8 +43,7 @@ SLO_FLOW_COMPOSITE_SCORE = 0.85  # 85% - Flow eval composite
 # =============================================================================
 
 
-@dataclass
-class FlowStepResult:
+class FlowStepResult(BaseModel):
     """Result of a single question in a flow."""
 
     question: str
@@ -61,6 +60,7 @@ class FlowStepResult:
     ragas_metrics_total: int = 0  # Number of metrics evaluated (usually 3)
     ragas_metrics_failed: int = 0  # Number of metrics that returned NaN
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def passed(self) -> bool:
         """Question passes if has answer AND meets quality thresholds."""
@@ -71,8 +71,7 @@ class FlowStepResult:
         )
 
 
-@dataclass
-class FlowResult:
+class FlowResult(BaseModel):
     """Result of testing a complete conversation flow."""
 
     path_id: int
@@ -83,8 +82,7 @@ class FlowResult:
     error: str | None = None
 
 
-@dataclass
-class FlowEvalResults:
+class FlowEvalResults(BaseModel):
     """Aggregated results from all flow tests."""
 
     total_paths: int
@@ -106,19 +104,22 @@ class FlowEvalResults:
     avg_latency_per_question_ms: float = 0.0
     wall_clock_ms: int = 0  # Total wall-clock time for the eval
     # Results
-    failed_paths: list[FlowResult] = field(default_factory=list)
-    all_results: list[FlowResult] = field(default_factory=list)
+    failed_paths: list[FlowResult] = Field(default_factory=list)
+    all_results: list[FlowResult] = Field(default_factory=list)
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def path_pass_rate(self) -> float:
         """Percentage of paths that passed."""
         return self.paths_passed / self.paths_tested if self.paths_tested > 0 else 0.0
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def question_pass_rate(self) -> float:
         """Percentage of questions that passed."""
         return self.questions_passed / self.total_questions if self.total_questions > 0 else 0.0
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def ragas_success_rate(self) -> float:
         """Percentage of RAGAS metrics that succeeded (1.0 = all succeeded, 0.0 = all failed)."""
@@ -126,6 +127,7 @@ class FlowEvalResults:
             return 1.0  # No RAGAS metrics = no failures
         return (self.ragas_metrics_total - self.ragas_metrics_failed) / self.ragas_metrics_total
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def composite_score(self) -> float:
         """

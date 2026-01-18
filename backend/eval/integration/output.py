@@ -49,6 +49,23 @@ def print_summary(results: FlowEvalResults, latency_pcts: dict[str, float] | Non
     # Build table sections: (section_name, [(label, value, slo_target, slo_passed)])
     sections: list[tuple[str, list[tuple[str, str, str | None, bool | None]]]] = [
         (
+            "Pass Rates",
+            [
+                (
+                    "  Path Pass Rate",
+                    format_percentage(results.path_pass_rate),
+                    f">={format_percentage(SLO_FLOW_PATH_PASS_RATE)}",
+                    path_slo_pass,
+                ),
+                (
+                    "  Question Pass Rate",
+                    format_percentage(results.question_pass_rate),
+                    f">={format_percentage(SLO_FLOW_QUESTION_PASS_RATE)}",
+                    q_slo_pass,
+                ),
+            ],
+        ),
+        (
             "Answer Quality",
             [
                 (
@@ -202,28 +219,11 @@ def _print_slo_failures(results: FlowEvalResults) -> None:
 
 def save_results(results: FlowEvalResults, output_path: Path) -> None:
     """Save results to JSON file."""
+    # Use Pydantic model_dump() for summary (exclude large nested data)
+    summary = results.model_dump(exclude={"failed_paths", "all_results"})
+
     data = {
-        "summary": {
-            "composite_score": results.composite_score,
-            "total_paths": results.total_paths,
-            "paths_tested": results.paths_tested,
-            "paths_passed": results.paths_passed,
-            "paths_failed": results.paths_failed,
-            "path_pass_rate": results.path_pass_rate,
-            "total_questions": results.total_questions,
-            "questions_passed": results.questions_passed,
-            "questions_failed": results.questions_failed,
-            "question_pass_rate": results.question_pass_rate,
-            "avg_relevance": results.avg_relevance,
-            "avg_faithfulness": results.avg_faithfulness,
-            "avg_answer_correctness": results.avg_answer_correctness,
-            "total_latency_ms": results.total_latency_ms,
-            "avg_latency_per_question_ms": results.avg_latency_per_question_ms,
-            "wall_clock_ms": results.wall_clock_ms,
-            "ragas_metrics_total": results.ragas_metrics_total,
-            "ragas_metrics_failed": results.ragas_metrics_failed,
-            "ragas_success_rate": results.ragas_success_rate,
-        },
+        "summary": summary,
         "slo_results": {
             "path_pass_rate": {
                 "value": results.path_pass_rate,
@@ -261,26 +261,8 @@ def save_results(results: FlowEvalResults, output_path: Path) -> None:
                 "passed": results.composite_score >= SLO_FLOW_COMPOSITE_SCORE,
             },
         },
-        "failed_paths": [
-            {
-                "path_id": fp.path_id,
-                "questions": fp.questions,
-                "steps": [
-                    {
-                        "question": s.question,
-                        "has_answer": s.has_answer,
-                        "relevance_score": s.relevance_score,
-                        "faithfulness_score": s.faithfulness_score,
-                        "answer_correctness_score": s.answer_correctness_score,
-                        "latency_ms": s.latency_ms,
-                        "judge_explanation": s.judge_explanation,
-                        "error": s.error,
-                    }
-                    for s in fp.steps
-                ],
-            }
-            for fp in results.failed_paths
-        ],
+        # Use model_dump() for failed paths
+        "failed_paths": [fp.model_dump() for fp in results.failed_paths],
     }
 
     with open(output_path, "w") as f:

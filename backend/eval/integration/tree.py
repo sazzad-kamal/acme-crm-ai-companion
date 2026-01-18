@@ -43,16 +43,20 @@ _EVAL_FIXTURES_PATH = Path(__file__).parent / "fixtures"
 
 def _load_yaml_fixture(filename: str) -> dict:
     """Load a YAML fixture file from eval/fixtures/."""
+    import logging
+
     filepath = _EVAL_FIXTURES_PATH / filename
-    if filepath.exists():
-        try:
-            import yaml
-            with open(filepath, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-                return data if data else {}
-        except Exception:
-            return {}
-    return {}
+    if not filepath.exists():
+        return {}
+    try:
+        import yaml
+
+        with open(filepath, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data if data else {}
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Failed to load {filename}: {e}")
+        return {}
 
 
 _EXPECTED_ANSWERS: dict[str, str] = _load_yaml_fixture("expected_answers.yaml")

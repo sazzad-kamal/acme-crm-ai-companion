@@ -75,10 +75,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             # Patch where it's used, not where it's defined
             with patch.object(search, "get_qdrant_client") as mock_client:
@@ -106,10 +104,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -124,9 +120,7 @@ class TestToolEntityRag:
         from backend.agent.fetch.rag import search
 
         # Reset globals and patch to raise exception during initialization
-        search._vector_index = None
-        search._embed_model = None
-        search._reranker = None
+        search._get_rag_components.cache_clear()
 
         with patch.object(search, "get_qdrant_client", side_effect=Exception("Client error")):
             context, sources = search.search_entity_context("Any question", {"company_id": "COMP001"})
@@ -153,10 +147,8 @@ class TestToolEntityRag:
             # Import after setting up llama_index mocks
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             # Patch where it's used, not where it's defined
             with patch.object(search, "get_qdrant_client") as mock_client_fn:
@@ -185,10 +177,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client_fn:
                 mock_client_fn.return_value = MagicMock()
@@ -215,10 +205,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -254,10 +242,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -293,10 +279,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -332,10 +316,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -371,10 +353,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -409,10 +389,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -448,10 +426,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()
@@ -489,10 +465,8 @@ class TestToolEntityRag:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()

@@ -105,10 +105,8 @@ class TestHybridRetrieval:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with (
                 patch.object(search, "get_qdrant_client") as mock_client,
@@ -145,10 +143,8 @@ class TestHybridRetrieval:
 
             from backend.agent.fetch.rag import search
 
-            # Reset the cached globals to force re-initialization
-            search._vector_index = None
-            search._embed_model = None
-            search._reranker = None
+            # Clear the lru_cache to force re-initialization
+            search._get_rag_components.cache_clear()
 
             with patch.object(search, "get_qdrant_client") as mock_client:
                 mock_client.return_value = MagicMock()

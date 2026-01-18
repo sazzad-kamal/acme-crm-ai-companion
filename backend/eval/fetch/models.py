@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field
 
 
-@dataclass
-class Question:
+class Question(BaseModel):
     """A question from the evaluation set."""
 
     text: str
@@ -14,8 +13,7 @@ class Question:
     rag_only: bool = False
 
 
-@dataclass
-class CaseResult:
+class CaseResult(BaseModel):
     """Result for a single test case."""
 
     question: str
@@ -24,7 +22,7 @@ class CaseResult:
     sql: str
     passed: bool
     row_count: int = 0
-    errors: list[str] = field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
 
     # Latency tracking (milliseconds)
     sql_gen_latency_ms: float = 0.0
@@ -37,8 +35,7 @@ class CaseResult:
     rag_recall: float | None = None
 
 
-@dataclass
-class EvalResults:
+class EvalResults(BaseModel):
     """Aggregated evaluation results."""
 
     total: int = 0
@@ -46,7 +43,7 @@ class EvalResults:
     sql_executed: int = 0
     sql_failed: int = 0
     rag_invoked: int = 0
-    cases: list[CaseResult] = field(default_factory=list)
+    cases: list[CaseResult] = Field(default_factory=list)
 
     # Latency stats (averages in milliseconds)
     avg_sql_gen_latency_ms: float = 0.0
