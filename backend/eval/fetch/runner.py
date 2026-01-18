@@ -12,7 +12,7 @@ from backend.agent.fetch.rag.search import search_entity_context
 from backend.agent.fetch.sql.connection import get_connection
 from backend.eval.fetch.models import CaseResult, EvalResults, Question
 from backend.eval.fetch.sql_judge import judge_sql_results
-from backend.eval.shared import console, evaluate_single, measure_latency_ms
+from backend.eval.shared import console, evaluate_single
 
 # Path to questions file
 QUESTIONS_PATH = Path(__file__).parent / "questions.yaml"
@@ -113,7 +113,7 @@ def run_sql_eval(
             sql_gen_start = time.time()
             plan = get_sql_plan(question.text)
             sql = plan.sql
-            sql_gen_latency = measure_latency_ms(sql_gen_start)
+            sql_gen_latency = (time.time() - sql_gen_start) * 1000
 
             # Execute SQL
             try:
@@ -122,7 +122,7 @@ def run_sql_eval(
                 rows = result.fetchall()
                 columns = [desc[0] for desc in result.description]
                 data = [dict(zip(columns, row, strict=True)) for row in rows]
-                sql_exec_latency = measure_latency_ms(sql_exec_start)
+                sql_exec_latency = (time.time() - sql_exec_start) * 1000
                 results.sql_executed += 1
 
                 # Validate using LLM judge
@@ -143,7 +143,7 @@ def run_sql_eval(
 
                         if entity_ids:
                             context, _ = search_entity_context(question.text, entity_ids)
-                            rag_latency = measure_latency_ms(rag_start)
+                            rag_latency = (time.time() - rag_start) * 1000
                             results.rag_invoked += 1
 
                             # Evaluate RAG quality with RAGAS
@@ -176,7 +176,7 @@ def run_sql_eval(
             if verbose:
                 console.print(f"  [red]PLANNER ERROR[/red]: {e}")
 
-        total_latency = measure_latency_ms(case_start)
+        total_latency = (time.time() - case_start) * 1000
         case = CaseResult(
             question=question.text,
             difficulty=question.difficulty,
