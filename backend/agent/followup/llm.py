@@ -16,7 +16,6 @@ from backend.core.llm import create_chain, load_prompt
 logger = logging.getLogger(__name__)
 
 _LLM_MODEL = "gpt-4o-mini"
-_ENABLE_FOLLOW_UP_SUGGESTIONS = True
 
 FOLLOW_UP_PROMPT_TEMPLATE = load_prompt(Path(__file__).parent / "prompt.txt")
 
@@ -69,9 +68,6 @@ def generate_follow_up_suggestions(
     Returns:
         List of up to 3 follow-up question suggestions
     """
-    if not _ENABLE_FOLLOW_UP_SUGGESTIONS:
-        return []
-
     # Try hardcoded tree first (fast, deterministic)
     if use_hardcoded_tree:
         from backend.agent.followup.tree import get_follow_ups

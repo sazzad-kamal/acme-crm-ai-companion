@@ -677,22 +677,6 @@ class TestGenerateFollowUpSuggestions:
         would_check_tree = use_hardcoded_tree
         assert would_check_tree is False
 
-class TestGenerateFollowUpDisabled:
-    """Tests for generate_follow_up_suggestions when disabled."""
-
-    @pytest.mark.no_mock_llm
-    def test_returns_empty_when_disabled(self):
-        """Returns empty list when follow-ups are disabled."""
-        from backend.agent.followup.llm import generate_follow_up_suggestions
-
-        with patch("backend.agent.followup.llm._ENABLE_FOLLOW_UP_SUGGESTIONS", False):
-            result = generate_follow_up_suggestions(
-                question="What's the pipeline?",
-                company_name="Acme",
-            )
-
-            assert result == []
-
 
 class TestFormatAvailableData:
     """Tests for _format_available_data function."""

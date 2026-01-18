@@ -7,15 +7,9 @@ from backend.agent.state import AgentState, format_conversation_for_prompt
 
 logger = logging.getLogger(__name__)
 
-_ENABLE_FOLLOW_UP_SUGGESTIONS = True
-_MAX_FOLLOWUP_SUGGESTIONS = 3
-
 
 def followup_node(state: AgentState) -> AgentState:
-    if not _ENABLE_FOLLOW_UP_SUGGESTIONS:
-        logger.info("[Followup] Suggestions disabled in config")
-        return {"follow_up_suggestions": []}
-
+    """Generate follow-up suggestions based on current state."""
     logger.info("[Followup] Generating suggestions...")
 
     sql_results = state.get("sql_results", {})
@@ -44,10 +38,9 @@ def followup_node(state: AgentState) -> AgentState:
             available_data=available_data,
         )
 
-        # Validate and limit suggestions
+        # Filter empty suggestions
         if suggestions:
             suggestions = [s for s in suggestions if s and s.strip()]
-            suggestions = suggestions[:_MAX_FOLLOWUP_SUGGESTIONS]
 
         logger.info(f"[Followup] Generated {len(suggestions)} suggestions")
 

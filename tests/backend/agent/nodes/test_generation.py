@@ -151,43 +151,6 @@ class TestFollowupNode:
         assert "follow_up_suggestions" in result
         assert len(result["follow_up_suggestions"]) == 2
 
-    def test_followup_node_respects_disabled_setting(self):
-        """Returns empty when suggestions disabled."""
-        from backend.agent.followup.node import followup_node
-
-        with patch('backend.agent.followup.node._ENABLE_FOLLOW_UP_SUGGESTIONS', False):
-            state = {
-                "question": "Test",
-                "messages": [],
-            }
-
-            result = followup_node(state)
-
-            assert result["follow_up_suggestions"] == []
-
-    @patch('backend.agent.followup.node.generate_follow_up_suggestions')
-    def test_followup_node_limits_suggestions(self, mock_generate):
-        """Limits suggestions to _MAX_FOLLOWUP_SUGGESTIONS."""
-        from backend.agent.followup.node import followup_node
-
-        mock_generate.return_value = [
-            "Suggestion 1",
-            "Suggestion 2",
-            "Suggestion 3",
-            "Suggestion 4",
-        ]
-
-        with patch('backend.agent.followup.node._MAX_FOLLOWUP_SUGGESTIONS', 2):
-            state = {
-                "question": "Test",
-                "messages": [],
-                "sql_results": {},
-            }
-
-            result = followup_node(state)
-
-            assert len(result["follow_up_suggestions"]) == 2
-
     @patch('backend.agent.followup.node.generate_follow_up_suggestions')
     def test_followup_node_filters_empty_suggestions(self, mock_generate):
         """Filters out empty suggestions."""
