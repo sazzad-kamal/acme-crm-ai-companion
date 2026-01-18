@@ -9,8 +9,9 @@ import sys
 import threading
 import time
 import warnings
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any, cast
 
 from datasets import Dataset
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -156,9 +157,10 @@ def _get_ragas_metrics(include_reference: bool = False) -> list[Any]:
                     ],
                 }
 
+    assert _ragas_metrics is not None  # for type narrowing
     if include_reference:
-        return _ragas_metrics["base"] + _ragas_metrics["reference"]
-    return _ragas_metrics["base"]
+        return list(_ragas_metrics["base"]) + list(_ragas_metrics["reference"])
+    return list(_ragas_metrics["base"])
 
 
 def evaluate_single(
@@ -182,10 +184,6 @@ def evaluate_single(
         dict with answer_relevancy, faithfulness, context_precision, answer_correctness (0.0-1.0)
         Also includes 'error' key (None if success, error message string if failed)
     """
-    # Suppress RAGAS output unless verbose
-    if not verbose:
-        logging.getLogger("ragas").setLevel(logging.ERROR)
-
     # RAGAS requires non-empty contexts
     if not contexts:
         contexts = ["No context provided"]
@@ -197,67 +195,59 @@ def evaluate_single(
         "retrieved_contexts": [contexts],
     }
 
-    # Get SHARED LLM and embeddings instances (thread-safe singletons)
-    llm = _get_ragas_llm()
-    embeddings = _get_ragas_embeddings()
-
-    # All metrics share the same LLM/embeddings instances
-    metrics: list[Any] = [
-        AnswerRelevancy(llm=llm, embeddings=embeddings),
-        Faithfulness(llm=llm),
-        ContextPrecision(llm=llm),
-    ]
-
     if reference_answer:
         dataset_dict["reference"] = [reference_answer]
-        metrics.extend([
-            ContextRecall(llm=llm),
-            AnswerCorrectness(llm=llm),
-        ])
 
     dataset = Dataset.from_dict(dataset_dict)
+    metrics = _get_ragas_metrics(include_reference=bool(reference_answer))
 
     # Retry logic with exponential backoff for transient failures
     max_retries = 3
     last_error: str | None = None
 
+    def _run_evaluation() -> dict[str, float | str | list[str] | None]:
+        """Run RAGAS evaluation and extract scores."""
+        eval_result = evaluate(
+            dataset,
+            metrics=metrics,
+            show_progress=False,  # Suppress tqdm progress bars
+        )
+
+        # Convert to pandas DataFrame
+        df = eval_result.to_pandas()  # type: ignore[union-attr]
+
+        # Track which metrics returned NaN (internal RAGAS failure)
+        nan_metrics: list[str] = []
+
+        def get_score(name: str) -> float:
+            if name in df.columns and len(df) > 0:
+                val = df[name].iloc[0]
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    nan_metrics.append(name)
+                    return 0.0
+                return float(val)
+            return 0.0
+
+        return {
+            "answer_relevancy": get_score("answer_relevancy"),
+            "faithfulness": get_score("faithfulness"),
+            "context_precision": get_score("context_precision"),
+            "context_recall": get_score("context_recall"),
+            "answer_correctness": get_score("answer_correctness"),
+            "error": None,
+            "nan_metrics": nan_metrics,
+        }
+
     for attempt in range(max_retries):
         try:
-            # Metrics already have llm/embeddings set via constructor (thread-safe)
-            eval_result = evaluate(
-                dataset,
-                metrics=metrics,
-                show_progress=False,  # Suppress tqdm progress bars
-            )
+            # Suppress RAGAS output unless verbose (restores level after evaluation)
+            if verbose:
+                result = _run_evaluation()
+            else:
+                with _suppress_ragas_logging():
+                    result = _run_evaluation()
 
-            # Convert to pandas DataFrame
-            df = eval_result.to_pandas()  # type: ignore[union-attr]
-
-            # Track which metrics returned NaN (internal RAGAS failure)
-            nan_metrics: list[str] = []
-
-            def get_score(
-                name: str,
-                _df: Any = df,
-                _nan_metrics: list[str] = nan_metrics,
-            ) -> float:
-                if name in _df.columns and len(_df) > 0:
-                    val = _df[name].iloc[0]
-                    if val is None or (isinstance(val, float) and val != val):  # Check for NaN
-                        _nan_metrics.append(name)
-                        return 0.0
-                    return float(val)
-                return 0.0
-
-            result: dict[str, float | str | list[str] | None] = {
-                "answer_relevancy": get_score("answer_relevancy"),
-                "faithfulness": get_score("faithfulness"),
-                "context_precision": get_score("context_precision"),
-                "context_recall": get_score("context_recall"),
-                "answer_correctness": get_score("answer_correctness"),
-                "error": None,
-                "nan_metrics": nan_metrics,  # Track which metrics returned NaN
-            }
+            nan_metrics = cast(list[str], result.get("nan_metrics", []))
 
             # If any metrics returned NaN, retry (might be transient JSON parsing failure)
             if nan_metrics and attempt < max_retries - 1:
@@ -283,7 +273,6 @@ def evaluate_single(
                 logger.warning(f"RAGAS evaluation failed after {max_retries} attempts: {last_error}")
 
     # All retries exhausted
-    all_metrics = ["answer_relevancy", "faithfulness", "context_precision", "context_recall", "answer_correctness"]
     return {
         "answer_relevancy": 0.0,
         "faithfulness": 0.0,
@@ -291,7 +280,7 @@ def evaluate_single(
         "context_recall": 0.0,
         "answer_correctness": 0.0,
         "error": last_error or "RAGAS evaluation failed",
-        "nan_metrics": all_metrics,  # All metrics failed
+        "nan_metrics": ["answer_relevancy", "faithfulness", "context_precision", "context_recall", "answer_correctness"],
     }
 
 

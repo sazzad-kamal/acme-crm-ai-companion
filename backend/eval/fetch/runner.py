@@ -18,6 +18,64 @@ from backend.eval.shared import console, evaluate_single
 QUESTIONS_PATH = Path(__file__).parent / "questions.yaml"
 
 
+def _evaluate_rag(
+    question_text: str,
+    data: list[dict],
+    results: EvalResults,
+    verbose: bool,
+) -> tuple[float, float | None, float | None]:
+    """
+    Evaluate RAG quality for a question.
+
+    Args:
+        question_text: The question being evaluated
+        data: SQL query results containing entity IDs
+        results: EvalResults object to update counters
+        verbose: Whether to print warnings
+
+    Returns:
+        Tuple of (latency_ms, precision, recall)
+    """
+    rag_start = time.time()
+    rag_precision: float | None = None
+    rag_recall: float | None = None
+
+    # Get entity IDs from data for RAG filtering
+    entity_ids = {}
+    if data:
+        row = data[0]
+        for key in ("company_id", "contact_id", "opportunity_id"):
+            if key in row and row[key]:
+                entity_ids[key] = str(row[key])
+
+    if not entity_ids:
+        return 0.0, None, None
+
+    try:
+        context, _ = search_entity_context(question_text, entity_ids)
+        rag_latency = (time.time() - rag_start) * 1000
+        results.rag_invoked += 1
+
+        # Evaluate RAG quality with RAGAS
+        if context:
+            chunks = context.split("\n\n---\n\n")
+            ragas_scores = evaluate_single(
+                question=question_text,
+                answer=context,
+                contexts=chunks,
+            )
+            precision_val = ragas_scores.get("context_precision", 0.0)
+            recall_val = ragas_scores.get("context_recall", 0.0)
+            rag_precision = float(precision_val) if isinstance(precision_val, (int, float)) else 0.0
+            rag_recall = float(recall_val) if isinstance(recall_val, (int, float)) else 0.0
+
+        return rag_latency, rag_precision, rag_recall
+    except Exception as e:
+        if verbose:
+            console.print(f"    [yellow]RAG warning: {e}[/yellow]")
+        return (time.time() - rag_start) * 1000, None, None
+
+
 def load_questions(
     difficulty_filter: list[int] | None = None,
     rag_only_filter: bool | None = None,
@@ -61,6 +119,7 @@ def run_sql_eval(
     verbose: bool = False,
     limit: int | None = None,
     difficulty_filter: list[int] | None = None,
+    rag_only_filter: bool | None = None,
 ) -> EvalResults:
     """
     Run fetch node evaluation.
@@ -75,12 +134,13 @@ def run_sql_eval(
         verbose: Print detailed output
         limit: Max number of questions to test
         difficulty_filter: Only test questions with these difficulty levels
+        rag_only_filter: If True, only RAG questions; if False, only SQL; if None, all
 
     Returns:
         EvalResults with per-case and aggregate metrics
     """
     if questions is None:
-        questions = load_questions(difficulty_filter=difficulty_filter, rag_only_filter=None)
+        questions = load_questions(difficulty_filter=difficulty_filter, rag_only_filter=rag_only_filter)
 
     if limit:
         questions = questions[:limit]
@@ -131,36 +191,9 @@ def run_sql_eval(
 
                 # Evaluate RAG if needed
                 if plan.needs_rag:
-                    rag_start = time.time()
-                    try:
-                        # Get entity IDs from data for RAG filtering
-                        entity_ids = {}
-                        if data:
-                            row = data[0]
-                            for key in ("company_id", "contact_id", "opportunity_id"):
-                                if key in row and row[key]:
-                                    entity_ids[key] = str(row[key])
-
-                        if entity_ids:
-                            context, _ = search_entity_context(question.text, entity_ids)
-                            rag_latency = (time.time() - rag_start) * 1000
-                            results.rag_invoked += 1
-
-                            # Evaluate RAG quality with RAGAS
-                            if context:
-                                chunks = context.split("\n\n---\n\n")
-                                ragas_scores = evaluate_single(
-                                    question=question.text,
-                                    answer=context,
-                                    contexts=chunks,
-                                )
-                                precision_val = ragas_scores.get("context_precision", 0.0)
-                                recall_val = ragas_scores.get("context_recall", 0.0)
-                                rag_precision = float(precision_val) if isinstance(precision_val, (int, float)) else 0.0
-                                rag_recall = float(recall_val) if isinstance(recall_val, (int, float)) else 0.0
-                    except Exception as e:
-                        if verbose:
-                            console.print(f"    [yellow]RAG warning: {e}[/yellow]")
+                    rag_latency, rag_precision, rag_recall = _evaluate_rag(
+                        question.text, data, results, verbose
+                    )
 
                 if passed:
                     results.passed += 1
@@ -193,13 +226,14 @@ def run_sql_eval(
             rag_recall=rag_recall,
         )
 
-        if verbose and not errors:
-            status = "[green]PASS[/green]" if passed else "[red]FAIL[/red]"
-            rag_info = f", RAG={rag_latency:.0f}ms" if rag_latency > 0 else ""
-            console.print(f"  {status} ({len(data)} rows, {total_latency:.0f}ms{rag_info})")
+        if verbose:
             if errors:
                 for err in errors:
                     console.print(f"    [yellow]{err}[/yellow]")
+            else:
+                status = "[green]PASS[/green]" if passed else "[red]FAIL[/red]"
+                rag_info = f", RAG={rag_latency:.0f}ms" if rag_latency > 0 else ""
+                console.print(f"  {status} ({len(data)} rows, {total_latency:.0f}ms{rag_info})")
 
         results.cases.append(case)
 

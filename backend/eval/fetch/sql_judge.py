@@ -73,7 +73,7 @@ def _format_results(sql_results: dict) -> str:
 def judge_sql_results(
     question: str,
     sql: str,
-    sql_results: dict,
+    sql_results: dict[str, list],
 ) -> tuple[bool, list[str]]:
     """
     Use LLM to judge if SQL results correctly answer the question.
@@ -88,45 +88,49 @@ def judge_sql_results(
         - passed: True if the results correctly answer the question
         - errors: List of issues found (empty if passed)
     """
-    try:
-        client = _get_openai_client()
+    client = _get_openai_client()
 
-        prompt = JUDGE_PROMPT.format(
-            question=question,
-            sql=sql or "No SQL provided",
-            results=_format_results(sql_results),
-        )
+    prompt = JUDGE_PROMPT.format(
+        question=question,
+        sql=sql or "No SQL provided",
+        results=_format_results(sql_results),
+    )
 
-        response = client.chat.completions.create(
-            model=JUDGE_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=512,
-            temperature=0,
-        )
-
-        # Parse response
-        content = response.choices[0].message.content or ""
-
+    last_error: Exception | None = None
+    for attempt in range(2):
         try:
-            data = parse_json_response(content)
-            passed = bool(data.get("passed", False))
-            errors = data.get("errors", [])
-            reasoning = data.get("reasoning", "")
+            response = client.chat.completions.create(
+                model=JUDGE_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=512,
+                temperature=0,
+            )
 
-            if not passed and reasoning and not errors:
-                errors = [reasoning]
+            content = response.choices[0].message.content or ""
 
-            logger.debug(f"SQL Judge: passed={passed}, reasoning={reasoning[:100]}")
-            return passed, errors if isinstance(errors, list) else [str(errors)]
+            try:
+                data = parse_json_response(content)
+                passed = bool(data.get("passed", False))
+                errors = data.get("errors", [])
+                reasoning = data.get("reasoning", "")
 
-        except (json.JSONDecodeError, ValueError):
-            logger.warning(f"SQL Judge: failed to parse JSON response: {content[:200]}")
-            return False, ["Judge failed to return valid JSON"]
+                if not passed and reasoning and not errors:
+                    errors = [reasoning]
 
-    except Exception as e:
-        logger.warning(f"SQL Judge error: {e}")
-        # On error, don't fail the eval - just skip validation
-        return True, []
+                logger.debug(f"SQL Judge: passed={passed}, reasoning={reasoning[:100]}")
+                return passed, errors if isinstance(errors, list) else [str(errors)]
+
+            except (json.JSONDecodeError, ValueError):
+                logger.warning(f"SQL Judge: failed to parse JSON response: {content[:200]}")
+                return False, ["Judge failed to return valid JSON"]
+
+        except Exception as e:
+            last_error = e
+            if attempt == 0:
+                logger.debug(f"SQL Judge retry after error: {e}")
+
+    logger.warning(f"SQL Judge error after retries: {last_error}")
+    return False, [f"Judge API error: {last_error}"]
 
 
 __all__ = ["judge_sql_results"]

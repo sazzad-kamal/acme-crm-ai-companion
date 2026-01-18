@@ -175,7 +175,7 @@ questions:
     rag_only: true
     difficulty: 1
 
-  - text: "What is the description for Acme Manufacturing?"
+  - text: "What are the notes about Acme Manufacturing?"
     rag_only: true
     difficulty: 1
 
