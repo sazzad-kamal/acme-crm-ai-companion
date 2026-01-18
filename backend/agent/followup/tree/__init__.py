@@ -34,7 +34,7 @@ import networkx as nx
 __all__ = [
     "get_starters",
     "get_follow_ups",
-    "_G",  # Exported for eval/tree module
+    "get_graph",
 ]
 
 # =============================================================================
@@ -81,3 +81,8 @@ def get_follow_ups(question: str) -> list[str]:
     if question in _G:
         return list(_G.successors(question))
     return []
+
+
+def get_graph() -> nx.DiGraph:
+    """Get the question tree graph (read-only copy)."""
+    return _G.copy()

@@ -18,28 +18,6 @@ from backend.agent.state import AgentState, format_conversation_for_prompt
 logger = logging.getLogger(__name__)
 
 
-def _capture_eval_data(
-    sql_plan: SQLPlan | None,
-    rows: list[dict[str, Any]],
-    error: str | None,
-    account_rag_invoked: bool,
-    account_chunks: list[str],
-) -> None:
-    """Capture eval-specific data via context variable (no-op if eval not running)."""
-    try:
-        from backend.eval.shared.callback import set_eval_data
-
-        set_eval_data(
-            sql_plan=sql_plan,
-            sql_queries_total=1 if sql_plan and sql_plan.sql else 0,
-            sql_queries_success=1 if rows and not error else 0,
-            account_rag_invoked=account_rag_invoked,
-            account_chunks=account_chunks,
-        )
-    except ImportError:
-        pass
-
-
 def _execute_sql_with_retry(
     sql_plan: SQLPlan,
     question: str,
@@ -79,14 +57,11 @@ def _execute_sql_with_retry(
         return [], {}, str(e)
 
 
-def _fetch_rag(
-    question: str,
-    entity_ids: dict[str, str],
-) -> tuple[str, bool, list[str]]:
+def _fetch_rag(question: str, entity_ids: dict[str, str]) -> str:
     """Fetch RAG context for resolved entities.
 
     Returns:
-        Tuple of (context_str, rag_invoked, chunks) for eval capture.
+        Context string (empty if no context found).
     """
     # Filter to valid entity ID keys
     filters = {
@@ -97,7 +72,7 @@ def _fetch_rag(
 
     if not filters:
         logger.info("[Fetch] RAG skipped (no entity IDs resolved)")
-        return "", False, []
+        return ""
 
     logger.info(f"[Fetch] Retrieving RAG context with filters={filters}")
 
@@ -105,14 +80,12 @@ def _fetch_rag(
         from backend.agent.fetch.rag.search import search_entity_context
 
         context, _ = search_entity_context(question, filters)
-        chunks = context.split("\n\n---\n\n") if context else []
-
         logger.info("[Fetch] RAG complete")
-        return context, True, chunks
+        return context
 
     except Exception as e:
         logger.warning(f"RAG fetch failed: {e}")
-        return "", False, []
+        return ""
 
 
 def fetch_node(state: AgentState) -> AgentState:
@@ -135,7 +108,6 @@ def fetch_node(state: AgentState) -> AgentState:
     except Exception as e:
         logger.error(f"[Fetch] SQL planning failed: {e}")
         result["error"] = f"Query planning failed: {e}"
-        _capture_eval_data(None, [], str(e), False, [])
         return cast(AgentState, result)
 
     # Step 2: Execute SQL
@@ -147,15 +119,11 @@ def fetch_node(state: AgentState) -> AgentState:
 
     # Step 3: Fetch RAG using resolved IDs
     if sql_plan.needs_rag:
-        context, rag_invoked, chunks = _fetch_rag(question, entity_ids)
+        context = _fetch_rag(question, entity_ids)
         if context:
             result["rag_context"] = context
     else:
         logger.info("[Fetch] RAG skipped (needs_rag=False)")
-        context, rag_invoked, chunks = "", False, []
-
-    # Capture eval data
-    _capture_eval_data(sql_plan, rows, error, rag_invoked, chunks)
 
     return cast(AgentState, result)
 

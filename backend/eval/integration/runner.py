@@ -12,12 +12,7 @@ from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, T
 from rich.table import Table
 
 from backend.eval.integration.models import FlowEvalResults, FlowResult, FlowStepResult
-from backend.eval.integration.tree import (
-    get_all_paths,
-    get_expected_answer,
-    get_expected_rag,
-)
-from backend.eval.shared.callback import get_eval_capture, reset_eval_capture
+from backend.eval.integration.tree import get_all_paths, get_expected_answer
 from backend.eval.shared.formatting import console, print_eval_header
 from backend.eval.shared.ragas import evaluate_single
 
@@ -29,8 +24,6 @@ def _create_failed_judge_result(explanation: str) -> dict:
     return {
         "relevance": 0.0,
         "faithfulness": 0.0,
-        "context_precision": 0.0,
-        "context_recall": 0.0,
         "answer_correctness": 0.0,
         "explanation": explanation,
         "ragas_failed": True,
@@ -62,12 +55,10 @@ def judge_answer(
         return {
             "relevance": result["answer_relevancy"],
             "faithfulness": result["faithfulness"],
-            "context_precision": result["context_precision"],
-            "context_recall": result.get("context_recall", 0.0),
             "answer_correctness": result.get("answer_correctness", 0.0),
             "explanation": f"RAGAS error: {ragas_error}" if ragas_error else "",
             "ragas_failed": ragas_error is not None,
-            "nan_metrics": nan_metrics,  # Pass through for per-metric failure tracking
+            "nan_metrics": nan_metrics,
         }
     except TimeoutError:
         logger.warning(f"RAGAS judge timed out after {timeout}s")
@@ -77,25 +68,13 @@ def judge_answer(
         return _create_failed_judge_result(f"RAGAS error: {e}")
 
 
-def _invoke_agent(question: str, session_id: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Invoke the agent graph and return state + eval capture.
-
-    Returns:
-        Tuple of (state, eval_data) where eval_data contains metrics captured out-of-band.
-    """
+def _invoke_agent(question: str, session_id: str | None = None) -> dict[str, Any]:
+    """Invoke the agent graph and return result."""
     from backend.agent.graph import agent_graph, build_thread_config
-
-    # Reset eval capture before invoke
-    reset_eval_capture()
 
     state: dict[str, Any] = {"question": question, "session_id": session_id}
     config = build_thread_config(session_id)
-    result = agent_graph.invoke(state, config=config)
-
-    # Get captured eval data
-    eval_data = get_eval_capture()
-
-    return result, eval_data
+    return agent_graph.invoke(state, config=config)
 
 
 class RagasMetrics(TypedDict):
@@ -104,8 +83,6 @@ class RagasMetrics(TypedDict):
     relevance: float
     faithfulness: float
     answer_correctness: float
-    account_precision: float
-    account_recall: float
     explanation: str
     ragas_metrics_total: int
     ragas_metrics_failed: int
@@ -122,54 +99,32 @@ def _count_failed_metrics(result: dict, metric_names: tuple[str, ...]) -> int:
 def _evaluate_ragas(
     question: str,
     answer: str,
-    all_contexts: list[str],
-    account_chunks: list[str],
-    account_rag_invoked: bool,
+    contexts: list[str],
     expected_answer: str | None,
-    eval_mode: str,
     verbose: bool,
 ) -> RagasMetrics:
-    """Run RAGAS evaluation and return metrics dict."""
-    metrics: RagasMetrics = {
-        "relevance": 0.0,
-        "faithfulness": 0.0,
-        "answer_correctness": 0.0,
-        "account_precision": 0.0,
-        "account_recall": 0.0,
-        "explanation": "",
-        "ragas_metrics_total": 0,
-        "ragas_metrics_failed": 0,
+    """Run RAGAS evaluation for answer quality metrics."""
+    if not contexts:
+        return {
+            "relevance": 0.0,
+            "faithfulness": 0.0,
+            "answer_correctness": 0.0,
+            "explanation": "No context available",
+            "ragas_metrics_total": 0,
+            "ragas_metrics_failed": 0,
+        }
+
+    result = judge_answer(question, answer, contexts, reference_answer=expected_answer, verbose=verbose)
+    return {
+        "relevance": result.get("relevance", 0.0),
+        "faithfulness": result.get("faithfulness", 0.0),
+        "answer_correctness": result.get("answer_correctness", 0.0),
+        "explanation": result.get("explanation", ""),
+        "ragas_metrics_total": 3,
+        "ragas_metrics_failed": _count_failed_metrics(
+            result, ("answer_relevancy", "faithfulness", "answer_correctness")
+        ),
     }
-
-    # 1. RAG precision/recall - only when account RAG was invoked
-    if eval_mode in ("rag", "both") and account_rag_invoked and account_chunks:
-        rag_result = judge_answer(
-            question, answer, account_chunks, reference_answer=expected_answer, verbose=verbose
-        )
-        metrics["account_precision"] = rag_result.get("context_precision", 0.0)
-        metrics["account_recall"] = rag_result.get("context_recall", 0.0)
-        metrics["ragas_metrics_total"] = 2
-        metrics["ragas_metrics_failed"] = _count_failed_metrics(
-            rag_result, ("context_precision", "context_recall")
-        )
-
-    # 2. Answer quality (faithfulness, relevance, correctness) - all contexts
-    if eval_mode in ("pipeline", "both") and all_contexts:
-        pipeline_result = judge_answer(
-            question, answer, all_contexts, reference_answer=expected_answer, verbose=verbose
-        )
-        metrics["relevance"] = pipeline_result.get("relevance", 0.0)
-        metrics["faithfulness"] = pipeline_result.get("faithfulness", 0.0)
-        metrics["answer_correctness"] = pipeline_result.get("answer_correctness", 0.0)
-        metrics["explanation"] = pipeline_result.get("explanation", "")
-
-        pipeline_failed = _count_failed_metrics(
-            pipeline_result, ("answer_relevancy", "faithfulness", "answer_correctness")
-        )
-        metrics["ragas_metrics_total"] += 3
-        metrics["ragas_metrics_failed"] += pipeline_failed
-
-    return metrics
 
 
 def _create_error_step_result(question: str, latency_ms: int, error: str) -> FlowStepResult:
@@ -193,7 +148,6 @@ def test_single_question(
     session_id: str,
     use_judge: bool = True,
     verbose: bool = False,
-    eval_mode: str = "both",
 ) -> FlowStepResult:
     """
     Test a single question with conversation history.
@@ -203,6 +157,7 @@ def test_single_question(
         history: List of {question, answer} dicts for memory
         session_id: Session ID for the conversation
         use_judge: Whether to run LLM-as-judge evaluation
+        verbose: Show detailed RAGAS output
 
     Returns:
         FlowStepResult with answer and metrics
@@ -210,66 +165,43 @@ def test_single_question(
     start_time = time.time()
 
     try:
-        # Invoke agent synchronously
-        result, eval_data = _invoke_agent(question=question, session_id=session_id)
-
+        result = _invoke_agent(question=question, session_id=session_id)
         latency_ms = int((time.time() - start_time) * 1000)
 
         answer = result.get("answer", "")
         has_answer = bool(answer and len(answer) > 10)
 
-        # Get eval-specific data from out-of-band capture
-        sql_queries_total = eval_data.get("sql_queries_total", 0)
-        sql_queries_success = eval_data.get("sql_queries_success", 0)
-        account_chunks = eval_data.get("account_chunks", [])
-        account_rag_invoked = eval_data.get("account_rag_invoked", False)
-        sql_plan = eval_data.get("sql_plan")
-
-        # Build all_contexts from sql_results (JSON stringified)
-        all_contexts = []
+        # Build contexts from result
+        contexts = []
         sql_results = result.get("sql_results", {})
         if sql_results:
-            all_contexts.append(json.dumps(sql_results, indent=2, default=str))
-        if account_context := result.get("rag_context", ""):
-            all_contexts.append(account_context)
-
-        # Check RAG detection accuracy (needs_rag decision from sql_plan vs expected)
-        rag_decision_correct: bool | None = None
-        expected_rag = get_expected_rag(question)
-        if expected_rag is not None:
-            # Get needs_rag from sql_plan (from eval capture), fallback to account_rag_invoked
-            actual_needs_rag = sql_plan.needs_rag if sql_plan else account_rag_invoked
-            rag_decision_correct = actual_needs_rag == expected_rag
+            contexts.append(json.dumps(sql_results, indent=2, default=str))
+        if rag_context := result.get("rag_context", ""):
+            contexts.append(rag_context)
 
         # Get expected answer for answer_correctness metric
         expected_answer = get_expected_answer(question)
 
         # Run RAGAS evaluation if enabled
         ragas: RagasMetrics = {
-            "relevance": 0.0, "faithfulness": 0.0, "answer_correctness": 0.0,
-            "account_precision": 0.0, "account_recall": 0.0, "explanation": "",
-            "ragas_metrics_total": 0, "ragas_metrics_failed": 0,
+            "relevance": 0.0,
+            "faithfulness": 0.0,
+            "answer_correctness": 0.0,
+            "explanation": "",
+            "ragas_metrics_total": 0,
+            "ragas_metrics_failed": 0,
         }
         if use_judge and has_answer:
-            ragas = _evaluate_ragas(
-                question, answer, all_contexts, account_chunks,
-                account_rag_invoked, expected_answer, eval_mode, verbose
-            )
+            ragas = _evaluate_ragas(question, answer, contexts, expected_answer, verbose)
 
         return FlowStepResult(
             question=question,
             answer=answer,
             latency_ms=latency_ms,
             has_answer=has_answer,
-            sql_queries_total=sql_queries_total,
-            sql_queries_success=sql_queries_success,
             relevance_score=ragas["relevance"],
             faithfulness_score=ragas["faithfulness"],
             answer_correctness_score=ragas["answer_correctness"],
-            account_precision_score=ragas["account_precision"],
-            account_recall_score=ragas["account_recall"],
-            account_rag_invoked=account_rag_invoked,
-            rag_decision_correct=rag_decision_correct,
             judge_explanation=ragas["explanation"],
             error=None,
             ragas_metrics_total=ragas["ragas_metrics_total"],
@@ -291,7 +223,6 @@ def test_flow(
     path_id: int,
     use_judge: bool = True,
     verbose: bool = False,
-    eval_mode: str = "both",
 ) -> FlowResult:
     """
     Test a complete conversation flow (sequence of questions with memory).
@@ -301,7 +232,6 @@ def test_flow(
         path_id: ID for this path
         use_judge: Whether to run LLM-as-judge evaluation
         verbose: Show detailed RAGAS output
-        eval_mode: RAGAS mode - 'rag', 'pipeline', or 'both'
 
     Returns:
         FlowResult with all step results
@@ -314,7 +244,7 @@ def test_flow(
 
     # Questions within a flow must be sequential (memory dependency)
     for question in path:
-        step_result = test_single_question(question, history, session_id, use_judge, verbose, eval_mode)
+        step_result = test_single_question(question, history, session_id, use_judge, verbose)
         steps.append(step_result)
         total_latency += step_result.latency_ms
 
@@ -353,27 +283,6 @@ def _aggregate_metrics(
     avg_faithfulness = sum(s.faithfulness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
     avg_answer_correctness = sum(s.answer_correctness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
 
-    # Account RAG metrics
-    steps_with_account = [s for s in all_steps if s.account_rag_invoked]
-    avg_account_precision = sum(s.account_precision_score for s in steps_with_account) / len(steps_with_account) if steps_with_account else 0.0
-    avg_account_recall = sum(s.account_recall_score for s in steps_with_account) / len(steps_with_account) if steps_with_account else 0.0
-
-    # SQL metrics
-    sql_total = sum(s.sql_queries_total for s in all_steps)
-    sql_success = sum(s.sql_queries_success for s in all_steps)
-    sql_success_rate = sql_success / sql_total if sql_total > 0 else 1.0
-
-    steps_with_assertions = [s for s in all_steps if s.sql_data_validated is not None]
-    sql_data_passed = sum(1 for s in steps_with_assertions if s.sql_data_validated)
-    sql_data_count = len(steps_with_assertions)
-    sql_data_success_rate = sql_data_passed / sql_data_count if sql_data_count > 0 else 1.0
-
-    # RAG detection accuracy
-    steps_with_rag_expected = [s for s in all_steps if s.rag_decision_correct is not None]
-    rag_detection_correct = sum(1 for s in steps_with_rag_expected if s.rag_decision_correct)
-    rag_detection_count = len(steps_with_rag_expected)
-    rag_detection_rate = rag_detection_correct / rag_detection_count if rag_detection_count > 0 else 1.0
-
     total_latency = sum(r.total_latency_ms for r in results)
 
     return {
@@ -384,19 +293,9 @@ def _aggregate_metrics(
         "total_questions": total_questions,
         "questions_passed": questions_passed,
         "questions_failed": total_questions - questions_passed,
-        "sql_success_rate": sql_success_rate,
-        "sql_query_count": sql_total,
-        "sql_data_success_rate": sql_data_success_rate,
-        "sql_data_count": sql_data_count,
         "avg_relevance": avg_relevance,
         "avg_faithfulness": avg_faithfulness,
         "avg_answer_correctness": avg_answer_correctness,
-        "avg_account_precision": avg_account_precision,
-        "avg_account_recall": avg_account_recall,
-        "account_sample_count": len(steps_with_account),
-        "rag_invoked_count": sum(1 for s in all_steps if s.account_rag_invoked),
-        "rag_detection_rate": rag_detection_rate,
-        "rag_detection_count": rag_detection_count,
         "ragas_metrics_total": sum(s.ragas_metrics_total for s in all_steps),
         "ragas_metrics_failed": sum(s.ragas_metrics_failed for s in all_steps),
         "total_latency_ms": total_latency,
@@ -412,7 +311,6 @@ def run_flow_eval(
     verbose: bool = False,
     use_judge: bool = True,
     concurrency: int = 5,
-    eval_mode: str = "both",
 ) -> FlowEvalResults:
     """
     Run the flow evaluation on all paths using ThreadPoolExecutor.
@@ -422,7 +320,6 @@ def run_flow_eval(
         verbose: Print detailed output
         use_judge: Whether to run LLM-as-judge evaluation
         concurrency: Number of flows to run in parallel (default 5)
-        eval_mode: RAGAS mode - 'rag', 'pipeline', or 'both'
 
     Returns:
         FlowEvalResults with aggregated metrics
@@ -443,7 +340,6 @@ def run_flow_eval(
     config_table.add_column("Key", style="dim")
     config_table.add_column("Value")
     config_table.add_row("Paths to test", str(len(paths_to_test)))
-    config_table.add_row("RAGAS Mode", eval_mode)
     config_table.add_row("Concurrency", str(concurrency))
     console.print(config_table)
     console.print()
@@ -466,7 +362,7 @@ def run_flow_eval(
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
             # Submit all flows
             futures = {
-                executor.submit(test_flow, path, i, use_judge, verbose, eval_mode): i
+                executor.submit(test_flow, path, i, use_judge, verbose): i
                 for i, path in enumerate(paths_to_test)
             }
 

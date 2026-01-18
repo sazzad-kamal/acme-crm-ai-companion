@@ -6,7 +6,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from backend.eval.shared.callback import get_eval_capture, reset_eval_capture, set_eval_data
 from backend.eval.shared.formatting import console, print_debug_failures, print_eval_header
 from backend.eval.shared.ragas import evaluate_single
 
@@ -33,10 +32,6 @@ def load_project_env() -> None:
 
 
 __all__ = [
-    # Callback
-    "reset_eval_capture",
-    "set_eval_data",
-    "get_eval_capture",
     # Formatting
     "console",
     "print_debug_failures",

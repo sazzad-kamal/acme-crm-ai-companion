@@ -73,7 +73,6 @@ def _run_eval(
     no_judge: bool,
     output: str | None,
     debug: bool,
-    eval_mode: str,
 ) -> None:
     """Run the flow evaluation."""
     eval_start_time = time.time()
@@ -123,7 +122,6 @@ def _run_eval(
             verbose=verbose,
             use_judge=use_judge,
             concurrency=1,
-            eval_mode=eval_mode,
         )
     except Exception as e:
         console.print(f"\n[red bold]ERROR: Evaluation failed: {e}[/red bold]")
@@ -132,16 +130,12 @@ def _run_eval(
         traceback.print_exc()
         return
 
-    # Fetch latency breakdown from LangSmith
+    # Fetch latency breakdown from LangSmith (optional, informational only)
     elapsed_minutes = int((time.time() - eval_start_time) / 60) + 1
     latency_pcts = get_latency_percentages(minutes_ago=max(elapsed_minutes, 5))
-    if latency_pcts:
-        results.latency_routing_pct = latency_pcts.get("routing", 0.0)
-        results.latency_retrieval_pct = latency_pcts.get("retrieval", 0.0)
-        results.latency_answer_pct = latency_pcts.get("answer", 0.0)
 
-    # Print summary
-    print_summary(results, eval_mode=eval_mode)
+    # Print summary with optional LangSmith info
+    print_summary(results, latency_pcts=latency_pcts)
 
     # Debug output for failing paths
     if debug and results.failed_paths:
@@ -192,12 +186,6 @@ def main(
     no_judge: bool = typer.Option(False, "--no-judge", help="Skip LLM-as-judge evaluation"),
     output: str | None = typer.Option(None, "--output", "-o", help="Path to save JSON results"),
     debug: bool = typer.Option(False, "--debug", "-d", help="Dump full details for failing paths"),
-    eval_mode: str = typer.Option(
-        "both",
-        "--eval-mode",
-        "-e",
-        help="RAGAS mode: 'rag' (precision/recall), 'pipeline' (faithfulness/relevance), or 'both'",
-    ),
 ) -> None:
     """Run conversation flow evaluation."""
     logging.basicConfig(level=logging.WARNING)
@@ -207,7 +195,6 @@ def main(
         no_judge=no_judge,
         output=output,
         debug=debug,
-        eval_mode=eval_mode,
     )
 
 

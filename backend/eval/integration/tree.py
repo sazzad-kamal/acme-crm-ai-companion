@@ -2,7 +2,7 @@
 Evaluation utilities for the question tree.
 
 This module provides functions for:
-- Loading expected answers and RAG flags from fixtures
+- Loading expected answers from fixtures
 - Generating test paths from the question tree
 - Computing tree statistics
 
@@ -17,20 +17,22 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 
-# Import the shared graph from followup/tree
-from backend.agent.followup.tree import _G, get_starters
+# Import the shared graph from followup/tree via public API
+from backend.agent.followup.tree import get_graph, get_starters
 
 if TYPE_CHECKING:
     from rich.tree import Tree
 
 __all__ = [
     "get_expected_answer",
-    "get_expected_rag",
     "get_all_paths",
     "get_tree_stats",
     "validate_tree",
     "print_tree",
 ]
+
+# Get a copy of the graph (read-only)
+_G = get_graph()
 
 # =============================================================================
 # Load Expected Values (from eval/fixtures/)
@@ -54,7 +56,6 @@ def _load_yaml_fixture(filename: str) -> dict:
 
 
 _EXPECTED_ANSWERS: dict[str, str] = _load_yaml_fixture("expected_answers.yaml")
-_EXPECTED_RAG: dict[str, bool] = _load_yaml_fixture("expected_rag.yaml")
 
 # Cache starters for reuse
 _STARTERS = get_starters()
@@ -119,19 +120,6 @@ def get_expected_answer(question: str) -> str | None:
         Expected answer string, or None if not found
     """
     return _EXPECTED_ANSWERS.get(question)
-
-
-def get_expected_rag(question: str) -> bool | None:
-    """
-    Get the expected RAG decision for a question (for RAG decision accuracy).
-
-    Args:
-        question: The question to look up
-
-    Returns:
-        True if RAG should be invoked, False if not, None if not found
-    """
-    return _EXPECTED_RAG.get(question)
 
 
 # =============================================================================

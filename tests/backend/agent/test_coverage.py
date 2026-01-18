@@ -199,13 +199,6 @@ class TestFetchNode:
             mock_rag.assert_not_called()
             assert result.get("rag_context", "") == ""
 
-    def test_capture_eval_data_import_error(self):
-        """_capture_eval_data handles ImportError when eval module unavailable."""
-        from backend.agent.fetch.node import _capture_eval_data
-
-        with patch.dict("sys.modules", {"backend.eval.callback": None}):
-            _capture_eval_data(None, [], None, False, [])
-
     def test_rag_fetch_exception_handled(self):
         """RAG fetch exception is caught and returns empty result."""
         from backend.agent.fetch.node import fetch_node
