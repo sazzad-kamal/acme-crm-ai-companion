@@ -9,11 +9,9 @@ import anthropic
 from pydantic import BaseModel, Field
 
 from backend.agent.fetch.sql.schema import get_schema_sql
-from backend.core.llm import load_prompt, parse_json_response
+from backend.core.llm import REASONING_MODEL, load_prompt, parse_json_response
 
 logger = logging.getLogger(__name__)
-
-_ROUTER_MODEL = "claude-sonnet-4-5-20241022"
 
 _DIR = Path(__file__).parent
 
@@ -45,7 +43,7 @@ def get_sql_plan(question: str, conversation_history: str = "") -> SQLPlan:
     )
 
     response = _get_client().messages.create(
-        model=_ROUTER_MODEL,
+        model=REASONING_MODEL,
         max_tokens=1024,
         messages=[{"role": "user", "content": f"{prompt}\n\nQuestion: {question}"}],
     )

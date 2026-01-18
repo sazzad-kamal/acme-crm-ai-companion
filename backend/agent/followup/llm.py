@@ -11,11 +11,15 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from backend.core.llm import create_chain, load_prompt
+from backend.core.llm import (
+    CREATIVE_TEMPERATURE,
+    FAST_MODEL,
+    SHORT_RESPONSE_MAX_TOKENS,
+    create_chain,
+    load_prompt,
+)
 
 logger = logging.getLogger(__name__)
-
-_LLM_MODEL = "gpt-4o-mini"
 
 FOLLOW_UP_PROMPT_TEMPLATE = load_prompt(Path(__file__).parent / "prompt.txt")
 
@@ -40,9 +44,9 @@ def _get_followup_chain() -> Any:
     if _followup_chain is None:
         _followup_chain = create_chain(
             FOLLOW_UP_PROMPT_TEMPLATE,
-            model=_LLM_MODEL,
-            temperature=0.7,
-            max_tokens=150,
+            model=FAST_MODEL,
+            temperature=CREATIVE_TEMPERATURE,
+            max_tokens=SHORT_RESPONSE_MAX_TOKENS,
             structured_output=FollowUpSuggestions,
         )
         logger.debug("Created followup chain")

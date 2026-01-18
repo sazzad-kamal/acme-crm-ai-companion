@@ -12,13 +12,15 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any
 
-from backend.core.llm import create_chain, load_prompt
+from backend.core.llm import (
+    DETERMINISTIC_TEMPERATURE,
+    FAST_MODEL,
+    LONG_RESPONSE_MAX_TOKENS,
+    create_chain,
+    load_prompt,
+)
 
 logger = logging.getLogger(__name__)
-
-_LLM_MODEL = "gpt-4o-mini"
-_LLM_TEMPERATURE = 0.1
-_LLM_MAX_TOKENS = 1024
 
 DATA_ANSWER_TEMPLATE = load_prompt(Path(__file__).parent / "prompt.txt")
 
@@ -33,9 +35,9 @@ def _get_answer_chain() -> Any:
     if _answer_chain is None:
         _answer_chain = create_chain(
             DATA_ANSWER_TEMPLATE,
-            model=_LLM_MODEL,
-            temperature=_LLM_TEMPERATURE,
-            max_tokens=_LLM_MAX_TOKENS,
+            model=FAST_MODEL,
+            temperature=DETERMINISTIC_TEMPERATURE,
+            max_tokens=LONG_RESPONSE_MAX_TOKENS,
         )
         logger.debug("Created answer chain")
     return _answer_chain

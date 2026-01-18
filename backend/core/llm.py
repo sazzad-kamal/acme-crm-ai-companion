@@ -23,6 +23,18 @@ logger = logging.getLogger(__name__)
 # Models that require max_completion_tokens instead of max_tokens
 _MAX_COMPLETION_TOKENS_PREFIXES = {"o1", "o3", "o4", "gpt-5"}
 
+# Models
+FAST_MODEL = "gpt-4o-mini"  # Fast, cost-efficient for text responses
+REASONING_MODEL = "claude-sonnet-4-5-20241022"  # Better at structured/reasoning tasks
+
+# Temperature settings
+DETERMINISTIC_TEMPERATURE = 0.1  # Consistent, factual responses
+CREATIVE_TEMPERATURE = 0.7  # Varied, exploratory suggestions
+
+# Max token limits
+LONG_RESPONSE_MAX_TOKENS = 1024  # Detailed answers
+SHORT_RESPONSE_MAX_TOKENS = 150  # Brief suggestions
+
 
 def _create_chat_openai(
     model: str,
@@ -189,6 +201,12 @@ def parse_json_response(text: str) -> dict:
 
 
 __all__ = [
+    "FAST_MODEL",
+    "REASONING_MODEL",
+    "DETERMINISTIC_TEMPERATURE",
+    "CREATIVE_TEMPERATURE",
+    "LONG_RESPONSE_MAX_TOKENS",
+    "SHORT_RESPONSE_MAX_TOKENS",
     "get_chat_model",
     "create_chain",
     "call_llm",
