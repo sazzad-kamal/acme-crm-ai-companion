@@ -13,6 +13,7 @@ from backend.agent.fetch.sql.connection import get_connection
 from backend.eval.fetch.models import CaseResult, EvalResults, Question
 from backend.eval.fetch.sql_judge import judge_sql_results
 from backend.eval.shared import console, evaluate_single
+from backend.eval.shared.formatting import build_eval_table
 
 # Path to questions file
 QUESTIONS_PATH = Path(__file__).parent / "questions.yaml"
@@ -245,8 +246,6 @@ def run_sql_eval(
 
 def print_summary(results: EvalResults) -> None:
     """Print evaluation summary with detailed metrics."""
-    from backend.eval.shared.formatting import build_eval_table
-
     # Build sections for the table
     sql_passed = results.sql_correctness >= 0.9
     sections = [

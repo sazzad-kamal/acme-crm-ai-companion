@@ -4,16 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
-import threading
-from typing import Any
+from functools import lru_cache
 
 from backend.core.llm import JUDGE_MODEL, parse_json_response
 
 logger = logging.getLogger(__name__)
-
-# Thread-safe singleton for OpenAI client
-_openai_client = None
-_client_lock = threading.Lock()
 
 JUDGE_PROMPT = """You are evaluating whether SQL query results correctly answer a user's question about CRM data.
 
@@ -46,16 +41,13 @@ If passed=true, errors should be an empty list.
 If passed=false, list specific issues found."""
 
 
-def _get_openai_client() -> Any:
-    """Get shared OpenAI client (thread-safe singleton)."""
-    global _openai_client
-    if _openai_client is None:
-        with _client_lock:
-            if _openai_client is None:
-                from openai import OpenAI
-                logger.info(f"Initializing SQL Judge LLM ({JUDGE_MODEL})")
-                _openai_client = OpenAI()
-    return _openai_client
+@lru_cache
+def _get_openai_client():
+    """Get shared OpenAI client (cached singleton)."""
+    from openai import OpenAI
+
+    logger.info(f"Initializing SQL Judge LLM ({JUDGE_MODEL})")
+    return OpenAI()
 
 
 def _format_results(sql_results: dict) -> str:
