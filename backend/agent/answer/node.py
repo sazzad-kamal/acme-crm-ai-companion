@@ -17,18 +17,14 @@ def _build_messages(state: AgentState, answer: str) -> list[Message]:
 
 
 def answer_node(state: AgentState) -> AgentState:
-    """
-    Synthesize answer from SQL results and account context.
-
-    Uses simplified call_answer_chain with sql_results and account_context.
-    """
+    """Synthesize answer from SQL results and RAG context."""
     logger.info("[Answer] Synthesizing response...")
 
     try:
         answer, _ = call_answer_chain(
             question=state["question"],
             sql_results=state.get("sql_results", {}),
-            account_context=state.get("rag_context", ""),
+            rag_context=state.get("rag_context", ""),
             conversation_history=format_conversation_for_prompt(state.get("messages", [])),
         )
 

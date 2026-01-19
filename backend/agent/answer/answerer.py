@@ -71,22 +71,10 @@ def _get_answer_chain() -> Any:
     return chain
 
 
-def _format_sql_results(sql_results: dict[str, Any] | None) -> str:
-    """Format SQL results as JSON string for the LLM prompt."""
-    if not sql_results:
-        return "(No data retrieved)"
-
-    # Convert to pretty JSON for readability
-    try:
-        return json.dumps(sql_results, indent=2, default=str)
-    except Exception:
-        return str(sql_results)
-
-
 def _build_answer_input(
     question: str,
     sql_results: dict[str, Any] | None = None,
-    account_context: str = "",
+    rag_context: str = "",
     conversation_history: str = "",
 ) -> dict[str, str]:
     """Build input dict for the answer chain."""
@@ -97,13 +85,22 @@ def _build_answer_input(
 
     # Format account context section
     account_context_section = ""
-    if account_context:
-        account_context_section = f"=== ACCOUNT CONTEXT (RAG) ===\n{account_context}\n"
+    if rag_context:
+        account_context_section = f"=== ACCOUNT CONTEXT (RAG) ===\n{rag_context}\n"
+
+    # Format SQL results as JSON
+    if sql_results:
+        try:
+            formatted_sql = json.dumps(sql_results, indent=2, default=str)
+        except Exception:
+            formatted_sql = str(sql_results)
+    else:
+        formatted_sql = "(No data retrieved)"
 
     return {
         "question": question,
         "conversation_history_section": conversation_history_section,
-        "sql_results": _format_sql_results(sql_results),
+        "sql_results": formatted_sql,
         "account_context_section": account_context_section,
     }
 
@@ -111,7 +108,7 @@ def _build_answer_input(
 def call_answer_chain(
     question: str,
     sql_results: dict[str, Any] | None = None,
-    account_context: str = "",
+    rag_context: str = "",
     conversation_history: str = "",
 ) -> tuple[str, int]:
     """
@@ -120,7 +117,7 @@ def call_answer_chain(
     Args:
         question: The user's question
         sql_results: Dict of SQL query results keyed by purpose
-        account_context: RAG context from account notes/descriptions
+        rag_context: RAG context from account notes/descriptions
         conversation_history: Formatted conversation history
 
     Returns:
@@ -132,7 +129,7 @@ def call_answer_chain(
     chain_input = _build_answer_input(
         question=question,
         sql_results=sql_results,
-        account_context=account_context,
+        rag_context=rag_context,
         conversation_history=conversation_history,
     )
 

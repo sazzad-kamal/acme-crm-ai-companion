@@ -163,7 +163,7 @@ class TestFetchNode:
         with patch("backend.agent.fetch.node.get_sql_plan", return_value=mock_plan), \
              patch("backend.agent.fetch.node.get_connection"), \
              patch("backend.agent.fetch.node.execute_sql") as mock_exec, \
-             patch("backend.agent.fetch.rag.search.search_entity_context") as mock_rag:
+             patch("backend.agent.fetch.node.search_entity_context") as mock_rag:
 
             mock_exec.return_value = (
                 [{"company_id": "delta_1"}],
@@ -189,7 +189,7 @@ class TestFetchNode:
         with patch("backend.agent.fetch.node.get_sql_plan", return_value=mock_plan), \
              patch("backend.agent.fetch.node.get_connection"), \
              patch("backend.agent.fetch.node.execute_sql") as mock_exec, \
-             patch("backend.agent.fetch.rag.search.search_entity_context") as mock_rag:
+             patch("backend.agent.fetch.node.search_entity_context") as mock_rag:
 
             # No resolved IDs
             mock_exec.return_value = ([{"count": 10}], {}, None)
@@ -211,7 +211,7 @@ class TestFetchNode:
         with patch("backend.agent.fetch.node.get_sql_plan", return_value=mock_plan), \
              patch("backend.agent.fetch.node.get_connection"), \
              patch("backend.agent.fetch.node.execute_sql") as mock_exec, \
-             patch("backend.agent.fetch.rag.search.search_entity_context") as mock_rag:
+             patch("backend.agent.fetch.node.search_entity_context") as mock_rag:
 
             mock_exec.return_value = (
                 [{"company_id": "delta_1"}],
@@ -236,7 +236,7 @@ class TestFetchNode:
         with patch("backend.agent.fetch.node.get_sql_plan", return_value=mock_plan), \
              patch("backend.agent.fetch.node.get_connection"), \
              patch("backend.agent.fetch.node.execute_sql") as mock_exec, \
-             patch("backend.agent.fetch.rag.search.search_entity_context") as mock_rag:
+             patch("backend.agent.fetch.node.search_entity_context") as mock_rag:
 
             mock_exec.return_value = (
                 [{"contact_id": "cont_1", "opportunity_id": "opp_1"}],
@@ -423,69 +423,6 @@ class TestGetSqlPlan:
 # =============================================================================
 
 
-class TestFormatSqlResults:
-    """Tests for _format_sql_results function."""
-
-    def test_format_none_results(self):
-        """None results return placeholder."""
-        from backend.agent.answer.answerer import _format_sql_results
-
-        result = _format_sql_results(None)
-        assert result == "(No data retrieved)"
-
-    def test_format_empty_results(self):
-        """Empty dict returns placeholder."""
-        from backend.agent.answer.answerer import _format_sql_results
-
-        result = _format_sql_results({})
-        assert result == "(No data retrieved)"
-
-    def test_format_valid_results(self):
-        """Valid results return JSON string."""
-        from backend.agent.answer.answerer import _format_sql_results
-
-        data = {"companies": [{"name": "Acme"}]}
-        result = _format_sql_results(data)
-
-        assert "Acme" in result
-        parsed = json.loads(result)
-        assert parsed == data
-
-    def test_format_results_with_exception(self):
-        """Results that can't be JSON encoded return str()."""
-        from backend.agent.answer.answerer import _format_sql_results
-
-        # Object that can't be JSON serialized normally
-        class BadObj:
-            def __str__(self):
-                return "bad_obj"
-
-        # The default=str handles this, so it won't raise
-        data = {"obj": BadObj()}
-        result = _format_sql_results(data)
-        assert "bad_obj" in result
-
-    def test_format_results_json_exception_fallback(self):
-        """Test fallback to str() when json.dumps fails completely."""
-        from backend.agent.answer.answerer import _format_sql_results
-
-        # Create object that fails json.dumps even with default=str
-        class FailAllObj:
-            def __str__(self):
-                raise ValueError("Cannot convert")
-
-            def __repr__(self):
-                return "FailAllObj()"
-
-        # When json.dumps raises despite default=str, should fall back to str(data)
-        data = {"fail": FailAllObj()}
-
-        # This will use default=str which may raise or not depending on implementation
-        # The function should return something without crashing
-        result = _format_sql_results(data)
-        assert result is not None
-
-
 class TestCallAnswerChain:
     """Tests for call_answer_chain function.
 
@@ -506,26 +443,25 @@ class TestCallAnswerChain:
 
     def test_answer_chain_input_formatting(self):
         """Verify SQL results are formatted correctly for answer chain."""
-        from backend.agent.answer.answerer import _format_sql_results
+        from backend.agent.answer.answerer import _build_answer_input
 
-        # Test the formatting function
         data = {"companies": [{"name": "Acme", "revenue": 1000000}]}
-        formatted = _format_sql_results(data)
+        result = _build_answer_input(question="test", sql_results=data)
 
-        assert "Acme" in formatted
-        assert "1000000" in formatted
+        assert "Acme" in result["sql_results"]
+        assert "1000000" in result["sql_results"]
 
 
 class TestBuildAnswerInput:
     """Tests for build_answer_input function."""
 
-    def test_with_account_context(self):
-        """Test _build_answer_input with account context."""
+    def test_with_rag_context(self):
+        """Test _build_answer_input with rag context."""
         from backend.agent.answer.answerer import _build_answer_input
 
         result = _build_answer_input(
             question="test",
-            account_context="Some account notes",
+            rag_context="Some account notes",
         )
 
         assert "=== ACCOUNT CONTEXT (RAG) ===" in result["account_context_section"]
@@ -552,6 +488,32 @@ class TestBuildAnswerInput:
         assert result["question"] == "test"
         assert result["account_context_section"] == ""
         assert result["conversation_history_section"] == ""
+        assert result["sql_results"] == "(No data retrieved)"
+
+    def test_with_none_sql_results(self):
+        """Test _build_answer_input with None sql_results."""
+        from backend.agent.answer.answerer import _build_answer_input
+
+        result = _build_answer_input(question="test", sql_results=None)
+        assert result["sql_results"] == "(No data retrieved)"
+
+    def test_with_empty_sql_results(self):
+        """Test _build_answer_input with empty dict sql_results."""
+        from backend.agent.answer.answerer import _build_answer_input
+
+        result = _build_answer_input(question="test", sql_results={})
+        assert result["sql_results"] == "(No data retrieved)"
+
+    def test_with_valid_sql_results(self):
+        """Test _build_answer_input formats SQL results as JSON."""
+        from backend.agent.answer.answerer import _build_answer_input
+
+        data = {"companies": [{"name": "Acme"}]}
+        result = _build_answer_input(question="test", sql_results=data)
+
+        assert "Acme" in result["sql_results"]
+        parsed = json.loads(result["sql_results"])
+        assert parsed == data
 
 
 class TestGetAnswerChain:
@@ -801,7 +763,7 @@ class TestCallAnswerChainDirect:
         answer, latency_ms = answerer.call_answer_chain(
             question="Test question",
             sql_results={"data": []},
-            account_context="context",
+            rag_context="context",
             conversation_history="",
         )
 

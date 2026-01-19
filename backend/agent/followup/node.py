@@ -13,22 +13,9 @@ def followup_node(state: AgentState) -> AgentState:
     logger.info("[Followup] Generating suggestions...")
 
     sql_results = state.get("sql_results", {})
-
-    # Extract company name from sql_results if available
-    company_name = None
-    company_info = sql_results.get("company_info", [])
-    if not company_info:
-        company_info = sql_results.get("companies", [])
-    if company_info and isinstance(company_info, list) and len(company_info) > 0:
-        company_name = company_info[0].get("name")
-
-    # Build available data counts from sql_results
-    available_data = {}
-    for purpose, data in sql_results.items():
-        if isinstance(data, list):
-            available_data[purpose] = len(data)
-        elif data:
-            available_data[purpose] = 1
+    company_info = sql_results.get("company_info") or sql_results.get("companies") or []
+    company_name = company_info[0].get("name") if company_info else None
+    available_data = {k: len(v) if isinstance(v, list) else 1 for k, v in sql_results.items() if v}
 
     try:
         suggestions = generate_follow_up_suggestions(

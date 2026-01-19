@@ -11,11 +11,14 @@ import logging
 from typing import Any, cast
 
 from backend.agent.fetch.planner import SQLPlan, get_sql_plan
+from backend.agent.fetch.rag.search import search_entity_context
 from backend.agent.fetch.sql.connection import get_connection
 from backend.agent.fetch.sql.executor import execute_sql
 from backend.agent.state import AgentState, format_conversation_for_prompt
 
 logger = logging.getLogger(__name__)
+
+_RAG_ENTITY_KEYS = {"company_id", "contact_id", "opportunity_id"}
 
 
 def _execute_sql_with_retry(
@@ -63,13 +66,7 @@ def _fetch_rag(question: str, entity_ids: dict[str, str]) -> str:
     Returns:
         Context string (empty if no context found).
     """
-    # Filter to valid entity ID keys
-    filters = {
-        k: v
-        for k, v in entity_ids.items()
-        if k in ("company_id", "contact_id", "opportunity_id")
-    }
-
+    filters = {k: v for k, v in entity_ids.items() if k in _RAG_ENTITY_KEYS}
     if not filters:
         logger.info("[Fetch] RAG skipped (no entity IDs resolved)")
         return ""
@@ -77,12 +74,9 @@ def _fetch_rag(question: str, entity_ids: dict[str, str]) -> str:
     logger.info(f"[Fetch] Retrieving RAG context with filters={filters}")
 
     try:
-        from backend.agent.fetch.rag.search import search_entity_context
-
         context, _ = search_entity_context(question, filters)
         logger.info("[Fetch] RAG complete")
         return context
-
     except Exception as e:
         logger.warning(f"RAG fetch failed: {e}")
         return ""
