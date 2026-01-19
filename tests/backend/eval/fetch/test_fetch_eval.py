@@ -279,25 +279,25 @@ class TestFormatResults:
 
 
 class TestGetOpenaiClient:
-    """Tests for get_openai_client singleton."""
+    """Tests for _get_openai_client singleton."""
 
     def test_get_openai_client_singleton(self, monkeypatch):
         """Test client is created as singleton via lru_cache."""
-        from backend.core.llm import get_openai_client
+        from backend.core.llm import _get_openai_client
 
         # Clear cache to test fresh creation
-        get_openai_client.cache_clear()
+        _get_openai_client.cache_clear()
 
         mock_client = MagicMock()
 
         with patch("openai.OpenAI", return_value=mock_client):
-            client1 = get_openai_client()
-            client2 = get_openai_client()
+            client1 = _get_openai_client()
+            client2 = _get_openai_client()
 
             # Should be same instance (cached)
             assert client1 is client2
 
-        get_openai_client.cache_clear()
+        _get_openai_client.cache_clear()
 
 
 class TestJudgeSqlResults:

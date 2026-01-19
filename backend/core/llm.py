@@ -37,13 +37,13 @@ SHORT_RESPONSE_MAX_TOKENS = 150  # Brief suggestions
 
 
 @lru_cache
-def get_anthropic_client() -> anthropic.Anthropic:
+def _get_anthropic_client() -> anthropic.Anthropic:
     """Get Anthropic client (cached singleton)."""
     return anthropic.Anthropic()
 
 
 @lru_cache
-def get_openai_client():
+def _get_openai_client():
     """Get raw OpenAI client (cached singleton)."""
     from openai import OpenAI
 
@@ -115,7 +115,7 @@ def call_anthropic_structured(
     max_tokens: int = 1024,
 ) -> BaseModel:
     """Call Anthropic with tool use for structured output."""
-    response = get_anthropic_client().messages.create(
+    response = _get_anthropic_client().messages.create(
         model=model,
         max_tokens=max_tokens,
         system=system,
@@ -137,7 +137,7 @@ def call_openai_json(
     temperature: float = 0,
 ) -> dict:
     """Call OpenAI with JSON mode."""
-    response = get_openai_client().chat.completions.create(
+    response = _get_openai_client().chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
@@ -168,8 +168,6 @@ __all__ = [
     "CREATIVE_TEMPERATURE",
     "LONG_RESPONSE_MAX_TOKENS",
     "SHORT_RESPONSE_MAX_TOKENS",
-    "get_anthropic_client",
-    "get_openai_client",
     "create_chain",
     "call_anthropic_structured",
     "call_openai_json",
