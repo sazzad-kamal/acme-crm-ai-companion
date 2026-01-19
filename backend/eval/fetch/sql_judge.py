@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
-from functools import lru_cache
 
-from backend.core.llm import JUDGE_MODEL, parse_json_response
+from backend.core.llm import JUDGE_MODEL, get_openai_client, parse_json_response
 
 logger = logging.getLogger(__name__)
 
@@ -41,15 +40,6 @@ If passed=true, errors should be an empty list.
 If passed=false, list specific issues found."""
 
 
-@lru_cache
-def _get_openai_client():
-    """Get shared OpenAI client (cached singleton)."""
-    from openai import OpenAI
-
-    logger.info(f"Initializing SQL Judge LLM ({JUDGE_MODEL})")
-    return OpenAI()
-
-
 def _format_results(sql_results: dict) -> str:
     """Format SQL results for the prompt."""
     if not sql_results:
@@ -80,7 +70,7 @@ def judge_sql_results(
         - passed: True if the results correctly answer the question
         - errors: List of issues found (empty if passed)
     """
-    client = _get_openai_client()
+    client = get_openai_client()
 
     prompt = JUDGE_PROMPT.format(
         question=question,

@@ -369,9 +369,10 @@ class TestGetSqlPlan:
     @pytest.mark.no_mock_llm
     def test_get_sql_plan_calls_anthropic(self):
         """get_sql_plan calls Anthropic and parses response."""
-        from backend.agent.fetch.planner import get_sql_plan, _get_client
+        from backend.agent.fetch.planner import get_sql_plan
+        from backend.core.llm import get_anthropic_client
 
-        _get_client.cache_clear()
+        get_anthropic_client.cache_clear()
 
         mock_block = MagicMock()
         mock_block.text = '{"sql": "SELECT * FROM companies", "needs_rag": false}'
@@ -382,7 +383,7 @@ class TestGetSqlPlan:
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_response
 
-        with patch("backend.agent.fetch.planner._get_client", return_value=mock_client), \
+        with patch("backend.agent.fetch.planner.get_anthropic_client", return_value=mock_client), \
              patch("backend.agent.fetch.planner.load_prompt") as mock_prompt:
 
             mock_prompt.return_value.format.return_value = "test prompt"
@@ -391,14 +392,15 @@ class TestGetSqlPlan:
             assert result.sql == "SELECT * FROM companies"
             assert result.needs_rag is False
 
-        _get_client.cache_clear()
+        get_anthropic_client.cache_clear()
 
     @pytest.mark.no_mock_llm
     def test_get_sql_plan_parses_markdown_json(self):
         """get_sql_plan extracts JSON from markdown code blocks."""
-        from backend.agent.fetch.planner import get_sql_plan, _get_client
+        from backend.agent.fetch.planner import get_sql_plan
+        from backend.core.llm import get_anthropic_client
 
-        _get_client.cache_clear()
+        get_anthropic_client.cache_clear()
 
         mock_block = MagicMock()
         mock_block.text = '```json\n{"sql": "SELECT * FROM contacts", "needs_rag": true}\n```'
@@ -409,7 +411,7 @@ class TestGetSqlPlan:
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_response
 
-        with patch("backend.agent.fetch.planner._get_client", return_value=mock_client), \
+        with patch("backend.agent.fetch.planner.get_anthropic_client", return_value=mock_client), \
              patch("backend.agent.fetch.planner.load_prompt") as mock_prompt:
 
             mock_prompt.return_value.format.return_value = "test prompt"
@@ -418,14 +420,15 @@ class TestGetSqlPlan:
             assert result.sql == "SELECT * FROM contacts"
             assert result.needs_rag is True
 
-        _get_client.cache_clear()
+        get_anthropic_client.cache_clear()
 
     @pytest.mark.no_mock_llm
     def test_get_sql_plan_raises_on_invalid_json(self):
         """get_sql_plan raises ValueError on invalid JSON response."""
-        from backend.agent.fetch.planner import get_sql_plan, _get_client
+        from backend.agent.fetch.planner import get_sql_plan
+        from backend.core.llm import get_anthropic_client
 
-        _get_client.cache_clear()
+        get_anthropic_client.cache_clear()
 
         mock_block = MagicMock()
         mock_block.text = "not valid json at all"
@@ -436,7 +439,7 @@ class TestGetSqlPlan:
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_response
 
-        with patch("backend.agent.fetch.planner._get_client", return_value=mock_client), \
+        with patch("backend.agent.fetch.planner.get_anthropic_client", return_value=mock_client), \
              patch("backend.agent.fetch.planner.load_prompt") as mock_prompt:
 
             mock_prompt.return_value.format.return_value = "test prompt"
@@ -444,7 +447,7 @@ class TestGetSqlPlan:
             with pytest.raises(ValueError, match="Failed to parse JSON"):
                 get_sql_plan("What companies?")
 
-        _get_client.cache_clear()
+        get_anthropic_client.cache_clear()
 
 
 # =============================================================================

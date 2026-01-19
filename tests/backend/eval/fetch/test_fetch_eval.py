@@ -279,27 +279,25 @@ class TestFormatResults:
 
 
 class TestGetOpenaiClient:
-    """Tests for _get_openai_client singleton."""
+    """Tests for get_openai_client singleton."""
 
     def test_get_openai_client_singleton(self, monkeypatch):
-        """Test client is created as singleton."""
-        import backend.eval.fetch.sql_judge as sql_judge_module
+        """Test client is created as singleton via lru_cache."""
+        from backend.core.llm import get_openai_client
 
-        # Reset singleton
-        sql_judge_module._openai_client = None
+        # Clear cache to test fresh creation
+        get_openai_client.cache_clear()
 
         mock_client = MagicMock()
-        mock_openai = MagicMock(return_value=mock_client)
 
-        with patch.dict("sys.modules", {"openai": MagicMock(OpenAI=mock_openai)}):
-            from backend.eval.fetch.sql_judge import _get_openai_client
+        with patch("openai.OpenAI", return_value=mock_client):
+            client1 = get_openai_client()
+            client2 = get_openai_client()
 
-            # Reimport to get fresh function with patched import
-            client1 = _get_openai_client()
-            client2 = _get_openai_client()
-
-            # Should be same instance
+            # Should be same instance (cached)
             assert client1 is client2
+
+        get_openai_client.cache_clear()
 
 
 class TestJudgeSqlResults:
@@ -317,7 +315,7 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(sql_judge_module, "get_openai_client", lambda: mock_client)
         monkeypatch.setattr(
             sql_judge_module, "parse_json_response", lambda x: {"passed": True, "reasoning": "Good", "errors": []}
         )
@@ -347,7 +345,7 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(sql_judge_module, "get_openai_client", lambda: mock_client)
         monkeypatch.setattr(
             sql_judge_module,
             "parse_json_response",
@@ -377,7 +375,7 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(sql_judge_module, "get_openai_client", lambda: mock_client)
         monkeypatch.setattr(
             sql_judge_module,
             "parse_json_response",
@@ -406,7 +404,7 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(sql_judge_module, "get_openai_client", lambda: mock_client)
 
         def raise_value_error(x):
             raise ValueError("Invalid JSON")
@@ -431,7 +429,7 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.side_effect = Exception("API connection error")
 
-        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(sql_judge_module, "get_openai_client", lambda: mock_client)
 
         from backend.eval.fetch.sql_judge import judge_sql_results
 
@@ -462,7 +460,7 @@ class TestJudgeSqlResults:
             mock_response,
         ]
 
-        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(sql_judge_module, "get_openai_client", lambda: mock_client)
         monkeypatch.setattr(
             sql_judge_module, "parse_json_response", lambda x: {"passed": True, "reasoning": "Good", "errors": []}
         )
@@ -491,7 +489,7 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(sql_judge_module, "get_openai_client", lambda: mock_client)
         monkeypatch.setattr(
             sql_judge_module, "parse_json_response", lambda x: {"passed": True, "reasoning": "OK", "errors": []}
         )
@@ -521,7 +519,7 @@ class TestJudgeSqlResults:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
 
-        monkeypatch.setattr(sql_judge_module, "_get_openai_client", lambda: mock_client)
+        monkeypatch.setattr(sql_judge_module, "get_openai_client", lambda: mock_client)
         monkeypatch.setattr(
             sql_judge_module,
             "parse_json_response",

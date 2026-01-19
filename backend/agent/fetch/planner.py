@@ -2,14 +2,17 @@
 
 import logging
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
 
-import anthropic
 from pydantic import BaseModel, Field
 
 from backend.agent.fetch.sql.schema import get_schema_sql
-from backend.core.llm import REASONING_MODEL, load_prompt, parse_json_response
+from backend.core.llm import (
+    REASONING_MODEL,
+    get_anthropic_client,
+    load_prompt,
+    parse_json_response,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +24,6 @@ class SQLPlan(BaseModel):
 
     sql: str = Field(description="The SQL query to execute")
     needs_rag: bool = Field(default=False, description="Whether RAG context is needed")
-
-
-@lru_cache
-def _get_client() -> anthropic.Anthropic:
-    """Get Anthropic client (cached)."""
-    return anthropic.Anthropic()
 
 
 def get_sql_plan(question: str, conversation_history: str = "") -> SQLPlan:
@@ -42,7 +39,7 @@ def get_sql_plan(question: str, conversation_history: str = "") -> SQLPlan:
         question=question,
     )
 
-    response = _get_client().messages.create(
+    response = get_anthropic_client().messages.create(
         model=REASONING_MODEL,
         max_tokens=1024,
         messages=[{"role": "user", "content": f"{prompt}\n\nQuestion: {question}"}],

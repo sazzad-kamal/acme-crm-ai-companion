@@ -8,9 +8,11 @@ import json
 import logging
 import os
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+import anthropic
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
@@ -34,6 +36,20 @@ CREATIVE_TEMPERATURE = 0.7  # Varied, exploratory suggestions
 # Max token limits
 LONG_RESPONSE_MAX_TOKENS = 1024  # Detailed answers
 SHORT_RESPONSE_MAX_TOKENS = 150  # Brief suggestions
+
+
+@lru_cache
+def get_anthropic_client() -> anthropic.Anthropic:
+    """Get Anthropic client (cached singleton)."""
+    return anthropic.Anthropic()
+
+
+@lru_cache
+def get_openai_client():
+    """Get raw OpenAI client (cached singleton)."""
+    from openai import OpenAI
+
+    return OpenAI()
 
 
 def _create_chat_openai(
@@ -161,6 +177,8 @@ __all__ = [
     "CREATIVE_TEMPERATURE",
     "LONG_RESPONSE_MAX_TOKENS",
     "SHORT_RESPONSE_MAX_TOKENS",
+    "get_anthropic_client",
+    "get_openai_client",
     "create_chain",
     "load_prompt",
     "parse_json_response",
