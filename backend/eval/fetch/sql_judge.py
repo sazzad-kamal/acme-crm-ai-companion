@@ -5,22 +5,22 @@ from __future__ import annotations
 import json
 import logging
 
-from backend.core.llm import call_openai
+from pydantic import BaseModel, Field
+
+from backend.core.llm import create_chain
 
 logger = logging.getLogger(__name__)
 
-JUDGE_PROMPT = """You are evaluating whether SQL query results correctly answer a user's question about CRM data.
 
-## Question
-{question}
+class JudgeResult(BaseModel):
+    """Structured output from the SQL judge."""
 
-## SQL Query
-{sql}
+    passed: bool = Field(description="Whether the results correctly answer the question")
+    reasoning: str = Field(description="Brief explanation of the judgment")
+    errors: list[str] = Field(default_factory=list, description="List of issues found")
 
-## Query Results
-{results}
+_SYSTEM_PROMPT = """You are evaluating whether SQL query results correctly answer a user's question about CRM data.
 
-## Your Task
 Evaluate whether the results answer the question:
 1. Does the data returned actually answer what was asked?
 2. Are the results complete (not missing expected data)?
@@ -32,12 +32,17 @@ Consider:
 - If asking for aggregations, are the values reasonable?
 - If asking for filtered data, is the filter correctly applied?
 
-## Response Format
-Respond with JSON only:
-{{"passed": true/false, "reasoning": "Brief explanation", "errors": ["error1", "error2"]}}
-
 If passed=true, errors should be an empty list.
 If passed=false, list specific issues found."""
+
+_HUMAN_PROMPT = """## Question
+{question}
+
+## SQL Query
+{sql}
+
+## Query Results
+{results}"""
 
 
 def _format_results(sql_results: dict) -> str:
@@ -70,37 +75,31 @@ def judge_sql_results(
         - passed: True if the results correctly answer the question
         - errors: List of issues found (empty if passed)
     """
-    prompt = JUDGE_PROMPT.format(
-        question=question,
-        sql=sql or "No SQL provided",
-        results=_format_results(sql_results),
+    chain = create_chain(
+        system_prompt=_SYSTEM_PROMPT,
+        human_prompt=_HUMAN_PROMPT,
+        max_tokens=512,
+        structured_output=JudgeResult,
+        streaming=False,
     )
 
-    last_error: Exception | None = None
-    for attempt in range(2):
-        try:
-            data = call_openai(prompt)
-            passed = bool(data.get("passed", False))
-            errors = data.get("errors", [])
-            reasoning = data.get("reasoning", "")
+    try:
+        result: JudgeResult = chain.invoke({
+            "question": question,
+            "sql": sql or "No SQL provided",
+            "results": _format_results(sql_results),
+        })
 
-            if not passed and reasoning and not errors:
-                errors = [reasoning]
+        errors = result.errors
+        if not result.passed and result.reasoning and not errors:
+            errors = [result.reasoning]
 
-            logger.debug(f"SQL Judge: passed={passed}, reasoning={reasoning[:100]}")
-            return passed, errors if isinstance(errors, list) else [str(errors)]
+        logger.debug(f"SQL Judge: passed={result.passed}, reasoning={result.reasoning[:100]}")
+        return result.passed, errors
 
-        except json.JSONDecodeError:
-            logger.warning("SQL Judge: failed to parse JSON response")
-            return False, ["Judge failed to return valid JSON"]
-
-        except Exception as e:
-            last_error = e
-            if attempt == 0:
-                logger.debug(f"SQL Judge retry after error: {e}")
-
-    logger.warning(f"SQL Judge error after retries: {last_error}")
-    return False, [f"Judge API error: {last_error}"]
+    except Exception as e:
+        logger.warning(f"SQL Judge error: {e}")
+        return False, [f"Judge API error: {e}"]
 
 
 __all__ = ["judge_sql_results"]

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
-from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -278,43 +276,22 @@ class TestFormatResults:
         assert len(result) <= 4100  # 4000 + truncation message
 
 
-class TestGetOpenaiClient:
-    """Tests for _get_openai_client singleton."""
-
-    def test_get_openai_client_singleton(self, monkeypatch):
-        """Test client is created as singleton via lru_cache."""
-        from backend.core.llm import _get_openai_client
-
-        # Clear cache to test fresh creation
-        _get_openai_client.cache_clear()
-
-        mock_client = MagicMock()
-
-        with patch("openai.OpenAI", return_value=mock_client):
-            client1 = _get_openai_client()
-            client2 = _get_openai_client()
-
-            # Should be same instance (cached)
-            assert client1 is client2
-
-        _get_openai_client.cache_clear()
-
-
 class TestJudgeSqlResults:
     """Tests for judge_sql_results function."""
+
+    def _mock_chain(self, result):
+        """Create a mock chain that returns the given JudgeResult."""
+        mock_chain = MagicMock()
+        mock_chain.invoke.return_value = result
+        return mock_chain
 
     def test_judge_sql_results_passed(self, monkeypatch):
         """Test successful judgment that passes."""
         import backend.eval.fetch.sql_judge as sql_judge_module
+        from backend.eval.fetch.sql_judge import JudgeResult, judge_sql_results
 
-        # call_openai returns dict directly
-        monkeypatch.setattr(
-            sql_judge_module,
-            "call_openai",
-            lambda prompt: {"passed": True, "reasoning": "Good", "errors": []},
-        )
-
-        from backend.eval.fetch.sql_judge import judge_sql_results
+        mock_chain = self._mock_chain(JudgeResult(passed=True, reasoning="Good", errors=[]))
+        monkeypatch.setattr(sql_judge_module, "create_chain", lambda **kwargs: mock_chain)
 
         passed, errors = judge_sql_results(
             question="What is the count?",
@@ -328,14 +305,12 @@ class TestJudgeSqlResults:
     def test_judge_sql_results_failed(self, monkeypatch):
         """Test judgment that fails."""
         import backend.eval.fetch.sql_judge as sql_judge_module
+        from backend.eval.fetch.sql_judge import JudgeResult, judge_sql_results
 
-        monkeypatch.setattr(
-            sql_judge_module,
-            "call_openai",
-            lambda prompt: {"passed": False, "reasoning": "Wrong count", "errors": ["Count mismatch"]},
+        mock_chain = self._mock_chain(
+            JudgeResult(passed=False, reasoning="Wrong count", errors=["Count mismatch"])
         )
-
-        from backend.eval.fetch.sql_judge import judge_sql_results
+        monkeypatch.setattr(sql_judge_module, "create_chain", lambda **kwargs: mock_chain)
 
         passed, errors = judge_sql_results(
             question="What is the count?",
@@ -349,14 +324,12 @@ class TestJudgeSqlResults:
     def test_judge_sql_results_failed_with_reasoning_no_errors(self, monkeypatch):
         """Test judgment failed with reasoning but no errors list."""
         import backend.eval.fetch.sql_judge as sql_judge_module
+        from backend.eval.fetch.sql_judge import JudgeResult, judge_sql_results
 
-        monkeypatch.setattr(
-            sql_judge_module,
-            "call_openai",
-            lambda prompt: {"passed": False, "reasoning": "Data is incomplete", "errors": []},
+        mock_chain = self._mock_chain(
+            JudgeResult(passed=False, reasoning="Data is incomplete", errors=[])
         )
-
-        from backend.eval.fetch.sql_judge import judge_sql_results
+        monkeypatch.setattr(sql_judge_module, "create_chain", lambda **kwargs: mock_chain)
 
         passed, errors = judge_sql_results(
             question="What is the count?",
@@ -368,39 +341,14 @@ class TestJudgeSqlResults:
         # Reasoning should be used as error when errors list is empty
         assert "Data is incomplete" in errors
 
-    def test_judge_sql_results_invalid_json(self, monkeypatch):
-        """Test handling of invalid JSON response."""
+    def test_judge_sql_results_api_error(self, monkeypatch):
+        """Test API error returns failure."""
         import backend.eval.fetch.sql_judge as sql_judge_module
-
-        def raise_json_error(prompt):
-            raise json.JSONDecodeError("Invalid JSON", "", 0)
-
-        monkeypatch.setattr(sql_judge_module, "call_openai", raise_json_error)
-
         from backend.eval.fetch.sql_judge import judge_sql_results
 
-        passed, errors = judge_sql_results(
-            question="Test",
-            sql="SELECT 1",
-            sql_results={"val": [1]},
-        )
-
-        assert passed is False
-        assert "Judge failed to return valid JSON" in errors
-
-    def test_judge_sql_results_api_error_with_retry(self, monkeypatch):
-        """Test API error triggers retry and eventually fails."""
-        import backend.eval.fetch.sql_judge as sql_judge_module
-
-        call_count = {"count": 0}
-
-        def raise_api_error(prompt):
-            call_count["count"] += 1
-            raise Exception("API connection error")
-
-        monkeypatch.setattr(sql_judge_module, "call_openai", raise_api_error)
-
-        from backend.eval.fetch.sql_judge import judge_sql_results
+        mock_chain = MagicMock()
+        mock_chain.invoke.side_effect = Exception("API connection error")
+        monkeypatch.setattr(sql_judge_module, "create_chain", lambda **kwargs: mock_chain)
 
         passed, errors = judge_sql_results(
             question="Test",
@@ -410,48 +358,21 @@ class TestJudgeSqlResults:
 
         assert passed is False
         assert any("API error" in e for e in errors)
-        # Should have tried twice
-        assert call_count["count"] == 2
-
-    def test_judge_sql_results_retry_succeeds(self, monkeypatch):
-        """Test retry succeeds after first failure."""
-        import backend.eval.fetch.sql_judge as sql_judge_module
-
-        call_count = {"count": 0}
-
-        def retry_success(prompt):
-            call_count["count"] += 1
-            if call_count["count"] == 1:
-                raise Exception("Temporary error")
-            return {"passed": True, "reasoning": "Good", "errors": []}
-
-        monkeypatch.setattr(sql_judge_module, "call_openai", retry_success)
-
-        from backend.eval.fetch.sql_judge import judge_sql_results
-
-        passed, errors = judge_sql_results(
-            question="Test",
-            sql="SELECT 1",
-            sql_results={"val": [1]},
-        )
-
-        assert passed is True
-        assert errors == []
-        assert call_count["count"] == 2
 
     def test_judge_sql_results_no_sql(self, monkeypatch):
         """Test handling when SQL is empty."""
         import backend.eval.fetch.sql_judge as sql_judge_module
+        from backend.eval.fetch.sql_judge import JudgeResult, judge_sql_results
 
-        captured_prompt = {}
+        captured_args = {}
 
-        def capture_prompt(prompt):
-            captured_prompt["prompt"] = prompt
-            return {"passed": True, "reasoning": "OK", "errors": []}
+        def capture_invoke(inputs):
+            captured_args.update(inputs)
+            return JudgeResult(passed=True, reasoning="OK", errors=[])
 
-        monkeypatch.setattr(sql_judge_module, "call_openai", capture_prompt)
-
-        from backend.eval.fetch.sql_judge import judge_sql_results
+        mock_chain = MagicMock()
+        mock_chain.invoke = capture_invoke
+        monkeypatch.setattr(sql_judge_module, "create_chain", lambda **kwargs: mock_chain)
 
         judge_sql_results(
             question="Test",
@@ -459,31 +380,8 @@ class TestJudgeSqlResults:
             sql_results={"val": [1]},
         )
 
-        # Check that "No SQL provided" was used in prompt
-        assert "No SQL provided" in captured_prompt["prompt"]
-
-    def test_judge_sql_results_errors_not_list(self, monkeypatch):
-        """Test handling when errors is not a list."""
-        import backend.eval.fetch.sql_judge as sql_judge_module
-
-        monkeypatch.setattr(
-            sql_judge_module,
-            "call_openai",
-            lambda prompt: {"passed": False, "reasoning": "Bad", "errors": "single error"},
-        )
-
-        from backend.eval.fetch.sql_judge import judge_sql_results
-
-        passed, errors = judge_sql_results(
-            question="Test",
-            sql="SELECT 1",
-            sql_results={"val": [1]},
-        )
-
-        assert passed is False
-        # Should convert string to list
-        assert isinstance(errors, list)
-        assert "single error" in errors
+        # Check that "No SQL provided" was used
+        assert captured_args["sql"] == "No SQL provided"
 
 
 # =============================================================================

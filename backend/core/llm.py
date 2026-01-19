@@ -4,7 +4,6 @@ Shared LLM client infrastructure.
 All LLM interactions should go through this module for consistency.
 """
 
-import json
 import logging
 import os
 from functools import lru_cache
@@ -32,14 +31,6 @@ SHORT_RESPONSE_MAX_TOKENS = 150  # Brief suggestions
 def _get_anthropic_client() -> anthropic.Anthropic:
     """Get Anthropic client (cached singleton)."""
     return anthropic.Anthropic()
-
-
-@lru_cache
-def _get_openai_client():
-    """Get raw OpenAI client (cached singleton)."""
-    from openai import OpenAI
-
-    return OpenAI()
 
 
 def create_chain(
@@ -94,22 +85,6 @@ def call_anthropic(
     return output_schema(**response.content[0].input)  # type: ignore[union-attr]
 
 
-def call_openai(prompt: str, system: str = "", max_tokens: int = 512) -> dict:
-    """Call OpenAI with JSON mode."""
-    messages: list[dict[str, str]] = []
-    if system:
-        messages.append({"role": "system", "content": system})
-    messages.append({"role": "user", "content": prompt})
-
-    response = _get_openai_client().chat.completions.create(
-        model=_OPENAI_MODEL,
-        messages=messages,
-        max_tokens=max_tokens,
-        response_format={"type": "json_object"},
-    )
-    return json.loads(response.choices[0].message.content or "{}")  # type: ignore[no-any-return]
-
-
 @lru_cache
 def get_langchain_chat_openai() -> ChatOpenAI:
     """Get LangChain ChatOpenAI (cached singleton)."""
@@ -127,7 +102,6 @@ __all__ = [
     "SHORT_RESPONSE_MAX_TOKENS",
     "create_chain",
     "call_anthropic",
-    "call_openai",
     "get_langchain_chat_openai",
     "get_langchain_embeddings",
 ]
