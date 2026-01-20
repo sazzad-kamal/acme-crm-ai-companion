@@ -15,13 +15,7 @@ from backend.core.llm import SHORT_RESPONSE_MAX_TOKENS, create_openai_chain
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = "You are a helpful CRM assistant. Generate 3 follow-up question suggestions."
-
-_HUMAN_PROMPT = """Suggest 3 follow-up questions for the user.
-
-User's question: {question}
-
-{conversation_history_section}
+_SYSTEM_PROMPT = """You are a helpful CRM assistant that suggests follow-up questions.
 
 GENERATE 3 QUESTIONS:
 1. First question: Drill deeper into the topic the user asked about
@@ -32,6 +26,12 @@ RULES:
 - Keep questions SHORT and actionable
 - Questions should be natural follow-ups to what was asked
 - Mix specific follow-ups with broader exploration options"""
+
+_HUMAN_PROMPT = """Suggest 3 follow-up questions for the user.
+
+User's question: {question}
+
+{conversation_history_section}"""
 
 
 class FollowUpSuggestions(BaseModel):
