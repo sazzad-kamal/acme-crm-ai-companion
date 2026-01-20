@@ -163,9 +163,9 @@ def mock_llm(request):
         return
     from backend.agent.fetch.planner import SQLPlan
 
-    def mock_call_answer_chain(*args, **kwargs) -> tuple[str, int]:
+    def mock_call_answer_chain(*args, **kwargs) -> str:
         question = kwargs.get("question", args[0] if args else "")
-        return _mock_answer_response(question), 100
+        return _mock_answer_response(question)
 
     def mock_search_entity_context(question: str, filters: dict[str, str]) -> tuple[str, list[dict]]:
         """Mock for search_entity_context used by _fetch_rag_if_needed."""

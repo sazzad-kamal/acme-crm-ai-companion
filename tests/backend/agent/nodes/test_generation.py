@@ -26,7 +26,7 @@ class TestAnswerNode:
         """Synthesizes response from state data."""
         from backend.agent.answer.node import answer_node
 
-        mock_chain.return_value = ("This is the answer.", 150)
+        mock_chain.return_value = "This is the answer."
 
         state = {
             "question": "What's happening with Acme?",
@@ -44,7 +44,7 @@ class TestAnswerNode:
         """Updates messages with user question and assistant answer."""
         from backend.agent.answer.node import answer_node
 
-        mock_chain.return_value = ("Response text.", 100)
+        mock_chain.return_value = "Response text."
 
         state = {
             "question": "Tell me about Acme",
@@ -66,7 +66,7 @@ class TestAnswerNode:
         """Uses fallback when LLM returns empty answer."""
         from backend.agent.answer.node import answer_node
 
-        mock_chain.return_value = ("", 100)
+        mock_chain.return_value = ""
 
         state = {
             "question": "Test question",
@@ -102,7 +102,7 @@ class TestAnswerNode:
         """Passes sql_results to answer chain."""
         from backend.agent.answer.node import answer_node
 
-        mock_chain.return_value = ("Full answer", 100)
+        mock_chain.return_value = "Full answer"
 
         state = {
             "question": "Give me everything about Acme",

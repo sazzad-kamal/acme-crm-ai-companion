@@ -13,7 +13,7 @@ def answer_node(state: AgentState) -> AgentState:
     logger.info("[Answer] Synthesizing response...")
 
     try:
-        answer, _ = call_answer_chain(
+        answer = call_answer_chain(
             question=state["question"],
             sql_results=state.get("sql_results", {}),
             rag_context=state.get("rag_context", ""),

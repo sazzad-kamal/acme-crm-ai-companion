@@ -441,81 +441,6 @@ class TestCallAnswerChain:
         assert latency > 0
         assert latency >= 0.01
 
-    def test_answer_chain_input_formatting(self):
-        """Verify SQL results are formatted correctly for answer chain."""
-        from backend.agent.answer.answerer import _build_answer_input
-
-        data = {"companies": [{"name": "Acme", "revenue": 1000000}]}
-        result = _build_answer_input(question="test", sql_results=data)
-
-        assert "Acme" in result["sql_results"]
-        assert "1000000" in result["sql_results"]
-
-
-class TestBuildAnswerInput:
-    """Tests for build_answer_input function."""
-
-    def test_with_rag_context(self):
-        """Test _build_answer_input with rag context."""
-        from backend.agent.answer.answerer import _build_answer_input
-
-        result = _build_answer_input(
-            question="test",
-            rag_context="Some account notes",
-        )
-
-        assert "=== ACCOUNT CONTEXT (RAG) ===" in result["account_context_section"]
-        assert "Some account notes" in result["account_context_section"]
-
-    def test_with_conversation_history(self):
-        """Test _build_answer_input with conversation history."""
-        from backend.agent.answer.answerer import _build_answer_input
-
-        result = _build_answer_input(
-            question="test",
-            conversation_history="User: Hi\nAssistant: Hello",
-        )
-
-        assert "=== RECENT CONVERSATION ===" in result["conversation_history_section"]
-        assert "User: Hi" in result["conversation_history_section"]
-
-    def test_without_optional_params(self):
-        """Test _build_answer_input without optional params."""
-        from backend.agent.answer.answerer import _build_answer_input
-
-        result = _build_answer_input(question="test")
-
-        assert result["question"] == "test"
-        assert result["account_context_section"] == ""
-        assert result["conversation_history_section"] == ""
-        assert result["sql_results"] == "(No data retrieved)"
-
-    def test_with_none_sql_results(self):
-        """Test _build_answer_input with None sql_results."""
-        from backend.agent.answer.answerer import _build_answer_input
-
-        result = _build_answer_input(question="test", sql_results=None)
-        assert result["sql_results"] == "(No data retrieved)"
-
-    def test_with_empty_sql_results(self):
-        """Test _build_answer_input with empty dict sql_results."""
-        from backend.agent.answer.answerer import _build_answer_input
-
-        result = _build_answer_input(question="test", sql_results={})
-        assert result["sql_results"] == "(No data retrieved)"
-
-    def test_with_valid_sql_results(self):
-        """Test _build_answer_input formats SQL results as JSON."""
-        from backend.agent.answer.answerer import _build_answer_input
-
-        data = {"companies": [{"name": "Acme"}]}
-        result = _build_answer_input(question="test", sql_results=data)
-
-        assert "Acme" in result["sql_results"]
-        parsed = json.loads(result["sql_results"])
-        assert parsed == data
-
-
 class TestGetAnswerChain:
     """Tests for _get_answer_chain function."""
 
@@ -747,20 +672,19 @@ class TestCreateChain:
 
 
 class TestCallAnswerChainDirect:
-    """Direct tests for call_answer_chain to cover lines 112-114."""
+    """Direct tests for call_answer_chain."""
 
     @pytest.mark.no_mock_llm
-    def test_call_answer_chain_returns_answer_and_latency(self, monkeypatch):
-        """Test call_answer_chain returns tuple of (answer, latency_ms)."""
+    def test_call_answer_chain_returns_answer(self, monkeypatch):
+        """Test call_answer_chain returns answer string."""
         from backend.agent.answer import answerer
 
-        # Mock the chain's invoke method
         mock_chain = MagicMock()
         mock_chain.invoke.return_value = "Test answer"
 
         monkeypatch.setattr(answerer, "_get_answer_chain", lambda: mock_chain)
 
-        answer, latency_ms = answerer.call_answer_chain(
+        answer = answerer.call_answer_chain(
             question="Test question",
             sql_results={"data": []},
             rag_context="context",
@@ -768,8 +692,6 @@ class TestCallAnswerChainDirect:
         )
 
         assert answer == "Test answer"
-        assert isinstance(latency_ms, int)
-        assert latency_ms >= 0
 
 
 class TestQdrantClientDoubleCheck:

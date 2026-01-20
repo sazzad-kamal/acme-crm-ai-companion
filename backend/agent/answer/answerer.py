@@ -6,7 +6,6 @@ Chain creation and invocation for answer generation.
 
 import json
 import logging
-import time
 from functools import lru_cache
 from typing import Any
 
@@ -71,73 +70,20 @@ def _get_answer_chain() -> Any:
     return chain
 
 
-def _build_answer_input(
-    question: str,
-    sql_results: dict[str, Any] | None = None,
-    rag_context: str = "",
-    conversation_history: str = "",
-) -> dict[str, str]:
-    """Build input dict for the answer chain."""
-    # Format conversation history section
-    conversation_history_section = ""
-    if conversation_history:
-        conversation_history_section = f"=== RECENT CONVERSATION ===\n{conversation_history}\n"
-
-    # Format account context section
-    account_context_section = ""
-    if rag_context:
-        account_context_section = f"=== ACCOUNT CONTEXT (RAG) ===\n{rag_context}\n"
-
-    # Format SQL results as JSON
-    if sql_results:
-        try:
-            formatted_sql = json.dumps(sql_results, indent=2, default=str)
-        except Exception:
-            formatted_sql = str(sql_results)
-    else:
-        formatted_sql = "(No data retrieved)"
-
-    return {
-        "question": question,
-        "conversation_history_section": conversation_history_section,
-        "sql_results": formatted_sql,
-        "account_context_section": account_context_section,
-    }
-
-
 def call_answer_chain(
     question: str,
     sql_results: dict[str, Any] | None = None,
     rag_context: str = "",
     conversation_history: str = "",
-) -> tuple[str, int]:
-    """
-    Call the answer chain and return (answer, latency_ms).
-
-    Args:
-        question: The user's question
-        sql_results: Dict of SQL query results keyed by purpose
-        rag_context: RAG context from account notes/descriptions
-        conversation_history: Formatted conversation history
-
-    Returns:
-        Tuple of (answer string, latency in ms)
-    """
-    chain = _get_answer_chain()
-    start_time = time.time()
-
-    chain_input = _build_answer_input(
-        question=question,
-        sql_results=sql_results,
-        rag_context=rag_context,
-        conversation_history=conversation_history,
-    )
-
-    answer = chain.invoke(chain_input)
-
-    latency_ms = int((time.time() - start_time) * 1000)
-    logger.info(f"Answer chain completed in {latency_ms}ms")
-    return answer, latency_ms
+) -> str:
+    """Call the answer chain and return the answer string."""
+    result: str = _get_answer_chain().invoke({
+        "question": question,
+        "conversation_history_section": f"=== RECENT CONVERSATION ===\n{conversation_history}\n" if conversation_history else "",
+        "sql_results": json.dumps(sql_results, indent=2, default=str) if sql_results else "(No data retrieved)",
+        "account_context_section": f"=== ACCOUNT CONTEXT (RAG) ===\n{rag_context}\n" if rag_context else "",
+    })
+    return result
 
 
 __all__ = ["call_answer_chain"]
