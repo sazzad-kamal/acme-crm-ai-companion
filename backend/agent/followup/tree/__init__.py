@@ -75,11 +75,11 @@ def get_follow_ups(question: str) -> list[str]:
     """
     Get follow-up questions for a given question.
 
-    Returns hardcoded follow-ups from the tree, or empty list
+    Returns up to 3 hardcoded follow-ups from the tree, or empty list
     if the question isn't in the tree.
     """
     if question in _G:
-        return list(_G.successors(question))
+        return list(_G.successors(question))[:3]
     return []
 
 
