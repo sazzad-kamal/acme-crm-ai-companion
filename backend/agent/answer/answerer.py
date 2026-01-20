@@ -26,7 +26,10 @@ RESPONSE STYLE:
 - Use bullet points for supporting details
 - Be conversational and natural, not robotic
 - Keep it SHORT - no padding or filler
-- Currency: $1,250,000 | Dates: March 31, 2026
+
+FORMATTING:
+- Currency: $1,250,000
+- Dates: March 31, 2026
 
 EXAMPLES:
 Good (grounded + concise):
