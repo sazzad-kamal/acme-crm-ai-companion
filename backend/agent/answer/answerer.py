@@ -13,8 +13,7 @@ from backend.core.llm import LONG_RESPONSE_MAX_TOKENS, create_openai_chain
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """You are a helpful CRM assistant for Acme CRM Suite.
-Answer questions using ONLY the provided CRM data context.
+_SYSTEM_PROMPT = """You are a CRM assistant. Answer questions using ONLY the provided context.
 
 RULES:
 - Use exact numbers/dates from context
