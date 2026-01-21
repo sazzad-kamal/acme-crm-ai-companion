@@ -54,7 +54,7 @@ def process_csv_source(
 
 def generate_texts(csv_dir: Path) -> int:
     """Generate texts.jsonl from source CSVs."""
-    output_path = csv_dir / "texts.jsonl"
+    output_path = csv_dir.parent / "texts.jsonl"
     all_records = []
 
     print("Processing sources:")

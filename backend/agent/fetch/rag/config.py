@@ -9,7 +9,7 @@ from pathlib import Path
 # Directory paths (backend/agent/fetch/rag/config.py -> backend/)
 _BACKEND_ROOT = Path(__file__).parent.parent.parent.parent
 QDRANT_PATH = _BACKEND_ROOT / "data" / "qdrant"
-JSONL_PATH = _BACKEND_ROOT / "data" / "csv" / "texts.jsonl"
+JSONL_PATH = _BACKEND_ROOT / "data" / "texts.jsonl"
 
 # Collection names
 TEXT_COLLECTION = "acme_crm_texts"
