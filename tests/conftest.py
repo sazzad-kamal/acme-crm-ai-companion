@@ -195,7 +195,7 @@ def mock_llm(request):
         elif any(kw in q for kw in ["forecast", "weighted"]):
             return SQLPlan(sql="SELECT * FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') ORDER BY value DESC")
         elif any(kw in q for kw in ["at risk", "at-risk", "stalled"]):
-            return SQLPlan(sql="SELECT * FROM companies WHERE health_flags LIKE '%at-risk%'")
+            return SQLPlan(sql="SELECT * FROM companies WHERE health_status LIKE '%at-risk%'")
 
         # Default: return companies query
         return SQLPlan(sql="SELECT * FROM companies")

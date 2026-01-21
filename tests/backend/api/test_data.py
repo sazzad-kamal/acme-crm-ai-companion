@@ -81,7 +81,7 @@ class TestOpportunitiesEndpoint:
         """Should return expected opportunity columns."""
         response = client.get("/api/data/opportunities")
         data = response.json()
-        expected_columns = ["opportunity_id", "name", "stage", "value"]
+        expected_columns = ["opportunity_id", "name", "stage", "amount"]
         for col in expected_columns:
             assert col in data["columns"]
 

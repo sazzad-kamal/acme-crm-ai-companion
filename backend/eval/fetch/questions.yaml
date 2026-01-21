@@ -63,7 +63,7 @@ questions:
   - text: "What are the contact names at Crown Foods?"
     difficulty: 2
 
-  - text: "Which companies have at-risk health flags?"
+  - text: "Which companies have at-risk health status?"
     difficulty: 2
 
   - text: "How many contacts have the role Champion?"
@@ -134,7 +134,7 @@ questions:
   - text: "Which opportunities have value above the average?"
     difficulty: 4
 
-  - text: "What are the contacts at companies with at-risk health flags?"
+  - text: "What are the contacts at companies with at-risk health status?"
     difficulty: 4
 
   - text: "Which account owners manage companies with total pipeline over $30k?"
@@ -174,7 +174,7 @@ questions:
   - text: "Which contacts have the most activities compared to others in the same company?"
     difficulty: 5
 
-  - text: "What is the average days in stage for each opportunity stage?"
+  - text: "What is the average deal amount by company segment?"
     difficulty: 5
 
   - text: "Show opportunities along with the previous opportunity value for the same company?"
