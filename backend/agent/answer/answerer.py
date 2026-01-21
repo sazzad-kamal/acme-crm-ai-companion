@@ -6,6 +6,7 @@ Chain creation and invocation for answer generation.
 
 import json
 import logging
+import re
 from functools import cache
 from typing import Any
 
@@ -23,15 +24,23 @@ RULES:
 
 FORMAT: Currency $1,250,000 | Dates: March 31, 2026
 
+SUGGESTED ACTION:
+After answering, suggest ONE actionable next step based on the data.
+- Use format: "Suggested action: [specific action]"
+- Actions should be CRM-appropriate: schedule call, send email, create task, update stage
+- Reference specific people/entities from the data when possible
+- Only suggest if there's a clear action; skip for pure informational queries
+
 EXAMPLES:
 User: "What opportunities does Beta Tech have?"
 Good: "Beta Tech has 3 open opportunities totaling $245,000.
 - Largest: Enterprise renewal ($150,000, closes March 31)
 - Champion: Sarah Chen (VP Engineering)
-- Risk: Competitor evaluation in progress"
+- Risk: Competitor evaluation in progress
+
+Suggested action: Schedule a call with Sarah Chen to address the competitor evaluation."
 Bad: "They have several opportunities"
 Bad: "Based on the provided data, I can confirm..."
-Bad: "Great question! Let me look into that..."
 
 User: "What's the renewal amount for Acme Corp?"
 Good: "Renewal amount is not available in the current data."
@@ -75,4 +84,18 @@ def call_answer_chain(
     return result
 
 
-__all__ = ["call_answer_chain"]
+def extract_suggested_action(answer: str) -> tuple[str, str | None]:
+    """Extract suggested action from answer text.
+
+    Returns:
+        Tuple of (clean_answer, action) where clean_answer has action removed.
+    """
+    match = re.search(r"\n*Suggested action:\s*(.+?)(?:\n|$)", answer, re.IGNORECASE)
+    if match:
+        action = match.group(1).strip()
+        clean_answer = answer[: match.start()].rstrip()
+        return clean_answer, action
+    return answer, None
+
+
+__all__ = ["call_answer_chain", "extract_suggested_action"]

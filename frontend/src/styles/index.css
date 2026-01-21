@@ -1205,6 +1205,28 @@ body {
 }
 
 /* -----------------------------------------------------------------------------
+   Suggested Actions
+   ----------------------------------------------------------------------------- */
+.suggested-actions {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--color-primary-bg);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  animation: fadeIn 0.3s ease;
+}
+
+.suggested-actions__label {
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-right: var(--space-sm);
+}
+
+.suggested-actions__item {
+  color: var(--color-text);
+}
+
+/* -----------------------------------------------------------------------------
    Data Tables
    ----------------------------------------------------------------------------- */
 .data-section {

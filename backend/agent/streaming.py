@@ -53,6 +53,7 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
                     "answer": final.get("answer", ""),
                     "sql_results": final.get("sql_results", {}),
                     "follow_up_suggestions": final.get("follow_up_suggestions", []),
+                    "suggested_actions": final.get("suggested_actions", []),
                 })
 
     except Exception as ex:

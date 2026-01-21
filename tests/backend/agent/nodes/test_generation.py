@@ -122,6 +122,48 @@ class TestAnswerNode:
         assert "sql_results" in call_kwargs
         assert call_kwargs["sql_results"]["company_info"][0]["name"] == "Acme"
 
+    @patch('backend.agent.answer.node.call_answer_chain')
+    def test_answer_node_extracts_suggested_actions(self, mock_chain):
+        """Extracts suggested actions from answer."""
+        from backend.agent.answer.node import answer_node
+
+        mock_chain.return_value = (
+            "Acme has 3 opportunities.\n\n"
+            "Suggested action: Schedule a call with the decision maker."
+        )
+
+        state = {
+            "question": "What deals does Acme have?",
+            "messages": [],
+            "sql_results": {},
+        }
+
+        result = answer_node(state)
+
+        assert "suggested_actions" in result
+        assert len(result["suggested_actions"]) == 1
+        assert result["suggested_actions"][0] == "Schedule a call with the decision maker."
+        # Action should be stripped from the answer
+        assert "Suggested action" not in result["answer"]
+
+    @patch('backend.agent.answer.node.call_answer_chain')
+    def test_answer_node_returns_empty_actions_when_none(self, mock_chain):
+        """Returns empty suggested_actions when no action in answer."""
+        from backend.agent.answer.node import answer_node
+
+        mock_chain.return_value = "Acme has 3 opportunities."
+
+        state = {
+            "question": "What deals does Acme have?",
+            "messages": [],
+            "sql_results": {},
+        }
+
+        result = answer_node(state)
+
+        assert "suggested_actions" in result
+        assert result["suggested_actions"] == []
+
 
 # =============================================================================
 # Follow-up Node Tests

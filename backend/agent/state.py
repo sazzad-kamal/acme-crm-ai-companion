@@ -82,6 +82,7 @@ class AgentState(TypedDict, total=False):
     # Final outputs
     answer: str
     follow_up_suggestions: list[str]
+    suggested_actions: list[str]  # Actionable next steps
 
     # Error handling
     error: str | None

@@ -3,6 +3,7 @@ import type { ChatMessage } from "../types";
 import { config } from "../config";
 import { DataTables } from "./DataTables";
 import { FollowUpSuggestions } from "./FollowUpSuggestions";
+import { SuggestedActions } from "./SuggestedActions";
 import { Avatar } from "./Avatar";
 import { CopyButton } from "./CopyButton";
 import { MarkdownText } from "./MarkdownText";
@@ -71,6 +72,11 @@ export const MessageBlock = memo(function MessageBlock({
                 <MarkdownText text={response.answer} className="message__answer" />
                 <CopyButton text={response.answer} className="message__copy" />
               </div>
+
+              {/* Suggested Actions */}
+              {response.suggested_actions && response.suggested_actions.length > 0 && (
+                <SuggestedActions actions={response.suggested_actions} />
+              )}
 
               {/* Data Tables (collapsed) */}
               {config.features.showDataTables && response.sql_results && (

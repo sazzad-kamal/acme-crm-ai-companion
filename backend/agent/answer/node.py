@@ -2,7 +2,7 @@
 
 import logging
 
-from backend.agent.answer.answerer import call_answer_chain
+from backend.agent.answer.answerer import call_answer_chain, extract_suggested_action
 from backend.agent.state import AgentState, format_conversation_for_prompt
 
 logger = logging.getLogger(__name__)
@@ -13,16 +13,19 @@ def answer_node(state: AgentState) -> AgentState:
     logger.info("[Answer] Synthesizing response...")
 
     try:
-        answer = call_answer_chain(
+        raw_answer = call_answer_chain(
             question=state["question"],
             sql_results=state.get("sql_results", {}),
             conversation_history=format_conversation_for_prompt(state.get("messages", [])),
         )
 
         # Validate answer
-        if not answer or not answer.strip():
+        if not raw_answer or not raw_answer.strip():
             logger.warning("[Answer] LLM returned empty answer, using fallback")
-            answer = "I apologize, but I wasn't able to generate a complete response. Please try rephrasing your question."
+            raw_answer = "I apologize, but I wasn't able to generate a complete response. Please try rephrasing your question."
+
+        # Extract suggested action (strips it from answer)
+        answer, action = extract_suggested_action(raw_answer)
 
         logger.info("[Answer] Synthesized response")
 
@@ -32,6 +35,7 @@ def answer_node(state: AgentState) -> AgentState:
                 {"role": "user", "content": state["question"]},
                 {"role": "assistant", "content": answer},
             ],
+            "suggested_actions": [action] if action else [],
         }
 
     except Exception as e:
@@ -44,6 +48,7 @@ def answer_node(state: AgentState) -> AgentState:
                 {"role": "user", "content": state["question"]},
                 {"role": "assistant", "content": error_answer},
             ],
+            "suggested_actions": [],
             "error": str(e),
         }
 

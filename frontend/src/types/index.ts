@@ -76,6 +76,7 @@ export interface ChatResponse {
   answer: string;
   sql_results?: RawData;
   follow_up_suggestions?: string[];
+  suggested_actions?: string[];
 }
 
 export interface ChatMessage {
