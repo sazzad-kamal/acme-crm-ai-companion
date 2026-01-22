@@ -1,7 +1,7 @@
 """Data explorer endpoints for CRM tables."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 from fastapi import APIRouter
@@ -23,7 +23,7 @@ def load_csv(name: str) -> tuple[list[dict[str, Any]], list[str]]:
     if not path.exists():
         return [], []
     df = pd.read_csv(path)
-    records: list[dict[str, Any]] = df.to_dict("records")  # type: ignore[assignment]
+    records = cast(list[dict[str, Any]], df.to_dict("records"))
     return records, df.columns.tolist()
 
 
