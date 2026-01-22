@@ -10,8 +10,7 @@ import yaml
 from backend.agent.followup.suggester import generate_follow_up_suggestions
 from backend.eval.followup.judge import judge_followup_suggestions
 from backend.eval.followup.models import CaseResult, EvalResults, Question
-from backend.eval.shared import console
-from backend.eval.shared.formatting import build_eval_table
+from backend.eval.shared.formatting import build_eval_table, console
 
 # Path to questions file
 QUESTIONS_PATH = Path(__file__).parent / "questions.yaml"

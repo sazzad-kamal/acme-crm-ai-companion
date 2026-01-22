@@ -1619,7 +1619,7 @@ class TestJudgeModule:
 
     def test_suppress_event_loop_closed_errors(self):
         """Test _suppress_event_loop_closed_errors doesn't crash."""
-        from backend.eval.shared.ragas import _suppress_event_loop_closed_errors
+        from backend.eval.integration.ragas import _suppress_event_loop_closed_errors
 
         # Should not raise
         _suppress_event_loop_closed_errors()
@@ -2203,7 +2203,7 @@ class TestRagasSuppression:
 
     def test_suppress_event_loop_closed_errors_already_run(self):
         """Test that _suppress_event_loop_closed_errors can be called multiple times."""
-        from backend.eval.shared import ragas
+        from backend.eval.integration import ragas
 
         # The function should already have been called at import time
         # Calling it again should not raise
@@ -2212,7 +2212,7 @@ class TestRagasSuppression:
     def test_event_loop_closed_filter(self):
         """Test EventLoopClosedFilter filters correctly."""
         import logging
-        from backend.eval.shared import ragas
+        from backend.eval.integration import ragas
 
         # Create a mock log record
         record = logging.LogRecord(
@@ -2250,7 +2250,7 @@ class TestRagasEvaluateSingle:
     @pytest.mark.no_mock_llm
     def test_evaluate_single_empty_contexts(self, monkeypatch):
         """Test evaluate_single with empty contexts (line 196)."""
-        from backend.eval.shared import ragas
+        from backend.eval.integration import ragas
         import pandas as pd
 
         # Mock _run_evaluation_with_retry to avoid actual API calls
@@ -2277,7 +2277,7 @@ class TestRagasEvaluateSingle:
     @pytest.mark.no_mock_llm
     def test_evaluate_single_verbose_mode(self, monkeypatch):
         """Test evaluate_single with verbose=True (line 208)."""
-        from backend.eval.shared import ragas
+        from backend.eval.integration import ragas
 
         # Mock _run_evaluation_with_retry
         mock_result = {
@@ -2303,7 +2303,7 @@ class TestRagasEvaluateSingle:
     @pytest.mark.no_mock_llm
     def test_evaluate_single_with_nan_metrics(self, monkeypatch):
         """Test evaluate_single with NaN metrics (lines 213-218)."""
-        from backend.eval.shared import ragas
+        from backend.eval.integration import ragas
 
         # Mock _run_evaluation_with_retry to return NaN metrics
         mock_result = {
@@ -2331,7 +2331,7 @@ class TestRagasEvaluateSingle:
     def test_get_ragas_metrics_with_reference(self, monkeypatch):
         """Test _get_ragas_metrics with include_reference=True (line 137)."""
         from unittest.mock import MagicMock
-        from backend.eval.shared import ragas
+        from backend.eval.integration import ragas
 
         # Clear the cache first to test fresh instantiation
         ragas._get_ragas_metrics.cache_clear()
@@ -2353,7 +2353,7 @@ class TestRagasEvaluateSingle:
     @pytest.mark.no_mock_llm
     def test_extract_scores_with_nan_values(self, monkeypatch):
         """Test _extract_scores with NaN values (lines 143-154)."""
-        from backend.eval.shared import ragas
+        from backend.eval.integration import ragas
         import pandas as pd
         import math
 
