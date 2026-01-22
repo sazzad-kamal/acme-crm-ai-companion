@@ -77,13 +77,6 @@ class TestExecuteSql:
         assert len(rows) == 1
         assert rows[0]["name"] == "Acme Manufacturing"
 
-    def test_adds_limit(self, duckdb_connection):
-        """Adds LIMIT to queries without one."""
-        rows, error = execute_sql("SELECT * FROM companies", duckdb_connection, max_rows=2)
-
-        assert error is None
-        assert len(rows) <= 2
-
     def test_handles_error(self, duckdb_connection):
         """Returns error message on failure."""
         rows, error = execute_sql("SELECT * FROM nonexistent_table", duckdb_connection)

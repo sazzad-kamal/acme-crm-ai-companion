@@ -355,22 +355,6 @@ class TestGenerateFollowUpSuggestions:
 class TestExecuteSql:
     """Tests for execute_sql function."""
 
-    def test_adds_limit_to_sql(self):
-        """Adds LIMIT clause to SQL without one."""
-        from backend.agent.fetch.sql.executor import execute_sql
-
-        mock_conn = MagicMock()
-        mock_result = MagicMock()
-        mock_result.fetchall.return_value = []
-        mock_result.description = [("id",)]
-        mock_conn.execute.return_value = mock_result
-
-        execute_sql("SELECT * FROM companies", mock_conn, max_rows=50)
-
-        # Check that LIMIT was added to the SQL
-        call_args = mock_conn.execute.call_args[0][0]
-        assert "LIMIT 50" in call_args
-
     def test_sql_execution_generic_exception(self):
         """Test generic exception handling during SQL execution."""
         from backend.agent.fetch.sql.executor import execute_sql

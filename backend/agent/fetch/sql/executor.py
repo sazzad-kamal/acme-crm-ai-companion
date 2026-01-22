@@ -11,22 +11,16 @@ logger = logging.getLogger(__name__)
 def execute_sql(
     sql: str,
     conn: duckdb.DuckDBPyConnection,
-    max_rows: int = 100,
 ) -> tuple[list[dict[str, Any]], str | None]:
     """Execute SQL query against DuckDB.
 
     Args:
-        sql: SQL query string (caller should validate non-empty)
+        sql: SQL query string
         conn: DuckDB connection
-        max_rows: Maximum rows to return
 
     Returns:
         Tuple of (rows, error_msg)
     """
-    sql = sql.strip()
-    if "LIMIT" not in sql.upper():
-        sql = f"{sql} LIMIT {max_rows}"
-
     try:
         result = conn.execute(sql)
         cols = [d[0] for d in result.description]
