@@ -1,10 +1,4 @@
-"""
-Schema loader - single source of truth for CRM database schema.
-
-Loads schema.yaml and provides:
-- get_schema_sql(): For prompt.txt LLM context
-- get_all_table_columns(): For connection.py views
-"""
+"""Schema loader for CRM database."""
 
 from functools import cache
 from pathlib import Path

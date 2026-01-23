@@ -164,9 +164,12 @@ class TestJudgeSqlEquivalence:
     def test_judge_sql_equivalence_failed(self, monkeypatch):
         """Test judgment that fails."""
         import backend.eval.fetch.sql_judge as sql_judge_module
-        from backend.eval.fetch.sql_judge import JudgeResult, judge_sql_equivalence
+        from backend.eval.fetch.sql_judge import ErrorType, JudgeError, JudgeResult, judge_sql_equivalence
 
-        mock_chain = self._mock_chain(JudgeResult(passed=False, errors=["Different table queried"]))
+        mock_chain = self._mock_chain(JudgeResult(
+            passed=False,
+            errors=[JudgeError(type=ErrorType.OTHER, description="Different table queried")]
+        ))
         monkeypatch.setattr(sql_judge_module, "create_openai_chain", lambda **kwargs: mock_chain)
 
         passed, errors = judge_sql_equivalence(
@@ -175,7 +178,7 @@ class TestJudgeSqlEquivalence:
         )
 
         assert passed is False
-        assert "Different table queried" in errors
+        assert any("Different table queried" in e.description for e in errors)
 
     def test_judge_sql_equivalence_api_error(self, monkeypatch):
         """Test API error returns failure."""
@@ -192,18 +195,21 @@ class TestJudgeSqlEquivalence:
         )
 
         assert passed is False
-        assert any("API error" in e for e in errors)
+        assert any("API error" in e.description for e in errors)
 
     def test_judge_sql_equivalence_empty_generated(self, monkeypatch):
         """Test handling when generated SQL is empty."""
         import backend.eval.fetch.sql_judge as sql_judge_module
-        from backend.eval.fetch.sql_judge import JudgeResult, judge_sql_equivalence
+        from backend.eval.fetch.sql_judge import ErrorType, JudgeError, JudgeResult, judge_sql_equivalence
 
         captured_args = {}
 
         def capture_invoke(inputs):
             captured_args.update(inputs)
-            return JudgeResult(passed=False, errors=["No SQL generated"])
+            return JudgeResult(
+                passed=False,
+                errors=[JudgeError(type=ErrorType.OTHER, description="Empty SQL")]
+            )
 
         mock_chain = MagicMock()
         mock_chain.invoke = capture_invoke
@@ -214,8 +220,8 @@ class TestJudgeSqlEquivalence:
             expected_sql="SELECT 1",
         )
 
-        # Check that "No SQL generated" was used
-        assert captured_args["generated_sql"] == "No SQL generated"
+        # Empty SQL is passed directly to the judge
+        assert captured_args["generated_sql"] == ""
 
 
 # =============================================================================

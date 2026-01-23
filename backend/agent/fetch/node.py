@@ -1,10 +1,4 @@
-"""
-Unified fetch node - combines SQL planning and execution.
-
-This is the single data-fetching node in the workflow that:
-1. Plans SQL query from user question
-2. Executes SQL against DuckDB
-"""
+"""Fetch node - plans and executes SQL queries."""
 
 import logging
 from typing import Any, cast
@@ -22,11 +16,7 @@ def _execute_sql_with_retry(
     question: str,
     history: str,
 ) -> tuple[list[dict[str, Any]], str | None]:
-    """Execute SQL plan with retry on failure.
-
-    Returns:
-        Tuple of (rows, error_msg)
-    """
+    """Execute SQL with single retry on failure."""
     if not sql_plan.sql:
         logger.info("[Fetch] No SQL to execute")
         return [], None

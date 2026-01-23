@@ -1,8 +1,4 @@
-"""
-Answer node LLM functions.
-
-Chain creation and invocation for answer generation.
-"""
+"""Answer node LLM chain functions."""
 
 import json
 import logging
@@ -56,11 +52,7 @@ _HUMAN_PROMPT = """User's question: {question}
 
 @cache
 def _get_answer_chain() -> Any:
-    """Get or create the answer chain (cached singleton).
-
-    Returns the LCEL chain directly so LangGraph's astream_events
-    can capture on_chat_model_stream events for token streaming.
-    """
+    """Get cached answer chain."""
     chain = create_openai_chain(
         system_prompt=_SYSTEM_PROMPT,
         human_prompt=_HUMAN_PROMPT,
@@ -85,11 +77,7 @@ def call_answer_chain(
 
 
 def extract_suggested_action(answer: str) -> tuple[str, str | None]:
-    """Extract suggested action from answer text.
-
-    Returns:
-        Tuple of (clean_answer, action) where clean_answer has action removed.
-    """
+    """Extract and remove suggested action from answer text."""
     match = re.search(r"\n*Suggested action:\s*(.+?)(?:\n|$)", answer, re.IGNORECASE)
     if match:
         action = match.group(1).strip()

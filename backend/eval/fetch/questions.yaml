@@ -19,11 +19,11 @@ questions:
 
   - text: "What is Delta Health's renewal date?"
     difficulty: 1
-    expected_sql: "SELECT renewal_date FROM companies WHERE name LIKE '%Delta Health%'"
+    expected_sql: "SELECT renewal_date FROM companies WHERE name = 'Delta Health'"
 
   - text: "What region is Fusion Retail in?"
     difficulty: 1
-    expected_sql: "SELECT region FROM companies WHERE name LIKE '%Fusion Retail%'"
+    expected_sql: "SELECT region FROM companies WHERE name = 'Fusion Retail'"
 
   - text: "What is the email for Anna Lopez?"
     difficulty: 1
@@ -35,15 +35,15 @@ questions:
 
   - text: "What is the stage of the Acme Manufacturing upgrade opportunity?"
     difficulty: 1
-    expected_sql: "SELECT stage FROM opportunities WHERE name LIKE '%Acme%' AND name LIKE '%upgrade%'"
+    expected_sql: "SELECT o.stage FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.name = 'Acme Manufacturing' AND o.name LIKE '%upgrade%'"
 
   - text: "What is the value of the Beta Tech new rollout opportunity?"
     difficulty: 1
-    expected_sql: "SELECT amount FROM opportunities WHERE name LIKE '%Beta Tech%' AND name LIKE '%rollout%'"
+    expected_sql: "SELECT o.amount FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.name LIKE '%Beta Tech%' AND o.name LIKE '%rollout%'"
 
   - text: "What is the priority of the Crown Foods renewal check-in activity?"
     difficulty: 1
-    expected_sql: "SELECT priority FROM activities a JOIN companies c ON a.company_id = c.company_id WHERE c.name = 'Crown Foods' AND a.subject LIKE '%renewal%check%'"
+    expected_sql: "SELECT priority FROM activities a JOIN companies c ON a.company_id = c.company_id WHERE c.name = 'Crown Foods' AND a.subject LIKE '%renewal%check%in%'"
 
   # Notes-based questions
   - text: "What are the notes about Anna Lopez?"
@@ -100,7 +100,7 @@ questions:
   # Notes-based questions
   - text: "What are the key details about the Beta Tech new rollout opportunity?"
     difficulty: 2
-    expected_sql: "SELECT * FROM opportunities WHERE name LIKE '%Beta Tech%' AND name LIKE '%rollout%'"
+    expected_sql: "SELECT o.* FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.name LIKE '%Beta Tech%' AND o.name LIKE '%rollout%'"
 
   - text: "What information do we have about Lisa Ng at Beta Tech?"
     difficulty: 2

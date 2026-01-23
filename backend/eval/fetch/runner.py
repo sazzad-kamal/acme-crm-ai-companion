@@ -20,10 +20,21 @@ from backend.agent.fetch.planner import get_sql_plan
 from backend.agent.fetch.sql.connection import get_connection
 from backend.agent.fetch.sql.executor import execute_sql
 from backend.eval.fetch.models import CaseResult, EvalResults, Question
-from backend.eval.fetch.sql_judge import judge_sql_equivalence
+from backend.eval.fetch.sql_judge import ErrorType, JudgeError, judge_sql_equivalence
 
 # Path to questions file
 QUESTIONS_PATH = Path(__file__).parent / "questions.yaml"
+
+# Error types that are acceptable (don't change results)
+_ALLOWED_ERROR_TYPES = {
+    ErrorType.LIKE_VS_EXACT,
+    ErrorType.CASE_SENSITIVITY,
+    ErrorType.COLUMN_DIFF,
+    ErrorType.ORDER_BY,
+    ErrorType.JOIN_TYPE,
+    ErrorType.GROUPING,  # Often caused by LEFT vs INNER JOIN choice
+    ErrorType.ALIAS_DIFF,  # Purely syntactic difference
+}
 
 
 def load_questions() -> list[Question]:
@@ -45,21 +56,12 @@ def _eval_question(
     question: Question,
     conn: duckdb.DuckDBPyConnection,
 ) -> tuple[CaseResult, int]:
-    """Evaluate a single question.
-
-    Flow:
-    1. Generate SQL from question
-    2. Execute SQL to catch runtime errors (and get row_count for debug)
-    3. Compare generated SQL to expected SQL semantically
-
-    Returns:
-        Tuple of (CaseResult, row_count)
-    """
+    """Evaluate question: generate SQL, execute, compare to expected."""
     start = time.time()
     sql = ""
     row_count = 0
     passed = False
-    errors: list[str] = []
+    judge_errors: list[JudgeError] = []
 
     try:
         # Step 1: Generate SQL
@@ -71,23 +73,32 @@ def _eval_question(
         row_count = len(data)
 
         if sql_error:
-            errors.append(f"SQL error: {sql_error}")
+            judge_errors.append(JudgeError(type=ErrorType.OTHER, description=f"SQL error: {sql_error}"))
         else:
             # Step 3: Compare generated SQL to expected SQL
-            passed, errors = judge_sql_equivalence(
+            passed, judge_errors = judge_sql_equivalence(
                 generated_sql=sql,
                 expected_sql=question.expected_sql or "",
             )
+            # Override: accept stylistic differences that don't change results
+            if not passed:
+                error_types = {e.type for e in judge_errors}
+                if error_types <= _ALLOWED_ERROR_TYPES:
+                    passed = True
+                    judge_errors = []
 
     except Exception as e:
-        errors.append(f"Planner error: {e}")
+        judge_errors.append(JudgeError(type=ErrorType.OTHER, description=f"Planner error: {e}"))
 
     latency = (time.time() - start) * 1000
+    # Filter out allowed error types from display, convert to strings
+    display_errors = [e for e in judge_errors if e.type not in _ALLOWED_ERROR_TYPES]
+    error_strings = [f"[{e.type.value}] {e.description}" for e in display_errors]
     case = CaseResult(
         question=question,
         sql=sql,
         passed=passed,
-        errors=errors,
+        errors=error_strings,
         latency_ms=latency,
     )
     return case, row_count

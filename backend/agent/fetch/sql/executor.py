@@ -12,15 +12,7 @@ def execute_sql(
     sql: str,
     conn: duckdb.DuckDBPyConnection,
 ) -> tuple[list[dict[str, Any]], str | None]:
-    """Execute SQL query against DuckDB.
-
-    Args:
-        sql: SQL query string
-        conn: DuckDB connection
-
-    Returns:
-        Tuple of (rows, error_msg)
-    """
+    """Execute SQL and return (rows, error_msg)."""
     try:
         result = conn.execute(sql)
         cols = [d[0] for d in result.description]

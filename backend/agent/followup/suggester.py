@@ -1,9 +1,4 @@
-"""
-Followup node LLM functions.
-
-Chain creation and invocation for follow-up question generation.
-Uses hardcoded tree first, falls back to LLM for contextual suggestions.
-"""
+"""Follow-up suggestion LLM chain functions."""
 
 import logging
 from functools import cache
@@ -66,16 +61,7 @@ def generate_follow_up_suggestions(
     conversation_history: str = "",
     use_hardcoded_tree: bool = True,
 ) -> list[str]:
-    """Generate follow-up question suggestions.
-
-    Args:
-        question: The user's original question
-        conversation_history: Previous conversation context
-        use_hardcoded_tree: Whether to try hardcoded tree first
-
-    Returns:
-        List of exactly 3 follow-up question suggestions
-    """
+    """Generate 3 follow-up question suggestions."""
     # Try hardcoded tree first (fast, deterministic)
     if use_hardcoded_tree:
         from backend.agent.followup.tree import get_follow_ups

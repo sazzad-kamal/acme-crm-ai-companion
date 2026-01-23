@@ -66,16 +66,7 @@ def judge_followup_suggestions(
     question: str,
     suggestions: list[str],
 ) -> tuple[bool, float, float, list[str]]:
-    """
-    Use LLM to judge if follow-up suggestions are good quality.
-
-    Args:
-        question: The user's original question
-        suggestions: List of generated follow-up suggestions
-
-    Returns:
-        Tuple of (passed, relevance_score, diversity_score, errors)
-    """
+    """LLM judge for follow-up suggestion quality."""
     if not suggestions:
         return False, 0.0, 0.0, ["No suggestions generated"]
 

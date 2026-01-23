@@ -166,18 +166,7 @@ def test_single_question(
     use_judge: bool = True,
     verbose: bool = False,
 ) -> FlowStepResult:
-    """
-    Test a single question.
-
-    Args:
-        question: The question to ask
-        session_id: Session ID for the conversation (memory is handled by the agent)
-        use_judge: Whether to run LLM-as-judge evaluation
-        verbose: Show detailed RAGAS output
-
-    Returns:
-        FlowStepResult with answer and metrics
-    """
+    """Test a single question and return answer with metrics."""
     start_time = time.time()
 
     try:
@@ -238,18 +227,7 @@ def test_flow(
     use_judge: bool = True,
     verbose: bool = False,
 ) -> FlowResult:
-    """
-    Test a complete conversation flow (sequence of questions with memory).
-
-    Args:
-        path: List of questions in order
-        path_id: ID for this path
-        use_judge: Whether to run LLM-as-judge evaluation
-        verbose: Show detailed RAGAS output
-
-    Returns:
-        FlowResult with all step results
-    """
+    """Test a conversation flow (sequential questions with memory)."""
     session_id = f"flow_eval_{path_id}_{int(time.time())}"
     steps: list[FlowStepResult] = []
     total_latency = 0
@@ -321,18 +299,7 @@ def run_flow_eval(
     use_judge: bool = True,
     concurrency: int = 5,
 ) -> FlowEvalResults:
-    """
-    Run the flow evaluation on all paths using ThreadPoolExecutor.
-
-    Args:
-        max_paths: Limit number of paths to test (None = all)
-        verbose: Print detailed output
-        use_judge: Whether to run LLM-as-judge evaluation
-        concurrency: Number of flows to run in parallel (default 5)
-
-    Returns:
-        FlowEvalResults with aggregated metrics
-    """
+    """Run flow evaluation on all paths with parallel execution."""
     eval_start_time = time.time()
 
     # Generate all paths

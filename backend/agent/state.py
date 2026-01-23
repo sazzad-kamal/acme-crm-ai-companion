@@ -1,8 +1,4 @@
-"""
-Agent state definition for LangGraph workflow.
-
-This module defines the central state structure that flows through the graph.
-"""
+"""Agent state definition for LangGraph workflow."""
 
 import logging
 from typing import Annotated, Any, TypedDict
@@ -13,15 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def format_conversation_for_prompt(messages: list) -> str:
-    """
-    Format conversation history for inclusion in LLM prompts.
-
-    Args:
-        messages: List of LangChain message objects (HumanMessage, AIMessage)
-
-    Returns:
-        Formatted string for prompt inclusion
-    """
+    """Format conversation history for LLM prompts."""
     if not messages:
         return ""
 
@@ -34,12 +22,7 @@ def format_conversation_for_prompt(messages: list) -> str:
 
 
 class AgentState(TypedDict, total=False):
-    """
-    State that flows through the LangGraph workflow.
-
-    This is the central data structure that each node can read/write.
-    Only includes fields needed by workflow nodes or final output.
-    """
+    """State that flows through the LangGraph workflow."""
 
     # Input
     question: str

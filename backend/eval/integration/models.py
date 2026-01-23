@@ -1,6 +1,4 @@
-"""
-Data models for agent evaluation results.
-"""
+"""Data models for agent evaluation results."""
 
 from pydantic import BaseModel, Field, computed_field
 
@@ -10,13 +8,7 @@ from pydantic import BaseModel, Field, computed_field
 
 
 def _latency_score(avg_latency_ms: float, slo_target_ms: float) -> float:
-    """
-    Convert latency to 0-1 score for composite score calculation.
-
-    - Score = 1.0 if avg_latency <= SLO target
-    - Score = 0.0 if avg_latency >= 2x SLO target
-    - Linear interpolation between
-    """
+    """Convert latency to 0-1 score (1.0 at SLO, 0.0 at 2x SLO)."""
     if avg_latency_ms <= slo_target_ms:
         return 1.0
     if avg_latency_ms >= 2 * slo_target_ms:

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Models (internal - not exported)
 _OPENAI_MODEL = "gpt-5.2"  # Text responses, judging, RAGAS
-_ANTHROPIC_MODEL = "claude-sonnet-4-5-20241022"  # SQL/code generation
+_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929"  # SQL/code generation
 _EMBEDDING_MODEL = "text-embedding-3-small"  # Embeddings for RAGAS
 
 # Shared LLM settings

@@ -23,7 +23,15 @@ Today: {today}
 ## NOTES
 - Each table has a "notes" column containing free-text context (insights, concerns, history)
 - Include notes in SELECT when the question asks about qualitative information
-- "Recent" or "recently" means within the last 90 days"""
+- For qualitative questions (why, details, concerns), the answer is often in the primary entity's notes - don't add extra JOINs unless you are certain that you need it
+- "Recent" or "recently" means within the last 90 days
+- "Pipeline" = opportunities NOT IN ('Closed Won', 'Closed Lost')
+- Use CURRENT_DATE for relative date calculations, never hardcode dates
+- Only use columns that exist in the schema
+- CRITICAL: Only filter by values the user is asking to filter by, not contextual references
+- No exclusion filters (NOT IN, IS NOT NULL) unless asked
+- CRITICAL: Minimal JOINs - query only the primary table unless a JOIN is essential for the answer
+- Use INNER JOIN by default; LEFT JOIN only for optional relationships"""
 
 _HUMAN_PROMPT = """User's question: {question}
 
@@ -56,16 +64,7 @@ def get_sql_plan(
     conversation_history: str = "",
     previous_error: str | None = None,
 ) -> SQLPlan:
-    """
-    Get SQL directly from LLM using SQL Sorcerer approach.
-
-    Args:
-        question: User's question
-        conversation_history: Formatted conversation context
-        previous_error: Error from previous query attempt (for retry)
-
-    Returns SQLPlan with SQL string and needs_rag flag.
-    """
+    """Generate SQL from natural language question."""
     # Build conversation history section with optional error context
     history_section = ""
     if conversation_history:
