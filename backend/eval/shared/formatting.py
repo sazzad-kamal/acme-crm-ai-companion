@@ -32,42 +32,6 @@ def format_percentage(value: float, thresholds: tuple[float, float] = (0.9, 0.7)
     return f"[{color}]{value:.1%}[/{color}]"
 
 
-def print_error(label: str, message: str, indent: int = 2) -> None:
-    """Print labeled error in red."""
-    console.print(f"{' ' * indent}[red]{label}[/red]: {message}")
-
-
-def print_warning(message: str, indent: int = 2) -> None:
-    """Print warning message in yellow."""
-    console.print(f"{' ' * indent}[yellow]{message}[/yellow]")
-
-
-def print_status(passed: bool, details: str = "") -> None:
-    """Print pass/fail status."""
-    status = "[green]PASS[/green]" if passed else "[red]FAIL[/red]"
-    console.print(f"  {status} {details}")
-
-
-def print_case(num: int, total: int, text: str, difficulty: int) -> None:
-    """Print case header."""
-    console.print(f"\n[bold]Case {num}/{total}:[/bold] {text} [dim](d={difficulty})[/dim]")
-
-
-def print_section_header(text: str) -> None:
-    """Print bold red section header."""
-    console.print(f"\n[bold red]{text}[/bold red]\n")
-
-
-def print_failed_case(num: int, text: str, difficulty: int) -> None:
-    """Print failed case header."""
-    console.print(f"[bold cyan]{num}. {text}[/bold cyan] [dim](d={difficulty})[/dim]")
-
-
-def print_dim(text: str, indent: int = 0) -> None:
-    """Print dim text."""
-    console.print(f"{' ' * indent}[dim]{text}[/dim]")
-
-
 def build_eval_table(
     title: str,
     sections: list[tuple[str, list[tuple[str, str, str | None, bool | None]]]],
@@ -121,12 +85,5 @@ def build_eval_table(
 __all__ = [
     "console",
     "format_percentage",
-    "print_error",
-    "print_warning",
-    "print_status",
-    "print_case",
-    "print_section_header",
-    "print_failed_case",
-    "print_dim",
     "build_eval_table",
 ]

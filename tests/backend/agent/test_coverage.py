@@ -544,7 +544,7 @@ class TestFetchRunnerVerboseOutput:
         mock_conn.execute.side_effect = Exception("SQL syntax error")
         monkeypatch.setattr(runner, "get_connection", lambda: mock_conn)
 
-        with patch.object(runner.console, "print") as mock_print:
+        with patch("builtins.print") as mock_print:
             results = runner.run_sql_eval(verbose=True)
 
         # Should have printed SQL error
@@ -565,7 +565,7 @@ class TestFetchRunnerVerboseOutput:
             runner, "get_sql_plan", MagicMock(side_effect=Exception("Planner failed"))
         )
 
-        with patch.object(runner.console, "print") as mock_print:
+        with patch("builtins.print") as mock_print:
             results = runner.run_sql_eval(verbose=True)
 
         # Should have printed planner error
@@ -600,7 +600,7 @@ class TestFetchRunnerVerboseOutput:
             runner, "judge_sql_results", lambda q, s, r: (False, ["Error 1", "Error 2"])
         )
 
-        with patch.object(runner.console, "print") as mock_print:
+        with patch("builtins.print") as mock_print:
             results = runner.run_sql_eval(verbose=True)
 
         # Should have printed each error in the list

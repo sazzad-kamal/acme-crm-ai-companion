@@ -18,17 +18,6 @@ from backend.agent.fetch.sql.connection import get_connection
 from backend.agent.fetch.sql.executor import execute_sql
 from backend.eval.fetch.models import CaseResult, EvalResults, Question
 from backend.eval.fetch.sql_judge import judge_sql_results
-from backend.eval.shared.formatting import (
-    build_eval_table,
-    console,
-    print_case,
-    print_dim,
-    print_error,
-    print_failed_case,
-    print_section_header,
-    print_status,
-    print_warning,
-)
 
 # Path to questions file
 QUESTIONS_PATH = Path(__file__).parent / "questions.yaml"
@@ -99,7 +88,7 @@ def run_sql_eval(
 
     for i, question in enumerate(questions):
         if verbose:
-            print_case(i + 1, len(questions), question.text, question.difficulty)
+            print(f"\nCase {i + 1}/{len(questions)}: {question.text} (d={question.difficulty})")
 
         case, row_count = _eval_question(question, conn)
 
@@ -109,9 +98,10 @@ def run_sql_eval(
         if verbose:
             if case.errors:
                 for err in case.errors:
-                    print_warning(err, indent=4)
+                    print(f"    {err}")
             else:
-                print_status(case.passed, f"({row_count} rows, {case.latency_ms:.0f}ms)")
+                status = "PASS" if case.passed else "FAIL"
+                print(f"  {status} ({row_count} rows, {case.latency_ms:.0f}ms)")
 
         results.cases.append(case)
 
@@ -121,35 +111,31 @@ def run_sql_eval(
 
 def print_summary(results: EvalResults) -> None:
     """Print evaluation summary."""
-    pass_rate_passed = results.pass_rate >= 0.85
-    table = build_eval_table(
-        title="Fetch Node Evaluation Summary",
-        sections=[],
-        aggregate_row=("Pass Rate", f"{results.pass_rate * 100:.1f}%", ">=85.0%", pass_rate_passed),
-    )
-    console.print(table)
-    console.print(
-        f"\nTotal: {results.total}, Passed: {results.passed}, Failed: {results.failed}, "
+    passed = results.pass_rate >= 0.85
+    status = "PASS" if passed else "FAIL"
+    print("\nFetch Node Evaluation")
+    print(f"Pass Rate: {results.pass_rate * 100:.1f}% (>=85.0% SLO) {status}")
+    print(
+        f"Total: {results.total}, Passed: {results.passed}, Failed: {results.failed}, "
         f"Avg latency: {results.avg_latency_ms:.0f}ms"
     )
 
     # Failed cases
     failed = [c for c in results.cases if not c.passed]
     if failed:
-        print_section_header(f"Failed Cases ({len(failed)})")
+        print(f"\nFailed Cases ({len(failed)})\n")
 
         # Show up to 10 failed cases
         for i, c in enumerate(failed[:10], 1):
             error = "; ".join(c.errors)
-            print_failed_case(i, c.question.text, c.question.difficulty)
-            print_error("Error", error, indent=3)
+            print(f"{i}. {c.question.text} (d={c.question.difficulty})")
+            print(f"   Error: {error}")
             if c.sql:
-                sql_preview = c.sql[:200] + "..." if len(c.sql) > 200 else c.sql
-                print_dim(f"SQL: {sql_preview}", indent=3)
-            console.print()
+                print(f"   SQL: {c.sql[:200]}...")
+            print()
 
         if len(failed) > 10:
-            print_dim(f"... and {len(failed) - 10} more failures")
+            print(f"... and {len(failed) - 10} more failures")
 
 
 def main(
