@@ -6,6 +6,7 @@ import logging
 import time
 from pathlib import Path
 
+import duckdb
 import typer
 import yaml
 from dotenv import load_dotenv
@@ -17,7 +18,17 @@ from backend.agent.fetch.sql.connection import get_connection
 from backend.agent.fetch.sql.executor import execute_sql
 from backend.eval.fetch.models import CaseResult, EvalResults, Question
 from backend.eval.fetch.sql_judge import judge_sql_results
-from backend.eval.shared.formatting import build_eval_table, console
+from backend.eval.shared.formatting import (
+    build_eval_table,
+    console,
+    print_case,
+    print_dim,
+    print_error,
+    print_failed_case,
+    print_section_header,
+    print_status,
+    print_warning,
+)
 
 # Path to questions file
 QUESTIONS_PATH = Path(__file__).parent / "questions.yaml"
@@ -34,17 +45,51 @@ def load_questions() -> list[Question]:
     ]
 
 
+def _eval_question(
+    question: Question,
+    conn: duckdb.DuckDBPyConnection,
+) -> tuple[CaseResult, int]:
+    """Evaluate a single question.
+
+    Returns:
+        Tuple of (CaseResult, row_count)
+    """
+    start = time.time()
+    sql = ""
+    row_count = 0
+    passed = False
+    errors: list[str] = []
+
+    try:
+        plan = get_sql_plan(question.text)
+        sql = plan.sql
+        data, sql_error = execute_sql(sql, conn)
+        row_count = len(data)
+
+        if sql_error:
+            errors.append(f"SQL error: {sql_error}")
+        else:
+            passed, errors = judge_sql_results(question.text, sql, {"query": data})
+
+    except Exception as e:
+        errors.append(f"Planner error: {e}")
+
+    latency = (time.time() - start) * 1000
+    case = CaseResult(
+        question=question,
+        sql=sql,
+        passed=passed,
+        errors=errors,
+        latency_ms=latency,
+    )
+    return case, row_count
+
+
 def run_sql_eval(
     limit: int | None = None,
     verbose: bool = False,
 ) -> EvalResults:
-    """Run fetch node evaluation.
-
-    For each question:
-    1. Generate SQL via get_sql_plan()
-    2. Execute SQL against DuckDB
-    3. Validate results using LLM judge
-    """
+    """Run fetch node evaluation."""
     questions = load_questions()
     if limit:
         questions = questions[:limit]
@@ -54,58 +99,23 @@ def run_sql_eval(
 
     for i, question in enumerate(questions):
         if verbose:
-            console.print(
-                f"\n[bold]Case {i + 1}/{len(questions)}:[/bold] {question.text} "
-                f"[dim](d={question.difficulty})[/dim]"
-            )
+            print_case(i + 1, len(questions), question.text, question.difficulty)
 
-        start = time.time()
-        sql = ""
-        data: list[dict] = []
-        passed = False
-        errors: list[str] = []
+        case, row_count = _eval_question(question, conn)
 
-        try:
-            plan = get_sql_plan(question.text)
-            sql = plan.sql
-            data, sql_error = execute_sql(sql, conn)
-
-            if sql_error:
-                errors.append(f"SQL error: {sql_error}")
-                if verbose:
-                    console.print(f"  [red]SQL ERROR[/red]: {sql_error}")
-            else:
-                passed, errors = judge_sql_results(question.text, sql, {"query": data})
-                if passed:
-                    results.passed += 1
-
-        except Exception as e:
-            errors.append(f"Planner error: {e}")
-            if verbose:
-                console.print(f"  [red]PLANNER ERROR[/red]: {e}")
-
-        latency = (time.time() - start) * 1000
-        case = CaseResult(
-            question=question,
-            sql=sql,
-            passed=passed,
-            errors=errors,
-            latency_ms=latency,
-        )
+        if case.passed:
+            results.passed += 1
 
         if verbose:
-            if errors:
-                for err in errors:
-                    console.print(f"    [yellow]{err}[/yellow]")
+            if case.errors:
+                for err in case.errors:
+                    print_warning(err, indent=4)
             else:
-                status = "[green]PASS[/green]" if passed else "[red]FAIL[/red]"
-                console.print(f"  {status} ({len(data)} rows, {latency:.0f}ms)")
+                print_status(case.passed, f"({row_count} rows, {case.latency_ms:.0f}ms)")
 
         results.cases.append(case)
 
-    # Compute aggregate metrics
     results.compute_aggregates()
-
     return results
 
 
@@ -126,19 +136,19 @@ def print_summary(results: EvalResults) -> None:
     # Failed cases
     failed = [c for c in results.cases if not c.passed]
     if failed:
-        console.print(f"\n[bold red]Failed Cases ({len(failed)})[/bold red]\n")
+        print_section_header(f"Failed Cases ({len(failed)})")
 
         # Show up to 10 failed cases
         for i, c in enumerate(failed[:10], 1):
             error = "; ".join(c.errors)
-            console.print(f"[bold cyan]{i}. {c.question.text}[/bold cyan] [dim](d={c.question.difficulty})[/dim]")
-            console.print(f"   [red]Error:[/red] {error}")
+            print_failed_case(i, c.question.text, c.question.difficulty)
+            print_error("Error", error, indent=3)
             if c.sql:
-                console.print(f"   [dim]SQL:[/dim] {c.sql[:200]}...")
+                print_dim(f"SQL: {c.sql[:200]}...", indent=3)
             console.print()
 
         if len(failed) > 10:
-            console.print(f"[dim]... and {len(failed) - 10} more failures[/dim]")
+            print_dim(f"... and {len(failed) - 10} more failures")
 
 
 def main(
