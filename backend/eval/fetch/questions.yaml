@@ -104,7 +104,7 @@ questions:
 
   - text: "What information do we have about Lisa Ng at Beta Tech?"
     difficulty: 2
-    expected_sql: "SELECT * FROM contacts WHERE first_name = 'Lisa' AND last_name = 'Ng'"
+    expected_sql: "SELECT c.* FROM contacts c JOIN companies co ON c.company_id = co.company_id WHERE c.first_name = 'Lisa' AND c.last_name = 'Ng' AND co.name LIKE '%Beta Tech%'"
 
   # =============================================================================
   # SQL DIFFICULTY 3: Multiple joins, GROUP BY
@@ -204,7 +204,7 @@ questions:
   # Notes-based questions
   - text: "What contacts have expressed concerns about pricing across all companies?"
     difficulty: 4
-    expected_sql: "SELECT first_name, last_name, notes FROM contacts WHERE notes LIKE '%pric%'"
+    expected_sql: "SELECT first_name, last_name, notes FROM contacts WHERE notes LIKE '%pricing%'"
 
   - text: "Which opportunities are at risk and why based on history and activities?"
     difficulty: 4

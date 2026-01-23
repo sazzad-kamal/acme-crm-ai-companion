@@ -31,7 +31,13 @@ Today: {today}
 - CRITICAL: Only filter by values the user is asking to filter by, not contextual references
 - No exclusion filters (NOT IN, IS NOT NULL) unless asked
 - CRITICAL: Minimal JOINs - query only the primary table unless a JOIN is essential for the answer
-- Use INNER JOIN by default; LEFT JOIN only for optional relationships"""
+- Use INNER JOIN by default; LEFT JOIN only for optional relationships
+
+## TABLE DISTINCTIONS
+- activities: future/scheduled tasks (activity_id, due_date, completed_at)
+- history: past interactions (history_id, occurred_at) - DO NOT use activity_id on history
+- Company names (e.g., "Beta Tech") are in companies.name, NOT in opportunities.name
+- health_status uses hyphenated values like 'at-risk-low-activity' - use LIKE '%at-risk%'"""
 
 _HUMAN_PROMPT = """User's question: {question}
 
