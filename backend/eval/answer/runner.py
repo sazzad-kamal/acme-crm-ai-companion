@@ -6,12 +6,13 @@ import json
 import logging
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import duckdb
 import typer
 import yaml
-from rich.console import Console
-from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
+
+if TYPE_CHECKING:
+    import duckdb
 
 from backend.agent.answer.answerer import call_answer_chain, extract_suggested_action
 from backend.agent.fetch.sql.connection import get_connection
@@ -23,8 +24,6 @@ from backend.eval.shared.ragas import evaluate_single
 logger = logging.getLogger(__name__)
 
 QUESTIONS_PATH = Path(__file__).parent.parent / "shared" / "questions.yaml"
-
-console = Console()
 
 
 def load_questions() -> list[Question]:
@@ -58,7 +57,6 @@ def _eval_case(question: Question, conn: duckdb.DuckDBPyConnection) -> CaseResul
 
         # Step 3: RAGAS evaluation
         contexts = [json.dumps(sql_results, default=str)] if sql_results else []
-        # Only pass reference_answer if we have one (enables answer_correctness metric)
         ref_answer = question.expected_answer if question.expected_answer else None
         ragas = evaluate_single(question.text, answer, contexts, reference_answer=ref_answer)
 
@@ -102,25 +100,14 @@ def run_answer_eval(limit: int | None = None, verbose: bool = False) -> EvalResu
     results = EvalResults(total=len(questions))
     conn = get_connection()
 
-    with Progress(
-        TextColumn("[cyan]Evaluating answers"),
-        BarColumn(),
-        TaskProgressColumn(),
-        TextColumn("[dim]{task.completed}/{task.total}[/dim]"),
-        TimeElapsedColumn(),
-        console=console,
-        transient=False,
-    ) as progress:
-        task = progress.add_task("", total=len(questions))
-        for q in questions:
-            case = _eval_case(q, conn)
-            results.cases.append(case)
-            if case.passed:
-                results.passed += 1
-            if verbose:
-                status = "[green]PASS[/green]" if case.passed else "[red]FAIL[/red]"
-                console.print(f"  {status} {q.text[:60]}")
-            progress.advance(task)
+    for q in questions:
+        case = _eval_case(q, conn)
+        results.cases.append(case)
+        if case.passed:
+            results.passed += 1
+        if verbose:
+            status = "PASS" if case.passed else "FAIL"
+            print(f"  {status} {q.text[:60]}")
 
     results.compute_aggregates()
     return results
@@ -129,16 +116,15 @@ def run_answer_eval(limit: int | None = None, verbose: bool = False) -> EvalResu
 def print_summary(results: EvalResults) -> None:
     """Print evaluation summary."""
     passed = results.pass_rate >= 0.80
-    status = "[green]PASS[/green]" if passed else "[red]FAIL[/red]"
+    status = "PASS" if passed else "FAIL"
 
-    console.print()
-    console.print("[bold]Answer Node Evaluation[/bold]")
-    console.print(f"Pass Rate: {results.pass_rate * 100:.1f}% (>=80.0% SLO) {status}")
-    console.print(
+    print("\nAnswer Node Evaluation")
+    print(f"Pass Rate: {results.pass_rate * 100:.1f}% (>=80.0% SLO) {status}")
+    print(
         f"Total: {results.total}, Passed: {results.passed}, Failed: {results.failed}, "
         f"Avg latency: {results.avg_latency_ms:.0f}ms"
     )
-    console.print(
+    print(
         f"RAGAS: F={results.avg_faithfulness:.2f} R={results.avg_relevance:.2f} "
         f"C={results.avg_answer_correctness:.2f} | Action: {results.action_pass_rate * 100:.0f}%"
     )
@@ -146,18 +132,18 @@ def print_summary(results: EvalResults) -> None:
     # Failed cases
     failed = [c for c in results.cases if not c.passed]
     if failed:
-        console.print(f"\n[bold]Failed Cases ({len(failed)})[/bold]\n")
+        print(f"\nFailed Cases ({len(failed)})\n")
 
         for i, c in enumerate(failed[:10], 1):
             error = "; ".join(c.errors) if c.errors else f"F={c.faithfulness_score:.2f} R={c.relevance_score:.2f}"
-            console.print(f"{i}. {c.question[:60]}")
-            console.print(f"   [dim]Scores: {error}[/dim]")
+            print(f"{i}. {c.question[:60]}")
+            print(f"   Scores: {error}")
             if c.answer:
-                console.print(f"   [dim]Answer: {c.answer[:100]}...[/dim]")
-            console.print()
+                print(f"   Answer: {c.answer[:100]}...")
+            print()
 
         if len(failed) > 10:
-            console.print(f"[dim]... and {len(failed) - 10} more failures[/dim]")
+            print(f"... and {len(failed) - 10} more failures")
 
 
 def main(
