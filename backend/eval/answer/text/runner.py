@@ -1,0 +1,98 @@
+"""Text quality evaluation runner using RAGAS metrics."""
+
+from __future__ import annotations
+
+import json
+import logging
+from typing import cast
+
+from backend.agent.fetch.sql.connection import get_connection
+from backend.eval.answer.shared.loader import generate_answer, load_questions
+from backend.eval.answer.text.models import TextCaseResult, TextEvalResults
+from backend.eval.answer.text.ragas import evaluate_single
+
+logger = logging.getLogger(__name__)
+
+
+def run_text_eval(limit: int | None = None, verbose: bool = False) -> TextEvalResults:
+    """Run text quality evaluation using RAGAS metrics."""
+    questions = load_questions()
+    if limit:
+        questions = questions[:limit]
+
+    results = TextEvalResults(total=len(questions))
+    conn = get_connection()
+
+    for q in questions:
+        answer, _, sql_results, latency_ms, error = generate_answer(q, conn)
+
+        if error:
+            case = TextCaseResult(
+                question=q.text,
+                answer="",
+                latency_ms=latency_ms,
+                errors=[error],
+            )
+        else:
+            # Run RAGAS evaluation
+            contexts = [json.dumps(sql_results, default=str)] if sql_results else []
+            ref_answer = q.expected_answer if q.expected_answer else None
+            ragas = evaluate_single(q.text, answer, contexts, reference_answer=ref_answer)
+
+            case = TextCaseResult(
+                question=q.text,
+                answer=answer,
+                latency_ms=latency_ms,
+                faithfulness_score=cast(float, ragas["faithfulness"]),
+                relevance_score=cast(float, ragas["answer_relevancy"]),
+                answer_correctness_score=cast(float, ragas.get("answer_correctness", 0.0)),
+            )
+
+        results.cases.append(case)
+        if case.passed:
+            results.passed += 1
+
+        if verbose:
+            status = "PASS" if case.passed else "FAIL"
+            print(f"  {status} {q.text[:60]}")
+
+    results.compute_aggregates()
+    return results
+
+
+def print_summary(results: TextEvalResults) -> None:
+    """Print text evaluation summary."""
+    passed = results.pass_rate >= 0.80
+    status = "PASS" if passed else "FAIL"
+
+    print("\nText Quality Evaluation (RAGAS)")
+    print(f"Pass Rate: {results.pass_rate * 100:.1f}% (>=80.0% SLO) {status}")
+    print(
+        f"Total: {results.total}, Passed: {results.passed}, Failed: {results.failed}, "
+        f"Avg latency: {results.avg_latency_ms:.0f}ms"
+    )
+    print(
+        f"RAGAS: F={results.avg_faithfulness:.2f} R={results.avg_relevance:.2f} "
+        f"C={results.avg_answer_correctness:.2f}"
+    )
+
+    # Failed cases
+    failed = [c for c in results.cases if not c.passed]
+    if failed:
+        print(f"\nFailed Cases ({len(failed)})\n")
+
+        for i, c in enumerate(failed[:10], 1):
+            print(f"{i}. {c.question[:60]}")
+            if c.errors:
+                print(f"   Error: {'; '.join(c.errors)}")
+            else:
+                print(f"   RAGAS: F={c.faithfulness_score:.2f} R={c.relevance_score:.2f}")
+                if c.answer:
+                    print(f"   Answer: {c.answer[:100]}...")
+            print()
+
+        if len(failed) > 10:
+            print(f"... and {len(failed) - 10} more failures")
+
+
+__all__ = ["run_text_eval", "print_summary"]
