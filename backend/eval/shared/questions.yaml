@@ -67,6 +67,21 @@ questions:
     expected_sql: "SELECT notes FROM companies WHERE name = 'Crown Foods'"
     expected_answer: "Crown Foods is a Canadian food distributor with 5 warehouse locations. Maria Silva runs operations and makes quick decisions. They are a heavy API user for inventory integration. Mobile app performance has been a recent concern, putting the renewal at risk."
 
+  - text: "Which companies have at-risk health status?"
+    difficulty: 1
+    expected_sql: "SELECT name FROM companies WHERE health_status LIKE '%at-risk%'"
+    expected_answer: "The companies with at-risk health status are Crown Foods and Delta Health."
+
+  - text: "How many contacts have the role Champion?"
+    difficulty: 1
+    expected_sql: "SELECT COUNT(*) FROM contacts WHERE role = 'Champion'"
+    expected_answer: "There are 4 contacts with the Champion role."
+
+  - text: "What is the average opportunity value?"
+    difficulty: 1
+    expected_sql: "SELECT AVG(amount) FROM opportunities"
+    expected_answer: "The average opportunity value is approximately $18,769."
+
   # =============================================================================
   # SQL DIFFICULTY 2: Joins, basic aggregations
   # =============================================================================
@@ -94,21 +109,6 @@ questions:
     difficulty: 2
     expected_sql: "SELECT first_name, last_name FROM contacts c JOIN companies co ON c.company_id = co.company_id WHERE co.name = 'Crown Foods'"
     expected_answer: "The contacts at Crown Foods are Maria Silva, Alex Dupont, and Nina Foster."
-
-  - text: "Which companies have at-risk health status?"
-    difficulty: 2
-    expected_sql: "SELECT name FROM companies WHERE health_status LIKE '%at-risk%'"
-    expected_answer: "The companies with at-risk health status are Crown Foods and Delta Health."
-
-  - text: "How many contacts have the role Champion?"
-    difficulty: 2
-    expected_sql: "SELECT COUNT(*) FROM contacts WHERE role = 'Champion'"
-    expected_answer: "There are 4 contacts with the Champion role."
-
-  - text: "What is the average opportunity value?"
-    difficulty: 2
-    expected_sql: "SELECT AVG(amount) FROM opportunities"
-    expected_answer: "The average opportunity value is approximately $18,769."
 
   - text: "How many high priority activities are open?"
     difficulty: 2
