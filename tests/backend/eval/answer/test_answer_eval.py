@@ -711,7 +711,7 @@ questions:
 
 
 # =============================================================================
-# Tests for __main__.py
+# Tests for main CLI
 # =============================================================================
 
 
@@ -720,27 +720,27 @@ class TestMainCli:
 
     def test_main_basic(self, monkeypatch):
         """Test main function runs without error."""
-        import backend.eval.answer.__main__ as main_module
+        import backend.eval.answer.runner as runner_module
 
         mock_results = EvalResults(total=1, passed=1)
 
-        monkeypatch.setattr(main_module, "run_answer_eval", MagicMock(return_value=mock_results))
-        monkeypatch.setattr(main_module, "print_summary", MagicMock())
+        monkeypatch.setattr(runner_module, "run_answer_eval", MagicMock(return_value=mock_results))
+        monkeypatch.setattr(runner_module, "print_summary", MagicMock())
 
         # Should not raise
-        main_module.main(limit=1, verbose=False)
+        runner_module.main(limit=1, verbose=False)
 
     def test_main_with_verbose(self, monkeypatch):
         """Test main function with verbose flag."""
-        import backend.eval.answer.__main__ as main_module
+        import backend.eval.answer.runner as runner_module
 
         mock_results = EvalResults(total=1, passed=1)
         mock_run_answer_eval = MagicMock(return_value=mock_results)
 
-        monkeypatch.setattr(main_module, "run_answer_eval", mock_run_answer_eval)
-        monkeypatch.setattr(main_module, "print_summary", MagicMock())
+        monkeypatch.setattr(runner_module, "run_answer_eval", mock_run_answer_eval)
+        monkeypatch.setattr(runner_module, "print_summary", MagicMock())
 
-        main_module.main(limit=5, verbose=True)
+        runner_module.main(limit=5, verbose=True)
 
         call_kwargs = mock_run_answer_eval.call_args.kwargs
         assert call_kwargs["verbose"] is True

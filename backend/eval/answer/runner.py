@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 import duckdb
+import typer
 import yaml
 from rich.console import Console
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn
@@ -159,4 +160,14 @@ def print_summary(results: EvalResults) -> None:
             console.print(f"[dim]... and {len(failed) - 10} more failures[/dim]")
 
 
-__all__ = ["load_questions", "run_answer_eval", "print_summary"]
+def main(
+    limit: int = typer.Option(None, "--limit", "-l", help="Limit number of questions"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output"),
+) -> None:
+    """Run answer node evaluation."""
+    logging.basicConfig(level=logging.WARNING)
+    print_summary(run_answer_eval(limit=limit, verbose=verbose))
+
+
+if __name__ == "__main__":
+    typer.run(main)
