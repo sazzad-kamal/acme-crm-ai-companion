@@ -135,9 +135,16 @@ def print_summary(results: EvalResults) -> None:
         print(f"\nFailed Cases ({len(failed)})\n")
 
         for i, c in enumerate(failed[:10], 1):
-            error = "; ".join(c.errors) if c.errors else f"F={c.faithfulness_score:.2f} R={c.relevance_score:.2f}"
             print(f"{i}. {c.question[:60]}")
-            print(f"   Scores: {error}")
+            if c.errors:
+                print(f"   Error: {'; '.join(c.errors)}")
+            else:
+                print(f"   RAGAS: F={c.faithfulness_score:.2f} R={c.relevance_score:.2f}")
+                if c.suggested_action and not c.action_passed:
+                    print(
+                        f"   Action FAILED: rel={c.action_relevance:.2f} "
+                        f"act={c.action_actionability:.2f} app={c.action_appropriateness:.2f}"
+                    )
             if c.answer:
                 print(f"   Answer: {c.answer[:100]}...")
             print()

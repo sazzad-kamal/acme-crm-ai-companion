@@ -630,6 +630,35 @@ class TestPrintSummary:
         # Should not raise, should show "... and X more failures"
         print_summary(results)
 
+    def test_print_summary_action_failure(self, capsys):
+        """Test summary printing shows action failure details."""
+        from backend.eval.answer.runner import print_summary
+
+        results = EvalResults(total=1, passed=0)
+        results.cases = [
+            CaseResult(
+                question="Schedule follow-up for pending deals",
+                answer="There are 5 pending deals...",
+                suggested_action="Send email to all contacts",
+                latency_ms=100,
+                faithfulness_score=0.85,
+                relevance_score=0.82,
+                action_relevance=0.45,
+                action_actionability=0.30,
+                action_appropriateness=0.55,
+                action_passed=False,
+            ),
+        ]
+        results.compute_aggregates()
+
+        print_summary(results)
+        captured = capsys.readouterr()
+
+        assert "Action FAILED" in captured.out
+        assert "rel=0.45" in captured.out
+        assert "act=0.30" in captured.out
+        assert "app=0.55" in captured.out
+
 
 class TestEvalCaseExceptionHandling:
     """Tests for exception handling in _eval_case."""
