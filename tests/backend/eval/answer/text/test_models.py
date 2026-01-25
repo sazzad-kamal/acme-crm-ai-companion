@@ -36,8 +36,9 @@ class TestTextCaseResult:
         case = TextCaseResult(
             question="Test question",
             answer="Test answer",
-            faithfulness_score=0.8,
-            relevance_score=0.9,
+            faithfulness_score=0.92,
+            relevance_score=0.90,
+            answer_correctness_score=0.75,
         )
         assert case.passed is True
 
@@ -46,8 +47,9 @@ class TestTextCaseResult:
         case = TextCaseResult(
             question="Test question",
             answer="Test answer",
-            faithfulness_score=0.5,  # Below 0.6 threshold
-            relevance_score=0.9,
+            faithfulness_score=0.85,  # Below 0.90 threshold
+            relevance_score=0.90,
+            answer_correctness_score=0.75,
         )
         assert case.passed is False
 
@@ -56,8 +58,9 @@ class TestTextCaseResult:
         case = TextCaseResult(
             question="Test question",
             answer="Test answer",
-            faithfulness_score=0.8,
-            relevance_score=0.5,  # Below 0.6 threshold
+            faithfulness_score=0.92,
+            relevance_score=0.80,  # Below 0.85 threshold
+            answer_correctness_score=0.75,
         )
         assert case.passed is False
 
@@ -66,8 +69,9 @@ class TestTextCaseResult:
         case = TextCaseResult(
             question="Test question",
             answer="Test answer",
-            faithfulness_score=0.8,
-            relevance_score=0.9,
+            faithfulness_score=0.92,
+            relevance_score=0.90,
+            answer_correctness_score=0.75,
             errors=["SQL error"],
         )
         assert case.passed is False

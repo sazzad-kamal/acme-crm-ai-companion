@@ -29,9 +29,9 @@ class TestRunTextEval:
         ]
         mock_generate.return_value = ("Answer 1", None, [{"col": 1}], None)
         mock_evaluate.return_value = {
-            "faithfulness": 0.8,
-            "answer_relevancy": 0.9,
-            "answer_correctness": 0.85,
+            "faithfulness": 0.92,
+            "answer_relevancy": 0.90,
+            "answer_correctness": 0.75,
         }
 
         results = run_text_eval()
@@ -39,8 +39,8 @@ class TestRunTextEval:
         assert results.total == 1
         assert results.passed == 1
         assert len(results.cases) == 1
-        assert results.cases[0].faithfulness_score == 0.8
-        assert results.cases[0].relevance_score == 0.9
+        assert results.cases[0].faithfulness_score == 0.92
+        assert results.cases[0].relevance_score == 0.90
 
     @patch("backend.eval.answer.text.runner.get_connection")
     @patch("backend.eval.answer.text.runner.load_questions")
@@ -82,9 +82,9 @@ class TestRunTextEval:
         ]
         mock_generate.return_value = ("Answer", None, [{}], None)
         mock_evaluate.return_value = {
-            "faithfulness": 0.8,
-            "answer_relevancy": 0.9,
-            "answer_correctness": 0.85,
+            "faithfulness": 0.92,
+            "answer_relevancy": 0.90,
+            "answer_correctness": 0.75,
         }
 
         results = run_text_eval(limit=2)
@@ -113,14 +113,14 @@ class TestRunTextEval:
             ("Answer 2", None, [{}], None),
         ]
         mock_evaluate.side_effect = [
-            {"faithfulness": 0.7, "answer_relevancy": 0.8, "answer_correctness": 0.75},
-            {"faithfulness": 0.9, "answer_relevancy": 0.85, "answer_correctness": 0.95},
+            {"faithfulness": 0.90, "answer_relevancy": 0.86, "answer_correctness": 0.72},
+            {"faithfulness": 0.94, "answer_relevancy": 0.90, "answer_correctness": 0.78},
         ]
 
         results = run_text_eval()
 
-        assert results.avg_faithfulness == 0.8
-        assert results.avg_relevance == 0.825
+        assert abs(results.avg_faithfulness - 0.92) < 0.001
+        assert results.avg_relevance == 0.88
 
 
 class TestPrintSummary:
@@ -129,9 +129,9 @@ class TestPrintSummary:
     def test_print_summary_passing(self, capsys):
         """Test print_summary with passing results."""
         results = TextEvalResults(total=10, passed=9)
-        results.avg_faithfulness = 0.85
-        results.avg_relevance = 0.90
-        results.avg_answer_correctness = 0.88
+        results.avg_faithfulness = 0.92
+        results.avg_relevance = 0.88
+        results.avg_answer_correctness = 0.75
 
         print_summary(results)
 
@@ -146,8 +146,9 @@ class TestPrintSummary:
             TextCaseResult(
                 question="Failed question",
                 answer="Bad answer",
-                faithfulness_score=0.3,
-                relevance_score=0.4,
+                faithfulness_score=0.85,  # Below 0.90 threshold
+                relevance_score=0.80,  # Below 0.85 threshold
+                answer_correctness_score=0.65,  # Below 0.70 threshold
             )
         ]
 
