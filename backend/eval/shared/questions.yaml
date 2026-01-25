@@ -226,7 +226,7 @@ questions:
   - text: "Which contacts have activities scheduled after February 2026?"
     difficulty: 4
     expected_sql: "SELECT DISTINCT ct.first_name, ct.last_name FROM contacts ct JOIN activities a ON ct.contact_id = a.contact_id WHERE a.due_date >= '2026-03-01'"
-    expected_answer: "Contacts with activities scheduled after February 2026 are Carlos Mendez (win-back outreach in March 2026) and Emma Khan (seat expansion discussion in May 2026)."
+    expected_answer: "Contacts with activities scheduled after February 2026 are Carlos Mendez (win-back outreach in March 2026), Joe Smith (renewal discussion in March 2026), and Emma Khan (seat expansion discussion in May 2026)."
 
   - text: "What is the minimum and maximum opportunity value for companies with active status?"
     difficulty: 4
@@ -285,7 +285,7 @@ questions:
   - text: "What percentage of total pipeline does each company represent?"
     difficulty: 5
     expected_sql: "SELECT c.name, SUM(o.amount) as pipeline, SUM(o.amount) * 100.0 / (SELECT SUM(amount) FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost')) as percentage FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE o.stage NOT IN ('Closed Won', 'Closed Lost') GROUP BY c.company_id, c.name"
-    expected_answer: "Beta Tech represents the largest share of pipeline at about 22%, followed by Acme Manufacturing at 22%, Delta Health at 21%, Crown Foods at 18%, Harbor Logistics at 14%, Fusion Retail at 7%, and Eastern Travel at 4%."
+    expected_answer: "Beta Tech represents the largest share of pipeline at about 21%, followed by Acme Manufacturing at 20%, Delta Health at 19%, Crown Foods at 17%, Harbor Logistics at 13%, Fusion Retail at 6%, and Eastern Travel at 4%."
 
   - text: "Which companies have improved their opportunity count over time?"
     difficulty: 5

@@ -21,7 +21,7 @@ from backend.eval.answer.text.suppression import (
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", DeprecationWarning)
-    from ragas.metrics import AnswerCorrectness
+    from ragas.metrics import AnswerCorrectness, AnswerRelevancy
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def _evaluators() -> tuple[Any, ...]:
     logger.info("Initializing RAGAS evaluators")
     llm = LangchainLLMWrapper(get_langchain_chat_openai())
 
-    return (AnswerCorrectness(llm=llm),)
+    return (AnswerCorrectness(llm=llm), AnswerRelevancy(llm=llm))
 
 
 def _extract_scores(eval_result: Any) -> dict[str, float | list[str]]:
@@ -56,6 +56,7 @@ def _extract_scores(eval_result: Any) -> dict[str, float | list[str]]:
 
     return {
         "answer_correctness": get_score("answer_correctness"),
+        "answer_relevancy": get_score("answer_relevancy"),
         "nan_metrics": nan_metrics,
     }
 

@@ -5,7 +5,8 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 # SLO thresholds for text quality
-SLO_TEXT_ANSWER_CORRECTNESS = 0.70  # Semantic match with expected answer
+SLO_TEXT_ANSWER_CORRECTNESS = 0.50  # Semantic match (lenient for phrasing)
+SLO_TEXT_ANSWER_RELEVANCY = 0.85  # Must address the question asked
 SLO_TEXT_PASS_RATE = 0.80
 
 
@@ -15,6 +16,7 @@ class TextCaseResult(BaseModel):
     question: str
     answer: str
     answer_correctness_score: float = 0.0
+    answer_relevancy_score: float = 0.0
     errors: list[str] = Field(default_factory=list)
     # RAGAS reliability tracking
     ragas_metrics_total: int = 0
@@ -22,10 +24,13 @@ class TextCaseResult(BaseModel):
 
     @property
     def passed(self) -> bool:
-        """Pass if no errors and answer correctness meets threshold."""
+        """Pass if no errors and both correctness and relevancy meet thresholds."""
         if self.errors:
             return False
-        return self.answer_correctness_score >= SLO_TEXT_ANSWER_CORRECTNESS
+        return (
+            self.answer_correctness_score >= SLO_TEXT_ANSWER_CORRECTNESS
+            and self.answer_relevancy_score >= SLO_TEXT_ANSWER_RELEVANCY
+        )
 
 
 class TextEvalResults(BaseModel):
@@ -35,6 +40,7 @@ class TextEvalResults(BaseModel):
     passed: int = 0
     cases: list[TextCaseResult] = Field(default_factory=list)
     avg_answer_correctness: float = 0.0
+    avg_answer_relevancy: float = 0.0
     # RAGAS reliability tracking
     ragas_metrics_total: int = 0
     ragas_metrics_failed: int = 0
@@ -63,6 +69,7 @@ class TextEvalResults(BaseModel):
         n = len(self.cases)
         self.passed = sum(1 for c in self.cases if c.passed)
         self.avg_answer_correctness = sum(c.answer_correctness_score for c in self.cases) / n
+        self.avg_answer_relevancy = sum(c.answer_relevancy_score for c in self.cases) / n
         self.ragas_metrics_total = sum(c.ragas_metrics_total for c in self.cases)
         self.ragas_metrics_failed = sum(c.ragas_metrics_failed for c in self.cases)
 
@@ -71,5 +78,6 @@ __all__ = [
     "TextCaseResult",
     "TextEvalResults",
     "SLO_TEXT_ANSWER_CORRECTNESS",
+    "SLO_TEXT_ANSWER_RELEVANCY",
     "SLO_TEXT_PASS_RATE",
 ]

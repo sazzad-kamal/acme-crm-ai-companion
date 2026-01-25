@@ -28,7 +28,8 @@ def run_text_eval(limit: int | None = None) -> TextEvalResults:
     results = TextEvalResults(total=len(questions))
     conn = get_connection()
 
-    for q in questions:
+    total = len(questions)
+    for idx, q in enumerate(questions, 1):
         answer, _, sql_results, error = generate_answer(q, conn)
 
         if error:
@@ -54,7 +55,8 @@ def run_text_eval(limit: int | None = None) -> TextEvalResults:
                     question=q.text,
                     answer=answer,
                     answer_correctness_score=cast(float, ragas["answer_correctness"]),
-                    ragas_metrics_total=1,
+                    answer_relevancy_score=cast(float, ragas["answer_relevancy"]),
+                    ragas_metrics_total=2,
                     ragas_metrics_failed=len(nan_metrics),
                 )
             except Exception as e:
@@ -67,7 +69,7 @@ def run_text_eval(limit: int | None = None) -> TextEvalResults:
 
         results.cases.append(case)
         status = "PASS" if case.passed else "FAIL"
-        print(f"  {status} {q.text[:60]}")
+        print(f"  [{idx}/{total}] {status} {q.text[:50]}")
 
     results.compute_aggregates()
     return results
@@ -81,7 +83,7 @@ def print_summary(results: TextEvalResults) -> None:
     print("\nText Quality Evaluation (RAGAS)")
     print(f"Pass Rate: {results.pass_rate * 100:.1f}% (>={SLO_TEXT_PASS_RATE * 100:.1f}% SLO) {status}")
     print(f"Total: {results.total}, Passed: {results.passed}, Failed: {results.failed}")
-    print(f"Avg Answer Correctness: {results.avg_answer_correctness:.2f}")
+    print(f"Avg Correctness: {results.avg_answer_correctness:.2f}, Relevancy: {results.avg_answer_relevancy:.2f}")
     ragas_success = results.ragas_metrics_total - results.ragas_metrics_failed
     print(
         f"RAGAS Reliability: {ragas_success}/{results.ragas_metrics_total} "
@@ -98,7 +100,7 @@ def print_summary(results: TextEvalResults) -> None:
             if c.errors:
                 print(f"   Error: {'; '.join(c.errors)}")
             else:
-                print(f"   Correctness: {c.answer_correctness_score:.2f}")
+                print(f"   Correctness: {c.answer_correctness_score:.2f}, Relevancy: {c.answer_relevancy_score:.2f}")
                 if c.answer:
                     ans = c.answer[:100] + "..." if len(c.answer) > 100 else c.answer
                     print(f"   Answer: {ans}")
