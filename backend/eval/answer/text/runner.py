@@ -52,8 +52,6 @@ def run_text_eval(limit: int | None = None, verbose: bool = False) -> TextEvalRe
             )
 
         results.cases.append(case)
-        if case.passed:
-            results.passed += 1
 
         if verbose:
             status = "PASS" if case.passed else "FAIL"

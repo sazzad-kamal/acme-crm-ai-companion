@@ -71,6 +71,7 @@ class TextEvalResults(BaseModel):
         if not self.cases:
             return
         n = len(self.cases)
+        self.passed = sum(1 for c in self.cases if c.passed)
         self.avg_faithfulness = sum(c.faithfulness_score for c in self.cases) / n
         self.avg_relevance = sum(c.relevance_score for c in self.cases) / n
         self.avg_answer_correctness = sum(c.answer_correctness_score for c in self.cases) / n
