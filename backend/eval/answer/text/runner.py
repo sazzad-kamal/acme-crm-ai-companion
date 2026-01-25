@@ -93,7 +93,7 @@ def print_summary(results: TextEvalResults) -> None:
     if failed:
         print(f"\nFailed Cases ({len(failed)})\n")
 
-        for i, c in enumerate(failed[:10], 1):
+        for i, c in enumerate(failed, 1):
             print(f"{i}. {c.question[:60]}")
             if c.errors:
                 print(f"   Error: {'; '.join(c.errors)}")
@@ -103,9 +103,6 @@ def print_summary(results: TextEvalResults) -> None:
                     ans = c.answer[:100] + "..." if len(c.answer) > 100 else c.answer
                     print(f"   Answer: {ans}")
             print()
-
-        if len(failed) > 10:
-            print(f"... and {len(failed) - 10} more failures")
 
 
 def main(

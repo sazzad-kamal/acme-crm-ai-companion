@@ -2257,10 +2257,8 @@ class TestRagasEvaluateSingle:
 
         from backend.eval.answer.text import ragas
 
-        # Create a DataFrame to return
+        # Create a DataFrame to return (only answer_correctness now)
         df = pd.DataFrame({
-            "answer_relevancy": [0.85],
-            "faithfulness": [0.90],
             "answer_correctness": [0.75],
         })
 
@@ -2268,7 +2266,7 @@ class TestRagasEvaluateSingle:
         mock_eval_result.to_pandas.return_value = df
 
         with patch.object(ragas, "evaluate", return_value=mock_eval_result):
-            with patch.object(ragas, "_evaluators", return_value=(MagicMock(), MagicMock(), MagicMock())):
+            with patch.object(ragas, "_evaluators", return_value=(MagicMock(),)):
                 result = ragas.evaluate_single(
                     question="What is the capital?",
                     answer="Paris",
@@ -2276,8 +2274,8 @@ class TestRagasEvaluateSingle:
                     reference_answer="Paris is the capital of France",
                 )
 
-        # Should still return valid scores
-        assert "answer_relevancy" in result
+        # Should return answer_correctness score
+        assert "answer_correctness" in result
 
     @pytest.mark.no_mock_llm
     def test_evaluate_single_with_nan_metrics(self, monkeypatch):
@@ -2288,18 +2286,16 @@ class TestRagasEvaluateSingle:
 
         from backend.eval.answer.text import ragas
 
-        # Create a DataFrame with NaN values
+        # Create a DataFrame with NaN value for answer_correctness
         df = pd.DataFrame({
-            "answer_relevancy": [float("nan")],
-            "faithfulness": [0.90],
-            "answer_correctness": [0.75],
+            "answer_correctness": [float("nan")],
         })
 
         mock_eval_result = MagicMock()
         mock_eval_result.to_pandas.return_value = df
 
         with patch.object(ragas, "evaluate", return_value=mock_eval_result):
-            with patch.object(ragas, "_evaluators", return_value=(MagicMock(), MagicMock(), MagicMock())):
+            with patch.object(ragas, "_evaluators", return_value=(MagicMock(),)):
                 result = ragas.evaluate_single(
                     question="Test?",
                     answer="Answer",
@@ -2308,25 +2304,24 @@ class TestRagasEvaluateSingle:
                 )
 
         # Should track nan_metrics
-        assert "answer_relevancy" in result["nan_metrics"]
-        assert result["answer_relevancy"] == 0.0
+        assert "answer_correctness" in result["nan_metrics"]
+        assert result["answer_correctness"] == 0.0
 
     @pytest.mark.no_mock_llm
-    def test_evaluators_returns_three_metrics(self, monkeypatch):
-        """Test _evaluators returns 3 metrics."""
+    def test_evaluators_returns_one_metric(self, monkeypatch):
+        """Test _evaluators returns 1 metric (AnswerCorrectness only)."""
         from unittest.mock import MagicMock, patch
 
         from backend.eval.answer.text import ragas
 
-        # Mock the LLM and embeddings at module level
+        # Mock the LLM at module level
         with patch.object(ragas, "get_langchain_chat_openai", return_value=MagicMock()):
-            with patch.object(ragas, "get_langchain_embeddings", return_value=MagicMock()):
-                # Clear cache and get fresh evaluators
-                ragas._evaluators.cache_clear()
-                metrics = ragas._evaluators()
+            # Clear cache and get fresh evaluators
+            ragas._evaluators.cache_clear()
+            metrics = ragas._evaluators()
 
-        # Should have 3 metrics: AnswerRelevancy, Faithfulness, AnswerCorrectness
-        assert len(metrics) == 3
+        # Should have 1 metric: AnswerCorrectness
+        assert len(metrics) == 1
 
         # Clean up cache
         ragas._evaluators.cache_clear()
@@ -2340,10 +2335,8 @@ class TestRagasEvaluateSingle:
 
         from backend.eval.answer.text import ragas
 
-        # Create a DataFrame with NaN values
+        # Create a DataFrame with NaN value
         df = pd.DataFrame({
-            "answer_relevancy": [float("nan")],
-            "faithfulness": [0.85],
             "answer_correctness": [None],
         })
 
@@ -2353,12 +2346,9 @@ class TestRagasEvaluateSingle:
 
         result = ragas._extract_scores(mock_eval_result)
 
-        # NaN and None values should be converted to 0.0
-        assert result["answer_relevancy"] == 0.0
-        assert result["faithfulness"] == 0.85
+        # None value should be converted to 0.0
         assert result["answer_correctness"] == 0.0
         # Should track nan_metrics
-        assert "answer_relevancy" in result["nan_metrics"]
         assert "answer_correctness" in result["nan_metrics"]
 
 
