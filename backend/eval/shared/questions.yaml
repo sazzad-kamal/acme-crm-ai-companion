@@ -48,7 +48,7 @@ questions:
 
   - text: "What is the priority of the Crown Foods renewal check-in activity?"
     difficulty: 2
-    expected_sql: "SELECT priority FROM activities a JOIN companies c ON a.company_id = c.company_id WHERE c.name = 'Crown Foods' AND a.subject LIKE '%renewal%check%in%'"
+    expected_sql: "SELECT priority FROM activities a JOIN companies c ON a.company_id = c.company_id WHERE c.name = 'Crown Foods' AND a.subject ILIKE '%renewal%check%in%'"
     expected_answer: "The Crown Foods renewal check-in activity has High priority."
 
   # Notes-based questions
@@ -103,7 +103,7 @@ questions:
   - text: "What is the total pipeline value for all active companies?"
     difficulty: 2
     expected_sql: "SELECT SUM(o.amount) FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.status = 'Active' AND o.stage NOT IN ('Closed Won', 'Closed Lost')"
-    expected_answer: "The total pipeline value for all active companies is $180,000."
+    expected_answer: "The total pipeline value for all active companies is $186,000."
 
   - text: "What are the contact names at Crown Foods?"
     difficulty: 2
