@@ -21,6 +21,19 @@ def suppress_ragas_logging() -> Generator[None, None, None]:
         ragas_logger.setLevel(original_level)
 
 
+class _EventLoopClosedFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "Event loop is closed" not in str(record.getMessage())
+
+
+class _RagasExecutorFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "Exception raised in Job" not in str(record.getMessage())
+
+
+_suppression_installed = False
+
+
 def install_event_loop_error_suppression() -> None:
     """Install handlers to suppress harmless 'Event loop is closed' errors.
 
@@ -30,9 +43,13 @@ def install_event_loop_error_suppression() -> None:
     - asyncio exception handler for async errors
     - Log filters for asyncio/httpx/aiohttp/ragas loggers
     """
+    global _suppression_installed
+    if _suppression_installed:
+        return
+    _suppression_installed = True
+
     import asyncio
 
-    # Suppress via excepthook (catches uncaught exceptions)
     original_excepthook = sys.excepthook
 
     def custom_excepthook(exc_type: type, exc_value: BaseException, exc_tb: Any) -> None:
@@ -42,7 +59,6 @@ def install_event_loop_error_suppression() -> None:
 
     sys.excepthook = custom_excepthook
 
-    # Suppress via asyncio exception handler
     def silent_exception_handler(loop: Any, context: dict) -> None:
         exception = context.get("exception")
         if isinstance(exception, RuntimeError) and "Event loop is closed" in str(exception):
@@ -55,19 +71,10 @@ def install_event_loop_error_suppression() -> None:
     except RuntimeError:
         pass  # No event loop running yet
 
-    # Log filters for noisy loggers
-    class EventLoopClosedFilter(logging.Filter):
-        def filter(self, record: logging.LogRecord) -> bool:
-            return "Event loop is closed" not in str(record.getMessage())
-
-    class RagasExecutorFilter(logging.Filter):
-        def filter(self, record: logging.LogRecord) -> bool:
-            return "Exception raised in Job" not in str(record.getMessage())
-
     for logger_name in ["asyncio", "httpx", "httpcore", "aiohttp"]:
-        logging.getLogger(logger_name).addFilter(EventLoopClosedFilter())
+        logging.getLogger(logger_name).addFilter(_EventLoopClosedFilter())
 
-    logging.getLogger("ragas.executor").addFilter(RagasExecutorFilter())
+    logging.getLogger("ragas.executor").addFilter(_RagasExecutorFilter())
 
 
 __all__ = ["suppress_ragas_logging", "install_event_loop_error_suppression"]

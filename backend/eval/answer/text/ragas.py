@@ -20,14 +20,9 @@ from backend.eval.answer.text.suppression import (
     suppress_ragas_logging,
 )
 
-# Import metric CLASSES (not singleton instances) for thread-safe instantiation
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", DeprecationWarning)
-    from ragas.metrics import (
-        AnswerCorrectness,
-        AnswerRelevancy,
-        Faithfulness,
-    )
+    from ragas.metrics import AnswerCorrectness, AnswerRelevancy, Faithfulness
 
 logger = logging.getLogger(__name__)
 
