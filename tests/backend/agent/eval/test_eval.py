@@ -2308,8 +2308,8 @@ class TestRagasEvaluateSingle:
         assert result["answer_correctness"] == 0.0
 
     @pytest.mark.no_mock_llm
-    def test_evaluators_returns_one_metric(self, monkeypatch):
-        """Test _evaluators returns 1 metric (AnswerCorrectness only)."""
+    def test_evaluators_returns_two_metrics(self, monkeypatch):
+        """Test _evaluators returns 2 metrics (AnswerCorrectness + AnswerRelevancy)."""
         from unittest.mock import MagicMock, patch
 
         from backend.eval.answer.text import ragas
@@ -2320,8 +2320,8 @@ class TestRagasEvaluateSingle:
             ragas._evaluators.cache_clear()
             metrics = ragas._evaluators()
 
-        # Should have 1 metric: AnswerCorrectness
-        assert len(metrics) == 1
+        # Should have 2 metrics: AnswerCorrectness + AnswerRelevancy
+        assert len(metrics) == 2
 
         # Clean up cache
         ragas._evaluators.cache_clear()

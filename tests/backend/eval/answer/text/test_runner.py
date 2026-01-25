@@ -29,7 +29,8 @@ class TestRunTextEval:
         ]
         mock_generate.return_value = ("Answer 1", None, [{"col": 1}], None)
         mock_evaluate.return_value = {
-            "answer_correctness": 0.75,
+            "answer_correctness": 0.55,
+            "answer_relevancy": 0.90,
         }
 
         results = run_text_eval()
@@ -37,7 +38,8 @@ class TestRunTextEval:
         assert results.total == 1
         assert results.passed == 1
         assert len(results.cases) == 1
-        assert results.cases[0].answer_correctness_score == 0.75
+        assert results.cases[0].answer_correctness_score == 0.55
+        assert results.cases[0].answer_relevancy_score == 0.90
 
     @patch("backend.eval.answer.text.runner.get_connection")
     @patch("backend.eval.answer.text.runner.load_questions")
@@ -79,7 +81,8 @@ class TestRunTextEval:
         ]
         mock_generate.return_value = ("Answer", None, [{}], None)
         mock_evaluate.return_value = {
-            "answer_correctness": 0.75,
+            "answer_correctness": 0.55,
+            "answer_relevancy": 0.90,
         }
 
         results = run_text_eval(limit=2)
@@ -108,13 +111,14 @@ class TestRunTextEval:
             ("Answer 2", None, [{}], None),
         ]
         mock_evaluate.side_effect = [
-            {"answer_correctness": 0.72},
-            {"answer_correctness": 0.78},
+            {"answer_correctness": 0.52, "answer_relevancy": 0.90},
+            {"answer_correctness": 0.58, "answer_relevancy": 0.92},
         ]
 
         results = run_text_eval()
 
-        assert results.avg_answer_correctness == 0.75
+        assert results.avg_answer_correctness == 0.55
+        assert results.avg_answer_relevancy == 0.91
 
 
 class TestPrintSummary:
@@ -123,7 +127,8 @@ class TestPrintSummary:
     def test_print_summary_passing(self, capsys):
         """Test print_summary with passing results."""
         results = TextEvalResults(total=10, passed=9)
-        results.avg_answer_correctness = 0.75
+        results.avg_answer_correctness = 0.55
+        results.avg_answer_relevancy = 0.90
 
         print_summary(results)
 
@@ -138,7 +143,8 @@ class TestPrintSummary:
             TextCaseResult(
                 question="Failed question",
                 answer="Bad answer",
-                answer_correctness_score=0.65,  # Below 0.70 threshold
+                answer_correctness_score=0.45,  # Below 0.50 threshold
+                answer_relevancy_score=0.90,
             )
         ]
 

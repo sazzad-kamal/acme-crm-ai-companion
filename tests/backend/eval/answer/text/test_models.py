@@ -24,24 +24,38 @@ class TestTextCaseResult:
             question="Test question",
             answer="Test answer",
             answer_correctness_score=0.85,
+            answer_relevancy_score=0.90,
         )
         assert case.answer_correctness_score == 0.85
+        assert case.answer_relevancy_score == 0.90
 
     def test_text_case_result_passed_success(self):
-        """Test passed property when score is good."""
+        """Test passed property when both scores are good."""
         case = TextCaseResult(
             question="Test question",
             answer="Test answer",
-            answer_correctness_score=0.75,  # >= 0.70 threshold
+            answer_correctness_score=0.55,  # >= 0.50 threshold
+            answer_relevancy_score=0.90,  # >= 0.85 threshold
         )
         assert case.passed is True
 
-    def test_text_case_result_passed_failure_low_score(self):
+    def test_text_case_result_passed_failure_low_correctness(self):
         """Test passed property when answer_correctness is low."""
         case = TextCaseResult(
             question="Test question",
             answer="Test answer",
-            answer_correctness_score=0.65,  # Below 0.70 threshold
+            answer_correctness_score=0.45,  # Below 0.50 threshold
+            answer_relevancy_score=0.90,
+        )
+        assert case.passed is False
+
+    def test_text_case_result_passed_failure_low_relevancy(self):
+        """Test passed property when answer_relevancy is low."""
+        case = TextCaseResult(
+            question="Test question",
+            answer="Test answer",
+            answer_correctness_score=0.55,
+            answer_relevancy_score=0.80,  # Below 0.85 threshold
         )
         assert case.passed is False
 
@@ -50,7 +64,8 @@ class TestTextCaseResult:
         case = TextCaseResult(
             question="Test question",
             answer="Test answer",
-            answer_correctness_score=0.75,
+            answer_correctness_score=0.55,
+            answer_relevancy_score=0.90,
             errors=["SQL error"],
         )
         assert case.passed is False
@@ -95,13 +110,16 @@ class TestTextEvalResults:
                 question="Q1",
                 answer="A1",
                 answer_correctness_score=0.75,
+                answer_relevancy_score=0.90,
             ),
             TextCaseResult(
                 question="Q2",
                 answer="A2",
                 answer_correctness_score=0.95,
+                answer_relevancy_score=0.92,
             ),
         ]
         results.compute_aggregates()
 
         assert results.avg_answer_correctness == 0.85
+        assert results.avg_answer_relevancy == 0.91
