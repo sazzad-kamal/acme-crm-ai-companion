@@ -16,7 +16,7 @@ from backend.eval.answer.text.ragas import evaluate_single
 logger = logging.getLogger(__name__)
 
 
-def run_text_eval(limit: int | None = None, verbose: bool = False) -> TextEvalResults:
+def run_text_eval(limit: int | None = None) -> TextEvalResults:
     """Run text quality evaluation using RAGAS metrics."""
     questions = load_questions()
     if limit:
@@ -52,10 +52,8 @@ def run_text_eval(limit: int | None = None, verbose: bool = False) -> TextEvalRe
             )
 
         results.cases.append(case)
-
-        if verbose:
-            status = "PASS" if case.passed else "FAIL"
-            print(f"  {status} {q.text[:60]}")
+        status = "PASS" if case.passed else "FAIL"
+        print(f"  {status} {q.text[:60]}")
 
     results.compute_aggregates()
     return results
@@ -101,11 +99,10 @@ def print_summary(results: TextEvalResults) -> None:
 
 def main(
     limit: int = typer.Option(None, "--limit", "-l", help="Limit number of questions"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output"),
 ) -> None:
     """Run text quality evaluation using RAGAS metrics."""
     logging.basicConfig(level=logging.WARNING)
-    print_summary(run_text_eval(limit=limit, verbose=verbose))
+    print_summary(run_text_eval(limit=limit))
 
 
 if __name__ == "__main__":
