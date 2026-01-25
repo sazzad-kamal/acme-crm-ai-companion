@@ -108,7 +108,6 @@ def evaluate_single(
     answer: str,
     contexts: list[str],
     reference_answer: str | None = None,
-    verbose: bool = False,
 ) -> dict[str, float | str | list[str] | None]:
     """
     Evaluate a single Q&A pair using RAGAS metrics.
@@ -118,10 +117,9 @@ def evaluate_single(
         answer: The agent's answer
         contexts: List of retrieved context strings
         reference_answer: Optional ground truth answer for answer_correctness metric
-        verbose: Show RAGAS output (default: suppress)
 
     Returns:
-        dict with answer_relevancy, faithfulness, context_precision, answer_correctness (0.0-1.0)
+        dict with answer_relevancy, faithfulness, answer_correctness (0.0-1.0)
         Also includes 'error' key (None if success, error message string if failed)
     """
     dataset = Dataset.from_dict({
@@ -133,11 +131,8 @@ def evaluate_single(
     metrics = _get_ragas_metrics(include_reference=bool(reference_answer))
 
     try:
-        if verbose:
+        with suppress_ragas_logging():
             result = _run_evaluation_with_retry(dataset, metrics)
-        else:
-            with suppress_ragas_logging():
-                result = _run_evaluation_with_retry(dataset, metrics)
 
         nan_metrics = cast(list[str], result.get("nan_metrics", []))
         if nan_metrics:
