@@ -136,8 +136,8 @@ questions:
   # =============================================================================
   - text: "Which company has the most contacts?"
     difficulty: 3
-    expected_sql: "SELECT co.name, COUNT(*) as contact_count FROM contacts c JOIN companies co ON c.company_id = co.company_id GROUP BY co.company_id, co.name ORDER BY contact_count DESC LIMIT 1"
-    expected_answer: "Acme Manufacturing, Beta Tech Solutions, Crown Foods, Delta Health, Eastern Travel, Fusion Retail, Green Energy, and Harbor Logistics each have 3 contacts, making it a tie."
+    expected_sql: "SELECT co.name, COUNT(*) as contact_count FROM contacts c JOIN companies co ON c.company_id = co.company_id GROUP BY co.company_id, co.name ORDER BY contact_count DESC"
+    expected_answer: "All companies have 3 contacts each, making it an 8-way tie: Acme Manufacturing, Beta Tech Solutions, Crown Foods, Delta Health Clinics, Eastern Travel Co., Fusion Retail Group, Green Energy Partners, and Harbor Logistics."
 
   - text: "What is the total opportunity value per company?"
     difficulty: 3
@@ -236,7 +236,7 @@ questions:
   - text: "Which account owners manage companies with total pipeline over $30k?"
     difficulty: 4
     expected_sql: "SELECT c.account_owner, SUM(o.amount) as total_pipeline FROM companies c JOIN opportunities o ON c.company_id = o.company_id WHERE o.stage NOT IN ('Closed Won', 'Closed Lost') GROUP BY c.account_owner HAVING SUM(o.amount) > 30000"
-    expected_answer: "Account owners managing companies with total pipeline over $30,000: jsmith manages $71,000 in pipeline, ljones manages $40,000, and amartin manages $37,000."
+    expected_answer: "Account owners managing companies with total pipeline over $30,000: jsmith manages $83,000 in pipeline, ljones manages $40,000, amartin manages $37,000, and mmalik manages $34,000."
 
   - text: "Which companies have both renewal and expansion opportunities?"
     difficulty: 4
@@ -275,7 +275,7 @@ questions:
   - text: "Which contacts have the most activities compared to others in the same company?"
     difficulty: 5
     expected_sql: "WITH contact_activities AS (SELECT ct.contact_id, ct.first_name, ct.last_name, ct.company_id, COUNT(a.activity_id) as activity_count FROM contacts ct LEFT JOIN activities a ON ct.contact_id = a.contact_id GROUP BY ct.contact_id, ct.first_name, ct.last_name, ct.company_id) SELECT first_name, last_name, activity_count, RANK() OVER (PARTITION BY company_id ORDER BY activity_count DESC) as rank FROM contact_activities"
-    expected_answer: "Top activity contacts per company: Anna Lopez leads at Acme Manufacturing, Lisa Ng at Beta Tech, Maria Silva at Crown Foods, Erin Cho at Delta Health, Sanjay Patel at Eastern Travel, Emma Khan at Fusion Retail, Carlos Mendez at Green Energy, and Jacob Wu at Harbor Logistics."
+    expected_answer: "Top activity contacts per company: Erin Cho leads at Delta Health (2 activities), Sanjay Patel at Eastern Travel (2 activities). Other companies have contacts tied at 1 activity each: Joe Smith at Acme, Lisa Ng at Beta Tech, Nina Foster at Crown Foods, Lars Müller at Fusion Retail, Carlos Mendez at Green Energy, and Jacob Wu at Harbor Logistics."
 
   - text: "Show opportunities along with the previous opportunity value for the same company?"
     difficulty: 5
@@ -290,7 +290,7 @@ questions:
   - text: "Which companies have improved their opportunity count over time?"
     difficulty: 5
     expected_sql: "WITH opp_by_quarter AS (SELECT company_id, DATE_TRUNC('quarter', created_at) as quarter, COUNT(*) as opp_count FROM opportunities GROUP BY company_id, DATE_TRUNC('quarter', created_at)) SELECT c.name FROM companies c JOIN opp_by_quarter o1 ON c.company_id = o1.company_id JOIN opp_by_quarter o2 ON c.company_id = o2.company_id AND o2.quarter > o1.quarter WHERE o2.opp_count > o1.opp_count"
-    expected_answer: "Companies that have improved their opportunity count over time include those with multiple quarters of opportunity creation showing growth patterns."
+    expected_answer: "No companies show quarter-over-quarter improvement in opportunity count. Most companies have opportunities created in a single quarter or show flat/declining patterns."
 
   - text: "Rank contacts by their company's total pipeline value?"
     difficulty: 5
