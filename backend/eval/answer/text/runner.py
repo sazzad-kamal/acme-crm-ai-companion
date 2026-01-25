@@ -10,7 +10,7 @@ import typer
 
 from backend.agent.fetch.sql.connection import get_connection
 from backend.eval.answer.shared import generate_answer, load_questions
-from backend.eval.answer.text.models import TextCaseResult, TextEvalResults
+from backend.eval.answer.text.models import SLO_TEXT_PASS_RATE, TextCaseResult, TextEvalResults
 from backend.eval.answer.text.ragas import evaluate_single
 
 logger = logging.getLogger(__name__)
@@ -65,11 +65,11 @@ def run_text_eval(limit: int | None = None, verbose: bool = False) -> TextEvalRe
 
 def print_summary(results: TextEvalResults) -> None:
     """Print text evaluation summary."""
-    passed = results.pass_rate >= 0.80
+    passed = results.pass_rate >= SLO_TEXT_PASS_RATE
     status = "PASS" if passed else "FAIL"
 
     print("\nText Quality Evaluation (RAGAS)")
-    print(f"Pass Rate: {results.pass_rate * 100:.1f}% (>=80.0% SLO) {status}")
+    print(f"Pass Rate: {results.pass_rate * 100:.1f}% (>={SLO_TEXT_PASS_RATE * 100:.1f}% SLO) {status}")
     print(f"Total: {results.total}, Passed: {results.passed}, Failed: {results.failed}")
     print(
         f"RAGAS: F={results.avg_faithfulness:.2f} R={results.avg_relevance:.2f} "

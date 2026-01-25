@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field
 
-# SLO thresholds for text quality
-SLO_TEXT_FAITHFULNESS = 0.6
-SLO_TEXT_RELEVANCE = 0.6
+# SLO thresholds for text quality (aligned with integration eval)
+SLO_TEXT_FAITHFULNESS = 0.90  # Critical for CRM, no hallucination
+SLO_TEXT_RELEVANCE = 0.85  # Answers should address the question
+SLO_TEXT_ANSWER_CORRECTNESS = 0.70  # Hardest metric, flexible formats
 SLO_TEXT_PASS_RATE = 0.80
 
 
@@ -23,13 +24,16 @@ class TextCaseResult(BaseModel):
     ragas_metrics_total: int = 0
     ragas_metrics_failed: int = 0
 
-    @computed_field  # type: ignore[prop-decorator]
     @property
     def passed(self) -> bool:
         """Pass if no errors and RAGAS scores meet thresholds."""
         if self.errors:
             return False
-        return self.faithfulness_score >= SLO_TEXT_FAITHFULNESS and self.relevance_score >= SLO_TEXT_RELEVANCE
+        return (
+            self.faithfulness_score >= SLO_TEXT_FAITHFULNESS
+            and self.relevance_score >= SLO_TEXT_RELEVANCE
+            and self.answer_correctness_score >= SLO_TEXT_ANSWER_CORRECTNESS
+        )
 
 
 class TextEvalResults(BaseModel):
@@ -74,4 +78,11 @@ class TextEvalResults(BaseModel):
         self.ragas_metrics_failed = sum(c.ragas_metrics_failed for c in self.cases)
 
 
-__all__ = ["TextCaseResult", "TextEvalResults"]
+__all__ = [
+    "TextCaseResult",
+    "TextEvalResults",
+    "SLO_TEXT_FAITHFULNESS",
+    "SLO_TEXT_RELEVANCE",
+    "SLO_TEXT_ANSWER_CORRECTNESS",
+    "SLO_TEXT_PASS_RATE",
+]
