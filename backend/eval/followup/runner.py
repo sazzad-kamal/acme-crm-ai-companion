@@ -4,17 +4,14 @@ from __future__ import annotations
 
 import argparse
 import time
-from pathlib import Path
 
 import yaml
 
 from backend.agent.followup.suggester import generate_follow_up_suggestions
+from backend.eval.answer.shared.loader import QUESTIONS_PATH
 from backend.eval.followup.judge import judge_followup_suggestions
 from backend.eval.followup.models import CaseResult, EvalResults, Question
 from backend.eval.shared.formatting import build_eval_table, console
-
-# Path to shared questions file
-QUESTIONS_PATH = Path(__file__).parent.parent / "shared" / "questions.yaml"
 
 
 def load_questions() -> list[Question]:
