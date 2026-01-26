@@ -39,9 +39,10 @@ class TestGraphIntegration:
     """Integration tests for the graph with mocked LLM."""
 
     @pytest.mark.integration
+    @patch("backend.agent.action.suggester.call_action_chain")
     @patch("backend.agent.answer.answerer.call_answer_chain")
     @patch("backend.agent.fetch.planner.get_sql_plan")
-    def test_graph_execution(self, mock_planner, mock_answer_chain):
+    def test_graph_execution(self, mock_planner, mock_answer_chain, mock_action_chain):
         """Test graph execution with company query."""
         from backend.agent.fetch.planner import SQLPlan
 
@@ -49,6 +50,7 @@ class TestGraphIntegration:
             sql="SELECT * FROM companies WHERE name ILIKE '%acme%'",
         )
         mock_answer_chain.return_value = "Acme Manufacturing is doing well."
+        mock_action_chain.return_value = None
 
         result = _invoke_agent("What's the status of Acme?")
 

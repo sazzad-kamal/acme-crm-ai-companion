@@ -339,6 +339,17 @@ class TestGetAnswerChain:
         assert chain is not None
 
 
+class TestGetActionChain:
+    """Tests for _get_action_chain function."""
+
+    def test_get_action_chain_returns_chain(self):
+        """_get_action_chain returns the chain."""
+        from backend.agent.action.suggester import _get_action_chain
+
+        chain = _get_action_chain()
+        assert chain is not None
+
+
 # =============================================================================
 # followup/llm.py Tests
 # =============================================================================
@@ -712,7 +723,10 @@ class TestActionRunner:
         monkeypatch.setattr(runner, "get_connection", lambda: mock_conn)
 
         # Mock generate_answer - returns answer with no error
-        monkeypatch.setattr(runner, "generate_answer", lambda q, conn: ("Test answer", None, None, None))
+        monkeypatch.setattr(runner, "generate_answer", lambda q, conn: ("Test answer", None, None))
+
+        # Mock generate_action - returns no action
+        monkeypatch.setattr(runner, "generate_action", lambda q, a: (None, None))
 
         with patch("builtins.print") as mock_print:
             runner.run_action_eval()

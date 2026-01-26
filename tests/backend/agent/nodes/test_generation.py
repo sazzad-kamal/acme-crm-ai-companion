@@ -123,47 +123,78 @@ class TestAnswerNode:
         assert "sql_results" in call_kwargs
         assert call_kwargs["sql_results"]["company_info"][0]["name"] == "Acme"
 
-    @patch('backend.agent.answer.node.call_answer_chain')
-    def test_answer_node_extracts_suggested_actions(self, mock_chain):
-        """Extracts suggested actions from answer."""
-        from backend.agent.answer.node import answer_node
+# =============================================================================
+# Action Node Tests
+# =============================================================================
 
-        mock_chain.return_value = (
-            "Acme has 3 opportunities.\n\n"
-            "Suggested action: Schedule a call with the decision maker."
-        )
 
-        state = {
-            "question": "What deals does Acme have?",
-            "messages": [],
-            "sql_results": {},
-        }
+class TestActionNode:
+    """Tests for action_node function."""
 
-        result = answer_node(state)
+    @patch('backend.agent.action.node.call_action_chain')
+    def test_action_node_suggests_action(self, mock_chain):
+        """Suggests action when chain returns one."""
+        from backend.agent.action.node import action_node
 
-        assert "suggested_actions" in result
-        assert len(result["suggested_actions"]) == 1
-        assert result["suggested_actions"][0] == "Schedule a call with the decision maker."
-        # Action should be stripped from the answer
-        assert "Suggested action" not in result["answer"]
-
-    @patch('backend.agent.answer.node.call_answer_chain')
-    def test_answer_node_returns_empty_actions_when_none(self, mock_chain):
-        """Returns empty suggested_actions when no action in answer."""
-        from backend.agent.answer.node import answer_node
-
-        mock_chain.return_value = "Acme has 3 opportunities."
+        mock_chain.return_value = "Schedule a call with Sarah Chen"
 
         state = {
             "question": "What deals does Acme have?",
-            "messages": [],
-            "sql_results": {},
+            "answer": "Acme has 3 deals.",
         }
 
-        result = answer_node(state)
+        result = action_node(state)
 
-        assert "suggested_actions" in result
+        assert result["suggested_actions"] == ["Schedule a call with Sarah Chen"]
+        mock_chain.assert_called_once()
+
+    @patch('backend.agent.action.node.call_action_chain')
+    def test_action_node_returns_empty_when_no_action(self, mock_chain):
+        """Returns empty list when chain returns None."""
+        from backend.agent.action.node import action_node
+
+        mock_chain.return_value = None
+
+        state = {
+            "question": "How many deals?",
+            "answer": "There are 5 deals.",
+        }
+
+        result = action_node(state)
+
         assert result["suggested_actions"] == []
+
+    @patch('backend.agent.action.node.call_action_chain')
+    def test_action_node_handles_exception(self, mock_chain):
+        """Handles exceptions gracefully."""
+        from backend.agent.action.node import action_node
+
+        mock_chain.side_effect = Exception("LLM error")
+
+        state = {
+            "question": "Test?",
+            "answer": "Answer.",
+        }
+
+        result = action_node(state)
+
+        assert result["suggested_actions"] == []
+
+    @patch('backend.agent.action.node.call_action_chain')
+    def test_action_node_skips_on_error_state(self, mock_chain):
+        """Skips LLM call when state has error."""
+        from backend.agent.action.node import action_node
+
+        state = {
+            "question": "Test?",
+            "answer": "Error answer.",
+            "error": "some error",
+        }
+
+        result = action_node(state)
+
+        assert result["suggested_actions"] == []
+        mock_chain.assert_not_called()
 
 
 # =============================================================================

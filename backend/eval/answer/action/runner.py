@@ -17,7 +17,7 @@ from backend.eval.answer.action.models import (
     ActionCaseResult,
     ActionEvalResults,
 )
-from backend.eval.answer.shared import generate_answer, load_questions
+from backend.eval.answer.shared import generate_action, generate_answer, load_questions
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,13 @@ def run_action_eval(limit: int | None = None) -> ActionEvalResults:
     conn = get_connection()
 
     for idx, q in enumerate(questions, 1):
-        answer, suggested_action, _, error = generate_answer(q, conn)
+        answer, _, error = generate_answer(q, conn)
+
+        suggested_action = None
+        if not error:
+            suggested_action, action_error = generate_action(q.text, answer)
+            if action_error:
+                error = action_error
 
         kwargs: dict[str, Any] = {
             "answer": answer,

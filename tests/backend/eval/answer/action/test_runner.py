@@ -15,10 +15,12 @@ class TestRunActionEval:
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.generate_action")
     @patch("backend.eval.answer.action.runner.judge_suggested_action")
     def test_action_expected_and_correct(
         self,
         mock_judge: MagicMock,
+        mock_action: MagicMock,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
@@ -27,7 +29,8 @@ class TestRunActionEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
         ]
-        mock_generate.return_value = ("Answer 1", "Send email to client", [{}], None)
+        mock_generate.return_value = ("Answer 1", [{}], None)
+        mock_action.return_value = ("Send email to client", None)
         mock_judge.return_value = (True, 0.8, 0.9, 0.85, "Good action")
 
         results = run_action_eval()
@@ -44,10 +47,12 @@ class TestRunActionEval:
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.generate_action")
     @patch("backend.eval.answer.action.runner.judge_suggested_action")
     def test_action_expected_and_failed(
         self,
         mock_judge: MagicMock,
+        mock_action: MagicMock,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
@@ -56,7 +61,8 @@ class TestRunActionEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
         ]
-        mock_generate.return_value = ("Answer", "Bad action", [{}], None)
+        mock_generate.return_value = ("Answer", [{}], None)
+        mock_action.return_value = ("Bad action", None)
         mock_judge.return_value = (False, 0.3, 0.2, 0.4, "Poor action")
 
         results = run_action_eval()
@@ -71,8 +77,10 @@ class TestRunActionEval:
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.generate_action")
     def test_action_missing(
         self,
+        mock_action: MagicMock,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
@@ -81,7 +89,8 @@ class TestRunActionEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
         ]
-        mock_generate.return_value = ("Answer 1", None, [{}], None)
+        mock_generate.return_value = ("Answer 1", [{}], None)
+        mock_action.return_value = (None, None)
 
         results = run_action_eval()
 
@@ -95,10 +104,12 @@ class TestRunActionEval:
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.generate_action")
     @patch("backend.eval.answer.action.runner.judge_suggested_action")
     def test_spurious_action(
         self,
         mock_judge: MagicMock,
+        mock_action: MagicMock,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
@@ -107,7 +118,8 @@ class TestRunActionEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1", expected_action=False),
         ]
-        mock_generate.return_value = ("Answer 1", "Unwanted action", [{}], None)
+        mock_generate.return_value = ("Answer 1", [{}], None)
+        mock_action.return_value = ("Unwanted action", None)
 
         results = run_action_eval()
 
@@ -122,8 +134,10 @@ class TestRunActionEval:
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.generate_action")
     def test_correct_silence(
         self,
+        mock_action: MagicMock,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
@@ -132,7 +146,8 @@ class TestRunActionEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1", expected_action=False),
         ]
-        mock_generate.return_value = ("Answer 1", None, [{}], None)
+        mock_generate.return_value = ("Answer 1", [{}], None)
+        mock_action.return_value = (None, None)
 
         results = run_action_eval()
 
@@ -156,7 +171,7 @@ class TestRunActionEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
         ]
-        mock_generate.return_value = ("", None, [], "SQL error: timeout")
+        mock_generate.return_value = ("", [], "SQL error: timeout")
 
         results = run_action_eval()
 
@@ -168,10 +183,36 @@ class TestRunActionEval:
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.generate_action")
+    def test_run_action_eval_with_action_error(
+        self,
+        mock_action: MagicMock,
+        mock_generate: MagicMock,
+        mock_load: MagicMock,
+        mock_conn: MagicMock,
+    ):
+        """Test action evaluation when generate_action returns error."""
+        mock_load.return_value = [
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
+        ]
+        mock_generate.return_value = ("Answer", [{}], None)
+        mock_action.return_value = (None, "Action error: Chain failed")
+
+        results = run_action_eval()
+
+        assert results.total == 1
+        assert results.passed == 0
+        assert results.cases[0].errors == ["Action error: Chain failed"]
+
+    @patch("backend.eval.answer.action.runner.get_connection")
+    @patch("backend.eval.answer.action.runner.load_questions")
+    @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.generate_action")
     @patch("backend.eval.answer.action.runner.judge_suggested_action")
     def test_run_action_eval_judge_exception(
         self,
         mock_judge: MagicMock,
+        mock_action: MagicMock,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
@@ -180,7 +221,8 @@ class TestRunActionEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
         ]
-        mock_generate.return_value = ("Answer", "Some action", [{}], None)
+        mock_generate.return_value = ("Answer", [{}], None)
+        mock_action.return_value = ("Some action", None)
         mock_judge.side_effect = ValueError("Judge internal error")
 
         results = run_action_eval()
@@ -192,10 +234,12 @@ class TestRunActionEval:
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.generate_action")
     @patch("backend.eval.answer.action.runner.judge_suggested_action")
     def test_run_action_eval_with_limit(
         self,
         mock_judge: MagicMock,
+        mock_action: MagicMock,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
@@ -206,7 +250,8 @@ class TestRunActionEval:
             Question(text="Q2", expected_sql="SELECT 2", expected_action=True),
             Question(text="Q3", expected_sql="SELECT 3", expected_action=True),
         ]
-        mock_generate.return_value = ("Answer", "Action", [{}], None)
+        mock_generate.return_value = ("Answer", [{}], None)
+        mock_action.return_value = ("Action", None)
         mock_judge.return_value = (True, 0.8, 0.9, 0.85, "Good")
 
         results = run_action_eval(limit=2)
@@ -217,10 +262,12 @@ class TestRunActionEval:
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.generate_action")
     @patch("backend.eval.answer.action.runner.judge_suggested_action")
     def test_run_action_eval_computes_aggregates(
         self,
         mock_judge: MagicMock,
+        mock_action: MagicMock,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
@@ -231,8 +278,12 @@ class TestRunActionEval:
             Question(text="Q2", expected_sql="SELECT 2", expected_action=False),
         ]
         mock_generate.side_effect = [
-            ("Answer 1", "Action 1", [{}], None),
-            ("Answer 2", None, [{}], None),
+            ("Answer 1", [{}], None),
+            ("Answer 2", [{}], None),
+        ]
+        mock_action.side_effect = [
+            ("Action 1", None),
+            (None, None),
         ]
         mock_judge.return_value = (True, 0.7, 0.8, 0.9, "Good")
 

@@ -1,10 +1,11 @@
-"""LangGraph agent orchestration: Fetch → Answer → Followup."""
+"""LangGraph agent orchestration: Fetch → Answer → [Action, Followup]."""
 
 import uuid
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
+from backend.agent.action.node import action_node
 from backend.agent.answer.node import answer_node
 from backend.agent.fetch import fetch_node
 from backend.agent.followup.node import followup_node
@@ -22,6 +23,7 @@ GRAPH_NAME = "LangGraph"  # Name used for whole graph in events
 # Node names
 FETCH_NODE = "fetch"
 ANSWER_NODE = "answer"
+ACTION_NODE = "action"
 FOLLOWUP_NODE = "followup"
 
 def build_thread_config(session_id: str | None) -> dict:
@@ -36,14 +38,19 @@ def _build_graph():
     # Add nodes
     graph.add_node(FETCH_NODE, fetch_node)
     graph.add_node(ANSWER_NODE, answer_node)
+    graph.add_node(ACTION_NODE, action_node)
     graph.add_node(FOLLOWUP_NODE, followup_node)
 
     # Entry point
     graph.set_entry_point(FETCH_NODE)
 
-    # Sequential flow: fetch → answer → followup
+    # Flow: fetch → answer → [action, followup] → END (parallel fan-out)
     graph.add_edge(FETCH_NODE, ANSWER_NODE)
-    graph.add_edge(ANSWER_NODE, FOLLOWUP_NODE)
+    graph.add_conditional_edges(
+        ANSWER_NODE,
+        lambda _: [ACTION_NODE, FOLLOWUP_NODE],
+    )
+    graph.add_edge(ACTION_NODE, END)
     graph.add_edge(FOLLOWUP_NODE, END)
 
     return graph.compile(checkpointer=MemorySaver())
@@ -51,4 +58,4 @@ def _build_graph():
 
 agent_graph = _build_graph()
 
-__all__ = ["agent_graph", "build_thread_config", "LangGraphEvent", "GRAPH_NAME", "ANSWER_NODE"]
+__all__ = ["agent_graph", "build_thread_config", "LangGraphEvent", "GRAPH_NAME", "ANSWER_NODE", "ACTION_NODE"]

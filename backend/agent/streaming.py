@@ -44,6 +44,9 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
                 if content := getattr(e.get("data", {}).get("chunk"), "content", ""):
                     yield _format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": content})
 
+            elif event_type == LangGraphEvent.GRAPH_END and name == ANSWER_NODE:
+                in_answer_node = False
+
             elif event_type == LangGraphEvent.GRAPH_END and name == GRAPH_NAME:
                 final = e.get("data", {}).get("output") or {}
                 yield _format_sse(StreamEvent.DONE, {

@@ -60,20 +60,12 @@ class TestGenerateAnswer:
             MagicMock(return_value="The answer is 1."),
         )
 
-        # Mock extract_suggested_action
-        monkeypatch.setattr(
-            loader_module,
-            "extract_suggested_action",
-            MagicMock(return_value=("The answer is 1.", None)),
-        )
-
         q = Question(text="Test", difficulty=1, expected_sql="SELECT 1")
         mock_conn = MagicMock()
 
-        answer, action, results, error = generate_answer(q, mock_conn)
+        answer, results, error = generate_answer(q, mock_conn)
 
         assert answer == "The answer is 1."
-        assert action is None
         assert results == [{"value": 1}]
         assert error is None
 
@@ -93,10 +85,9 @@ class TestGenerateAnswer:
         q = Question(text="Test", difficulty=1, expected_sql="INVALID SQL")
         mock_conn = MagicMock()
 
-        answer, action, results, error = generate_answer(q, mock_conn)
+        answer, results, error = generate_answer(q, mock_conn)
 
         assert answer == ""
-        assert action is None
         assert results == []
         assert "SQL error" in error
 
@@ -116,45 +107,60 @@ class TestGenerateAnswer:
         q = Question(text="Test", difficulty=1, expected_sql="SELECT 1")
         mock_conn = MagicMock()
 
-        answer, action, results, error = generate_answer(q, mock_conn)
+        answer, results, error = generate_answer(q, mock_conn)
 
         assert answer == ""
-        assert action is None
         assert results == []
         assert "Error:" in error
 
-    def test_generate_answer_with_action(self, monkeypatch):
-        """Test answer generation with suggested action."""
+
+class TestGenerateAction:
+    """Tests for generate_action function."""
+
+    def test_generate_action_success(self, monkeypatch):
+        """Test successful action generation."""
         import backend.eval.answer.shared.loader as loader_module
-        from backend.eval.answer.shared.loader import generate_answer
-        from backend.eval.answer.shared.models import Question
+        from backend.eval.answer.shared.loader import generate_action
 
-        # Mock execute_sql
         monkeypatch.setattr(
             loader_module,
-            "execute_sql",
-            MagicMock(return_value=([{"status": "Active"}], None)),
+            "call_action_chain",
+            MagicMock(return_value="Schedule a call with Sarah Chen"),
         )
 
-        # Mock call_answer_chain
-        monkeypatch.setattr(
-            loader_module,
-            "call_answer_chain",
-            MagicMock(return_value="Status is Active.\n\nSuggested action: Call customer"),
-        )
+        action, error = generate_action("What deals?", "Acme has 3 deals.")
 
-        # Mock extract_suggested_action
-        monkeypatch.setattr(
-            loader_module,
-            "extract_suggested_action",
-            MagicMock(return_value=("Status is Active.", "Call customer")),
-        )
-
-        q = Question(text="What is the status?", difficulty=1, expected_sql="SELECT status FROM companies")
-        mock_conn = MagicMock()
-
-        answer, action, results, error = generate_answer(q, mock_conn)
-
-        assert answer == "Status is Active."
-        assert action == "Call customer"
+        assert action == "Schedule a call with Sarah Chen"
         assert error is None
+
+    def test_generate_action_none(self, monkeypatch):
+        """Test when no action suggested."""
+        import backend.eval.answer.shared.loader as loader_module
+        from backend.eval.answer.shared.loader import generate_action
+
+        monkeypatch.setattr(
+            loader_module,
+            "call_action_chain",
+            MagicMock(return_value=None),
+        )
+
+        action, error = generate_action("How many deals?", "There are 5 deals.")
+
+        assert action is None
+        assert error is None
+
+    def test_generate_action_exception(self, monkeypatch):
+        """Test exception handling."""
+        import backend.eval.answer.shared.loader as loader_module
+        from backend.eval.answer.shared.loader import generate_action
+
+        monkeypatch.setattr(
+            loader_module,
+            "call_action_chain",
+            MagicMock(side_effect=Exception("Chain failed")),
+        )
+
+        action, error = generate_action("Test?", "Answer.")
+
+        assert action is None
+        assert "Action error:" in error

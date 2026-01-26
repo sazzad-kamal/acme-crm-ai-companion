@@ -30,7 +30,7 @@ def run_text_eval(limit: int | None = None) -> TextEvalResults:
 
     total = len(questions)
     for idx, q in enumerate(questions, 1):
-        answer, _, sql_results, error = generate_answer(q, conn)
+        answer, sql_results, error = generate_answer(q, conn)
 
         if error:
             case = TextCaseResult(

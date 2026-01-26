@@ -27,7 +27,7 @@ class TestRunTextEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
-        mock_generate.return_value = ("Answer 1", None, [{"col": 1}], None)
+        mock_generate.return_value = ("Answer 1", [{"col": 1}], None)
         mock_evaluate.return_value = {
             "answer_correctness": 0.55,
             "answer_relevancy": 0.90,
@@ -54,7 +54,7 @@ class TestRunTextEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
-        mock_generate.return_value = ("", None, [], "SQL error: timeout")
+        mock_generate.return_value = ("", [], "SQL error: timeout")
 
         results = run_text_eval()
 
@@ -75,7 +75,7 @@ class TestRunTextEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
-        mock_generate.return_value = ("Some answer", None, None, None)
+        mock_generate.return_value = ("Some answer", None, None)
 
         results = run_text_eval()
 
@@ -98,7 +98,7 @@ class TestRunTextEval:
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
-        mock_generate.return_value = ("Answer", None, [{"col": 1}], None)
+        mock_generate.return_value = ("Answer", [{"col": 1}], None)
         mock_evaluate.side_effect = ValueError("RAGAS internal error")
 
         results = run_text_eval()
@@ -124,7 +124,7 @@ class TestRunTextEval:
             Question(text="Q2", expected_sql="SELECT 2"),
             Question(text="Q3", expected_sql="SELECT 3"),
         ]
-        mock_generate.return_value = ("Answer", None, [{}], None)
+        mock_generate.return_value = ("Answer", [{}], None)
         mock_evaluate.return_value = {
             "answer_correctness": 0.55,
             "answer_relevancy": 0.90,
@@ -152,8 +152,8 @@ class TestRunTextEval:
             Question(text="Q2", expected_sql="SELECT 2"),
         ]
         mock_generate.side_effect = [
-            ("Answer 1", None, [{}], None),
-            ("Answer 2", None, [{}], None),
+            ("Answer 1", [{}], None),
+            ("Answer 2", [{}], None),
         ]
         mock_evaluate.side_effect = [
             {"answer_correctness": 0.52, "answer_relevancy": 0.90},
