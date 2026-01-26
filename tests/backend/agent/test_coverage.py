@@ -698,8 +698,8 @@ class TestLlmSingletons:
 class TestActionRunner:
     """Test eval/answer/action/runner.py coverage (lines 64-65, 94, 104, 112-113)."""
 
-    def test_run_action_eval_verbose_mode(self, monkeypatch):
-        """Test verbose mode prints PASS/FAIL status (lines 64-65)."""
+    def test_run_action_eval_always_prints_progress(self, monkeypatch):
+        """Test progress always prints [idx/total] PASS/FAIL status."""
         from backend.eval.answer.action import runner
         from backend.eval.answer.shared.models import Question
 
@@ -715,11 +715,12 @@ class TestActionRunner:
         monkeypatch.setattr(runner, "generate_answer", lambda q, conn: ("Test answer", None, None, None))
 
         with patch("builtins.print") as mock_print:
-            runner.run_action_eval(verbose=True)
+            runner.run_action_eval()
 
-        # Should have printed PASS for the case
+        # Should have printed [1/1] PASS for the case
         mock_print.assert_called()
         call_args = [str(c) for c in mock_print.call_args_list]
+        assert any("[1/1]" in arg for arg in call_args)
         assert any("PASS" in arg or "FAIL" in arg for arg in call_args)
 
     def test_print_summary_with_errors(self, monkeypatch):
@@ -745,8 +746,8 @@ class TestActionRunner:
         call_str = " ".join(str(c) for c in mock_print.call_args_list)
         assert "Database connection error" in call_str
 
-    def test_print_summary_more_than_10_failures(self, monkeypatch):
-        """Test print_summary shows 'and N more failures' (line 104)."""
+    def test_print_summary_shows_all_failures(self, monkeypatch):
+        """Test print_summary shows all failed cases."""
         from backend.eval.answer.action.models import ActionCaseResult, ActionEvalResults
 
         # Create 15 failed cases
@@ -766,12 +767,12 @@ class TestActionRunner:
         with patch("builtins.print") as mock_print:
             runner.print_summary(results)
 
-        # Should print "... and 5 more failures"
+        # Should print all 15 failures (no truncation)
         call_str = " ".join(str(c) for c in mock_print.call_args_list)
-        assert "5 more failures" in call_str
+        assert "15. Question 14?" in call_str
 
     def test_main_function(self, monkeypatch):
-        """Test main function calls run and print (lines 112-113)."""
+        """Test main function calls run and print."""
         from backend.eval.answer.action import runner
         from backend.eval.answer.action.models import ActionEvalResults
 
@@ -780,7 +781,7 @@ class TestActionRunner:
         monkeypatch.setattr(runner, "run_action_eval", lambda **kwargs: mock_results)
 
         with patch.object(runner, "print_summary") as mock_print:
-            runner.main(limit=None, verbose=False)
+            runner.main(limit=None)
 
         mock_print.assert_called_once_with(mock_results)
 

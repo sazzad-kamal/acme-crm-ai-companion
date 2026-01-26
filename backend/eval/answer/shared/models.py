@@ -12,6 +12,7 @@ class Question(BaseModel):
     difficulty: int = 1
     expected_sql: str
     expected_answer: str = ""  # For RAGAS answer_correctness (empty = skip metric)
+    expected_action: bool = False  # Whether this question should produce a suggested action
 
 
 __all__ = ["Question"]

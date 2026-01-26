@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
-from backend.eval.answer.action.models import ActionCaseResult, ActionEvalResults
+from backend.eval.answer.action.models import (
+    SLO_ACTION_PASS_RATE,
+    ActionCaseResult,
+    ActionEvalResults,
+)
+
+
+class TestSLOConstants:
+    """Tests for SLO constants."""
+
+    def test_slo_action_pass_rate(self):
+        """Test SLO_ACTION_PASS_RATE value."""
+        assert SLO_ACTION_PASS_RATE == 0.80
 
 
 class TestActionCaseResult:
@@ -18,6 +30,7 @@ class TestActionCaseResult:
         assert case.question == "Test question"
         assert case.answer == "Test answer"
         assert case.suggested_action == "Send email"
+        assert case.expected_action is False
         assert case.errors == []
 
     def test_action_case_result_with_scores(self):
@@ -26,6 +39,7 @@ class TestActionCaseResult:
             question="Test question",
             answer="Test answer",
             suggested_action="Send email",
+            expected_action=True,
             relevance=0.8,
             actionability=0.9,
             appropriateness=0.85,
@@ -36,42 +50,68 @@ class TestActionCaseResult:
         assert case.appropriateness == 0.85
         assert case.action_passed is True
 
-    def test_action_case_result_passed_success(self):
-        """Test passed property when action passes."""
+    def test_action_expected_correct(self):
+        """Test outcome: action expected, produced, judged pass."""
         case = ActionCaseResult(
-            question="Test question",
-            answer="Test answer",
+            question="Q",
+            answer="A",
             suggested_action="Send email",
+            expected_action=True,
             action_passed=True,
         )
         assert case.passed is True
 
-    def test_action_case_result_passed_failure(self):
-        """Test passed property when action fails."""
+    def test_action_expected_failed(self):
+        """Test outcome: action expected, produced, judged fail."""
         case = ActionCaseResult(
-            question="Test question",
-            answer="Test answer",
+            question="Q",
+            answer="A",
             suggested_action="Send email",
+            expected_action=True,
             action_passed=False,
         )
         assert case.passed is False
 
-    def test_action_case_result_passed_no_action(self):
-        """Test passed property when no action (passes by default)."""
+    def test_action_missing(self):
+        """Test outcome: action expected but not produced."""
         case = ActionCaseResult(
-            question="Test question",
-            answer="Test answer",
+            question="Q",
+            answer="A",
             suggested_action=None,
+            expected_action=True,
+            action_passed=False,
+        )
+        assert case.passed is False
+
+    def test_spurious_action(self):
+        """Test outcome: action not expected but produced."""
+        case = ActionCaseResult(
+            question="Q",
+            answer="A",
+            suggested_action="Unwanted action",
+            expected_action=False,
+            action_passed=False,
+        )
+        assert case.passed is False
+
+    def test_correct_silence(self):
+        """Test outcome: action not expected and not produced."""
+        case = ActionCaseResult(
+            question="Q",
+            answer="A",
+            suggested_action=None,
+            expected_action=False,
             action_passed=True,
         )
         assert case.passed is True
 
-    def test_action_case_result_passed_with_errors(self):
+    def test_passed_with_errors(self):
         """Test passed property is False when errors present."""
         case = ActionCaseResult(
             question="Test question",
             answer="Test answer",
             suggested_action="Send email",
+            expected_action=True,
             action_passed=True,
             errors=["SQL error"],
         )
@@ -88,6 +128,11 @@ class TestActionEvalResults:
         assert results.passed == 0
         assert results.cases == []
         assert results.total_with_actions == 0
+        assert results.action_expected_passed == 0
+        assert results.action_expected_failed == 0
+        assert results.action_missing == 0
+        assert results.spurious_action == 0
+        assert results.correct_silence == 0
 
     def test_action_eval_results_failed_property(self):
         """Test failed property calculation."""
@@ -106,36 +151,37 @@ class TestActionEvalResults:
 
     def test_action_eval_results_action_pass_rate(self):
         """Test action_pass_rate property calculation."""
-        results = ActionEvalResults(total_with_actions=5)
+        results = ActionEvalResults(total_with_actions=3)
         results.cases = [
             ActionCaseResult(
                 question="Q1",
                 answer="A1",
                 suggested_action="Action 1",
+                expected_action=True,
                 action_passed=True,
             ),
             ActionCaseResult(
                 question="Q2",
                 answer="A2",
                 suggested_action="Action 2",
+                expected_action=True,
                 action_passed=True,
             ),
             ActionCaseResult(
                 question="Q3",
                 answer="A3",
                 suggested_action="Action 3",
+                expected_action=True,
                 action_passed=False,
             ),
             ActionCaseResult(
                 question="Q4",
                 answer="A4",
                 suggested_action=None,
+                expected_action=False,
                 action_passed=True,
             ),
         ]
-        # 2 passed out of 3 with actions (Q4 has no action)
-        # Actually total_with_actions=5 is wrong for this test, let's fix
-        results.total_with_actions = 3
         assert results.action_pass_rate == 2 / 3
 
     def test_action_eval_results_action_pass_rate_zero(self):
@@ -150,34 +196,112 @@ class TestActionEvalResults:
         assert results.avg_relevance == 0.0
 
     def test_action_eval_results_compute_aggregates(self):
-        """Test compute_aggregates computes averages."""
-        results = ActionEvalResults()
+        """Test compute_aggregates computes averages, passed, and breakdown."""
+        results = ActionEvalResults(total=5)
         results.cases = [
+            # Outcome 1: action expected + correct (judged pass)
             ActionCaseResult(
                 question="Q1",
                 answer="A1",
                 suggested_action="Action 1",
+                expected_action=True,
                 relevance=0.7,
                 actionability=0.8,
                 appropriateness=0.9,
+                action_passed=True,
             ),
+            # Outcome 2: action expected + failed (judged fail)
             ActionCaseResult(
                 question="Q2",
                 answer="A2",
                 suggested_action="Action 2",
+                expected_action=True,
                 relevance=0.9,
                 actionability=0.85,
                 appropriateness=0.95,
+                action_passed=False,
             ),
+            # Outcome 3: action missing
             ActionCaseResult(
                 question="Q3",
                 answer="A3",
-                suggested_action=None,  # No action
+                suggested_action=None,
+                expected_action=True,
+                action_passed=False,
+            ),
+            # Outcome 4: spurious action
+            ActionCaseResult(
+                question="Q4",
+                answer="A4",
+                suggested_action="Unwanted",
+                expected_action=False,
+                action_passed=False,
+            ),
+            # Outcome 5: correct silence
+            ActionCaseResult(
+                question="Q5",
+                answer="A5",
+                suggested_action=None,
+                expected_action=False,
+                action_passed=True,
             ),
         ]
         results.compute_aggregates()
 
-        # Action metrics only from cases with actions (Q1, Q2)
+        assert results.passed == 2  # Q1 + Q5
+        assert results.total_with_actions == 3  # Q1, Q2, Q4
+
+        # Breakdown
+        assert results.action_expected_passed == 1  # Q1
+        assert results.action_expected_failed == 1  # Q2
+        assert results.action_missing == 1  # Q3
+        assert results.spurious_action == 1  # Q4
+        assert results.correct_silence == 1  # Q5
+
+        # Action metrics only from judged cases (expected + produced): Q1, Q2
         assert results.avg_relevance == 0.8  # (0.7 + 0.9) / 2
         assert results.avg_actionability == 0.825  # (0.8 + 0.85) / 2
         assert results.avg_appropriateness == 0.925  # (0.9 + 0.95) / 2
+
+    def test_compute_aggregates_error_cases_excluded_from_breakdown(self):
+        """Test that error cases are excluded from breakdown counts."""
+        results = ActionEvalResults(total=2)
+        results.cases = [
+            ActionCaseResult(
+                question="Q1",
+                answer="",
+                suggested_action=None,
+                expected_action=True,
+                errors=["SQL error"],
+            ),
+            ActionCaseResult(
+                question="Q2",
+                answer="A2",
+                suggested_action=None,
+                expected_action=False,
+                action_passed=True,
+            ),
+        ]
+        results.compute_aggregates()
+
+        assert results.passed == 1  # Only Q2
+        assert results.action_missing == 0  # Q1 has errors, excluded
+        assert results.correct_silence == 1  # Q2
+
+    def test_compute_aggregates_no_judged_cases(self):
+        """Test metrics stay zero when no cases were judged."""
+        results = ActionEvalResults(total=1)
+        results.cases = [
+            ActionCaseResult(
+                question="Q1",
+                answer="A1",
+                suggested_action=None,
+                expected_action=False,
+                action_passed=True,
+            ),
+        ]
+        results.compute_aggregates()
+
+        assert results.avg_relevance == 0.0
+        assert results.avg_actionability == 0.0
+        assert results.avg_appropriateness == 0.0

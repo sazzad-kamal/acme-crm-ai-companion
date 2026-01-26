@@ -16,16 +16,16 @@ class TestRunActionEval:
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
     @patch("backend.eval.answer.action.runner.judge_suggested_action")
-    def test_run_action_eval_with_action(
+    def test_action_expected_and_correct(
         self,
         mock_judge: MagicMock,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
     ):
-        """Test action evaluation with suggested action."""
+        """Test outcome: action expected, produced, judged pass."""
         mock_load.return_value = [
-            Question(text="Q1", expected_sql="SELECT 1"),
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
         ]
         mock_generate.return_value = ("Answer 1", "Send email to client", [{}], None)
         mock_judge.return_value = (True, 0.8, 0.9, 0.85, "Good action")
@@ -34,30 +34,110 @@ class TestRunActionEval:
 
         assert results.total == 1
         assert results.passed == 1
-        assert results.total_with_actions == 1
+        assert results.action_expected_passed == 1
         assert results.cases[0].suggested_action == "Send email to client"
+        assert results.cases[0].expected_action is True
         assert results.cases[0].relevance == 0.8
+        mock_judge.assert_called_once()
 
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
     @patch("backend.eval.answer.action.runner.generate_answer")
-    def test_run_action_eval_no_action(
+    @patch("backend.eval.answer.action.runner.judge_suggested_action")
+    def test_action_expected_and_failed(
+        self,
+        mock_judge: MagicMock,
+        mock_generate: MagicMock,
+        mock_load: MagicMock,
+        mock_conn: MagicMock,
+    ):
+        """Test outcome: action expected, produced, judged fail."""
+        mock_load.return_value = [
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
+        ]
+        mock_generate.return_value = ("Answer", "Bad action", [{}], None)
+        mock_judge.return_value = (False, 0.3, 0.2, 0.4, "Poor action")
+
+        results = run_action_eval()
+
+        assert results.total == 1
+        assert results.passed == 0
+        assert results.action_expected_failed == 1
+        assert results.cases[0].action_passed is False
+        mock_judge.assert_called_once()
+
+    @patch("backend.eval.answer.action.runner.get_connection")
+    @patch("backend.eval.answer.action.runner.load_questions")
+    @patch("backend.eval.answer.action.runner.generate_answer")
+    def test_action_missing(
         self,
         mock_generate: MagicMock,
         mock_load: MagicMock,
         mock_conn: MagicMock,
     ):
-        """Test action evaluation without suggested action."""
+        """Test outcome: action expected but not produced."""
         mock_load.return_value = [
-            Question(text="Q1", expected_sql="SELECT 1"),
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
         ]
         mock_generate.return_value = ("Answer 1", None, [{}], None)
 
         results = run_action_eval()
 
         assert results.total == 1
-        assert results.passed == 1  # Passes by default when no action
-        assert results.total_with_actions == 0
+        assert results.passed == 0
+        assert results.action_missing == 1
+        assert results.cases[0].expected_action is True
+        assert results.cases[0].suggested_action is None
+        assert results.cases[0].action_passed is False
+
+    @patch("backend.eval.answer.action.runner.get_connection")
+    @patch("backend.eval.answer.action.runner.load_questions")
+    @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.judge_suggested_action")
+    def test_spurious_action(
+        self,
+        mock_judge: MagicMock,
+        mock_generate: MagicMock,
+        mock_load: MagicMock,
+        mock_conn: MagicMock,
+    ):
+        """Test outcome: action not expected but produced (spurious)."""
+        mock_load.return_value = [
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=False),
+        ]
+        mock_generate.return_value = ("Answer 1", "Unwanted action", [{}], None)
+
+        results = run_action_eval()
+
+        assert results.total == 1
+        assert results.passed == 0
+        assert results.spurious_action == 1
+        assert results.cases[0].expected_action is False
+        assert results.cases[0].suggested_action == "Unwanted action"
+        assert results.cases[0].action_passed is False
+        mock_judge.assert_not_called()
+
+    @patch("backend.eval.answer.action.runner.get_connection")
+    @patch("backend.eval.answer.action.runner.load_questions")
+    @patch("backend.eval.answer.action.runner.generate_answer")
+    def test_correct_silence(
+        self,
+        mock_generate: MagicMock,
+        mock_load: MagicMock,
+        mock_conn: MagicMock,
+    ):
+        """Test outcome: action not expected and not produced."""
+        mock_load.return_value = [
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=False),
+        ]
+        mock_generate.return_value = ("Answer 1", None, [{}], None)
+
+        results = run_action_eval()
+
+        assert results.total == 1
+        assert results.passed == 1
+        assert results.correct_silence == 1
+        assert results.cases[0].expected_action is False
         assert results.cases[0].suggested_action is None
         assert results.cases[0].action_passed is True
 
@@ -72,7 +152,7 @@ class TestRunActionEval:
     ):
         """Test action evaluation with error."""
         mock_load.return_value = [
-            Question(text="Q1", expected_sql="SELECT 1"),
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
         ]
         mock_generate.return_value = ("", None, [], "SQL error: timeout")
 
@@ -81,6 +161,31 @@ class TestRunActionEval:
         assert results.total == 1
         assert results.passed == 0
         assert results.cases[0].errors == ["SQL error: timeout"]
+        assert results.cases[0].expected_action is True
+
+    @patch("backend.eval.answer.action.runner.get_connection")
+    @patch("backend.eval.answer.action.runner.load_questions")
+    @patch("backend.eval.answer.action.runner.generate_answer")
+    @patch("backend.eval.answer.action.runner.judge_suggested_action")
+    def test_run_action_eval_judge_exception(
+        self,
+        mock_judge: MagicMock,
+        mock_generate: MagicMock,
+        mock_load: MagicMock,
+        mock_conn: MagicMock,
+    ):
+        """Test action evaluation when judge raises exception."""
+        mock_load.return_value = [
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
+        ]
+        mock_generate.return_value = ("Answer", "Some action", [{}], None)
+        mock_judge.side_effect = ValueError("Judge internal error")
+
+        results = run_action_eval()
+
+        assert results.total == 1
+        assert results.passed == 0
+        assert "Judge failed: Judge internal error" in results.cases[0].errors[0]
 
     @patch("backend.eval.answer.action.runner.get_connection")
     @patch("backend.eval.answer.action.runner.load_questions")
@@ -95,9 +200,9 @@ class TestRunActionEval:
     ):
         """Test action evaluation with limit parameter."""
         mock_load.return_value = [
-            Question(text="Q1", expected_sql="SELECT 1"),
-            Question(text="Q2", expected_sql="SELECT 2"),
-            Question(text="Q3", expected_sql="SELECT 3"),
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
+            Question(text="Q2", expected_sql="SELECT 2", expected_action=True),
+            Question(text="Q3", expected_sql="SELECT 3", expected_action=True),
         ]
         mock_generate.return_value = ("Answer", "Action", [{}], None)
         mock_judge.return_value = (True, 0.8, 0.9, 0.85, "Good")
@@ -118,23 +223,23 @@ class TestRunActionEval:
         mock_load: MagicMock,
         mock_conn: MagicMock,
     ):
-        """Test that aggregates are computed."""
+        """Test that aggregates are computed including breakdown."""
         mock_load.return_value = [
-            Question(text="Q1", expected_sql="SELECT 1"),
-            Question(text="Q2", expected_sql="SELECT 2"),
+            Question(text="Q1", expected_sql="SELECT 1", expected_action=True),
+            Question(text="Q2", expected_sql="SELECT 2", expected_action=False),
         ]
         mock_generate.side_effect = [
             ("Answer 1", "Action 1", [{}], None),
-            ("Answer 2", "Action 2", [{}], None),
+            ("Answer 2", None, [{}], None),
         ]
-        mock_judge.side_effect = [
-            (True, 0.7, 0.8, 0.9, "Good"),
-            (True, 0.9, 0.85, 0.95, "Excellent"),
-        ]
+        mock_judge.return_value = (True, 0.7, 0.8, 0.9, "Good")
 
         results = run_action_eval()
 
-        assert results.avg_relevance == 0.8  # (0.7 + 0.9) / 2
+        assert results.passed == 2
+        assert results.action_expected_passed == 1
+        assert results.correct_silence == 1
+        assert results.avg_relevance == 0.7
 
 
 class TestPrintSummary:
@@ -142,7 +247,16 @@ class TestPrintSummary:
 
     def test_print_summary_passing(self, capsys):
         """Test print_summary with passing results."""
-        results = ActionEvalResults(total=10, passed=9, total_with_actions=5)
+        results = ActionEvalResults(
+            total=10,
+            passed=9,
+            total_with_actions=5,
+            action_expected_passed=4,
+            action_expected_failed=1,
+            action_missing=0,
+            spurious_action=0,
+            correct_silence=5,
+        )
         results.avg_relevance = 0.85
         results.avg_actionability = 0.90
         results.avg_appropriateness = 0.88
@@ -151,6 +265,7 @@ class TestPrintSummary:
                 question="Q",
                 answer="A",
                 suggested_action="Action",
+                expected_action=True,
                 action_passed=True,
             )
             for _ in range(5)
@@ -161,15 +276,25 @@ class TestPrintSummary:
         captured = capsys.readouterr()
         assert "PASS" in captured.out
         assert "90.0%" in captured.out
+        assert ">=80.0% SLO" in captured.out
+        assert "Action expected + correct:   4 passed, 1 failed (judged)" in captured.out
+        assert "No action expected (quiet):  5 passed" in captured.out
 
     def test_print_summary_failing(self, capsys):
         """Test print_summary with failing results."""
-        results = ActionEvalResults(total=10, passed=5, total_with_actions=3)
+        results = ActionEvalResults(
+            total=10,
+            passed=5,
+            total_with_actions=3,
+            action_expected_passed=1,
+            action_expected_failed=2,
+        )
         results.cases = [
             ActionCaseResult(
                 question="Failed question",
                 answer="Answer",
                 suggested_action="Bad action",
+                expected_action=True,
                 relevance=0.3,
                 actionability=0.4,
                 appropriateness=0.5,
@@ -185,9 +310,134 @@ class TestPrintSummary:
 
     def test_print_summary_no_actions(self, capsys):
         """Test print_summary with no action cases."""
-        results = ActionEvalResults(total=5, passed=5, total_with_actions=0)
+        results = ActionEvalResults(
+            total=5,
+            passed=5,
+            total_with_actions=0,
+            correct_silence=5,
+        )
+        results.cases = []
 
         print_summary(results)
 
         captured = capsys.readouterr()
-        assert "0 cases with actions" in captured.out
+        assert "No action expected (quiet):  5 passed" in captured.out
+
+    def test_print_summary_with_error_case(self, capsys):
+        """Test print_summary with a failed case that has errors."""
+        results = ActionEvalResults(total=10, passed=5)
+        results.cases = [
+            ActionCaseResult(
+                question="Question with error",
+                answer="",
+                suggested_action=None,
+                expected_action=True,
+                errors=["SQL timeout", "Connection failed"],
+            )
+        ]
+
+        print_summary(results)
+
+        captured = capsys.readouterr()
+        assert "Error Cases (1)" in captured.out
+        assert "Error: SQL timeout; Connection failed" in captured.out
+
+    def test_print_summary_missing_action(self, capsys):
+        """Test print_summary shows reason for missing action."""
+        results = ActionEvalResults(
+            total=1,
+            passed=0,
+            action_missing=1,
+        )
+        results.cases = [
+            ActionCaseResult(
+                question="Notes about Anna Lopez",
+                answer="Answer",
+                suggested_action=None,
+                expected_action=True,
+                action_passed=False,
+            )
+        ]
+
+        print_summary(results)
+
+        captured = capsys.readouterr()
+        assert "Reason: Action expected but not produced" in captured.out
+
+    def test_print_summary_spurious_action(self, capsys):
+        """Test print_summary shows reason for spurious action."""
+        results = ActionEvalResults(
+            total=1,
+            passed=0,
+            spurious_action=1,
+        )
+        results.cases = [
+            ActionCaseResult(
+                question="What is Acme's plan?",
+                answer="Answer",
+                suggested_action="Schedule a call with the account manager",
+                expected_action=False,
+                action_passed=False,
+            )
+        ]
+
+        print_summary(results)
+
+        captured = capsys.readouterr()
+        assert "Reason: Spurious action produced" in captured.out
+        assert "Suggested: Schedule a call" in captured.out
+
+    def test_print_summary_action_metrics_shown(self, capsys):
+        """Test that action metrics are shown when judged cases exist."""
+        results = ActionEvalResults(
+            total=2,
+            passed=1,
+            action_expected_passed=1,
+            action_expected_failed=0,
+        )
+        results.avg_relevance = 0.85
+        results.avg_actionability = 0.90
+        results.avg_appropriateness = 0.88
+        results.cases = []
+
+        print_summary(results)
+
+        captured = capsys.readouterr()
+        assert "Action Metrics: rel=0.85 act=0.90 app=0.88" in captured.out
+
+    def test_print_summary_no_action_metrics_when_no_judged(self, capsys):
+        """Test that action metrics are hidden when no judged cases."""
+        results = ActionEvalResults(
+            total=2,
+            passed=2,
+            action_expected_passed=0,
+            action_expected_failed=0,
+            correct_silence=2,
+        )
+        results.cases = []
+
+        print_summary(results)
+
+        captured = capsys.readouterr()
+        assert "Action Metrics" not in captured.out
+
+
+class TestMain:
+    """Tests for main CLI function."""
+
+    @patch("backend.eval.answer.action.runner.print_summary")
+    @patch("backend.eval.answer.action.runner.run_action_eval")
+    def test_main_calls_run_and_print(
+        self,
+        mock_run: MagicMock,
+        mock_print: MagicMock,
+    ):
+        """Test main function calls run_action_eval and print_summary."""
+        from backend.eval.answer.action.runner import main
+
+        mock_run.return_value = ActionEvalResults(total=5, passed=4)
+
+        main(limit=10)
+
+        mock_run.assert_called_once_with(limit=10)
+        mock_print.assert_called_once()

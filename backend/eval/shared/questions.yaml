@@ -25,6 +25,7 @@ questions:
     difficulty: 1
     expected_sql: "SELECT renewal_date FROM companies WHERE name = 'Delta Health Clinics'"
     expected_answer: "Delta Health's renewal date is February 1, 2026."
+    expected_action: true
 
   - text: "What is the email for Anna Lopez?"
     difficulty: 1
@@ -40,6 +41,7 @@ questions:
     difficulty: 2
     expected_sql: "SELECT o.stage FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.name = 'Acme Manufacturing' AND o.name LIKE '%upgrade%'"
     expected_answer: "The Acme Manufacturing upgrade opportunity is in the Proposal stage."
+    expected_action: true
 
   - text: "What is the value of the Beta Tech new rollout opportunity?"
     difficulty: 2
@@ -56,21 +58,25 @@ questions:
     difficulty: 1
     expected_sql: "SELECT notes FROM contacts WHERE first_name = 'Anna' AND last_name = 'Lopez'"
     expected_answer: "Anna Lopez prefers detailed email follow-ups over calls. She is very data-driven and appreciates ROI documentation. She is concerned about a 20% price increase and needs CFO approval for budget changes."
+    expected_action: true
 
   - text: "What are the notes about Acme Manufacturing?"
     difficulty: 1
     expected_sql: "SELECT notes FROM companies WHERE name = 'Acme Manufacturing'"
     expected_answer: "Acme Manufacturing is an enterprise customer since 2024. CFO Beth Turner is the key decision maker and is highly price-sensitive, always negotiating. They have strong product adoption with 50k+ records imported. Renewal discussions typically require ROI documentation."
+    expected_action: true
 
   - text: "What are the notes about Crown Foods?"
     difficulty: 1
     expected_sql: "SELECT notes FROM companies WHERE name = 'Crown Foods'"
     expected_answer: "Crown Foods is a Canadian food distributor with 5 warehouse locations. Maria Silva runs operations and makes quick decisions. They are a heavy API user for inventory integration. Mobile app performance has been a recent concern, putting the renewal at risk."
+    expected_action: true
 
   - text: "Which companies have at-risk health status?"
     difficulty: 1
     expected_sql: "SELECT name FROM companies WHERE health_status LIKE '%at-risk%'"
     expected_answer: "The companies with at-risk health status are Crown Foods and Delta Health Clinics."
+    expected_action: true
 
   - text: "How many contacts have the role Champion?"
     difficulty: 1
@@ -120,16 +126,19 @@ questions:
     difficulty: 2
     expected_sql: "SELECT o.* FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.name LIKE '%Beta Tech%' AND o.name LIKE '%rollout%'"
     expected_answer: "The Beta Tech new rollout opportunity is valued at $32,000 in the Negotiation stage with 80% probability. It's a New Business opportunity from a Referral source, owned by ljones, with expected close date of February 15, 2026."
+    expected_action: true
 
   - text: "What information do we have about Lisa Ng at Beta Tech?"
     difficulty: 2
     expected_sql: "SELECT c.* FROM contacts c JOIN companies co ON c.company_id = co.company_id WHERE c.first_name = 'Lisa' AND c.last_name = 'Ng' AND co.name LIKE '%Beta Tech%'"
     expected_answer: "Lisa Ng is the Head of Sales at Beta Tech Solutions. She is our internal champion and is pushing for expansion to the marketing team. She is very responsive and engaged, and we met her at the SaaS conference in 2024."
+    expected_action: true
 
   - text: "What information do we have about the Acme Manufacturing renewal opportunity?"
     difficulty: 2
     expected_sql: "SELECT o.* FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.name = 'Acme Manufacturing' AND o.type = 'Renewal'"
     expected_answer: "The Acme Manufacturing annual renewal opportunity is valued at $24,000 in the Qualified stage with 40% probability. It's owned by jsmith with expected close date of April 15, 2026. The customer is exploring consolidating history/notes into a single customer timeline. Primary risk is inconsistent activity logging across the team. Next step is to schedule a 30-minute admin setup call."
+    expected_action: true
 
   # =============================================================================
   # SQL DIFFICULTY 3: Multiple joins, GROUP BY
@@ -153,6 +162,7 @@ questions:
     difficulty: 3
     expected_sql: "SELECT DISTINCT c.name FROM companies c JOIN opportunities o ON c.company_id = o.company_id WHERE o.stage = 'Negotiation'"
     expected_answer: "Beta Tech Solutions has opportunities in the Negotiation stage."
+    expected_action: true
 
   - text: "How many contacts per company have the Decision Maker role?"
     difficulty: 3
@@ -178,17 +188,20 @@ questions:
     difficulty: 3
     expected_sql: "SELECT DISTINCT c.name FROM companies c JOIN activities a ON c.company_id = a.company_id WHERE a.due_date >= '2026-01-01' AND a.due_date < '2026-02-01'"
     expected_answer: "Companies with activities due in January 2026 are Acme Manufacturing, Beta Tech Solutions, Crown Foods, Delta Health Clinics, Fusion Retail Group, and Harbor Logistics."
+    expected_action: true
 
   # Notes-based questions
   - text: "What concerns has Maria Silva raised about Crown Foods?"
     difficulty: 3
     expected_sql: "SELECT ct.notes, c.notes as company_notes FROM contacts ct JOIN companies c ON ct.company_id = c.company_id WHERE ct.first_name = 'Maria' AND ct.last_name = 'Silva'"
     expected_answer: "Maria Silva is a quick decision maker who values reliability. She is frustrated with recent mobile app performance issues. Otherwise she is happy with the product and likely to renew. Crown Foods is flagged as at-risk-renewal-soon due to these mobile app concerns."
+    expected_action: true
 
   - text: "What are Erin Cho's notes and her company's health status?"
     difficulty: 3
     expected_sql: "SELECT ct.notes, c.health_status FROM contacts ct JOIN companies c ON ct.company_id = c.company_id WHERE ct.first_name = 'Erin' AND ct.last_name = 'Cho'"
     expected_answer: "Erin Cho champions expansion to additional clinics but needs board approval. She agreed to advocate internally for grandfathered pricing. She is a key relationship for growth. Delta Health's health status is at-risk-renewal-soon."
+    expected_action: true
 
   - text: "What is the breakdown of history events by type?"
     difficulty: 3
@@ -247,17 +260,20 @@ questions:
     difficulty: 4
     expected_sql: "SELECT DISTINCT c.name FROM companies c JOIN opportunities o ON c.company_id = o.company_id WHERE o.expected_close_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '60 days'"
     expected_answer: "Companies with opportunities closing in the next 60 days include Acme Manufacturing, Beta Tech Solutions, Crown Foods, and Harbor Logistics."
+    expected_action: true
 
   # Notes-based questions
   - text: "Which opportunities are at risk and why based on history and activities?"
     difficulty: 4
     expected_sql: "SELECT o.name, o.notes, c.health_status FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.health_status LIKE '%at-risk%' OR o.notes LIKE '%risk%'"
     expected_answer: "At-risk opportunities include Crown Foods renewal (company is at-risk-renewal-soon due to mobile app performance concerns) and Delta Health opportunities (company is at-risk-renewal-soon, expansion needs board approval and budget approval from corporate is a key risk)."
+    expected_action: true
 
   - text: "What are the notes about Green Energy and their churn reason?"
     difficulty: 4
     expected_sql: "SELECT c.notes, h.notes as churn_notes FROM companies c LEFT JOIN history h ON c.company_id = h.company_id WHERE c.name LIKE '%Green Energy%' AND h.subject LIKE '%Churn%'"
     expected_answer: "Green Energy churned due to budget cuts from solar division losses. Carlos expressed interest in returning after Q4 budget cycle. The product was a good fit but timing was wrong. The post-mortem notes indicate they needed more frequent check-ins and clearer value demonstration. Green Energy is a win-back candidate."
+    expected_action: true
 
   # =============================================================================
   # SQL DIFFICULTY 5: CTEs, window functions, multi-step logic
@@ -322,3 +338,4 @@ questions:
     difficulty: 5
     expected_sql: "SELECT o.name, o.notes as opportunity_notes, h.notes as history_notes, a.notes as activity_notes FROM opportunities o LEFT JOIN history h ON o.opportunity_id = h.opportunity_id LEFT JOIN activities a ON o.opportunity_id = a.opportunity_id JOIN companies c ON o.company_id = c.company_id WHERE c.name = 'Acme Manufacturing' AND o.name LIKE '%upgrade%'"
     expected_answer: "For the Acme Manufacturing upgrade deal: Focus on ROI documentation to address Anna Lopez's price concerns (20% increase). Prepare concrete metrics from similar manufacturing customers for CFO Beth Turner who is historically skeptical. Joe Smith prefers 1-year terms. Key next step is preparing an ROI analysis showing efficiency gains before pursuing CFO approval."
+    expected_action: true
