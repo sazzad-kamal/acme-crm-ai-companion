@@ -36,7 +36,6 @@ class ActionEvalResults(BaseModel):
     total: int = 0
     passed: int = 0
     cases: list[ActionCaseResult] = Field(default_factory=list)
-    total_with_actions: int = 0  # Only count cases with actions
     avg_relevance: float = 0.0
     avg_actionability: float = 0.0
     avg_appropriateness: float = 0.0
@@ -47,6 +46,7 @@ class ActionEvalResults(BaseModel):
     action_missing: int = 0  # Action expected but not produced
     spurious_action: int = 0  # Action not expected but produced
     correct_silence: int = 0  # Action not expected and not produced
+    error_count: int = 0  # Cases that failed due to errors
 
     @property
     def failed(self) -> int:
@@ -58,24 +58,16 @@ class ActionEvalResults(BaseModel):
         """Overall pass rate."""
         return self.passed / self.total if self.total > 0 else 0.0
 
-    @property
-    def action_pass_rate(self) -> float:
-        """Pass rate for cases with actions only."""
-        if self.total_with_actions == 0:
-            return 0.0
-        action_cases = [c for c in self.cases if c.suggested_action]
-        passed_actions = sum(1 for c in action_cases if c.action_passed)
-        return passed_actions / self.total_with_actions
-
     def compute_aggregates(self) -> None:
         """Compute aggregate metrics from individual case results."""
         if not self.cases:
             return
 
         self.passed = sum(1 for c in self.cases if c.passed)
-        self.total_with_actions = sum(1 for c in self.cases if c.suggested_action)
 
         # Breakdown counts (exclude error cases)
+        error_cases = [c for c in self.cases if c.errors]
+        self.error_count = len(error_cases)
         ok = [c for c in self.cases if not c.errors]
         self.action_expected_passed = sum(
             1 for c in ok if c.expected_action and c.suggested_action and c.action_passed

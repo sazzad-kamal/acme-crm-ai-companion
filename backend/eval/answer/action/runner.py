@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import typer
 from dotenv import load_dotenv
@@ -34,51 +35,22 @@ def run_action_eval(limit: int | None = None) -> ActionEvalResults:
     for idx, q in enumerate(questions, 1):
         answer, suggested_action, _, error = generate_answer(q, conn)
 
+        kwargs: dict[str, Any] = {
+            "question": q.text,
+            "answer": answer,
+            "suggested_action": suggested_action,
+            "expected_action": q.expected_action,
+        }
+
         if error:
-            case = ActionCaseResult(
-                question=q.text,
-                answer="",
-                suggested_action=None,
-                expected_action=q.expected_action,
-                errors=[error],
-            )
-        elif q.expected_action and not suggested_action:
-            # Action missing: expected but not produced
-            case = ActionCaseResult(
-                question=q.text,
-                answer=answer,
-                suggested_action=None,
-                expected_action=True,
-                action_passed=False,
-            )
-        elif not q.expected_action and suggested_action:
-            # Spurious action: not expected but produced
-            case = ActionCaseResult(
-                question=q.text,
-                answer=answer,
-                suggested_action=suggested_action,
-                expected_action=False,
-                action_passed=False,
-            )
-        elif not q.expected_action and not suggested_action:
-            # Correct silence: not expected and not produced
-            case = ActionCaseResult(
-                question=q.text,
-                answer=answer,
-                suggested_action=None,
-                expected_action=False,
-                action_passed=True,
-            )
-        else:
+            kwargs.update(answer="", suggested_action=None, errors=[error])
+        elif q.expected_action and suggested_action:
             # Action expected and produced: judge it
-            assert suggested_action is not None  # narrowing for type checker
             try:
-                judge_passed, rel, act, app, _ = judge_suggested_action(q.text, answer, suggested_action)
-                case = ActionCaseResult(
-                    question=q.text,
-                    answer=answer,
-                    suggested_action=suggested_action,
-                    expected_action=True,
+                judge_passed, rel, act, app, _ = judge_suggested_action(
+                    q.text, answer, suggested_action
+                )
+                kwargs.update(
                     relevance=rel,
                     actionability=act,
                     appropriateness=app,
@@ -86,13 +58,13 @@ def run_action_eval(limit: int | None = None) -> ActionEvalResults:
                 )
             except Exception as e:
                 logger.warning(f"Judge evaluation failed: {e}")
-                case = ActionCaseResult(
-                    question=q.text,
-                    answer=answer,
-                    suggested_action=suggested_action,
-                    expected_action=True,
-                    errors=[f"Judge failed: {e}"],
-                )
+                kwargs["errors"] = [f"Judge failed: {e}"]
+        elif not q.expected_action and not suggested_action:
+            # Correct silence: not expected and not produced
+            kwargs["action_passed"] = True
+        # else: action_missing or spurious_action — action_passed defaults to False
+
+        case = ActionCaseResult(**kwargs)
 
         results.cases.append(case)
         status = "PASS" if case.passed else "FAIL"
@@ -114,14 +86,17 @@ def print_summary(results: ActionEvalResults) -> None:
         f"  Action expected + correct:   {results.action_expected_passed} passed, "
         f"{results.action_expected_failed} failed (judged)"
     )
+    if results.action_expected_passed + results.action_expected_failed > 0:
+        print(
+            f"  Action Metrics: rel={results.avg_relevance:.2f} "
+            f"act={results.avg_actionability:.2f} app={results.avg_appropriateness:.2f}"
+        )
+    print()
     print(f"  Action expected + missing:   {results.action_missing} failed")
     print(f"  Spurious action:             {results.spurious_action} failed")
     print(f"  No action expected (quiet):  {results.correct_silence} passed")
-    if results.action_expected_passed + results.action_expected_failed > 0:
-        print(
-            f"Action Metrics: rel={results.avg_relevance:.2f} "
-            f"act={results.avg_actionability:.2f} app={results.avg_appropriateness:.2f}"
-        )
+    if results.error_count > 0:
+        print(f"  Errors:                      {results.error_count} failed")
 
     # Error cases
     error_cases = [c for c in results.cases if c.errors]
@@ -149,6 +124,9 @@ def print_summary(results: ActionEvalResults) -> None:
                     f"act={c.actionability:.2f} app={c.appropriateness:.2f}"
                 )
                 print(f"   Suggested: {c.suggested_action[:100]}...")
+            if c.answer:
+                ans = c.answer[:100] + "..." if len(c.answer) > 100 else c.answer
+                print(f"   Answer: {ans}")
             print()
 
 

@@ -34,3 +34,13 @@ class TestQuestion:
         """Test difficulty defaults to 1."""
         q = Question(text="Test", expected_sql="SELECT 1")
         assert q.difficulty == 1
+
+    def test_question_expected_action_default(self):
+        """Test expected_action defaults to False."""
+        q = Question(text="Test", expected_sql="SELECT 1")
+        assert q.expected_action is False
+
+    def test_question_expected_action_true(self):
+        """Test Question with expected_action=True."""
+        q = Question(text="Notes about Anna", expected_sql="SELECT notes", expected_action=True)
+        assert q.expected_action is True

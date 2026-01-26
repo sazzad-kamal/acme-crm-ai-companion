@@ -127,12 +127,12 @@ class TestActionEvalResults:
         assert results.total == 0
         assert results.passed == 0
         assert results.cases == []
-        assert results.total_with_actions == 0
         assert results.action_expected_passed == 0
         assert results.action_expected_failed == 0
         assert results.action_missing == 0
         assert results.spurious_action == 0
         assert results.correct_silence == 0
+        assert results.error_count == 0
 
     def test_action_eval_results_failed_property(self):
         """Test failed property calculation."""
@@ -148,46 +148,6 @@ class TestActionEvalResults:
         """Test pass_rate with zero total."""
         results = ActionEvalResults(total=0, passed=0)
         assert results.pass_rate == 0.0
-
-    def test_action_eval_results_action_pass_rate(self):
-        """Test action_pass_rate property calculation."""
-        results = ActionEvalResults(total_with_actions=3)
-        results.cases = [
-            ActionCaseResult(
-                question="Q1",
-                answer="A1",
-                suggested_action="Action 1",
-                expected_action=True,
-                action_passed=True,
-            ),
-            ActionCaseResult(
-                question="Q2",
-                answer="A2",
-                suggested_action="Action 2",
-                expected_action=True,
-                action_passed=True,
-            ),
-            ActionCaseResult(
-                question="Q3",
-                answer="A3",
-                suggested_action="Action 3",
-                expected_action=True,
-                action_passed=False,
-            ),
-            ActionCaseResult(
-                question="Q4",
-                answer="A4",
-                suggested_action=None,
-                expected_action=False,
-                action_passed=True,
-            ),
-        ]
-        assert results.action_pass_rate == 2 / 3
-
-    def test_action_eval_results_action_pass_rate_zero(self):
-        """Test action_pass_rate with no actions."""
-        results = ActionEvalResults(total_with_actions=0)
-        assert results.action_pass_rate == 0.0
 
     def test_action_eval_results_compute_aggregates_empty(self):
         """Test compute_aggregates with empty cases."""
@@ -249,7 +209,6 @@ class TestActionEvalResults:
         results.compute_aggregates()
 
         assert results.passed == 2  # Q1 + Q5
-        assert results.total_with_actions == 3  # Q1, Q2, Q4
 
         # Breakdown
         assert results.action_expected_passed == 1  # Q1
@@ -285,7 +244,8 @@ class TestActionEvalResults:
         results.compute_aggregates()
 
         assert results.passed == 1  # Only Q2
-        assert results.action_missing == 0  # Q1 has errors, excluded
+        assert results.error_count == 1  # Q1 has errors
+        assert results.action_missing == 0  # Q1 excluded from breakdown
         assert results.correct_silence == 1  # Q2
 
     def test_compute_aggregates_no_judged_cases(self):

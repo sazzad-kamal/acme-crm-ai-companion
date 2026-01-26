@@ -250,7 +250,6 @@ class TestPrintSummary:
         results = ActionEvalResults(
             total=10,
             passed=9,
-            total_with_actions=5,
             action_expected_passed=4,
             action_expected_failed=1,
             action_missing=0,
@@ -285,7 +284,6 @@ class TestPrintSummary:
         results = ActionEvalResults(
             total=10,
             passed=5,
-            total_with_actions=3,
             action_expected_passed=1,
             action_expected_failed=2,
         )
@@ -307,13 +305,56 @@ class TestPrintSummary:
         captured = capsys.readouterr()
         assert "FAIL" in captured.out
         assert "Failed Cases" in captured.out
+        assert "Answer: Answer" in captured.out
+
+    def test_print_summary_answer_truncated(self, capsys):
+        """Test print_summary truncates long answers."""
+        results = ActionEvalResults(total=1, passed=0)
+        results.cases = [
+            ActionCaseResult(
+                question="Q",
+                answer="A" * 150,
+                suggested_action="Action",
+                expected_action=True,
+                relevance=0.3,
+                actionability=0.4,
+                appropriateness=0.5,
+                action_passed=False,
+            )
+        ]
+
+        print_summary(results)
+
+        captured = capsys.readouterr()
+        assert "Answer: " + "A" * 100 + "..." in captured.out
+
+    def test_print_summary_no_answer_line_when_empty(self, capsys):
+        """Test print_summary omits answer line when answer is empty."""
+        results = ActionEvalResults(
+            total=1,
+            passed=0,
+            action_missing=1,
+        )
+        results.cases = [
+            ActionCaseResult(
+                question="Q",
+                answer="",
+                suggested_action=None,
+                expected_action=True,
+                action_passed=False,
+            )
+        ]
+
+        print_summary(results)
+
+        captured = capsys.readouterr()
+        assert "Answer:" not in captured.out
 
     def test_print_summary_no_actions(self, capsys):
         """Test print_summary with no action cases."""
         results = ActionEvalResults(
             total=5,
             passed=5,
-            total_with_actions=0,
             correct_silence=5,
         )
         results.cases = []
@@ -341,6 +382,59 @@ class TestPrintSummary:
         captured = capsys.readouterr()
         assert "Error Cases (1)" in captured.out
         assert "Error: SQL timeout; Connection failed" in captured.out
+
+    def test_print_summary_error_count_in_breakdown(self, capsys):
+        """Test that error count appears in the breakdown."""
+        results = ActionEvalResults(
+            total=3,
+            passed=1,
+            action_expected_passed=1,
+            correct_silence=0,
+            error_count=2,
+        )
+        results.cases = [
+            ActionCaseResult(
+                question="Q1",
+                answer="A",
+                suggested_action="Action",
+                expected_action=True,
+                action_passed=True,
+            ),
+            ActionCaseResult(
+                question="Q2",
+                answer="",
+                suggested_action=None,
+                expected_action=True,
+                errors=["err1"],
+            ),
+            ActionCaseResult(
+                question="Q3",
+                answer="",
+                suggested_action=None,
+                expected_action=False,
+                errors=["err2"],
+            ),
+        ]
+
+        print_summary(results)
+
+        captured = capsys.readouterr()
+        assert "Errors:                      2 failed" in captured.out
+
+    def test_print_summary_no_error_line_when_zero(self, capsys):
+        """Test that error line is hidden when no errors."""
+        results = ActionEvalResults(
+            total=1,
+            passed=1,
+            correct_silence=1,
+            error_count=0,
+        )
+        results.cases = []
+
+        print_summary(results)
+
+        captured = capsys.readouterr()
+        assert "Errors:" not in captured.out
 
     def test_print_summary_missing_action(self, capsys):
         """Test print_summary shows reason for missing action."""
@@ -386,6 +480,7 @@ class TestPrintSummary:
         captured = capsys.readouterr()
         assert "Reason: Spurious action produced" in captured.out
         assert "Suggested: Schedule a call" in captured.out
+        assert "Answer: Answer" in captured.out
 
     def test_print_summary_action_metrics_shown(self, capsys):
         """Test that action metrics are shown when judged cases exist."""
@@ -403,7 +498,7 @@ class TestPrintSummary:
         print_summary(results)
 
         captured = capsys.readouterr()
-        assert "Action Metrics: rel=0.85 act=0.90 app=0.88" in captured.out
+        assert "  Action Metrics: rel=0.85 act=0.90 app=0.88" in captured.out
 
     def test_print_summary_no_action_metrics_when_no_judged(self, capsys):
         """Test that action metrics are hidden when no judged cases."""
