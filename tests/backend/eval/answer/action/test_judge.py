@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from backend.eval.answer.action.judge import (
     ActionJudgeResult,
     judge_suggested_action,
@@ -78,20 +80,15 @@ class TestJudgeSuggestedAction:
         assert app == 0.5
 
     @patch("backend.eval.answer.action.judge.create_openai_chain")
-    def test_judge_suggested_action_error(self, mock_chain_fn: MagicMock):
-        """Test judge handles errors gracefully."""
+    def test_judge_suggested_action_error_propagates(self, mock_chain_fn: MagicMock):
+        """Test judge lets exceptions propagate to caller."""
         mock_chain = MagicMock()
-        mock_chain.invoke.side_effect = Exception("API error")
+        mock_chain.invoke.side_effect = ValueError("API error")
         mock_chain_fn.return_value = mock_chain
 
-        passed, rel, act, app, explanation = judge_suggested_action(
-            question="What deals are closing?",
-            answer="3 deals worth $50k",
-            action="Send email",
-        )
-
-        assert passed is False
-        assert rel == 0.0
-        assert act == 0.0
-        assert app == 0.0
-        assert "error" in explanation.lower()
+        with pytest.raises(ValueError, match="API error"):
+            judge_suggested_action(
+                question="What deals are closing?",
+                answer="3 deals worth $50k",
+                action="Send email",
+            )

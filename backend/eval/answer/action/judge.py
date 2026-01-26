@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import logging
-
 from pydantic import BaseModel, Field
 
 from backend.core.llm import create_openai_chain
-
-logger = logging.getLogger(__name__)
 
 
 class ActionJudgeResult(BaseModel):
@@ -48,6 +44,9 @@ def judge_suggested_action(
 
     Returns:
         (passed, relevance, actionability, appropriateness, explanation)
+
+    Raises:
+        Exception: If the LLM chain fails (caller should handle).
     """
     chain = create_openai_chain(
         system_prompt=_SYSTEM_PROMPT,
@@ -56,23 +55,19 @@ def judge_suggested_action(
         structured_output=ActionJudgeResult,
         streaming=False,
     )
-    try:
-        result: ActionJudgeResult = chain.invoke({
-            "question": question,
-            "answer": answer,
-            "action": action,
-        })
-        passed = all(s >= 0.6 for s in (result.relevance, result.actionability, result.appropriateness))
-        return (
-            passed,
-            result.relevance,
-            result.actionability,
-            result.appropriateness,
-            result.explanation,
-        )
-    except Exception as e:
-        logger.warning(f"Judge error: {e}")
-        return False, 0.0, 0.0, 0.0, f"Judge error: {e}"
+    result: ActionJudgeResult = chain.invoke({
+        "question": question,
+        "answer": answer,
+        "action": action,
+    })
+    passed = all(s >= 0.6 for s in (result.relevance, result.actionability, result.appropriateness))
+    return (
+        passed,
+        result.relevance,
+        result.actionability,
+        result.appropriateness,
+        result.explanation,
+    )
 
 
 __all__ = ["ActionJudgeResult", "judge_suggested_action"]
