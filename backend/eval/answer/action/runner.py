@@ -116,13 +116,15 @@ def print_summary(results: ActionEvalResults) -> None:
                 print("   Reason: Action expected but not produced")
             elif not c.expected_action and c.suggested_action:
                 print("   Reason: Spurious action produced")
-                print(f"   Suggested: {c.suggested_action[:100]}...")
+                action = c.suggested_action[:100] + "..." if len(c.suggested_action) > 100 else c.suggested_action
+                print(f"   Suggested: {action}")
             elif c.suggested_action:
                 print(
                     f"   Action: rel={c.relevance:.2f} "
                     f"act={c.actionability:.2f} app={c.appropriateness:.2f}"
                 )
-                print(f"   Suggested: {c.suggested_action[:100]}...")
+                action = c.suggested_action[:100] + "..." if len(c.suggested_action) > 100 else c.suggested_action
+                print(f"   Suggested: {action}")
             if c.answer:
                 ans = c.answer[:100] + "..." if len(c.answer) > 100 else c.answer
                 print(f"   Answer: {ans}")
