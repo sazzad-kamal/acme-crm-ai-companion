@@ -22,10 +22,8 @@ Context: The assistant answers CRM questions and optionally suggests a next acti
 
 Score each dimension 0.0 to 1.0:
 1. Relevance: Does the action relate to the question and answer?
-2. Actionability: Is it specific enough to execute? (not vague like "follow up")
-3. Appropriateness: Is it sensible given CRM best practices?
-
-Be strict - vague actions should score low on actionability."""
+2. Actionability: Is it specific enough to execute? Be strict — vague actions like "follow up" should score low.
+3. Appropriateness: Is it sensible given CRM best practices?"""
 
 _HUMAN_PROMPT = """Question: {question}
 

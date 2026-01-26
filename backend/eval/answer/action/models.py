@@ -19,6 +19,7 @@ class ActionCaseResult(BaseModel):
     actionability: float = 0.0
     appropriateness: float = 0.0
     action_passed: bool = False  # From judge, or set by runner based on outcome
+    explanation: str = ""  # Judge's reasoning (only for judged cases)
     errors: list[str] = Field(default_factory=list)
 
 

@@ -44,7 +44,7 @@ def run_action_eval(limit: int | None = None) -> ActionEvalResults:
         elif q.expected_action and suggested_action:
             # Action expected and produced: judge it
             try:
-                judge_passed, rel, act, app, _ = judge_suggested_action(
+                judge_passed, rel, act, app, explanation = judge_suggested_action(
                     q.text, answer, suggested_action
                 )
                 kwargs.update(
@@ -52,6 +52,7 @@ def run_action_eval(limit: int | None = None) -> ActionEvalResults:
                     actionability=act,
                     appropriateness=app,
                     action_passed=judge_passed,
+                    explanation=explanation,
                 )
             except Exception as e:
                 logger.warning(f"Judge evaluation failed: {e}")
@@ -125,6 +126,8 @@ def print_summary(results: ActionEvalResults) -> None:
                 )
                 action = c.suggested_action[:100] + "..." if len(c.suggested_action) > 100 else c.suggested_action
                 print(f"   Suggested: {action}")
+                if c.explanation:
+                    print(f"   Judge: {c.explanation}")
             if c.answer:
                 ans = c.answer[:100] + "..." if len(c.answer) > 100 else c.answer
                 print(f"   Answer: {ans}")

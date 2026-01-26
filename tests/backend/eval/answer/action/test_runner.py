@@ -38,6 +38,7 @@ class TestRunActionEval:
         assert results.cases[0].suggested_action == "Send email to client"
         assert results.cases[0].expected_action is True
         assert results.cases[0].relevance == 0.8
+        assert results.cases[0].explanation == "Good action"
         mock_judge.assert_called_once()
 
     @patch("backend.eval.answer.action.runner.get_connection")
@@ -64,6 +65,7 @@ class TestRunActionEval:
         assert results.passed == 0
         assert results.action_expected_failed == 1
         assert results.cases[0].action_passed is False
+        assert results.cases[0].explanation == "Poor action"
         mock_judge.assert_called_once()
 
     @patch("backend.eval.answer.action.runner.get_connection")
@@ -297,6 +299,7 @@ class TestPrintSummary:
                 actionability=0.4,
                 appropriateness=0.5,
                 action_passed=False,
+                explanation="Action is too generic",
             )
         ]
 
@@ -306,6 +309,7 @@ class TestPrintSummary:
         assert "FAIL" in captured.out
         assert "Failed Cases" in captured.out
         assert "Answer: Answer" in captured.out
+        assert "Judge: Action is too generic" in captured.out
 
     def test_print_summary_answer_truncated(self, capsys):
         """Test print_summary truncates long answers."""
