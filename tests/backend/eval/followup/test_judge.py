@@ -153,11 +153,11 @@ class TestJudgeFollowupSuggestions:
         )
 
         call_kwargs = mock_chain.invoke.call_args[0][0]
-        assert "Acme has 3 deals." in call_kwargs["answer_section"]
+        assert call_kwargs["answer"] == "Acme has 3 deals."
 
     @patch("backend.eval.followup.judge.create_openai_chain")
     def test_judge_empty_answer(self, mock_chain_fn: MagicMock):
-        """Test judge with no answer passes empty answer_section."""
+        """Test judge with no answer passes empty answer."""
         mock_chain = MagicMock()
         mock_chain.invoke.return_value = FollowupJudgeResult(
             question_relevance=0.8,
@@ -173,4 +173,4 @@ class TestJudgeFollowupSuggestions:
         )
 
         call_kwargs = mock_chain.invoke.call_args[0][0]
-        assert call_kwargs["answer_section"] == ""
+        assert call_kwargs["answer"] == ""

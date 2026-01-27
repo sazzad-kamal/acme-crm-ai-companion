@@ -16,29 +16,17 @@ class FollowupJudgeResult(BaseModel):
     """Result from the followup judge."""
 
     question_relevance: float = Field(description="0-1: Are suggestions related to the original question topic?")
-    answer_grounding: float = Field(description="0-1: Do suggestions reference specifics from the answer (names, dates, amounts)?")
+    answer_grounding: float = Field(description="0-1: Do suggestions mention specific names from the answer (e.g. 'Enterprise Upgrade', 'Acme Corp')?")
     diversity: float = Field(description="0-1: Do suggestions cover different angles/topics?")
     explanation: str = Field(description="Brief reasoning")
 
 
-_SYSTEM_PROMPT = """Evaluate follow-up question suggestions for a CRM assistant.
+_SYSTEM_PROMPT = """Evaluate follow-up question suggestions for a CRM assistant."""
 
-Context: The assistant suggests follow-up questions after answering a CRM query.
+_HUMAN_PROMPT = """Question: {question}
+Answer: {answer}
 
-Score each dimension 0.0 to 1.0:
-1. Question Relevance: Are the suggestions related to the original question topic?
-2. Answer Grounding: Do the suggestions reference specific entities, numbers, or dates from the answer?
-3. Diversity: Do suggestions cover different angles or directions?
-
-Consider:
-- Follow-ups should be natural next questions a user might ask
-- Question relevance means staying on-topic with what was asked
-- Answer grounding means referencing specifics from the answer (names, dates, amounts, stages)
-- At least one suggestion should offer a different direction"""
-
-_HUMAN_PROMPT = """Original Question: {question}
-
-{answer_section}Generated Follow-up Suggestions:
+Suggestions:
 {suggestions}"""
 
 
@@ -64,10 +52,9 @@ def judge_followup_suggestions(
         streaming=False,
     )
     formatted_suggestions = "\n".join(f"- {s}" for s in suggestions)
-    answer_section = f"Answer: {answer}\n\n" if answer else ""
     result: FollowupJudgeResult = chain.invoke({
         "question": question,
-        "answer_section": answer_section,
+        "answer": answer,
         "suggestions": formatted_suggestions,
     })
     passed = (
