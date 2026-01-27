@@ -21,23 +21,24 @@ _SYSTEM_PROMPT = """Evaluate follow-up question suggestions for a CRM assistant.
 Context: The assistant suggests follow-up questions after answering a CRM query.
 
 Score each dimension 0.0 to 1.0:
-1. Relevance: Are the suggestions related to the original question?
+1. Relevance: Are the suggestions relevant to the question AND answer? Do they reference specific entities, numbers, or dates from the answer?
 2. Diversity: Do suggestions cover different angles or directions?
 
 Consider:
-- Follow-ups should be natural next questions a user might ask
-- Good follow-ups help the user explore related data or drill deeper
+- Follow-ups should be natural next questions a user might ask given the answer
+- Good follow-ups reference specifics from the answer (names, dates, amounts, stages)
 - At least one suggestion should offer a different direction"""
 
 _HUMAN_PROMPT = """Original Question: {question}
 
-Generated Follow-up Suggestions:
+{answer_section}Generated Follow-up Suggestions:
 {suggestions}"""
 
 
 def judge_followup_suggestions(
     question: str,
     suggestions: list[str],
+    answer: str = "",
 ) -> tuple[bool, float, float, str]:
     """
     Judge followup suggestion quality.
@@ -56,8 +57,10 @@ def judge_followup_suggestions(
         streaming=False,
     )
     formatted_suggestions = "\n".join(f"- {s}" for s in suggestions)
+    answer_section = f"Answer: {answer}\n\n" if answer else ""
     result: FollowupJudgeResult = chain.invoke({
         "question": question,
+        "answer_section": answer_section,
         "suggestions": formatted_suggestions,
     })
     passed = (

@@ -9,8 +9,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from backend.agent.fetch.sql.connection import get_connection
 from backend.agent.followup.suggester import generate_follow_up_suggestions
-from backend.eval.answer.shared.loader import load_questions
+from backend.eval.answer.shared.loader import generate_answer, load_questions
 from backend.eval.followup.judge import judge_followup_suggestions
 from backend.eval.followup.models import (
     SLO_FOLLOWUP_PASS_RATE,
@@ -31,18 +32,26 @@ def run_followup_eval(
         questions = questions[:limit]
 
     results = FollowupEvalResults(total=len(questions))
+    conn = get_connection()
 
     for idx, q in enumerate(questions, 1):
         suggestions: list[str] = []
         errors: list[str] = []
 
-        try:
-            suggestions = generate_follow_up_suggestions(
-                question=q.text,
-                use_hardcoded_tree=use_hardcoded_tree,
-            )
-        except Exception as e:
-            errors.append(f"Generation error: {e}")
+        # Generate answer first (like action eval)
+        answer, _, answer_error = generate_answer(q, conn)
+        if answer_error:
+            errors.append(f"Answer error: {answer_error}")
+
+        if not errors:
+            try:
+                suggestions = generate_follow_up_suggestions(
+                    question=q.text,
+                    answer=answer,
+                    use_hardcoded_tree=use_hardcoded_tree,
+                )
+            except Exception as e:
+                errors.append(f"Generation error: {e}")
 
         passed = False
         rel = 0.0
@@ -52,7 +61,7 @@ def run_followup_eval(
         if suggestions and not errors:
             try:
                 passed, rel, div, explanation = judge_followup_suggestions(
-                    q.text, suggestions
+                    q.text, suggestions, answer=answer
                 )
             except Exception as e:
                 logger.warning(f"Judge evaluation failed: {e}")
@@ -60,6 +69,7 @@ def run_followup_eval(
 
         case = FollowupCaseResult(
             question=q.text,
+            answer=answer,
             suggestions=suggestions,
             passed=passed,
             relevance=rel,

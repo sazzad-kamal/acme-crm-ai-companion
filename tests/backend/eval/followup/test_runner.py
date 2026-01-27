@@ -9,22 +9,38 @@ from backend.eval.followup.models import FollowupCaseResult, FollowupEvalResults
 from backend.eval.followup.runner import print_summary, run_followup_eval
 
 
+def _patch_runner():
+    """Helper to patch all runner dependencies for run_followup_eval tests."""
+    return (
+        patch("backend.eval.followup.runner.load_questions"),
+        patch("backend.eval.followup.runner.get_connection"),
+        patch("backend.eval.followup.runner.generate_answer"),
+        patch("backend.eval.followup.runner.generate_follow_up_suggestions"),
+        patch("backend.eval.followup.runner.judge_followup_suggestions"),
+    )
+
+
 class TestRunFollowupEval:
     """Tests for run_followup_eval function."""
 
     @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
     @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
     @patch("backend.eval.followup.runner.judge_followup_suggestions")
     def test_followup_passing(
         self,
         mock_judge: MagicMock,
         mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
         mock_load: MagicMock,
     ):
         """Test passing followup evaluation."""
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
+        mock_answer.return_value = ("Acme has 3 deals.", [], None)
         mock_generate.return_value = ["Follow-up 1?", "Follow-up 2?", "Follow-up 3?"]
         mock_judge.return_value = (True, 0.8, 0.7, "Good suggestions")
 
@@ -33,6 +49,7 @@ class TestRunFollowupEval:
         assert results.total == 1
         assert results.passed == 1
         assert results.cases[0].passed is True
+        assert results.cases[0].answer == "Acme has 3 deals."
         assert results.cases[0].relevance == 0.8
         assert results.cases[0].diversity == 0.7
         assert results.cases[0].explanation == "Good suggestions"
@@ -40,18 +57,23 @@ class TestRunFollowupEval:
         mock_judge.assert_called_once()
 
     @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
     @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
     @patch("backend.eval.followup.runner.judge_followup_suggestions")
     def test_followup_failing(
         self,
         mock_judge: MagicMock,
         mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
         mock_load: MagicMock,
     ):
         """Test failing followup evaluation."""
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
+        mock_answer.return_value = ("Answer text.", [], None)
         mock_generate.return_value = ["Follow-up 1?", "Follow-up 2?", "Follow-up 3?"]
         mock_judge.return_value = (False, 0.4, 0.3, "Poor suggestions")
 
@@ -63,16 +85,21 @@ class TestRunFollowupEval:
         mock_judge.assert_called_once()
 
     @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
     @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
     def test_generation_error(
         self,
         mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
         mock_load: MagicMock,
     ):
         """Test followup evaluation with generation error."""
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
+        mock_answer.return_value = ("Answer text.", [], None)
         mock_generate.side_effect = ValueError("Generation failed")
 
         results = run_followup_eval()
@@ -82,18 +109,23 @@ class TestRunFollowupEval:
         assert "Generation error" in results.cases[0].errors[0]
 
     @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
     @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
     @patch("backend.eval.followup.runner.judge_followup_suggestions")
     def test_judge_exception(
         self,
         mock_judge: MagicMock,
         mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
         mock_load: MagicMock,
     ):
         """Test followup evaluation when judge raises exception."""
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
+        mock_answer.return_value = ("Answer text.", [], None)
         mock_generate.return_value = ["Follow-up 1?", "Follow-up 2?", "Follow-up 3?"]
         mock_judge.side_effect = ValueError("Judge internal error")
 
@@ -104,18 +136,23 @@ class TestRunFollowupEval:
         assert "Judge failed: Judge internal error" in results.cases[0].errors[0]
 
     @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
     @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
     @patch("backend.eval.followup.runner.judge_followup_suggestions")
     def test_empty_suggestions_skips_judge(
         self,
         mock_judge: MagicMock,
         mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
         mock_load: MagicMock,
     ):
         """Test that empty suggestions skip the judge."""
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
+        mock_answer.return_value = ("Answer text.", [], None)
         mock_generate.return_value = []
 
         results = run_followup_eval()
@@ -126,12 +163,16 @@ class TestRunFollowupEval:
         mock_judge.assert_not_called()
 
     @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
     @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
     @patch("backend.eval.followup.runner.judge_followup_suggestions")
     def test_limit_parameter(
         self,
         mock_judge: MagicMock,
         mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
         mock_load: MagicMock,
     ):
         """Test followup evaluation with limit parameter."""
@@ -140,6 +181,7 @@ class TestRunFollowupEval:
             Question(text="Q2", expected_sql="SELECT 2"),
             Question(text="Q3", expected_sql="SELECT 3"),
         ]
+        mock_answer.return_value = ("Answer.", [], None)
         mock_generate.return_value = ["A?", "B?", "C?"]
         mock_judge.return_value = (True, 0.8, 0.7, "Good")
 
@@ -149,12 +191,16 @@ class TestRunFollowupEval:
         assert mock_generate.call_count == 2
 
     @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
     @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
     @patch("backend.eval.followup.runner.judge_followup_suggestions")
     def test_computes_aggregates(
         self,
         mock_judge: MagicMock,
         mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
         mock_load: MagicMock,
     ):
         """Test that aggregates are computed."""
@@ -162,6 +208,7 @@ class TestRunFollowupEval:
             Question(text="Q1", expected_sql="SELECT 1"),
             Question(text="Q2", expected_sql="SELECT 2"),
         ]
+        mock_answer.return_value = ("Answer.", [], None)
         mock_generate.return_value = ["A?", "B?", "C?"]
         mock_judge.side_effect = [
             (True, 0.8, 0.7, "Good"),
@@ -175,18 +222,23 @@ class TestRunFollowupEval:
         assert results.avg_diversity == 0.6  # (0.7 + 0.5) / 2
 
     @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
     @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
     @patch("backend.eval.followup.runner.judge_followup_suggestions")
     def test_use_hardcoded_tree_parameter(
         self,
         mock_judge: MagicMock,
         mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
         mock_load: MagicMock,
     ):
         """Test use_hardcoded_tree parameter is passed through."""
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
+        mock_answer.return_value = ("Acme answer.", [], None)
         mock_generate.return_value = ["A?", "B?", "C?"]
         mock_judge.return_value = (True, 0.8, 0.7, "Good")
 
@@ -194,7 +246,59 @@ class TestRunFollowupEval:
 
         mock_generate.assert_called_once_with(
             question="Q1",
+            answer="Acme answer.",
             use_hardcoded_tree=False,
+        )
+
+    @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
+    @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
+    def test_answer_error_skips_generation(
+        self,
+        mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
+        mock_load: MagicMock,
+    ):
+        """Test that answer generation error skips follow-up generation."""
+        mock_load.return_value = [
+            Question(text="Q1", expected_sql="SELECT 1"),
+        ]
+        mock_answer.return_value = ("", [], "SQL error: table not found")
+
+        results = run_followup_eval()
+
+        assert results.total == 1
+        assert results.passed == 0
+        assert "Answer error" in results.cases[0].errors[0]
+        mock_generate.assert_not_called()
+
+    @patch("backend.eval.followup.runner.load_questions")
+    @patch("backend.eval.followup.runner.get_connection")
+    @patch("backend.eval.followup.runner.generate_answer")
+    @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
+    @patch("backend.eval.followup.runner.judge_followup_suggestions")
+    def test_answer_passed_to_judge(
+        self,
+        mock_judge: MagicMock,
+        mock_generate: MagicMock,
+        mock_answer: MagicMock,
+        mock_conn: MagicMock,
+        mock_load: MagicMock,
+    ):
+        """Test that answer is passed to the judge."""
+        mock_load.return_value = [
+            Question(text="Q1", expected_sql="SELECT 1"),
+        ]
+        mock_answer.return_value = ("Acme has 3 deals.", [], None)
+        mock_generate.return_value = ["A?", "B?", "C?"]
+        mock_judge.return_value = (True, 0.8, 0.7, "Good")
+
+        run_followup_eval()
+
+        mock_judge.assert_called_once_with(
+            "Q1", ["A?", "B?", "C?"], answer="Acme has 3 deals."
         )
 
 

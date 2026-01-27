@@ -14,6 +14,7 @@ class FollowupCaseResult(BaseModel):
     """Result for a single followup evaluation case."""
 
     question: str
+    answer: str = ""
     suggestions: list[str] = Field(default_factory=list)
     passed: bool = False
     relevance: float = 0.0

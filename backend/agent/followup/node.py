@@ -15,6 +15,7 @@ def followup_node(state: AgentState) -> AgentState:
     try:
         suggestions = generate_follow_up_suggestions(
             question=state["question"],
+            answer=state.get("answer", ""),
             conversation_history=format_conversation_for_prompt(state.get("messages", [])),
         )
 

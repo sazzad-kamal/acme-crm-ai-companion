@@ -44,6 +44,7 @@ class TestJudgeFollowupSuggestions:
         passed, rel, div, explanation = judge_followup_suggestions(
             question="What deals does Acme have?",
             suggestions=["Q1?", "Q2?", "Q3?"],
+            answer="Acme has 3 deals.",
         )
 
         assert passed is True
@@ -65,6 +66,7 @@ class TestJudgeFollowupSuggestions:
         passed, rel, div, explanation = judge_followup_suggestions(
             question="What deals does Acme have?",
             suggestions=["Q1?", "Q2?", "Q3?"],
+            answer="Acme has 3 deals.",
         )
 
         assert passed is False
@@ -104,3 +106,42 @@ class TestJudgeFollowupSuggestions:
         assert passed is True
         assert rel == 0.6
         assert div == 0.5
+
+    @patch("backend.eval.followup.judge.create_openai_chain")
+    def test_judge_includes_answer_in_prompt(self, mock_chain_fn: MagicMock):
+        """Test judge passes answer to the chain prompt."""
+        mock_chain = MagicMock()
+        mock_chain.invoke.return_value = FollowupJudgeResult(
+            relevance=0.8,
+            diversity=0.7,
+            explanation="Good",
+        )
+        mock_chain_fn.return_value = mock_chain
+
+        judge_followup_suggestions(
+            question="What deals?",
+            suggestions=["Q1?"],
+            answer="Acme has 3 deals.",
+        )
+
+        call_kwargs = mock_chain.invoke.call_args[0][0]
+        assert "Acme has 3 deals." in call_kwargs["answer_section"]
+
+    @patch("backend.eval.followup.judge.create_openai_chain")
+    def test_judge_empty_answer(self, mock_chain_fn: MagicMock):
+        """Test judge with no answer passes empty answer_section."""
+        mock_chain = MagicMock()
+        mock_chain.invoke.return_value = FollowupJudgeResult(
+            relevance=0.8,
+            diversity=0.7,
+            explanation="Good",
+        )
+        mock_chain_fn.return_value = mock_chain
+
+        judge_followup_suggestions(
+            question="What deals?",
+            suggestions=["Q1?"],
+        )
+
+        call_kwargs = mock_chain.invoke.call_args[0][0]
+        assert call_kwargs["answer_section"] == ""

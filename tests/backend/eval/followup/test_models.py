@@ -36,12 +36,21 @@ class TestFollowupCaseResult:
         """Test basic FollowupCaseResult creation."""
         case = FollowupCaseResult(question="Test question")
         assert case.question == "Test question"
+        assert case.answer == ""
         assert case.suggestions == []
         assert case.passed is False
         assert case.relevance == 0.0
         assert case.diversity == 0.0
         assert case.explanation == ""
         assert case.errors == []
+
+    def test_followup_case_result_with_answer(self):
+        """Test FollowupCaseResult with answer field."""
+        case = FollowupCaseResult(
+            question="What deals does Acme have?",
+            answer="Acme has 3 deals.",
+        )
+        assert case.answer == "Acme has 3 deals."
 
     def test_followup_case_result_with_scores(self):
         """Test FollowupCaseResult with judge scores."""

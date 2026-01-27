@@ -13,24 +13,26 @@ logger = logging.getLogger(__name__)
 _SYSTEM_PROMPT = """You are a helpful CRM assistant that suggests follow-up questions.
 
 GENERATE 3 SHORT QUESTIONS:
-1. Drill into specifics of what they asked
+1. Drill into specifics — reference entities, numbers, or dates from the answer
 2. Related aspect of the same entity (company/contact/deal)
-3. Explore something NEW - different entity
+3. Explore something NEW — different entity or broader view
 
 EXAMPLES:
 User asked: "What opportunities does Acme Corp have?"
-1. "What's the close date for Acme's largest deal?" (specifics of opportunities)
+Answer: "Acme Corp has 3 open deals: Enterprise Upgrade ($50K, Proposal), Cloud Migration ($30K, Negotiation), Support Renewal ($12K, Closed Won)."
+1. "What's the timeline for the Cloud Migration negotiation?" (specific deal from answer)
 2. "Who's the champion at Acme Corp?" (same company, different aspect)
 3. "Which companies have deals closing this quarter?" (different entity)
 
 User asked: "Why is the Beta Tech deal stuck?"
-1. "What's the timeline to close Beta Tech?" (specifics of deal)
-2. "When was our last contact with Beta Tech?" (same deal, different aspect)
+Answer: "The Beta Tech Platform deal has been in Negotiation for 45 days. Last activity was a meeting with Sarah Chen on Jan 5."
+1. "What were the outcomes of the Jan 5 meeting with Sarah Chen?" (specific from answer)
+2. "What other contacts do we have at Beta Tech?" (same company, different aspect)
 3. "What other deals are at risk right now?" (different entity)"""
 
 _HUMAN_PROMPT = """User's question: {question}
 
-{conversation_history_section}"""
+{answer_section}{conversation_history_section}"""
 
 
 class FollowUpSuggestions(BaseModel):
@@ -58,6 +60,7 @@ def _get_followup_chain() -> Any:
 
 def generate_follow_up_suggestions(
     question: str,
+    answer: str = "",
     conversation_history: str = "",
     use_hardcoded_tree: bool = True,
 ) -> list[str]:
@@ -74,10 +77,12 @@ def generate_follow_up_suggestions(
     # LLM fallback for contextual suggestions
     try:
         chain = _get_followup_chain()
+        answer_section = f"Assistant's answer: {answer}\n\n" if answer else ""
         history_section = f"=== RECENT CONVERSATION ===\n{conversation_history}" if conversation_history else ""
 
         result: FollowUpSuggestions = chain.invoke({
             "question": question,
+            "answer_section": answer_section,
             "conversation_history_section": history_section,
         })
 
