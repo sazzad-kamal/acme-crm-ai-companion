@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 def run_followup_eval(
     limit: int | None = None,
-    use_hardcoded_tree: bool = True,
 ) -> FollowupEvalResults:
     """Run followup suggestion evaluation using LLM Judge."""
     questions = load_questions()
@@ -48,7 +47,7 @@ def run_followup_eval(
                 suggestions = generate_follow_up_suggestions(
                     question=q.text,
                     answer=answer,
-                    use_hardcoded_tree=use_hardcoded_tree,
+                    use_hardcoded_tree=False,
                 )
             except Exception as e:
                 errors.append(f"Generation error: {e}")
@@ -128,11 +127,10 @@ def print_summary(results: FollowupEvalResults) -> None:
 
 def main(
     limit: int = typer.Option(None, "--limit", "-l", help="Limit number of questions"),
-    no_tree: bool = typer.Option(False, "--no-tree", help="Disable hardcoded tree, use LLM only"),
 ) -> None:
     """Run followup suggestion evaluation using LLM Judge."""
     logging.basicConfig(level=logging.WARNING)
-    print_summary(run_followup_eval(limit=limit, use_hardcoded_tree=not no_tree))
+    print_summary(run_followup_eval(limit=limit))
 
 
 if __name__ == "__main__":

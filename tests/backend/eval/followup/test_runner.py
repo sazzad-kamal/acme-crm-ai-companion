@@ -217,7 +217,7 @@ class TestRunFollowupEval:
     @patch("backend.eval.followup.runner.generate_answer")
     @patch("backend.eval.followup.runner.generate_follow_up_suggestions")
     @patch("backend.eval.followup.runner.judge_followup_suggestions")
-    def test_use_hardcoded_tree_parameter(
+    def test_always_uses_llm_path(
         self,
         mock_judge: MagicMock,
         mock_generate: MagicMock,
@@ -225,7 +225,7 @@ class TestRunFollowupEval:
         mock_conn: MagicMock,
         mock_load: MagicMock,
     ):
-        """Test use_hardcoded_tree parameter is passed through."""
+        """Test eval always uses LLM path (no hardcoded tree)."""
         mock_load.return_value = [
             Question(text="Q1", expected_sql="SELECT 1"),
         ]
@@ -233,7 +233,7 @@ class TestRunFollowupEval:
         mock_generate.return_value = ["A?", "B?", "C?"]
         mock_judge.return_value = (True, 0.8, 0.6, 0.7, "Good")
 
-        run_followup_eval(use_hardcoded_tree=False)
+        run_followup_eval()
 
         mock_generate.assert_called_once_with(
             question="Q1",
@@ -418,23 +418,7 @@ class TestMain:
 
         mock_run.return_value = FollowupEvalResults(total=5, passed=4)
 
-        main(limit=10, no_tree=False)
+        main(limit=10)
 
-        mock_run.assert_called_once_with(limit=10, use_hardcoded_tree=True)
+        mock_run.assert_called_once_with(limit=10)
         mock_print.assert_called_once()
-
-    @patch("backend.eval.followup.runner.print_summary")
-    @patch("backend.eval.followup.runner.run_followup_eval")
-    def test_main_no_tree_flag(
-        self,
-        mock_run: MagicMock,
-        mock_print: MagicMock,
-    ):
-        """Test main passes no_tree flag correctly."""
-        from backend.eval.followup.runner import main
-
-        mock_run.return_value = FollowupEvalResults(total=5, passed=4)
-
-        main(limit=None, no_tree=True)
-
-        mock_run.assert_called_once_with(limit=None, use_hardcoded_tree=False)
