@@ -18,11 +18,13 @@ class TestFollowupJudgeResult:
     def test_followup_judge_result_creation(self):
         """Test FollowupJudgeResult can be created."""
         result = FollowupJudgeResult(
-            relevance=0.8,
+            question_relevance=0.8,
+            answer_grounding=0.6,
             diversity=0.7,
             explanation="Good suggestions",
         )
-        assert result.relevance == 0.8
+        assert result.question_relevance == 0.8
+        assert result.answer_grounding == 0.6
         assert result.diversity == 0.7
         assert result.explanation == "Good suggestions"
 
@@ -35,20 +37,22 @@ class TestJudgeFollowupSuggestions:
         """Test judge returns passing result."""
         mock_chain = MagicMock()
         mock_chain.invoke.return_value = FollowupJudgeResult(
-            relevance=0.85,
+            question_relevance=0.85,
+            answer_grounding=0.65,
             diversity=0.75,
             explanation="Suggestions are relevant and diverse",
         )
         mock_chain_fn.return_value = mock_chain
 
-        passed, rel, div, explanation = judge_followup_suggestions(
+        passed, qrel, agrnd, div, explanation = judge_followup_suggestions(
             question="What deals does Acme have?",
             suggestions=["Q1?", "Q2?", "Q3?"],
             answer="Acme has 3 deals.",
         )
 
         assert passed is True
-        assert rel == 0.85
+        assert qrel == 0.85
+        assert agrnd == 0.65
         assert div == 0.75
         assert "relevant" in explanation.lower()
 
@@ -57,20 +61,22 @@ class TestJudgeFollowupSuggestions:
         """Test judge returns failing result."""
         mock_chain = MagicMock()
         mock_chain.invoke.return_value = FollowupJudgeResult(
-            relevance=0.4,
+            question_relevance=0.4,
+            answer_grounding=0.2,
             diversity=0.3,
             explanation="Suggestions lack variety",
         )
         mock_chain_fn.return_value = mock_chain
 
-        passed, rel, div, explanation = judge_followup_suggestions(
+        passed, qrel, agrnd, div, explanation = judge_followup_suggestions(
             question="What deals does Acme have?",
             suggestions=["Q1?", "Q2?", "Q3?"],
             answer="Acme has 3 deals.",
         )
 
         assert passed is False
-        assert rel == 0.4
+        assert qrel == 0.4
+        assert agrnd == 0.2
         assert div == 0.3
 
     @patch("backend.eval.followup.judge.create_openai_chain")
@@ -87,32 +93,54 @@ class TestJudgeFollowupSuggestions:
             )
 
     @patch("backend.eval.followup.judge.create_openai_chain")
-    def test_judge_followup_relevance_boundary(self, mock_chain_fn: MagicMock):
+    def test_judge_followup_boundary(self, mock_chain_fn: MagicMock):
         """Test pass logic at SLO boundary values."""
         mock_chain = MagicMock()
-        # Exactly at SLO thresholds: relevance=0.60, diversity=0.50
+        # Exactly at SLO thresholds: qrel=0.60, agrnd=0.40, div=0.50
         mock_chain.invoke.return_value = FollowupJudgeResult(
-            relevance=0.6,
+            question_relevance=0.6,
+            answer_grounding=0.4,
             diversity=0.5,
             explanation="At threshold",
         )
         mock_chain_fn.return_value = mock_chain
 
-        passed, rel, div, explanation = judge_followup_suggestions(
+        passed, qrel, agrnd, div, explanation = judge_followup_suggestions(
             question="Test?",
             suggestions=["Q1?", "Q2?", "Q3?"],
         )
 
         assert passed is True
-        assert rel == 0.6
+        assert qrel == 0.6
+        assert agrnd == 0.4
         assert div == 0.5
+
+    @patch("backend.eval.followup.judge.create_openai_chain")
+    def test_judge_fails_on_low_answer_grounding(self, mock_chain_fn: MagicMock):
+        """Test that low answer_grounding alone causes failure."""
+        mock_chain = MagicMock()
+        mock_chain.invoke.return_value = FollowupJudgeResult(
+            question_relevance=0.9,
+            answer_grounding=0.3,  # Below SLO of 0.40
+            diversity=0.8,
+            explanation="Generic follow-ups",
+        )
+        mock_chain_fn.return_value = mock_chain
+
+        passed, _, _, _, _ = judge_followup_suggestions(
+            question="Test?",
+            suggestions=["Q1?", "Q2?", "Q3?"],
+        )
+
+        assert passed is False
 
     @patch("backend.eval.followup.judge.create_openai_chain")
     def test_judge_includes_answer_in_prompt(self, mock_chain_fn: MagicMock):
         """Test judge passes answer to the chain prompt."""
         mock_chain = MagicMock()
         mock_chain.invoke.return_value = FollowupJudgeResult(
-            relevance=0.8,
+            question_relevance=0.8,
+            answer_grounding=0.6,
             diversity=0.7,
             explanation="Good",
         )
@@ -132,7 +160,8 @@ class TestJudgeFollowupSuggestions:
         """Test judge with no answer passes empty answer_section."""
         mock_chain = MagicMock()
         mock_chain.invoke.return_value = FollowupJudgeResult(
-            relevance=0.8,
+            question_relevance=0.8,
+            answer_grounding=0.6,
             diversity=0.7,
             explanation="Good",
         )

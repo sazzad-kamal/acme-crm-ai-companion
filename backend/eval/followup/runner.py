@@ -54,13 +54,14 @@ def run_followup_eval(
                 errors.append(f"Generation error: {e}")
 
         passed = False
-        rel = 0.0
+        qrel = 0.0
+        agrnd = 0.0
         div = 0.0
         explanation = ""
 
         if suggestions and not errors:
             try:
-                passed, rel, div, explanation = judge_followup_suggestions(
+                passed, qrel, agrnd, div, explanation = judge_followup_suggestions(
                     q.text, suggestions, answer=answer
                 )
             except Exception as e:
@@ -72,7 +73,8 @@ def run_followup_eval(
             answer=answer,
             suggestions=suggestions,
             passed=passed,
-            relevance=rel,
+            question_relevance=qrel,
+            answer_grounding=agrnd,
             diversity=div,
             explanation=explanation,
             errors=errors,
@@ -94,7 +96,11 @@ def print_summary(results: FollowupEvalResults) -> None:
     print("\nFollowup Suggestion Evaluation (LLM Judge)")
     print(f"Pass Rate: {results.pass_rate * 100:.1f}% (>={SLO_FOLLOWUP_PASS_RATE * 100:.1f}% SLO) {status}")
     print(f"Total: {results.total}, Passed: {results.passed}, Failed: {results.failed}")
-    print(f"  Followup Metrics: rel={results.avg_relevance:.2f} div={results.avg_diversity:.2f}")
+    print(
+        f"  Followup Metrics: qrel={results.avg_question_relevance:.2f}"
+        f" agrnd={results.avg_answer_grounding:.2f}"
+        f" div={results.avg_diversity:.2f}"
+    )
 
     # Error cases
     error_cases = [c for c in results.cases if c.errors]
@@ -111,7 +117,7 @@ def print_summary(results: FollowupEvalResults) -> None:
         print(f"\nFailed Cases ({len(failed)})\n")
         for i, c in enumerate(failed, 1):
             print(f"{i}. {c.question}")
-            print(f"   Scores: rel={c.relevance:.2f} div={c.diversity:.2f}")
+            print(f"   Scores: qrel={c.question_relevance:.2f} agrnd={c.answer_grounding:.2f} div={c.diversity:.2f}")
             if c.explanation:
                 print(f"   Judge: {c.explanation}")
             if c.suggestions:
