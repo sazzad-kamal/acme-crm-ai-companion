@@ -104,6 +104,20 @@ def print_summary(results: ActionEvalResults) -> None:
     if results.error_count > 0:
         print(f"  Errors:                      {results.error_count} failed")
 
+    # Passed cases with actions
+    passed_with_action = [
+        c for c in results.cases if c.action_passed and c.suggested_action and not c.errors
+    ]
+    if passed_with_action:
+        print(f"\nPassed Cases ({len(passed_with_action)})\n")
+        for i, c in enumerate(passed_with_action, 1):
+            print(f"{i}. {c.question}")
+            print(f"   Suggested: {c.suggested_action}")
+            if c.answer:
+                ans = c.answer[:100] + "..." if len(c.answer) > 100 else c.answer
+                print(f"   Answer: {ans}")
+            print()
+
     # Error cases
     error_cases = [c for c in results.cases if c.errors]
     if error_cases:
@@ -118,20 +132,18 @@ def print_summary(results: ActionEvalResults) -> None:
     if failed:
         print(f"\nFailed Cases ({len(failed)})\n")
         for i, c in enumerate(failed, 1):
-            print(f"{i}. {c.question[:60]}")
+            print(f"{i}. {c.question}")
             if c.expected_action and not c.suggested_action:
                 print("   Reason: Action expected but not produced")
             elif not c.expected_action and c.suggested_action:
                 print("   Reason: Spurious action produced")
-                action = c.suggested_action[:100] + "..." if len(c.suggested_action) > 100 else c.suggested_action
-                print(f"   Suggested: {action}")
+                print(f"   Suggested: {c.suggested_action}")
             elif c.suggested_action:
                 print(
                     f"   Action: rel={c.relevance:.2f} "
                     f"act={c.actionability:.2f} app={c.appropriateness:.2f}"
                 )
-                action = c.suggested_action[:100] + "..." if len(c.suggested_action) > 100 else c.suggested_action
-                print(f"   Suggested: {action}")
+                print(f"   Suggested: {c.suggested_action}")
                 if c.explanation:
                     print(f"   Judge: {c.explanation}")
             if c.answer:
