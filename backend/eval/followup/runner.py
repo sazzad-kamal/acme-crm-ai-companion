@@ -52,17 +52,19 @@ def run_followup_eval(
             except Exception as e:
                 errors.append(f"Generation error: {e}")
 
-        passed = False
-        qrel = 0.0
-        agrnd = 0.0
-        div = 0.0
-        explanation = ""
-
+        judge_kwargs: dict = {}
         if suggestions and not errors:
             try:
                 passed, qrel, agrnd, div, explanation = judge_followup_suggestions(
                     q.text, suggestions, answer=answer
                 )
+                judge_kwargs = {
+                    "passed": passed,
+                    "question_relevance": qrel,
+                    "answer_grounding": agrnd,
+                    "diversity": div,
+                    "explanation": explanation,
+                }
             except Exception as e:
                 logger.warning(f"Judge evaluation failed: {e}")
                 errors.append(f"Judge failed: {e}")
@@ -71,12 +73,8 @@ def run_followup_eval(
             question=q.text,
             answer=answer,
             suggestions=suggestions,
-            passed=passed,
-            question_relevance=qrel,
-            answer_grounding=agrnd,
-            diversity=div,
-            explanation=explanation,
             errors=errors,
+            **judge_kwargs,
         )
 
         results.cases.append(case)
