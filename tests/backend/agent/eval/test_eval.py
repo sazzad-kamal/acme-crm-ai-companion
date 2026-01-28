@@ -43,19 +43,19 @@ class TestConvoStepResult:
     def test_passed_property(self):
         passing = ConvoStepResult(
             question="Q", answer="A",
-            relevance_score=0.8, answer_correctness_score=0.8, ragas_metrics_total=2,
+            relevance_score=0.9, answer_correctness_score=0.6, ragas_metrics_total=2,
         )
         assert passing.passed is True
 
         failing_relevance = ConvoStepResult(
             question="Q", answer="A",
-            relevance_score=0.5, answer_correctness_score=0.8, ragas_metrics_total=2,
+            relevance_score=0.5, answer_correctness_score=0.6, ragas_metrics_total=2,
         )
         assert failing_relevance.passed is False
 
         failing_correctness = ConvoStepResult(
             question="Q", answer="A",
-            relevance_score=0.8, answer_correctness_score=0.5, ragas_metrics_total=2,
+            relevance_score=0.9, answer_correctness_score=0.3, ragas_metrics_total=2,
         )
         assert failing_correctness.passed is False
 
@@ -585,31 +585,34 @@ class TestYamlLoadingErrors:
 
 
 class TestTreePathFinding:
-    def test_compute_max_depth_no_descendants(self):
-        import networkx as nx
-        from backend.eval.integration.tree import _compute_max_depth
-        mock_g = nx.DiGraph()
-        mock_g.add_node("Starter Q?")
-        assert _compute_max_depth(mock_g, ["Starter Q?"]) == 0
-
-    def test_find_paths_with_nx_no_path(self):
+    def test_find_paths_basic(self):
         import networkx as nx
         from backend.eval.integration.tree import _find_paths
         mock_g = nx.DiGraph()
         mock_g.add_edge("Starter?", "Child?")
         mock_g.add_edge("Child?", "Leaf?")
-        result = _find_paths(mock_g, ["Starter?"], 5)
+        result = _find_paths(mock_g, ["Starter?"])
         assert len(result) > 0
+
+    def test_find_paths_single_node(self):
+        import networkx as nx
+        from backend.eval.integration.tree import _find_paths
+        mock_g = nx.DiGraph()
+        mock_g.add_node("Starter Q?")
+        # Single node is both starter and leaf — path of length 1
+        result = _find_paths(mock_g, ["Starter Q?"])
+        assert result == [["Starter Q?"]]
 
 
 class TestTreeNetworkPaths:
-    def test_compute_max_depth_no_path_between_nodes(self):
+    def test_find_paths_with_orphan(self):
         import networkx as nx
-        from backend.eval.integration.tree import _compute_max_depth
+        from backend.eval.integration.tree import _find_paths
         G = nx.DiGraph()
         G.add_edge("starter", "node1")
         G.add_node("orphan")
-        assert _compute_max_depth(G, ["starter"]) >= 1
+        # node1 is a leaf reachable from starter
+        assert len(_find_paths(G, ["starter"])) >= 1
 
     def test_find_paths_disconnected_nodes(self):
         import networkx as nx
@@ -617,7 +620,7 @@ class TestTreeNetworkPaths:
         G = nx.DiGraph()
         G.add_edge("starter", "mid")
         G.add_edge("mid", "leaf")
-        assert len(_find_paths(G, ["starter"], 3)) >= 1
+        assert len(_find_paths(G, ["starter"])) >= 1
 
 
 # =============================================================================

@@ -21,7 +21,6 @@ def _get_graph() -> nx.DiGraph:
     return get_graph()
 
 
-
 def _load_yaml_fixture(filename: str) -> dict:
     """Load a YAML fixture file (cached per filename)."""
     filepath = _EVAL_FIXTURES_PATH / filename
@@ -48,26 +47,14 @@ def _load_expected_actions() -> dict[str, bool]:
     return _load_yaml_fixture("expected_actions.yaml")
 
 
-def _compute_max_depth(graph: nx.DiGraph, starters: list[str]) -> int:
-    """Compute the maximum depth (node count) from any starter to its deepest descendant."""
-    max_depth = 0
-    for starter in starters:
-        if starter in graph:
-            lengths = nx.single_source_shortest_path_length(graph, starter)
-            descendant_lengths = [d for node, d in lengths.items() if node != starter]
-            if descendant_lengths:
-                max_depth = max(max_depth, max(descendant_lengths) + 1)
-    return max_depth
-
-
-def _find_paths(graph: nx.DiGraph, starters: list[str], max_depth: int) -> list[list[str]]:
+def _find_paths(graph: nx.DiGraph, starters: list[str]) -> list[list[str]]:
     """Find all paths from starters to leaf nodes in the graph."""
     leaves = [n for n in graph.nodes() if graph.out_degree(n) == 0]
     paths: list[list[str]] = []
     for starter in starters:
         for leaf in leaves:
             try:
-                for path in nx.all_simple_paths(graph, starter, leaf, cutoff=max_depth - 1):
+                for path in nx.all_simple_paths(graph, starter, leaf):
                     paths.append(path)
             except nx.NetworkXNoPath:
                 continue
@@ -88,15 +75,14 @@ def _compute_paths_and_stats() -> tuple[list[list[str]], dict]:
             reachable |= nx.descendants(graph, starter)
     subgraph = graph.subgraph(reachable).copy()
 
-    max_depth = _compute_max_depth(subgraph, starters)
-    paths = _find_paths(subgraph, starters, max_depth)
+    paths = _find_paths(subgraph, starters)
 
     stats = {
         "num_starters": len(starters),
         "num_questions": subgraph.number_of_nodes(),
         "num_edges": subgraph.number_of_edges(),
         "num_paths": len(paths),
-        "max_depth": max_depth,
+        "max_depth": max((len(p) for p in paths), default=0),
         "path_lengths": {
             "min": min(len(p) for p in paths) if paths else 0,
             "max": max(len(p) for p in paths) if paths else 0,

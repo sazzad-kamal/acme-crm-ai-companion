@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from backend.eval.answer.text.models import SLO_TEXT_ANSWER_CORRECTNESS, SLO_TEXT_ANSWER_RELEVANCY
 from backend.eval.shared.models import BaseEvalResults
 
 # SLO thresholds for integration evaluation
@@ -49,7 +50,7 @@ class ConvoStepResult(BaseModel):
             return False
         # Only check RAGAS scores when actually evaluated
         if self.ragas_metrics_total > 0:
-            return self.relevance_score >= 0.7 and self.answer_correctness_score >= 0.7
+            return self.relevance_score >= SLO_TEXT_ANSWER_RELEVANCY and self.answer_correctness_score >= SLO_TEXT_ANSWER_CORRECTNESS
         return True
 
 

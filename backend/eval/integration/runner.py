@@ -43,51 +43,71 @@ def _invoke_agent(question: str, session_id: str | None = None) -> dict[str, Any
     return cast(dict[str, Any], agent_graph.invoke(state, config=config))
 
 
+def _evaluate_ragas(
+    question: str, answer: str, sql_results: dict,
+) -> tuple[float, float, int, int]:
+    """Run RAGAS evaluation. Returns (relevance, correctness, total, failed)."""
+    contexts = [json.dumps(sql_results, default=str)]
+    expected = get_expected_answer(question)
+    try:
+        ragas = evaluate_single(question, answer, contexts, expected or "")
+        nan_metrics = cast(list[str], ragas.get("nan_metrics", []))
+        return (
+            cast(float, ragas["answer_relevancy"]),
+            cast(float, ragas["answer_correctness"]),
+            2,
+            len(nan_metrics),
+        )
+    except Exception as e:
+        logger.warning(f"RAGAS failed: {e}")
+        return 0.0, 0.0, 0, 0
+
+
+def _evaluate_action(
+    question: str, answer: str, result: dict[str, Any], use_judge: bool,
+) -> tuple[bool | None, str | None, float, float, float, bool]:
+    """Evaluate action quality. Returns (expected, suggested, rel, act, app, passed)."""
+    expected_action = get_expected_action(question)
+    suggested_action: str | None = None
+    action_rel = action_act = action_app = 0.0
+    action_passed = True
+
+    actions = result.get("suggested_actions", [])
+    if actions:
+        suggested_action = actions[0]
+
+    if expected_action is True and suggested_action is None:
+        action_passed = False
+    elif expected_action is False and suggested_action is not None:
+        action_passed = False
+    elif use_judge and suggested_action:
+        try:
+            action_passed, action_rel, action_act, action_app, _ = judge_suggested_action(
+                question, answer, suggested_action,
+            )
+        except Exception as e:
+            logger.warning(f"Action judge failed: {e}")
+
+    return expected_action, suggested_action, action_rel, action_act, action_app, action_passed
+
+
 def test_single_question(question: str, session_id: str, use_judge: bool = True) -> ConvoStepResult:
     """Test a single question and return answer with metrics."""
     try:
         result = _invoke_agent(question=question, session_id=session_id)
         answer = result.get("answer", "")
 
-        # Build contexts and run RAGAS if enabled
+        # RAGAS evaluation
         relevance = correctness = 0.0
         ragas_total = ragas_failed = 0
-
         sql_results = result.get("sql_results", {})
         if use_judge and len(answer) > MIN_ANSWER_LENGTH and sql_results:
-            contexts = [json.dumps(sql_results, default=str)]
-            expected = get_expected_answer(question)
-            try:
-                ragas = evaluate_single(question, answer, contexts, expected or "")
-                nan_metrics = cast(list[str], ragas.get("nan_metrics", []))
-                relevance = cast(float, ragas["answer_relevancy"])
-                correctness = cast(float, ragas["answer_correctness"])
-                ragas_total = 2
-                ragas_failed = len(nan_metrics)
-            except Exception as e:
-                logger.warning(f"RAGAS failed: {e}")
+            relevance, correctness, ragas_total, ragas_failed = _evaluate_ragas(question, answer, sql_results)
 
-        # Judge action quality
-        expected_action = get_expected_action(question)
-        suggested_action: str | None = None
-        action_rel = action_act = action_app = 0.0
-        action_passed = True
-        actions = result.get("suggested_actions", [])
-        if actions:
-            suggested_action = actions[0]
-
-        # Determine action_passed based on expected vs actual
-        if expected_action is True and suggested_action is None:
-            action_passed = False  # missing action
-        elif expected_action is False and suggested_action is not None:
-            action_passed = False  # spurious action
-        elif use_judge and suggested_action:
-            try:
-                action_passed, action_rel, action_act, action_app, _ = judge_suggested_action(
-                    question, answer, suggested_action,
-                )
-            except Exception as e:
-                logger.warning(f"Action judge failed: {e}")
+        # Action evaluation
+        expected_action, suggested_action, action_rel, action_act, action_app, action_passed = (
+            _evaluate_action(question, answer, result, use_judge)
+        )
 
         return ConvoStepResult(
             question=question,
