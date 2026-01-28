@@ -21,10 +21,6 @@ def _get_graph() -> nx.DiGraph:
     return get_graph()
 
 
-@cache
-def _get_starters() -> list[str]:
-    return get_starters()
-
 
 def _load_yaml_fixture(filename: str) -> dict:
     """Load a YAML fixture file (cached per filename)."""
@@ -82,7 +78,7 @@ def _find_paths(graph: nx.DiGraph, starters: list[str], max_depth: int) -> list[
 def _compute_paths_and_stats() -> tuple[list[list[str]], dict]:
     """Compute all paths and tree stats in a single pass (cached)."""
     graph = _get_graph()
-    starters = _get_starters()
+    starters = get_starters()
 
     # Build reachable subgraph
     reachable: set[str] = set()

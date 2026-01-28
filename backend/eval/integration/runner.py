@@ -134,8 +134,8 @@ def run_convo_eval(max_paths: int | None = None, use_judge: bool = True) -> Conv
     return results
 
 
-def print_summary(results: ConvoEvalResults) -> bool:
-    """Print evaluation summary. Returns True if passed."""
+def print_summary(results: ConvoEvalResults) -> None:
+    """Print evaluation summary."""
     passed = results.pass_rate >= SLO_CONVO_STEP_PASS_RATE
     status = "PASS" if passed else "FAIL"
 
@@ -161,11 +161,13 @@ def print_summary(results: ConvoEvalResults) -> bool:
             if c.errors:
                 print(f"    Error: {c.errors[0]}")
 
-    return passed
 
+def main(
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of paths to test"),
+) -> None:
+    """Run conversation evaluation."""
+    logging.basicConfig(level=logging.WARNING)
 
-def _run_eval(limit: int | None) -> None:
-    """Run the conversation evaluation."""
     stats = get_tree_stats()
     print("\nQuestion Tree Stats:")
     for key, value in stats.items():
@@ -179,14 +181,6 @@ def _run_eval(limit: int | None) -> None:
         return
 
     print_summary(results)
-
-
-def main(
-    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of paths to test"),
-) -> None:
-    """Run conversation evaluation."""
-    logging.basicConfig(level=logging.WARNING)
-    _run_eval(limit=limit)
 
 
 if __name__ == "__main__":

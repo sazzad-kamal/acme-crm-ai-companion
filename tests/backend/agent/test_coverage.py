@@ -1022,102 +1022,52 @@ class TestFetchRunnerStylisticErrors:
 class TestIntegrationMain:
     """Test eval/integration/runner.py CLI coverage."""
 
-    def test_run_eval_basic_flow(self, monkeypatch):
-        """Test _run_eval basic flow."""
+    def test_main_basic_flow(self, monkeypatch):
+        """Test main basic flow."""
         from backend.eval.integration import runner as runner_module
-        from backend.eval.integration.models import FlowEvalResults
+        from backend.eval.integration.models import ConvoEvalResults
 
-        # Mock get_tree_stats
-        monkeypatch.setattr(
-            runner_module, "get_tree_stats",
-            lambda: {"total": 10, "questions": 50}
-        )
+        monkeypatch.setattr(runner_module, "get_tree_stats", lambda: {"total": 10, "questions": 50})
 
-        # Mock run_flow_eval with all required fields
-        mock_results = FlowEvalResults(
-            total_paths=1,
-            paths_tested=1,
-            paths_passed=1,
-            paths_failed=0,
-            total_questions=3,
-            questions_passed=3,
-            questions_failed=0,
-        )
-        monkeypatch.setattr(
-            runner_module, "run_flow_eval",
-            lambda **kwargs: mock_results
-        )
+        mock_results = ConvoEvalResults(total=3, passed=3)
+        mock_results.cases = []
+        monkeypatch.setattr(runner_module, "run_convo_eval", lambda **kwargs: mock_results)
+        monkeypatch.setattr(runner_module, "print_summary", lambda r: None)
 
-        # Mock get_latency_percentages
-        monkeypatch.setattr(
-            runner_module, "get_latency_percentages",
-            lambda **kwargs: {}
-        )
+        runner_module.main(limit=1)
 
-        # Mock print_summary
-        monkeypatch.setattr(runner_module, "print_summary", lambda r, **kwargs: None)
-
-        # Run - should not raise
-        runner_module._run_eval(limit=1)
-
-    def test_run_eval_handles_exception(self, monkeypatch):
-        """Test _run_eval handles evaluation exception."""
+    def test_main_handles_exception(self, monkeypatch):
+        """Test main handles evaluation exception."""
         from backend.eval.integration import runner as runner_module
 
-        # Mock get_tree_stats
-        monkeypatch.setattr(
-            runner_module, "get_tree_stats",
-            lambda: {"total": 10}
-        )
+        monkeypatch.setattr(runner_module, "get_tree_stats", lambda: {"total": 10})
 
-        # Mock run_flow_eval to raise exception
         def raise_error(**kwargs):
             raise RuntimeError("Evaluation failed")
 
-        monkeypatch.setattr(runner_module, "run_flow_eval", raise_error)
+        monkeypatch.setattr(runner_module, "run_convo_eval", raise_error)
 
-        # Should not raise - handles exception internally
-        runner_module._run_eval(limit=1)
+        runner_module.main(limit=1)
 
-    def test_run_eval_shows_failed_paths(self, monkeypatch):
-        """Test _run_eval shows details for failing paths."""
+    def test_main_shows_failed_questions(self, monkeypatch):
+        """Test main shows details for failing questions."""
         from backend.eval.integration import runner as runner_module
-        from backend.eval.integration.models import FlowEvalResults, FlowResult, FlowStepResult
+        from backend.eval.integration.models import ConvoEvalResults, ConvoStepResult
 
-        # Mock get_tree_stats
         monkeypatch.setattr(runner_module, "get_tree_stats", lambda: {"total": 10})
 
-        # Create failed path with steps
-        failed_step = FlowStepResult(
+        failed_step = ConvoStepResult(
             question="What is the pipeline value?",
             answer="The pipeline value is $100k",
-            latency_ms=1000,
-            has_answer=True,
             relevance_score=0.5,
+            ragas_metrics_total=2,
         )
-        failed_path = FlowResult(
-            path_id=1,
-            questions=["What is the pipeline value?"],
-            steps=[failed_step],
-            total_latency_ms=1000,
-            success=False,
-        )
+        mock_results = ConvoEvalResults(total=1, passed=0)
+        mock_results.cases = [failed_step]
+        monkeypatch.setattr(runner_module, "run_convo_eval", lambda **kwargs: mock_results)
+        monkeypatch.setattr(runner_module, "print_summary", lambda r: None)
 
-        mock_results = FlowEvalResults(
-            total_paths=1,
-            paths_tested=1,
-            paths_passed=0,
-            paths_failed=1,
-            total_questions=1,
-            questions_passed=0,
-            questions_failed=1,
-        )
-        monkeypatch.setattr(runner_module, "run_flow_eval", lambda **kwargs: mock_results)
-        monkeypatch.setattr(runner_module, "get_latency_percentages", lambda **kwargs: {})
-        monkeypatch.setattr(runner_module, "print_summary", lambda r, **kwargs: None)
-
-        # Run - should show failed paths (now always shown)
-        runner_module._run_eval(limit=1)
+        runner_module.main(limit=1)
 
 
 class TestIntegrationRunner:
