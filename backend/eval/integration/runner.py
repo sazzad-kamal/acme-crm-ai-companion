@@ -8,11 +8,8 @@ import time
 import traceback
 from typing import Any, cast
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 import typer
+from dotenv import load_dotenv
 
 from backend.eval.answer.action.judge import judge_suggested_action
 from backend.eval.answer.text.ragas import RAGAS_METRICS_COUNT, evaluate_single
@@ -21,7 +18,14 @@ from backend.eval.integration.models import (
     ConvoEvalResults,
     ConvoStepResult,
 )
-from backend.eval.integration.tree import get_all_paths, get_expected_action, get_expected_answer, get_tree_stats
+from backend.eval.integration.tree import (
+    get_all_paths,
+    get_expected_action,
+    get_expected_answer,
+    get_tree_stats,
+)
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +68,9 @@ def _evaluate_action(
     action_rel = action_act = action_app = 0.0
     action_passed = True
 
-    if expected_action is True and suggested_action is None:
-        action_passed = False
-    elif expected_action is False and suggested_action is not None:
+    if (expected_action is True and suggested_action is None) or (
+        expected_action is False and suggested_action is not None
+    ):
         action_passed = False
     elif suggested_action:
         try:
@@ -102,7 +106,7 @@ def test_single_question(question: str, session_id: str) -> ConvoStepResult:
         suggested_action = result.get("suggested_action")
         kwargs.update(_evaluate_action(question, answer, suggested_action))
 
-        return ConvoStepResult(**kwargs)  # type: ignore[arg-type]
+        return ConvoStepResult(**kwargs)
 
     except Exception as e:
         logger.error(f"Error testing question '{question}': {e}")

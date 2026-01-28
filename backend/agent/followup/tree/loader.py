@@ -14,8 +14,8 @@ _DATA_PATH = Path(__file__).parent / "data.json"
 
 _STARTERS = (
     "What deals are in the pipeline?",
-    "Which accounts are at risk?",
-    "Which contacts haven't been contacted recently?",
+    "Which accounts are up for renewal?",
+    "What are the open activities?",
 )
 
 

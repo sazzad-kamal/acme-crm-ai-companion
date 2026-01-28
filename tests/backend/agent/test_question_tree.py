@@ -46,8 +46,8 @@ class TestGetStarters:
         """Contains starters for 3 CRM entities."""
         starters = get_starters()
         assert "What deals are in the pipeline?" in starters  # Opportunities
-        assert "Which accounts are at risk?" in starters  # Companies
-        assert "Which contacts haven't been contacted recently?" in starters  # Contacts
+        assert "Which accounts are up for renewal?" in starters  # Companies
+        assert "What are the open activities?" in starters  # Activities
 
 
 # =============================================================================
@@ -66,7 +66,7 @@ class TestGetFollowUps:
         """Returns follow-ups for a known question."""
         follow_ups = get_follow_ups("What deals are in the pipeline?")
         assert len(follow_ups) == 3
-        assert "How are deals distributed by stage?" in follow_ups
+        assert "Which deals are closest to closing?" in follow_ups
 
     def test_returns_empty_for_unknown_question(self):
         """Returns empty list for unknown question."""
@@ -80,22 +80,17 @@ class TestGetFollowUps:
         follow_ups1.append("modified")
         assert "modified" not in follow_ups2
 
-    def test_depth_2_has_follow_ups(self):
-        """Depth 2 questions have follow-ups."""
-        follow_ups = get_follow_ups("How are deals distributed by stage?")
+    def test_renewals_starter_has_follow_ups(self):
+        """Renewals starter has follow-ups."""
+        follow_ups = get_follow_ups("Which accounts are up for renewal?")
         assert len(follow_ups) == 3
+        assert "Which renewals are at risk?" in follow_ups
 
-    def test_companies_starter_has_follow_ups(self):
-        """Companies starter has follow-ups."""
-        follow_ups = get_follow_ups("Which accounts are at risk?")
+    def test_activities_starter_has_follow_ups(self):
+        """Activities starter has follow-ups."""
+        follow_ups = get_follow_ups("What are the open activities?")
         assert len(follow_ups) == 3
-        assert "What's happening with Delta Health?" in follow_ups
-
-    def test_contacts_starter_has_follow_ups(self):
-        """Contacts starter has follow-ups."""
-        follow_ups = get_follow_ups("Which contacts haven't been contacted recently?")
-        assert len(follow_ups) == 3
-        assert "Which contacts haven't been reached?" in follow_ups
+        assert "Which activities are high priority?" in follow_ups
 
 
 # =============================================================================
@@ -141,8 +136,8 @@ class TestGetAllPaths:
         starters_covered = {path[0] for path in paths}
         expected_starters = {
             "What deals are in the pipeline?",
-            "Which accounts are at risk?",
-            "Which contacts haven't been contacted recently?",
+            "Which accounts are up for renewal?",
+            "What are the open activities?",
         }
         assert starters_covered == expected_starters
 

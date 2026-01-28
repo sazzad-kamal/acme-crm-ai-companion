@@ -550,10 +550,10 @@ class TestYamlLoading:
         result = get_expected_action("What deals are in the pipeline?")
         assert result is True
 
-    def test_get_expected_action_false(self):
+    def test_get_expected_action_true_for_follow_up(self):
         from backend.eval.integration.tree import get_expected_action
-        result = get_expected_action("How are deals distributed by stage?")
-        assert result is False
+        result = get_expected_action("Which deals are closest to closing?")
+        assert result is True
 
     def test_get_expected_action_not_exists(self):
         from backend.eval.integration.tree import get_expected_action

@@ -1,64 +1,19 @@
 {
   "What deals are in the pipeline?": [
-    "How are deals distributed by stage?",
-    "What are the highest value deals?",
-    "Which deals involve Acme Corp?"
-  ],
-  "How are deals distributed by stage?": [
-    "What deals are in Proposal stage?",
-    "What deals are in Qualified stage?",
-    "What deals are in Negotiation stage?"
-  ],
-  "What are the highest value deals?": [
-    "Which deals are over $50,000?",
-    "Which deals are under $20,000?",
-    "What's the total pipeline value?"
-  ],
-  "Which deals involve Acme Corp?": [
-    "Who are the Acme contacts?",
-    "What's the history with Acme?",
-    "What activities happened with Acme?"
+    "Which deals are closest to closing?",
+    "What stages have the most deals?",
+    "Who owns the most pipeline value?"
   ],
 
-  "Which accounts are at risk?": [
-    "What's happening with Delta Health?",
-    "What's happening with Green Energy?",
-    "Which accounts aren't healthy?"
-  ],
-  "What's happening with Delta Health?": [
-    "Who are the Delta Health contacts?",
-    "What are the Delta Health deals?",
-    "What's the Delta Health history?"
-  ],
-  "What's happening with Green Energy?": [
-    "Who are the Green Energy contacts?",
-    "What are the Green Energy deals?",
-    "What's the Green Energy history?"
-  ],
-  "Which accounts aren't healthy?": [
-    "Which accounts are churning?",
-    "Which accounts are renewing soon?",
-    "Which deals have been stuck in stage the longest?"
+  "Which accounts are up for renewal?": [
+    "Which renewals are at risk?",
+    "What's the total renewal value at stake?",
+    "What interactions have we had with at-risk accounts?"
   ],
 
-  "Which contacts haven't been contacted recently?": [
-    "Which contacts haven't been reached?",
-    "Who are the decision makers?",
-    "Which contacts had recent activity?"
-  ],
-  "Which contacts haven't been reached?": [
-    "Who at Acme needs follow-up?",
-    "Which leads have no recent activity?",
-    "What are the contact emails for at-risk accounts?"
-  ],
-  "Who are the decision makers?": [
-    "Who's the contact at Beta Corp?",
-    "Who are the executives?",
-    "What roles do the Beta Tech contacts have?"
-  ],
-  "Which contacts had recent activity?": [
-    "What emails were sent recently?",
-    "What meetings occurred recently?",
-    "What were the recent interactions?"
+  "What are the open activities?": [
+    "Which activities are high priority?",
+    "What types of activities are most common?",
+    "What accounts have the most open activities?"
   ]
 }
