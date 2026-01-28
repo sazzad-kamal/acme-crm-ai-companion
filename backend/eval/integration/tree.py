@@ -16,24 +16,33 @@ logger = logging.getLogger(__name__)
 _EVAL_FIXTURES_PATH = Path(__file__).parent / "fixtures"
 
 
-def _load_yaml_fixture(filename: str) -> dict:
-    """Load a YAML fixture file."""
-    filepath = _EVAL_FIXTURES_PATH / filename
-    if not filepath.exists():
-        return {}
-    try:
-        with open(filepath, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            return data if data else {}
-    except Exception as e:
-        logger.warning(f"Failed to load {filename}: {e}")
-        return {}
+# --- Expected fixtures ---
 
 
 @cache
 def _load_expected() -> dict[str, dict]:
     """Load expected fixtures (cached)."""
-    return _load_yaml_fixture("expected.yaml")
+    filepath = _EVAL_FIXTURES_PATH / "expected.yaml"
+    try:
+        with open(filepath, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data if data else {}
+    except Exception as e:
+        logger.warning(f"Failed to load expected.yaml: {e}")
+        return {}
+
+
+def get_expected_answer(question: str) -> str | None:
+    """Get the expected answer for a question (for RAGAS answer_correctness)."""
+    return _load_expected().get(question, {}).get("answer")
+
+
+def get_expected_action(question: str) -> bool | None:
+    """Get whether an action is expected for a question. None if not in fixture."""
+    return _load_expected().get(question, {}).get("action")
+
+
+# --- Tree paths ---
 
 
 def _find_paths(graph: nx.DiGraph, starters: list[str]) -> list[list[str]]:
@@ -78,22 +87,6 @@ def _compute_paths_and_stats() -> tuple[list[list[str]], dict]:
         },
     }
     return paths, stats
-
-
-def get_expected_answer(question: str) -> str | None:
-    """Get the expected answer for a question (for RAGAS answer_correctness)."""
-    entry = _load_expected().get(question)
-    if entry is None:
-        return None
-    return entry.get("answer")
-
-
-def get_expected_action(question: str) -> bool | None:
-    """Get whether an action is expected for a question. None if not in fixture."""
-    entry = _load_expected().get(question)
-    if entry is None:
-        return None
-    return entry.get("action")
 
 
 def get_all_paths() -> list[list[str]]:

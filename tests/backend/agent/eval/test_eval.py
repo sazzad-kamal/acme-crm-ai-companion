@@ -560,6 +560,17 @@ class TestYamlLoading:
         assert get_expected_action("This question does not exist") is None
 
 
+class TestFixtureCompleteness:
+    def test_every_question_has_answer_and_action(self):
+        from backend.eval.integration.tree import _load_expected, get_all_paths
+        expected = _load_expected()
+        all_questions = {q for path in get_all_paths() for q in path}
+        missing_answer = [q for q in all_questions if q not in expected or "answer" not in expected[q]]
+        missing_action = [q for q in all_questions if q not in expected or "action" not in expected[q]]
+        assert not missing_answer, f"Questions missing expected answer: {missing_answer}"
+        assert not missing_action, f"Questions missing expected action: {missing_action}"
+
+
 class TestYamlLoadingErrors:
     def test_nonexistent_file(self, monkeypatch, tmp_path):
         import backend.eval.integration.tree as tree_module

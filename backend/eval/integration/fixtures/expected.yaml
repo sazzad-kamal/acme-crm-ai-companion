@@ -124,6 +124,7 @@
     Accounts with health issues include those flagged as at-risk or churned.
 
     Suggested action: Create action plan for each at-risk account.
+  action: true
 
 "Who are the Delta Health contacts?":
   answer: |
@@ -179,20 +180,34 @@
     Delta Health needs attention due to at-risk status.
 
     Suggested action: Assign dedicated resource to Delta Health recovery.
+  action: true
 
 "What are the warning signs?":
   answer: |
     Warning signs include low activity and at-risk health status.
 
     Suggested action: Set up alerts for accounts showing these patterns.
+  action: true
 
 "Which accounts aren't healthy?":
+  answer: |
+    Unhealthy accounts include those with at-risk status or declining engagement.
+
+    Suggested action: Prioritize outreach to accounts showing health warnings.
   action: true
 
 "Which accounts are renewing soon?":
+  answer: |
+    Accounts with upcoming renewals include those with active renewal deals.
+
+    Suggested action: Schedule renewal discussions with account owners.
   action: true
 
 "Which deals have been stuck in stage the longest?":
+  answer: |
+    Deals that have remained in the same stage the longest may need intervention.
+
+    Suggested action: Review stalled deals and identify blockers to progress.
   action: true
 
 # =============================================================================
@@ -204,6 +219,7 @@
     Contacts needing follow-up include those without recent activity.
 
     Suggested action: Schedule outreach calls with top priority contacts.
+  action: true
 
 "Which contacts haven't been reached?":
   answer: |
@@ -238,12 +254,14 @@
     Leads without recent engagement may be going cold.
 
     Suggested action: Launch re-engagement campaign for cold leads.
+  action: true
 
 "What's the best way to reach them?":
   answer: |
     Contact information includes email and phone for each contact.
 
     Suggested action: Verify contact details are current before outreach.
+  action: true
 
 "Who's the contact at Beta Corp?":
   answer: |
@@ -257,12 +275,14 @@
     Executives include decision makers and champions across accounts.
 
     Suggested action: Prepare executive briefing materials for key accounts.
+  action: true
 
 "What are their roles?":
   answer: |
     Roles include Decision Maker, Champion, Technical Contact, and Executive.
 
     Suggested action: Update contact roles in CRM as relationships evolve.
+  action: false
 
 "What emails were sent recently?":
   answer: |
@@ -286,16 +306,32 @@
   action: false
 
 "Which contacts haven't been contacted recently?":
+  answer: |
+    Contacts without recent outreach include those with no calls, emails, or meetings in the last period.
+
+    Suggested action: Prioritize outreach to contacts with the longest gap since last interaction.
   action: true
 
 "Which leads have no recent activity?":
+  answer: |
+    Leads with no recent activity may need re-engagement.
+
+    Suggested action: Create outreach cadence for inactive leads.
   action: true
 
 "What are the contact emails for at-risk accounts?":
+  answer: |
+    Contact emails for at-risk accounts include addresses for key stakeholders at flagged accounts.
+
+    Suggested action: Send personalized outreach to at-risk account contacts.
   action: true
 
 "Who are the executives?":
+  answer: |
+    Executives include senior decision makers across accounts.
   action: false
 
 "What roles do the Beta Tech contacts have?":
+  answer: |
+    Beta Tech contact roles include Decision Maker and Technical Contact.
   action: false
