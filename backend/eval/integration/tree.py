@@ -46,16 +46,18 @@ def get_expected_action(question: str) -> bool | None:
 
 
 def _find_paths(graph: nx.DiGraph, starters: list[str]) -> list[list[str]]:
-    """Find all paths from starters to leaf nodes in the graph."""
-    leaves = [n for n in graph.nodes() if graph.out_degree(n) == 0]
+    """Find all paths from starters to leaf nodes via DFS."""
     paths: list[list[str]] = []
+
+    def _dfs(node: str, path: list[str]) -> None:
+        if graph.out_degree(node) == 0:
+            paths.append(path)
+            return
+        for child in graph.successors(node):
+            _dfs(child, path + [child])
+
     for starter in starters:
-        for leaf in leaves:
-            try:
-                for path in nx.all_simple_paths(graph, starter, leaf):
-                    paths.append(path)
-            except nx.NodeNotFound:
-                continue
+        _dfs(starter, [starter])
     return paths
 
 
@@ -63,23 +65,13 @@ def _find_paths(graph: nx.DiGraph, starters: list[str]) -> list[list[str]]:
 def _compute_paths_and_stats() -> tuple[list[list[str]], dict]:
     """Compute all paths and tree stats in a single pass (cached)."""
     graph = get_graph()
-    starters = get_starters()
-
-    # Build reachable subgraph
-    reachable: set[str] = set()
-    for starter in starters:
-        if starter in graph:
-            reachable.add(starter)
-            reachable |= nx.descendants(graph, starter)
-    subgraph: nx.DiGraph = graph.subgraph(reachable).copy()  # type: ignore[assignment]
-
-    reachable_starters = [s for s in starters if s in subgraph]
-    paths = _find_paths(subgraph, reachable_starters)
+    starters = [s for s in get_starters() if s in graph]
+    paths = _find_paths(graph, starters)
 
     stats = {
         "num_starters": len(starters),
-        "num_questions": subgraph.number_of_nodes(),
-        "num_edges": subgraph.number_of_edges(),
+        "num_questions": graph.number_of_nodes(),
+        "num_edges": graph.number_of_edges(),
         "num_paths": len(paths),
         "path_lengths": {
             "min": min(len(p) for p in paths) if paths else 0,
