@@ -1,17 +1,13 @@
-"""Data models for agent evaluation results."""
+"""Data models for integration (flow) evaluation."""
 
-from pydantic import BaseModel, Field, computed_field
+from __future__ import annotations
 
-# =============================================================================
-# SLO Thresholds
-# =============================================================================
+from pydantic import BaseModel, Field
 
-SLO_FLOW_PATH_PASS_RATE = 0.85  # 85% of conversation paths should pass
+from backend.eval.shared.models import BaseEvalResults
 
-
-# =============================================================================
-# Flow Evaluation Models
-# =============================================================================
+# SLO thresholds for integration evaluation
+SLO_FLOW_PASS_RATE = 0.85  # 85% of conversation paths should pass
 
 
 class FlowStepResult(BaseModel):
@@ -24,15 +20,16 @@ class FlowStepResult(BaseModel):
     # RAGAS metrics (0.0-1.0) - answer quality
     relevance_score: float = 0.0  # RAGAS answer_relevancy
     answer_correctness_score: float = 0.0  # RAGAS answer_correctness
-    error: str | None = None
-    # RAGAS reliability tracking (per-metric)
+    errors: list[str] = Field(default_factory=list)
+    # RAGAS reliability tracking
     ragas_metrics_total: int = 0  # Number of metrics evaluated (usually 2)
     ragas_metrics_failed: int = 0  # Number of metrics that returned NaN
 
-    @computed_field  # type: ignore[prop-decorator]
     @property
     def passed(self) -> bool:
-        """Question passes if has answer AND meets quality threshold."""
+        """Question passes if has answer, no errors, and meets quality threshold."""
+        if self.errors:
+            return False
         return self.has_answer and self.relevance_score >= 0.7
 
 
@@ -44,41 +41,55 @@ class FlowResult(BaseModel):
     steps: list[FlowStepResult]
     total_latency_ms: int
     success: bool
-    error: str | None = None
+    errors: list[str] = Field(default_factory=list)
 
 
-class FlowEvalResults(BaseModel):
+class FlowEvalResults(BaseEvalResults):
     """Aggregated results from all flow tests."""
 
-    total_paths: int
-    paths_tested: int
-    paths_passed: int
-    paths_failed: int
-    total_questions: int
-    questions_passed: int
-    questions_failed: int
+    cases: list[FlowResult] = Field(default_factory=list)
     # RAGAS metrics (0.0-1.0) - answer quality
     avg_relevance: float = 0.0  # RAGAS answer_relevancy
     avg_answer_correctness: float = 0.0  # RAGAS answer_correctness
-    # RAGAS reliability tracking (per-metric, not per-call)
+    # RAGAS reliability tracking
     ragas_metrics_total: int = 0  # Total individual metrics evaluated (questions × 2)
     ragas_metrics_failed: int = 0  # Individual metrics that returned NaN
     # Latency
     total_latency_ms: int = 0
     avg_latency_per_question_ms: float = 0.0
-    # Results
-    all_results: list[FlowResult] = Field(default_factory=list)
 
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def path_pass_rate(self) -> float:
-        """Percentage of paths that passed."""
-        return self.paths_passed / self.paths_tested if self.paths_tested > 0 else 0.0
-
-    @computed_field  # type: ignore[prop-decorator]
     @property
     def ragas_success_rate(self) -> float:
-        """Percentage of RAGAS metrics that succeeded (1.0 = all succeeded, 0.0 = all failed)."""
+        """RAGAS metrics success rate."""
         if self.ragas_metrics_total == 0:
-            return 1.0  # No RAGAS metrics = no failures
+            return 1.0
         return (self.ragas_metrics_total - self.ragas_metrics_failed) / self.ragas_metrics_total
+
+    def compute_aggregates(self) -> None:
+        """Compute aggregate metrics from individual case results."""
+        if not self.cases:
+            return
+
+        self.passed = sum(1 for c in self.cases if c.success)
+
+        all_steps = [s for c in self.cases for s in c.steps]
+        if all_steps:
+            n = len(all_steps)
+            self.avg_relevance = sum(s.relevance_score for s in all_steps) / n
+            self.avg_answer_correctness = sum(s.answer_correctness_score for s in all_steps) / n
+            self.ragas_metrics_total = sum(s.ragas_metrics_total for s in all_steps)
+            self.ragas_metrics_failed = sum(s.ragas_metrics_failed for s in all_steps)
+
+        self.total_latency_ms = sum(c.total_latency_ms for c in self.cases)
+        total_questions = sum(len(c.steps) for c in self.cases)
+        self.avg_latency_per_question_ms = (
+            self.total_latency_ms / total_questions if total_questions > 0 else 0.0
+        )
+
+
+__all__ = [
+    "FlowEvalResults",
+    "FlowResult",
+    "FlowStepResult",
+    "SLO_FLOW_PASS_RATE",
+]

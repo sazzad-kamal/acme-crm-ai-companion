@@ -24,7 +24,7 @@ import typer
 from backend.eval.answer.text.ragas import evaluate_single
 from backend.eval.integration.langsmith import get_latency_percentages
 from backend.eval.integration.models import (
-    SLO_FLOW_PATH_PASS_RATE,
+    SLO_FLOW_PASS_RATE,
     FlowEvalResults,
     FlowResult,
     FlowStepResult,
@@ -81,7 +81,6 @@ def test_single_question(question: str, session_id: str, use_judge: bool = True)
             has_answer=has_answer,
             relevance_score=relevance,
             answer_correctness_score=correctness,
-            error=None,
             ragas_metrics_total=ragas_total,
             ragas_metrics_failed=ragas_failed,
         )
@@ -91,7 +90,7 @@ def test_single_question(question: str, session_id: str, use_judge: bool = True)
         logger.error(f"Error testing question '{question}': {e}")
         return FlowStepResult(
             question=question, answer="", latency_ms=latency_ms, has_answer=False,
-            relevance_score=0.0, answer_correctness_score=0.0, error=str(e),
+            errors=[str(e)],
         )
 
 
@@ -101,7 +100,6 @@ def test_flow(path: list[str], path_id: int, use_judge: bool = True) -> FlowResu
     steps: list[FlowStepResult] = []
     total_latency = 0
     success = True
-    first_error: str | None = None
 
     for question in path:
         step_result = test_single_question(question, session_id, use_judge)
@@ -110,12 +108,11 @@ def test_flow(path: list[str], path_id: int, use_judge: bool = True) -> FlowResu
 
         if not step_result.passed:
             success = False
-            if first_error is None and step_result.error:
-                first_error = step_result.error
 
+    errors = [e for s in steps for e in s.errors]
     return FlowResult(
         path_id=path_id, questions=path, steps=steps,
-        total_latency_ms=total_latency, success=success, error=first_error,
+        total_latency_ms=total_latency, success=success, errors=errors,
     )
 
 
@@ -123,48 +120,31 @@ def run_flow_eval(max_paths: int | None = None, use_judge: bool = True) -> FlowE
     """Run flow evaluation on all paths."""
     all_paths = get_all_paths()
     paths_to_test = all_paths[:max_paths] if max_paths else all_paths
+
+    results = FlowEvalResults(total=len(paths_to_test))
     total = len(paths_to_test)
 
-    results: list[FlowResult] = []
     for i, path in enumerate(paths_to_test):
         result = test_flow(path, i, use_judge)
-        results.append(result)
+        results.cases.append(result)
         status = "PASS" if result.success else "FAIL"
         print(f"  [{i+1}/{total}] {status} Path {i+1}: {path[0][:40]}...")
 
-    # Aggregate metrics
-    all_steps = [s for r in results for s in r.steps]
-    paths_passed = sum(1 for r in results if r.success)
-    total_questions = sum(len(r.steps) for r in results)
-    questions_passed = sum(sum(1 for s in r.steps if s.passed) for r in results)
-    total_latency = sum(r.total_latency_ms for r in results)
-
-    return FlowEvalResults(
-        total_paths=len(all_paths),
-        paths_tested=len(results),
-        paths_passed=paths_passed,
-        paths_failed=len(results) - paths_passed,
-        total_questions=total_questions,
-        questions_passed=questions_passed,
-        questions_failed=total_questions - questions_passed,
-        avg_relevance=sum(s.relevance_score for s in all_steps) / len(all_steps) if all_steps else 0.0,
-        avg_answer_correctness=sum(s.answer_correctness_score for s in all_steps) / len(all_steps) if all_steps else 0.0,
-        ragas_metrics_total=sum(s.ragas_metrics_total for s in all_steps),
-        ragas_metrics_failed=sum(s.ragas_metrics_failed for s in all_steps),
-        total_latency_ms=total_latency,
-        avg_latency_per_question_ms=total_latency / total_questions if total_questions > 0 else 0,
-        all_results=results,
-    )
+    results.compute_aggregates()
+    return results
 
 
 def print_summary(results: FlowEvalResults, latency_pcts: dict[str, float] | None = None) -> bool:
     """Print evaluation summary. Returns True if passed."""
-    passed = results.path_pass_rate >= SLO_FLOW_PATH_PASS_RATE
+    passed = results.pass_rate >= SLO_FLOW_PASS_RATE
     status = "PASS" if passed else "FAIL"
 
+    total_questions = sum(len(c.steps) for c in results.cases)
+    questions_passed = sum(sum(1 for s in c.steps if s.passed) for c in results.cases)
+
     print("\nFlow Evaluation Summary")
-    print(f"Pass Rate: {results.path_pass_rate:.1%} (>={SLO_FLOW_PATH_PASS_RATE:.1%} SLO) {status}")
-    print(f"Paths: {results.paths_passed}/{results.paths_tested}, Questions: {results.questions_passed}/{results.total_questions}")
+    print(f"Pass Rate: {results.pass_rate:.1%} (>={SLO_FLOW_PASS_RATE:.1%} SLO) {status}")
+    print(f"Paths: {results.passed}/{results.total}, Questions: {questions_passed}/{total_questions}")
     print(f"Avg Relevance: {results.avg_relevance:.2f}, Correctness: {results.avg_answer_correctness:.2f}")
 
     ragas_ok = results.ragas_metrics_total - results.ragas_metrics_failed
@@ -174,13 +154,13 @@ def print_summary(results: FlowEvalResults, latency_pcts: dict[str, float] | Non
         print(f"LangSmith: fetch={latency_pcts.get('fetch', 0):.1%}, answer={latency_pcts.get('answer', 0):.1%}")
 
     # Failed paths
-    failed = [r for r in results.all_results if not r.success]
+    failed = [c for c in results.cases if not c.success]
     if failed:
         print(f"\nFailed Paths ({len(failed)})")
-        for r in failed[:5]:
-            print(f"  Path {r.path_id + 1}: {r.questions[0][:50]}...")
-            if r.error:
-                print(f"    Error: {r.error}")
+        for c in failed[:5]:
+            print(f"  Path {c.path_id + 1}: {c.questions[0][:50]}...")
+            if c.errors:
+                print(f"    Error: {c.errors[0]}")
 
     return passed
 
