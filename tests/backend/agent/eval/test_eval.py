@@ -324,7 +324,7 @@ class TestOutputModule:
 
     def test_print_summary_all_pass(self):
         """Test print_summary with all SLOs passing."""
-        from backend.eval.integration.output import print_summary
+        from backend.eval.integration.runner import print_summary
 
         results = FlowEvalResults(
             total_paths=10,
@@ -348,7 +348,7 @@ class TestOutputModule:
 
     def test_print_summary_with_latency_pcts(self):
         """Test print_summary with latency percentages."""
-        from backend.eval.integration.output import print_summary
+        from backend.eval.integration.runner import print_summary
 
         results = FlowEvalResults(
             total_paths=5,
@@ -369,7 +369,7 @@ class TestOutputModule:
 
     def test_print_summary_no_latency_pcts(self):
         """Test print_summary without latency percentages."""
-        from backend.eval.integration.output import print_summary
+        from backend.eval.integration.runner import print_summary
 
         results = FlowEvalResults(
             total_paths=5,
@@ -392,7 +392,7 @@ class TestPrintSloFailures:
 
     def test_print_slo_failures_no_failures(self):
         """Test _print_slo_failures with no failures."""
-        from backend.eval.integration.output import _print_slo_failures
+        from backend.eval.integration.runner import _print_slo_failures
 
         results = FlowEvalResults(
             total_paths=1,
@@ -428,7 +428,7 @@ class TestPrintSloFailures:
 
     def test_print_slo_failures_with_failures(self):
         """Test _print_slo_failures with failures."""
-        from backend.eval.integration.output import _print_slo_failures
+        from backend.eval.integration.runner import _print_slo_failures
 
         results = FlowEvalResults(
             total_paths=1,
@@ -1192,7 +1192,7 @@ class TestCountSloFailures:
 
     def test_count_slo_failures_relevance(self):
         """Test _count_slo_failures counts relevance failures."""
-        from backend.eval.integration.output import _count_slo_failures
+        from backend.eval.integration.runner import _count_slo_failures
 
         step = FlowStepResult(
             question="Q?",
@@ -1209,7 +1209,7 @@ class TestCountSloFailures:
 
     def test_count_slo_failures_faithfulness(self):
         """Test _count_slo_failures counts faithfulness failures."""
-        from backend.eval.integration.output import _count_slo_failures
+        from backend.eval.integration.runner import _count_slo_failures
 
         step = FlowStepResult(
             question="Q?",
@@ -1226,7 +1226,7 @@ class TestCountSloFailures:
 
     def test_count_slo_failures_multiple_failures(self):
         """Test _count_slo_failures counts multiple failure types."""
-        from backend.eval.integration.output import _count_slo_failures
+        from backend.eval.integration.runner import _count_slo_failures
 
         step = FlowStepResult(
             question="Q?",
@@ -1394,15 +1394,15 @@ class TestCliModuleExtended:
 
     def test_main_command(self, monkeypatch):
         """Test main command calls _run_eval."""
-        from backend.eval.integration.__main__ import main
+        from backend.eval.integration.runner import main
 
         call_args = {}
 
         def mock_run_eval(**kwargs):
             call_args.update(kwargs)
 
-        import backend.eval.integration.__main__
-        monkeypatch.setattr(backend.eval.integration.__main__, "_run_eval", mock_run_eval)
+        import backend.eval.integration.runner
+        monkeypatch.setattr(backend.eval.integration.runner, "_run_eval", mock_run_eval)
 
         main(limit=5)
 
@@ -1510,7 +1510,7 @@ class TestPrintSloFailuresExtended:
 
     def test_print_slo_failures_with_multiple_failures(self, capsys):
         """Test _print_slo_failures shows failures sorted by severity."""
-        from backend.eval.integration.output import _print_slo_failures
+        from backend.eval.integration.runner import _print_slo_failures
 
         # Create steps with varying failure counts
         step1 = FlowStepResult(
@@ -1563,7 +1563,7 @@ class TestPrintSloFailuresExtended:
 
     def test_print_slo_failures_with_various_metrics(self, capsys):
         """Test _print_slo_failures with various metric failures."""
-        from backend.eval.integration.output import _print_slo_failures
+        from backend.eval.integration.runner import _print_slo_failures
 
         step = FlowStepResult(
             question="Q?",

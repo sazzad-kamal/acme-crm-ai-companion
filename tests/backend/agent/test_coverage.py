@@ -1020,16 +1020,16 @@ class TestFetchRunnerStylisticErrors:
 
 
 class TestIntegrationMain:
-    """Test eval/integration/__main__.py coverage."""
+    """Test eval/integration/runner.py CLI coverage."""
 
     def test_run_eval_basic_flow(self, monkeypatch):
         """Test _run_eval basic flow."""
-        from backend.eval.integration import __main__ as main_module
+        from backend.eval.integration import runner as runner_module
         from backend.eval.integration.models import FlowEvalResults
 
         # Mock get_tree_stats
         monkeypatch.setattr(
-            main_module, "get_tree_stats",
+            runner_module, "get_tree_stats",
             lambda: {"total": 10, "questions": 50}
         )
 
@@ -1044,29 +1044,29 @@ class TestIntegrationMain:
             questions_failed=0,
         )
         monkeypatch.setattr(
-            main_module, "run_flow_eval",
+            runner_module, "run_flow_eval",
             lambda **kwargs: mock_results
         )
 
         # Mock get_latency_percentages
         monkeypatch.setattr(
-            main_module, "get_latency_percentages",
+            runner_module, "get_latency_percentages",
             lambda **kwargs: {}
         )
 
         # Mock print_summary
-        monkeypatch.setattr(main_module, "print_summary", lambda r, **kwargs: None)
+        monkeypatch.setattr(runner_module, "print_summary", lambda r, **kwargs: None)
 
         # Run - should not raise
-        main_module._run_eval(limit=1)
+        runner_module._run_eval(limit=1)
 
     def test_run_eval_handles_exception(self, monkeypatch):
         """Test _run_eval handles evaluation exception."""
-        from backend.eval.integration import __main__ as main_module
+        from backend.eval.integration import runner as runner_module
 
         # Mock get_tree_stats
         monkeypatch.setattr(
-            main_module, "get_tree_stats",
+            runner_module, "get_tree_stats",
             lambda: {"total": 10}
         )
 
@@ -1074,18 +1074,18 @@ class TestIntegrationMain:
         def raise_error(**kwargs):
             raise RuntimeError("Evaluation failed")
 
-        monkeypatch.setattr(main_module, "run_flow_eval", raise_error)
+        monkeypatch.setattr(runner_module, "run_flow_eval", raise_error)
 
         # Should not raise - handles exception internally
-        main_module._run_eval(limit=1)
+        runner_module._run_eval(limit=1)
 
     def test_run_eval_shows_failed_paths(self, monkeypatch):
         """Test _run_eval shows details for failing paths."""
-        from backend.eval.integration import __main__ as main_module
+        from backend.eval.integration import runner as runner_module
         from backend.eval.integration.models import FlowEvalResults, FlowResult, FlowStepResult
 
         # Mock get_tree_stats
-        monkeypatch.setattr(main_module, "get_tree_stats", lambda: {"total": 10})
+        monkeypatch.setattr(runner_module, "get_tree_stats", lambda: {"total": 10})
 
         # Create failed path with steps
         failed_step = FlowStepResult(
@@ -1116,12 +1116,12 @@ class TestIntegrationMain:
         )
         mock_results.failed_paths = [failed_path]
 
-        monkeypatch.setattr(main_module, "run_flow_eval", lambda **kwargs: mock_results)
-        monkeypatch.setattr(main_module, "get_latency_percentages", lambda **kwargs: {})
-        monkeypatch.setattr(main_module, "print_summary", lambda r, **kwargs: None)
+        monkeypatch.setattr(runner_module, "run_flow_eval", lambda **kwargs: mock_results)
+        monkeypatch.setattr(runner_module, "get_latency_percentages", lambda **kwargs: {})
+        monkeypatch.setattr(runner_module, "print_summary", lambda r, **kwargs: None)
 
         # Run - should show failed paths (now always shown)
-        main_module._run_eval(limit=1)
+        runner_module._run_eval(limit=1)
 
 
 class TestIntegrationRunner:
