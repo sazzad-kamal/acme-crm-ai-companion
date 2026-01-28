@@ -54,20 +54,6 @@ def _run_eval(limit: int | None) -> None:
     # Print summary with optional LangSmith info
     print_summary(results, latency_pcts=latency_pcts)
 
-    # Show details for failing paths
-    if results.failed_paths:
-        print(f"\nFailed Paths ({len(results.failed_paths)} total, showing up to 10):")
-        for fp in results.failed_paths[:10]:
-            print(f"\n--- Path {fp.path_id} ---")
-            for j, s in enumerate(fp.steps):
-                status = "PASS" if s.passed else "FAIL"
-                print(f"Q{j + 1}: {s.question}")
-                print(f"    [{status}] R={s.relevance_score:.2f} F={s.faithfulness_score:.2f}")
-                answer_preview = s.answer[:200] + "..." if len(s.answer) > 200 else s.answer
-                print(f"    Answer: {answer_preview}")
-                if s.judge_explanation:
-                    print(f"    Judge: {s.judge_explanation}")
-
 
 @app.command()
 def main(

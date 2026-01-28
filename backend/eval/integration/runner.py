@@ -29,18 +29,6 @@ AGENT_TIMEOUT_SECONDS = 120
 RAGAS_TIMEOUT_SECONDS = 180
 
 
-def _create_failed_judge_result(explanation: str) -> dict:
-    """Create a failed RAGAS judge result with zeroed metrics."""
-    return {
-        "relevance": 0.0,
-        "faithfulness": 0.0,
-        "answer_correctness": 0.0,
-        "explanation": explanation,
-        "ragas_failed": True,
-        "nan_metrics": [],
-    }
-
-
 def judge_answer(
     question: str,
     answer: str,
@@ -50,7 +38,6 @@ def judge_answer(
 ) -> dict:
     """Judge an answer using RAGAS metrics with timeout."""
     try:
-        # Run RAGAS evaluation with timeout to prevent hanging
         with ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(
                 evaluate_single, question, answer, contexts,
@@ -58,7 +45,6 @@ def judge_answer(
             )
             result = future.result(timeout=timeout)
 
-        # Check if RAGAS itself reported an error
         ragas_error = result.get("error")
         nan_metrics: list[str] = result.get("nan_metrics", [])  # type: ignore[assignment]
         return {
@@ -71,10 +57,12 @@ def judge_answer(
         }
     except TimeoutError:
         logger.warning(f"RAGAS judge timed out after {timeout}s")
-        return _create_failed_judge_result(f"RAGAS timeout after {timeout}s")
+        return {"relevance": 0.0, "faithfulness": 0.0, "answer_correctness": 0.0,
+                "explanation": f"RAGAS timeout after {timeout}s", "ragas_failed": True, "nan_metrics": []}
     except Exception as e:
         logger.warning(f"RAGAS judge failed: {e}")
-        return _create_failed_judge_result(f"RAGAS error: {e}")
+        return {"relevance": 0.0, "faithfulness": 0.0, "answer_correctness": 0.0,
+                "explanation": f"RAGAS error: {e}", "ragas_failed": True, "nan_metrics": []}
 
 
 def _invoke_agent(
@@ -252,44 +240,6 @@ def test_flow(
     )
 
 
-def _aggregate_metrics(
-    results: list[FlowResult], all_paths: list[list[str]], eval_start_time: float
-) -> dict[str, Any]:
-    """Aggregate metrics from flow results into a summary dict."""
-    paths_passed = sum(1 for r in results if r.success)
-    total_questions = sum(len(r.steps) for r in results)
-    questions_passed = sum(sum(1 for s in r.steps if s.passed) for r in results)
-
-    all_steps = [s for r in results for s in r.steps]
-
-    # RAGAS averages
-    avg_relevance = sum(s.relevance_score for s in all_steps) / len(all_steps) if all_steps else 0.0
-    avg_faithfulness = sum(s.faithfulness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
-    avg_answer_correctness = sum(s.answer_correctness_score for s in all_steps) / len(all_steps) if all_steps else 0.0
-
-    total_latency = sum(r.total_latency_ms for r in results)
-
-    return {
-        "total_paths": len(all_paths),
-        "paths_tested": len(results),
-        "paths_passed": paths_passed,
-        "paths_failed": len(results) - paths_passed,
-        "total_questions": total_questions,
-        "questions_passed": questions_passed,
-        "questions_failed": total_questions - questions_passed,
-        "avg_relevance": avg_relevance,
-        "avg_faithfulness": avg_faithfulness,
-        "avg_answer_correctness": avg_answer_correctness,
-        "ragas_metrics_total": sum(s.ragas_metrics_total for s in all_steps),
-        "ragas_metrics_failed": sum(s.ragas_metrics_failed for s in all_steps),
-        "total_latency_ms": total_latency,
-        "avg_latency_per_question_ms": total_latency / total_questions if total_questions > 0 else 0,
-        "wall_clock_ms": int((time.time() - eval_start_time) * 1000),
-        "failed_paths": [r for r in results if not r.success],
-        "all_results": results,
-    }
-
-
 def run_flow_eval(
     max_paths: int | None = None,
     use_judge: bool = True,
@@ -298,7 +248,6 @@ def run_flow_eval(
     """Run flow evaluation on all paths with parallel execution."""
     eval_start_time = time.time()
 
-    # Generate all paths
     all_paths = get_all_paths()
     paths_to_test = all_paths[:max_paths] if max_paths else all_paths
 
@@ -306,10 +255,8 @@ def run_flow_eval(
     print(f"Concurrency: {concurrency}")
     print()
 
-    total = len(paths_to_test)
     results: list[FlowResult] = []
 
-    # Use ThreadPoolExecutor for parallel flow execution with clean progress bar
     with Progress(
         TextColumn("[cyan]Evaluating paths"),
         BarColumn(),
@@ -319,37 +266,50 @@ def run_flow_eval(
         console=_console,
         transient=False,
     ) as progress:
-        task = progress.add_task("", total=total)
+        task = progress.add_task("", total=len(paths_to_test))
 
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
-            # Submit all flows
             futures = {
                 executor.submit(test_flow, path, i, use_judge): i
                 for i, path in enumerate(paths_to_test)
             }
 
-            # Process results as they complete
             for future in as_completed(futures):
                 path_id = futures[future]
                 try:
-                    result = future.result()
-                    results.append(result)
+                    results.append(future.result())
                 except Exception as e:
-                    results.append(
-                        FlowResult(
-                            path_id=path_id,
-                            questions=paths_to_test[path_id],
-                            steps=[],
-                            total_latency_ms=0,
-                            success=False,
-                            error=str(e),
-                        )
-                    )
+                    results.append(FlowResult(
+                        path_id=path_id, questions=paths_to_test[path_id], steps=[],
+                        total_latency_ms=0, success=False, error=str(e),
+                    ))
                 progress.advance(task)
 
-    # Sort results by path_id for consistent ordering
     results.sort(key=lambda r: r.path_id)
 
-    # Aggregate and return results
-    metrics = _aggregate_metrics(results, all_paths, eval_start_time)
-    return FlowEvalResults(**metrics)
+    # Aggregate metrics
+    all_steps = [s for r in results for s in r.steps]
+    paths_passed = sum(1 for r in results if r.success)
+    total_questions = sum(len(r.steps) for r in results)
+    questions_passed = sum(sum(1 for s in r.steps if s.passed) for r in results)
+    total_latency = sum(r.total_latency_ms for r in results)
+
+    return FlowEvalResults(
+        total_paths=len(all_paths),
+        paths_tested=len(results),
+        paths_passed=paths_passed,
+        paths_failed=len(results) - paths_passed,
+        total_questions=total_questions,
+        questions_passed=questions_passed,
+        questions_failed=total_questions - questions_passed,
+        avg_relevance=sum(s.relevance_score for s in all_steps) / len(all_steps) if all_steps else 0.0,
+        avg_faithfulness=sum(s.faithfulness_score for s in all_steps) / len(all_steps) if all_steps else 0.0,
+        avg_answer_correctness=sum(s.answer_correctness_score for s in all_steps) / len(all_steps) if all_steps else 0.0,
+        ragas_metrics_total=sum(s.ragas_metrics_total for s in all_steps),
+        ragas_metrics_failed=sum(s.ragas_metrics_failed for s in all_steps),
+        total_latency_ms=total_latency,
+        avg_latency_per_question_ms=total_latency / total_questions if total_questions > 0 else 0,
+        wall_clock_ms=int((time.time() - eval_start_time) * 1000),
+        failed_paths=[r for r in results if not r.success],
+        all_results=results,
+    )
