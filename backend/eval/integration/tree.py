@@ -16,13 +16,8 @@ logger = logging.getLogger(__name__)
 _EVAL_FIXTURES_PATH = Path(__file__).parent / "fixtures"
 
 
-@cache
-def _get_graph() -> nx.DiGraph:
-    return get_graph()
-
-
 def _load_yaml_fixture(filename: str) -> dict:
-    """Load a YAML fixture file (cached per filename)."""
+    """Load a YAML fixture file."""
     filepath = _EVAL_FIXTURES_PATH / filename
     if not filepath.exists():
         return {}
@@ -36,15 +31,9 @@ def _load_yaml_fixture(filename: str) -> dict:
 
 
 @cache
-def _load_expected_answers() -> dict[str, str]:
-    """Load expected answers from YAML fixture (cached)."""
-    return _load_yaml_fixture("expected_answers.yaml")
-
-
-@cache
-def _load_expected_actions() -> dict[str, bool]:
-    """Load expected action flags from YAML fixture (cached)."""
-    return _load_yaml_fixture("expected_actions.yaml")
+def _load_expected() -> dict[str, dict]:
+    """Load expected fixtures (cached)."""
+    return _load_yaml_fixture("expected.yaml")
 
 
 def _find_paths(graph: nx.DiGraph, starters: list[str]) -> list[list[str]]:
@@ -64,7 +53,7 @@ def _find_paths(graph: nx.DiGraph, starters: list[str]) -> list[list[str]]:
 @cache
 def _compute_paths_and_stats() -> tuple[list[list[str]], dict]:
     """Compute all paths and tree stats in a single pass (cached)."""
-    graph = _get_graph()
+    graph = get_graph()
     starters = get_starters()
 
     # Build reachable subgraph
@@ -73,7 +62,7 @@ def _compute_paths_and_stats() -> tuple[list[list[str]], dict]:
         if starter in graph:
             reachable.add(starter)
             reachable |= nx.descendants(graph, starter)
-    subgraph = graph.subgraph(reachable).copy()
+    subgraph: nx.DiGraph = graph.subgraph(reachable).copy()  # type: ignore[assignment]
 
     reachable_starters = [s for s in starters if s in subgraph]
     paths = _find_paths(subgraph, reachable_starters)
@@ -93,12 +82,18 @@ def _compute_paths_and_stats() -> tuple[list[list[str]], dict]:
 
 def get_expected_answer(question: str) -> str | None:
     """Get the expected answer for a question (for RAGAS answer_correctness)."""
-    return _load_expected_answers().get(question)
+    entry = _load_expected().get(question)
+    if entry is None:
+        return None
+    return entry.get("answer")
 
 
 def get_expected_action(question: str) -> bool | None:
     """Get whether an action is expected for a question. None if not in fixture."""
-    return _load_expected_actions().get(question)
+    entry = _load_expected().get(question)
+    if entry is None:
+        return None
+    return entry.get("action")
 
 
 def get_all_paths() -> list[list[str]]:
@@ -111,3 +106,11 @@ def get_tree_stats() -> dict:
     """Get statistics about the question tree."""
     _, stats = _compute_paths_and_stats()
     return stats
+
+
+__all__ = [
+    "get_all_paths",
+    "get_expected_action",
+    "get_expected_answer",
+    "get_tree_stats",
+]

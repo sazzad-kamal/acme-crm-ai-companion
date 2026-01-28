@@ -563,26 +563,26 @@ class TestYamlLoading:
 class TestYamlLoadingErrors:
     def test_nonexistent_file(self, monkeypatch, tmp_path):
         import backend.eval.integration.tree as tree_module
-        tree_module._load_expected_answers.cache_clear()
+        tree_module._load_expected.cache_clear()
         monkeypatch.setattr(tree_module, "_EVAL_FIXTURES_PATH", tmp_path / "nonexistent")
-        assert tree_module._load_expected_answers() == {}
-        tree_module._load_expected_answers.cache_clear()
+        assert tree_module._load_expected() == {}
+        tree_module._load_expected.cache_clear()
 
     def test_invalid_yaml(self, monkeypatch, tmp_path):
         import backend.eval.integration.tree as tree_module
-        tree_module._load_expected_answers.cache_clear()
-        (tmp_path / "expected_answers.yaml").write_text("::invalid:: yaml: [content")
+        tree_module._load_expected.cache_clear()
+        (tmp_path / "expected.yaml").write_text("::invalid:: yaml: [content")
         monkeypatch.setattr(tree_module, "_EVAL_FIXTURES_PATH", tmp_path)
-        assert tree_module._load_expected_answers() == {}
-        tree_module._load_expected_answers.cache_clear()
+        assert tree_module._load_expected() == {}
+        tree_module._load_expected.cache_clear()
 
     def test_empty_file(self, monkeypatch, tmp_path):
         import backend.eval.integration.tree as tree_module
-        tree_module._load_expected_answers.cache_clear()
-        (tmp_path / "expected_answers.yaml").write_text("")
+        tree_module._load_expected.cache_clear()
+        (tmp_path / "expected.yaml").write_text("")
         monkeypatch.setattr(tree_module, "_EVAL_FIXTURES_PATH", tmp_path)
-        assert tree_module._load_expected_answers() == {}
-        tree_module._load_expected_answers.cache_clear()
+        assert tree_module._load_expected() == {}
+        tree_module._load_expected.cache_clear()
 
 
 class TestTreePathFinding:

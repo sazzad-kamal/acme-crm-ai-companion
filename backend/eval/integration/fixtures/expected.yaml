@@ -1,0 +1,301 @@
+# Merged expected fixtures for integration evaluation
+# Each question maps to optional 'answer' (string) and/or 'action' (bool)
+
+# =============================================================================
+# OPPORTUNITIES BRANCH - Starter: "What deals are in the pipeline?"
+# =============================================================================
+
+"What deals are in the pipeline?":
+  answer: |
+    Current pipeline includes deals across multiple accounts and stages.
+
+    Suggested action: Review deals in Proposal and Negotiation stages for immediate follow-up.
+  action: true
+
+"How are deals distributed by stage?":
+  answer: |
+    Deals are distributed across Proposal, Qualified, Negotiation, and Discovery stages.
+
+    Suggested action: Focus on moving Qualified deals to Proposal stage.
+  action: false
+
+"What are the highest value deals?":
+  answer: |
+    Highest value deals include Beta Tech at $32K and Harbor Logistics at $26K.
+
+    Suggested action: Schedule executive review for high-value deals.
+  action: true
+
+"Which deals involve Acme Corp?":
+  answer: |
+    Acme has two deals: an upgrade ($15K) and a renewal ($24K).
+
+    Suggested action: Coordinate with Acme contacts on upgrade timeline.
+  action: true
+
+"What deals are in Proposal stage?":
+  answer: |
+    Proposal stage deals include Acme upgrade and Crown Foods expansion.
+
+    Suggested action: Follow up on proposal feedback with decision makers.
+  action: true
+
+"What deals are in Qualified stage?":
+  answer: |
+    Qualified stage deals include Acme renewal, Fusion upsell, and Delta renewal.
+
+    Suggested action: Schedule discovery calls to move deals forward.
+  action: true
+
+"What deals are in Negotiation stage?":
+  answer: |
+    Beta Tech security platform is in Negotiation stage at $32K.
+
+    Suggested action: Prepare final proposal and schedule closing call with Beta Tech.
+  action: true
+
+"Which deals are over $50,000?":
+  answer: |
+    No individual deals exceed $50,000.
+  action: false
+
+"Which deals are under $20,000?":
+  answer: |
+    Deals under $20K include Acme upgrade ($15K), Crown Foods ($18K), Fusion upsell ($12K), and Delta expansion ($15K).
+
+    Suggested action: Bundle smaller deals where possible to increase efficiency.
+  action: false
+
+"What's the total pipeline value?":
+  answer: |
+    Total pipeline value is the sum of all open opportunities.
+
+    Suggested action: Update forecast projections with current pipeline data.
+  action: false
+
+"Who are the Acme contacts?":
+  answer: |
+    Acme contacts include Anna, Beth, and Joe.
+
+    Suggested action: Schedule check-in call with Anna to discuss deal progress.
+  action: true
+
+"What's the history with Acme?":
+  answer: |
+    Acme history includes meetings, calls, and proposal activities.
+
+    Suggested action: Review recent notes and prepare for next engagement.
+  action: true
+
+"What activities happened with Acme?":
+  answer: |
+    Recent Acme activities include sales calls and meetings.
+
+    Suggested action: Create follow-up task based on last meeting outcomes.
+  action: true
+
+# =============================================================================
+# COMPANIES BRANCH - Starter: "Which accounts are at risk?"
+# =============================================================================
+
+"Which accounts are at risk?":
+  answer: |
+    At-risk accounts include Delta Health (low activity) and Green Energy (churned).
+
+    Suggested action: Schedule urgent review call with Delta Health decision maker.
+  action: true
+
+"What's happening with Delta Health?":
+  answer: |
+    Delta Health is flagged as at-risk due to low activity, with renewal and expansion deals in progress.
+
+    Suggested action: Reach out to Erin at Delta Health to re-engage the account.
+  action: true
+
+"What's happening with Green Energy?":
+  answer: |
+    Green Energy has churned - account status is inactive with lost opportunities.
+
+    Suggested action: Document lessons learned and update win-back strategy.
+  action: true
+
+"Which accounts have health issues?":
+  answer: |
+    Accounts with health issues include those flagged as at-risk or churned.
+
+    Suggested action: Create action plan for each at-risk account.
+
+"Who are the Delta Health contacts?":
+  answer: |
+    Delta Health contacts include Erin, Mike, and Priya.
+
+    Suggested action: Schedule call with Erin to discuss renewal timeline.
+  action: true
+
+"What are the Delta Health deals?":
+  answer: |
+    Delta Health has a renewal deal ($22K) and expansion deal ($15K).
+
+    Suggested action: Prioritize the renewal deal and address any concerns.
+  action: true
+
+"What's the Delta Health history?":
+  answer: |
+    Delta Health history includes support calls and renewal discussions.
+
+    Suggested action: Review support tickets and address outstanding issues.
+  action: true
+
+"Who are the Green Energy contacts?":
+  answer: |
+    Green Energy contacts included Carlos, Linda, and Tom.
+
+    Suggested action: Reach out to Carlos about potential win-back opportunity.
+  action: true
+
+"What are the Green Energy deals?":
+  answer: |
+    Green Energy deals are closed lost (churned account).
+
+    Suggested action: Archive account and set reminder for future win-back.
+  action: true
+
+"What's the Green Energy history?":
+  answer: |
+    Green Energy history shows declining engagement leading to churn.
+
+    Suggested action: Analyze churn factors to prevent similar losses.
+  action: true
+
+"Which accounts are churning?":
+  answer: |
+    Green Energy has churned.
+
+    Suggested action: Review churn reasons and update retention playbook.
+  action: true
+
+"Which accounts need attention?":
+  answer: |
+    Delta Health needs attention due to at-risk status.
+
+    Suggested action: Assign dedicated resource to Delta Health recovery.
+
+"What are the warning signs?":
+  answer: |
+    Warning signs include low activity and at-risk health status.
+
+    Suggested action: Set up alerts for accounts showing these patterns.
+
+"Which accounts aren't healthy?":
+  action: true
+
+"Which accounts are renewing soon?":
+  action: true
+
+"Which deals have been stuck in stage the longest?":
+  action: true
+
+# =============================================================================
+# CONTACTS BRANCH - Starter: "Who needs a follow-up?"
+# =============================================================================
+
+"Who needs a follow-up?":
+  answer: |
+    Contacts needing follow-up include those without recent activity.
+
+    Suggested action: Schedule outreach calls with top priority contacts.
+
+"Which contacts haven't been reached?":
+  answer: |
+    Contacts without recent activity may need outreach.
+
+    Suggested action: Create cadence for re-engaging inactive contacts.
+  action: true
+
+"Who are the decision makers?":
+  answer: |
+    Decision makers include executives and champions across accounts.
+
+    Suggested action: Map decision makers to active opportunities.
+  action: true
+
+"Which contacts had recent activity?":
+  answer: |
+    Contacts with recent activity include those engaged in calls and meetings.
+
+    Suggested action: Review recent engagement and plan next steps.
+  action: false
+
+"Who at Acme needs follow-up?":
+  answer: |
+    Acme contacts for follow-up include Anna, Beth, and Joe.
+
+    Suggested action: Schedule check-in with Anna regarding the upgrade deal.
+  action: true
+
+"Which leads are going cold?":
+  answer: |
+    Leads without recent engagement may be going cold.
+
+    Suggested action: Launch re-engagement campaign for cold leads.
+
+"What's the best way to reach them?":
+  answer: |
+    Contact information includes email and phone for each contact.
+
+    Suggested action: Verify contact details are current before outreach.
+
+"Who's the contact at Beta Corp?":
+  answer: |
+    Beta Corp contacts include Maria and Lisa.
+
+    Suggested action: Connect with Maria about the security platform deal.
+  action: true
+
+"Which executives should I engage?":
+  answer: |
+    Executives include decision makers and champions across accounts.
+
+    Suggested action: Prepare executive briefing materials for key accounts.
+
+"What are their roles?":
+  answer: |
+    Roles include Decision Maker, Champion, Technical Contact, and Executive.
+
+    Suggested action: Update contact roles in CRM as relationships evolve.
+
+"What emails were sent recently?":
+  answer: |
+    Recent email communications from the history table.
+
+    Suggested action: Review email responses and schedule follow-ups.
+  action: false
+
+"What meetings occurred recently?":
+  answer: |
+    Recent meetings from the history table.
+
+    Suggested action: Ensure meeting notes are documented and shared.
+  action: false
+
+"What were the recent interactions?":
+  answer: |
+    Recent interactions include calls, meetings, and emails.
+
+    Suggested action: Summarize recent touchpoints for upcoming reviews.
+  action: false
+
+"Which contacts haven't been contacted recently?":
+  action: true
+
+"Which leads have no recent activity?":
+  action: true
+
+"What are the contact emails for at-risk accounts?":
+  action: true
+
+"Who are the executives?":
+  action: false
+
+"What roles do the Beta Tech contacts have?":
+  action: false
