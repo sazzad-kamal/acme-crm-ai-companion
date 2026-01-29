@@ -261,12 +261,24 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
           }
         }
 
-        // Apply final response and remove sectionStatus (streaming complete)
+        // Apply final response and remove sectionStatus (streaming complete).
+        // Accumulated section data (from per-section events) takes priority over
+        // the done event's payload, which may contain empty defaults like sql_results: {}.
         if (finalResponse) {
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === messageId
-                ? { ...msg, response: { answer: accumulatedAnswer, ...finalResponse }, sectionStatus: undefined }
+                ? {
+                    ...msg,
+                    response: {
+                      ...finalResponse,
+                      answer: accumulatedAnswer,
+                      ...(accumulatedSqlResults !== undefined && { sql_results: accumulatedSqlResults }),
+                      ...(accumulatedAction !== undefined && { suggested_action: accumulatedAction }),
+                      ...(accumulatedFollowUps !== undefined && { follow_up_suggestions: accumulatedFollowUps }),
+                    },
+                    sectionStatus: undefined,
+                  }
                 : msg
             )
           );

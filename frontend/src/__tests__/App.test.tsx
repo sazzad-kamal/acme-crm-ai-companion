@@ -57,7 +57,7 @@ describe("App", () => {
 
   it("renders the header", () => {
     render(<App />);
-    expect(screen.getByRole("heading", { name: /Acme CRM AI Companion/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Helios CRM AI Companion/i })).toBeInTheDocument();
   });
 
   it("renders example prompts in empty state", () => {
@@ -402,7 +402,7 @@ describe("App", () => {
     fireEvent.submit(input.closest("form")!);
 
     await waitFor(() => {
-      expect(document.title).toBe("Thinking... | Acme CRM AI");
+      expect(document.title).toBe("Thinking... | Helios CRM AI");
     });
   });
 
@@ -432,7 +432,7 @@ describe("App", () => {
     fireEvent.submit(input.closest("form")!);
 
     await waitFor(() => {
-      expect(document.title).toContain("messages | Acme CRM AI");
+      expect(document.title).toContain("messages | Helios CRM AI");
     });
   });
 

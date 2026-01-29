@@ -48,7 +48,7 @@ export const endpoints = {
  * Should match the starters in backend/agent/question_tree/
  */
 export const EXAMPLE_PROMPTS = [
-  "How's my pipeline?",
-  "Any renewals at risk?",
-  "How's the team doing?",
+  "What deals are in the pipeline?",
+  "Which accounts are up for renewal?",
+  "What tasks are due this week?",
 ] as const;

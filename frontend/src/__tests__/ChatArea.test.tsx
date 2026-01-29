@@ -11,7 +11,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() =>
     Promise.resolve({
       ok: true,
-      json: () => Promise.resolve({ questions: mockStarterQuestions }),
+      json: () => Promise.resolve(mockStarterQuestions),
     })
   ));
 });
@@ -39,7 +39,7 @@ describe("ChatArea", () => {
   it("renders empty state when no messages", () => {
     render(<ChatArea {...defaultProps} />);
 
-    expect(screen.getByText("Welcome to Acme CRM AI")).toBeInTheDocument();
+    expect(screen.getByText("Welcome to Helios CRM AI")).toBeInTheDocument();
   });
 
   it("renders empty state description", () => {
@@ -47,7 +47,7 @@ describe("ChatArea", () => {
 
     expect(
       screen.getByText(
-        /I can help you find information about your accounts, activities, pipeline/
+        /Ask about your CRM — accounts, deals, tasks, or contacts/
       )
     ).toBeInTheDocument();
   });
@@ -56,9 +56,9 @@ describe("ChatArea", () => {
     render(<ChatArea {...defaultProps} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/How's my pipeline/)).toBeInTheDocument();
+      expect(screen.getByText(/What deals are in the pipeline/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/Any renewals at risk/)).toBeInTheDocument();
+    expect(screen.getByText(/Which accounts are up for renewal/)).toBeInTheDocument();
   });
 
   it("renders all 3 example prompts", async () => {
@@ -79,11 +79,11 @@ describe("ChatArea", () => {
 
     render(<ChatArea {...defaultProps} onSuggestionClick={handleSuggestionClick} />);
 
-    const button = await waitFor(() => screen.getByText(/How's my pipeline/));
+    const button = await waitFor(() => screen.getByText(/What deals are in the pipeline/));
     fireEvent.click(button);
 
     expect(handleSuggestionClick).toHaveBeenCalledWith(
-      "How's my pipeline?"
+      "What deals are in the pipeline?"
     );
   });
 
@@ -103,7 +103,7 @@ describe("ChatArea", () => {
 
     render(<ChatArea {...defaultProps} messages={messages} />);
 
-    expect(screen.queryByText("Welcome to Acme CRM AI")).not.toBeInTheDocument();
+    expect(screen.queryByText("Welcome to Helios CRM AI")).not.toBeInTheDocument();
     expect(screen.getByTestId("message-msg1")).toBeInTheDocument();
   });
 
@@ -211,7 +211,7 @@ describe("ChatArea", () => {
     render(<ChatArea {...defaultProps} />);
 
     const firstPrompt = await waitFor(() => screen.getByLabelText(
-      /Ask: How's my pipeline/
+      /Ask: What deals are in the pipeline/
     ));
     expect(firstPrompt).toBeInTheDocument();
   });
@@ -252,7 +252,7 @@ describe("ChatArea", () => {
   it("handles transition from empty to messages", () => {
     const { rerender } = render(<ChatArea {...defaultProps} messages={[]} />);
 
-    expect(screen.getByText("Welcome to Acme CRM AI")).toBeInTheDocument();
+    expect(screen.getByText("Welcome to Helios CRM AI")).toBeInTheDocument();
 
     const messages: ChatMessage[] = [
       {
@@ -265,7 +265,7 @@ describe("ChatArea", () => {
 
     rerender(<ChatArea {...defaultProps} messages={messages} />);
 
-    expect(screen.queryByText("Welcome to Acme CRM AI")).not.toBeInTheDocument();
+    expect(screen.queryByText("Welcome to Helios CRM AI")).not.toBeInTheDocument();
     expect(screen.getByTestId("message-msg1")).toBeInTheDocument();
   });
 
@@ -286,7 +286,7 @@ describe("ChatArea", () => {
     rerender(<ChatArea {...defaultProps} messages={[]} />);
 
     expect(screen.queryByTestId("message-msg1")).not.toBeInTheDocument();
-    expect(screen.getByText("Welcome to Acme CRM AI")).toBeInTheDocument();
+    expect(screen.getByText("Welcome to Helios CRM AI")).toBeInTheDocument();
   });
 
   it("handles messages with duplicate IDs gracefully", () => {
@@ -375,7 +375,7 @@ describe("ChatArea", () => {
 
     // Should still show fallback prompts
     await waitFor(() => {
-      expect(screen.getByText(/How's my pipeline/)).toBeInTheDocument();
+      expect(screen.getByText(/What deals are in the pipeline/)).toBeInTheDocument();
     });
   });
 
@@ -388,7 +388,7 @@ describe("ChatArea", () => {
 
     // Should still show fallback prompts
     await waitFor(() => {
-      expect(screen.getByText(/How's my pipeline/)).toBeInTheDocument();
+      expect(screen.getByText(/What deals are in the pipeline/)).toBeInTheDocument();
     });
   });
 
@@ -396,7 +396,7 @@ describe("ChatArea", () => {
     vi.stubGlobal("fetch", vi.fn(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ questions: [] }),
+        json: () => Promise.resolve([]),
       })
     ));
 
@@ -404,7 +404,7 @@ describe("ChatArea", () => {
 
     // Should still show fallback prompts (empty array doesn't replace)
     await waitFor(() => {
-      expect(screen.getByText(/How's my pipeline/)).toBeInTheDocument();
+      expect(screen.getByText(/What deals are in the pipeline/)).toBeInTheDocument();
     });
   });
 

@@ -70,6 +70,7 @@ export interface RawData {
     count: number;
     stages: Record<string, number>;
   };
+  data?: Record<string, unknown>[];
 }
 
 export interface ChatResponse {

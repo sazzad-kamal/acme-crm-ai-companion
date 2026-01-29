@@ -73,8 +73,8 @@ function EmptyState({ onSuggestionClick }: EmptyStateProps) {
         const response = await fetch(endpoints.starterQuestions);
         if (response.ok) {
           const data = await response.json();
-          if (data.questions && data.questions.length > 0) {
-            setStarterQuestions(data.questions);
+          if (Array.isArray(data) && data.length > 0) {
+            setStarterQuestions(data);
           }
         }
       } catch {
@@ -111,12 +111,12 @@ function EmptyState({ onSuggestionClick }: EmptyStateProps) {
       </div>
 
       <h2 className="empty-state__heading">
-        Welcome to Acme CRM AI
+        Welcome to Helios CRM AI
       </h2>
       
       <p className="empty-state__description">
-        I can help you find information about your accounts, activities, pipeline, and more.
-        Ask me anything in natural language!
+        Ask about your CRM — accounts, deals, tasks, or contacts.
+        I'll query your data and answer in plain language.
       </p>
 
       <div className="empty-state__title" id={suggestionsLabelId}>

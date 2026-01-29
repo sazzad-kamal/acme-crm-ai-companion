@@ -111,9 +111,9 @@ describe("config", () => {
   });
 
   it("has expected example prompts", () => {
-    expect(EXAMPLE_PROMPTS).toContain("How's my pipeline?");
-    expect(EXAMPLE_PROMPTS).toContain("Any renewals at risk?");
-    expect(EXAMPLE_PROMPTS).toContain("How's the team doing?");
+    expect(EXAMPLE_PROMPTS).toContain("What deals are in the pipeline?");
+    expect(EXAMPLE_PROMPTS).toContain("Which accounts are up for renewal?");
+    expect(EXAMPLE_PROMPTS).toContain("What tasks are due this week?");
   });
 
   it("all example prompts are unique", () => {

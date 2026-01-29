@@ -54,7 +54,8 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
       (rawData.activities && rawData.activities.length > 0) ||
       (rawData.opportunities && rawData.opportunities.length > 0) ||
       (rawData.history && rawData.history.length > 0) ||
-      (rawData.renewals && rawData.renewals.length > 0),
+      (rawData.renewals && rawData.renewals.length > 0) ||
+      (rawData.data && rawData.data.length > 0),
     [rawData]
   );
 
@@ -76,6 +77,7 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
     if (rawData.history?.length) types.push({ key: "history", icon: "📜", count: rawData.history.length });
     if (rawData.renewals?.length) types.push({ key: "renewals", icon: "🔄", count: rawData.renewals.length });
     if (rawData.pipeline_summary) types.push({ key: "pipeline", icon: "📊", count: 1 });
+    if (rawData.data?.length) types.push({ key: "data", icon: "📄", count: rawData.data.length });
     return types;
   }, [rawData]);
 
@@ -281,6 +283,34 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
                     <th scope="row">Opportunity Count</th>
                     <td>{rawData.pipeline_summary.count}</td>
                   </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Generic Data Table (raw query results) */}
+          {rawData.data && rawData.data.length > 0 && (
+            <div role="region" aria-label="Query results" data-type="data">
+              <h4 className="data-table__title" id="generic-table-label">
+                <span className="data-table__icon">📄</span>
+                Results ({rawData.data.length})
+              </h4>
+              <table className="data-table" aria-labelledby="generic-table-label">
+                <thead>
+                  <tr>
+                    {Object.keys(rawData.data[0]).filter(k => !k.startsWith("_")).map((col) => (
+                      <th key={col} scope="col">{col.replace(/_/g, " ")}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rawData.data.map((row, idx) => (
+                    <tr key={idx}>
+                      {Object.entries(row).filter(([k]) => !k.startsWith("_")).map(([key, val]) => (
+                        <td key={key}>{String(val ?? "—")}</td>
+                      ))}
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
