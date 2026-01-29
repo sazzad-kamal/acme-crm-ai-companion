@@ -125,8 +125,8 @@ describe("App", () => {
     fireEvent.submit(input.closest("form")!);
 
     await waitFor(() => {
-      // Should show thinking indicator while waiting for response
-      expect(screen.getByRole("status", { name: /thinking/i })).toBeInTheDocument();
+      // Should show skeleton loaders while waiting for response
+      expect(screen.getByRole("status", { name: /generating answer/i })).toBeInTheDocument();
     });
   });
 

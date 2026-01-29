@@ -23,7 +23,7 @@ test.describe('Streaming Chat', () => {
     await sendButton.click();
 
     // Should show thinking indicator (skeleton loader)
-    const thinkingIndicator = page.locator('.message-skeleton');
+    const thinkingIndicator = page.locator('.skeleton-answer');
     await expect(thinkingIndicator).toBeVisible({ timeout: 5000 });
   });
 
@@ -56,7 +56,7 @@ test.describe('Streaming Chat', () => {
     await expect(answer).toBeVisible({ timeout: 30000 });
 
     // Thinking indicator should be gone
-    const thinkingIndicator = page.locator('.message-skeleton');
+    const thinkingIndicator = page.locator('.skeleton-answer');
     await expect(thinkingIndicator).not.toBeVisible();
   });
 
@@ -123,7 +123,7 @@ test.describe('Streaming Performance', () => {
     await sendButton.click();
 
     // Thinking indicator should appear within 2 seconds
-    const thinkingIndicator = page.locator('.message-skeleton');
+    const thinkingIndicator = page.locator('.skeleton-answer');
     await expect(thinkingIndicator).toBeVisible({ timeout: 2000 });
 
     const elapsedTime = Date.now() - startTime;

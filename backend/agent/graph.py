@@ -59,4 +59,4 @@ def _build_graph():
 
 agent_graph = _build_graph()
 
-__all__ = ["agent_graph", "build_thread_config", "LangGraphEvent", "GRAPH_NAME", "ANSWER_NODE", "ACTION_NODE"]
+__all__ = ["agent_graph", "build_thread_config", "LangGraphEvent", "GRAPH_NAME", "FETCH_NODE", "ANSWER_NODE", "ACTION_NODE", "FOLLOWUP_NODE"]

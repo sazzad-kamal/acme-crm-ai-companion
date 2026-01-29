@@ -6,7 +6,10 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from backend.agent.graph import (
+    ACTION_NODE,
     ANSWER_NODE,
+    FETCH_NODE,
+    FOLLOWUP_NODE,
     GRAPH_NAME,
     LangGraphEvent,
     agent_graph,
@@ -19,12 +22,15 @@ logger = logging.getLogger(__name__)
 
 class StreamEvent:
     ANSWER_CHUNK = "answer_chunk"
+    DATA_READY = "data_ready"
+    ACTION_READY = "action_ready"
+    FOLLOWUP_READY = "followup_ready"
     DONE = "done"
     ERROR = "error"
 
 
 def _format_sse(event: str, data: dict[str, Any]) -> str:
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
 
 async def stream_agent(question: str, session_id: str | None = None) -> AsyncGenerator[str, None]:  # pragma: no cover
@@ -55,6 +61,25 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
                     "follow_up_suggestions": final.get("follow_up_suggestions", []),
                     "suggested_action": final.get("suggested_action"),
                 })
+
+            # Per-section events (non-exclusive, checked independently)
+            if event_type == LangGraphEvent.GRAPH_END and name in (FETCH_NODE, ACTION_NODE, FOLLOWUP_NODE):
+                try:
+                    output = e.get("data", {}).get("output") or {}
+                    if name == FETCH_NODE:
+                        yield _format_sse(StreamEvent.DATA_READY, {
+                            "sql_results": output.get("sql_results", {}),
+                        })
+                    elif name == ACTION_NODE:
+                        yield _format_sse(StreamEvent.ACTION_READY, {
+                            "suggested_action": output.get("suggested_action"),
+                        })
+                    elif name == FOLLOWUP_NODE:
+                        yield _format_sse(StreamEvent.FOLLOWUP_READY, {
+                            "follow_up_suggestions": output.get("follow_up_suggestions", []),
+                        })
+                except Exception as section_err:
+                    logger.warning("[Stream] Section event %s failed: %s", name, section_err)
 
     except Exception as ex:
         logger.error("[Stream] %s", ex)

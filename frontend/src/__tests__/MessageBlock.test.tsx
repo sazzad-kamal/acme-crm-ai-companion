@@ -92,17 +92,21 @@ describe("MessageBlock", () => {
   // Response States
   // =========================================================================
 
-  it("shows thinking indicator when response is null", () => {
+  it("shows skeleton loaders when streaming with sectionStatus", () => {
     const message: ChatMessage = {
       id: "msg1",
       question: "Test question",
-      response: null,
+      response: { answer: "" },
+      sectionStatus: { data: "loading", answer: "loading", action: "loading", followup: "loading" },
       timestamp: new Date(),
     };
 
     render(<MessageBlock message={message} />);
 
-    expect(screen.getByRole("status", { name: /thinking/i })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /generating answer/i })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /loading suggested action/i })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /loading data/i })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /loading suggestions/i })).toBeInTheDocument();
   });
 
   it("renders answer when response is available", () => {
@@ -408,7 +412,8 @@ describe("MessageBlock", () => {
     const message1: ChatMessage = {
       id: "msg1",
       question: "Test",
-      response: null,
+      response: { answer: "" },
+      sectionStatus: { data: "loading", answer: "loading", action: "loading", followup: "loading" },
       timestamp: new Date(),
     };
 
@@ -420,10 +425,10 @@ describe("MessageBlock", () => {
     };
 
     const { rerender } = render(<MessageBlock message={message1} />);
-    expect(screen.getByRole("status", { name: /thinking/i })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /generating answer/i })).toBeInTheDocument();
 
     rerender(<MessageBlock message={message2} />);
-    expect(screen.queryByRole("status", { name: /thinking/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: /generating answer/i })).not.toBeInTheDocument();
     expect(screen.getByText("Answer arrived")).toBeInTheDocument();
   });
 });

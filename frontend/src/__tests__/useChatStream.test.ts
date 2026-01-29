@@ -108,8 +108,14 @@ describe("useChatStream", () => {
 
     expect(result.current.messages).toHaveLength(1);
     expect(result.current.messages[0].question).toBe("Test question");
-    // Message starts with null response (shows thinking indicator)
-    expect(result.current.messages[0].response).toBeNull();
+    // Message starts with empty answer and sectionStatus (shows skeleton loaders)
+    expect(result.current.messages[0].response).toEqual({ answer: "" });
+    expect(result.current.messages[0].sectionStatus).toEqual({
+      data: "loading",
+      answer: "loading",
+      action: "loading",
+      followup: "loading",
+    });
   });
 
   it("parses done event and sets final response", async () => {

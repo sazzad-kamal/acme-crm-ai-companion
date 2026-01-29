@@ -79,10 +79,18 @@ export interface ChatResponse {
   suggested_action?: string | null;
 }
 
+export interface SectionStatus {
+  data: "loading" | "done";
+  answer: "loading" | "done";
+  action: "loading" | "done";
+  followup: "loading" | "done";
+}
+
 export interface ChatMessage {
   id: string;
   question: string;
   response: ChatResponse | null;
+  sectionStatus?: SectionStatus;
   timestamp: Date;
 }
 

@@ -808,8 +808,35 @@ body {
   opacity: 1;
 }
 
-/* Skeleton loader for message loading state */
-.message-skeleton {
+/* =============================================================================
+   Section Skeleton Loaders
+   ============================================================================= */
+
+/* Shared shimmer background */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Shared shimmer style mixin (applied via class) */
+.skeleton-bar {
+  background: linear-gradient(
+    90deg,
+    var(--color-border-light) 0%,
+    var(--color-border) 50%,
+    var(--color-border-light) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* --- Answer Skeleton: 3 text lines of varying width --- */
+.skeleton-answer {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -817,7 +844,7 @@ body {
   max-width: 400px;
 }
 
-.message-skeleton__line {
+.skeleton-answer__line {
   height: 14px;
   background: linear-gradient(
     90deg,
@@ -830,31 +857,124 @@ body {
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 
-.message-skeleton__line--long {
+.skeleton-answer__line--long {
   width: 100%;
 }
 
-.message-skeleton__line--medium {
+.skeleton-answer__line--medium {
   width: 75%;
   animation-delay: 0.1s;
 }
 
-.message-skeleton__line--short {
+.skeleton-answer__line--short {
   width: 50%;
   animation-delay: 0.2s;
 }
 
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
+/* --- Action Skeleton: single rounded bar --- */
+.skeleton-action {
+  padding: var(--space-sm) 0;
 }
 
+.skeleton-action__bar {
+  height: 40px;
+  width: 70%;
+  max-width: 320px;
+  background: linear-gradient(
+    90deg,
+    var(--color-border-light) 0%,
+    var(--color-border) 50%,
+    var(--color-border-light) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-md);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  animation-delay: 0.3s;
+}
+
+/* --- Data Skeleton: 3x3 table grid --- */
+.skeleton-data {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-sm) 0;
+  max-width: 360px;
+}
+
+.skeleton-data__row {
+  display: flex;
+  gap: 8px;
+}
+
+.skeleton-data__cell {
+  height: 14px;
+  flex: 1;
+  background: linear-gradient(
+    90deg,
+    var(--color-border-light) 0%,
+    var(--color-border) 50%,
+    var(--color-border-light) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-data__cell--header {
+  height: 12px;
+  opacity: 0.7;
+}
+
+.skeleton-data__row:nth-child(2) .skeleton-data__cell {
+  animation-delay: 0.1s;
+}
+
+.skeleton-data__row:nth-child(3) .skeleton-data__cell {
+  animation-delay: 0.2s;
+}
+
+/* --- Follow-up Skeleton: inline pill chips --- */
+.skeleton-followup {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  flex-wrap: wrap;
+}
+
+.skeleton-followup__pill {
+  height: 32px;
+  border-radius: 16px;
+  background: linear-gradient(
+    90deg,
+    var(--color-border-light) 0%,
+    var(--color-border) 50%,
+    var(--color-border-light) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-followup__pill:nth-child(1) {
+  width: 140px;
+  animation-delay: 0.1s;
+}
+
+.skeleton-followup__pill:nth-child(2) {
+  width: 180px;
+  animation-delay: 0.2s;
+}
+
+.skeleton-followup__pill:nth-child(3) {
+  width: 120px;
+  animation-delay: 0.3s;
+}
+
+/* --- Reduced motion --- */
 @media (prefers-reduced-motion: reduce) {
-  .message-skeleton__line {
+  .skeleton-answer__line,
+  .skeleton-action__bar,
+  .skeleton-data__cell,
+  .skeleton-followup__pill {
     animation: none;
     background: var(--color-border-light);
   }

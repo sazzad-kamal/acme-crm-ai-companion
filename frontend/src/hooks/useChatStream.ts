@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { ChatMessage, ChatResponse, ChatRequest } from "../types";
+import type { ChatMessage, ChatResponse, ChatRequest, SectionStatus, RawData } from "../types";
 import { config } from "../config";
 
 // =============================================================================
@@ -132,11 +132,19 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
 
       const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-      // Initialize message with null response (shows thinking indicator)
+      // Initialize message with all sections loading
+      const sectionStatus: SectionStatus = {
+        data: "loading",
+        answer: "loading",
+        action: "loading",
+        followup: "loading",
+      };
+
       const newMessage: ChatMessage = {
         id: messageId,
         question: trimmedQuestion,
-        response: null,
+        response: { answer: "" },
+        sectionStatus: { ...sectionStatus },
         timestamp: new Date(),
       };
 
@@ -145,14 +153,26 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
 
       // Build up the response as events arrive
       let accumulatedAnswer = "";
+      let accumulatedSqlResults: RawData | undefined;
+      let accumulatedAction: string | null | undefined;
+      let accumulatedFollowUps: string[] | undefined;
       let finalResponse: ChatResponse | null = null;
 
-      // Helper to update message with current accumulated answer
-      const updateMessageResponse = () => {
+      // Helper to update message with current state
+      const updateMessage = () => {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === messageId
-              ? { ...msg, response: { answer: accumulatedAnswer } }
+              ? {
+                  ...msg,
+                  response: {
+                    answer: accumulatedAnswer,
+                    ...(accumulatedSqlResults !== undefined && { sql_results: accumulatedSqlResults }),
+                    ...(accumulatedAction !== undefined && { suggested_action: accumulatedAction }),
+                    ...(accumulatedFollowUps !== undefined && { follow_up_suggestions: accumulatedFollowUps }),
+                  },
+                  sectionStatus: { ...sectionStatus },
+                }
               : msg
           )
         );
@@ -203,9 +223,28 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
 
           for (const event of events) {
             switch (event.type) {
+              case "data_ready":
+                accumulatedSqlResults = event.data.sql_results as RawData;
+                sectionStatus.data = "done";
+                updateMessage();
+                break;
+
               case "answer_chunk":
                 accumulatedAnswer += event.data.chunk as string;
-                updateMessageResponse();
+                sectionStatus.answer = "done";
+                updateMessage();
+                break;
+
+              case "action_ready":
+                accumulatedAction = (event.data.suggested_action as string | null) ?? null;
+                sectionStatus.action = "done";
+                updateMessage();
+                break;
+
+              case "followup_ready":
+                accumulatedFollowUps = (event.data.follow_up_suggestions as string[]) ?? [];
+                sectionStatus.followup = "done";
+                updateMessage();
                 break;
 
               case "done":
@@ -222,12 +261,12 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
           }
         }
 
-        // Apply final response (merge answer with metadata from done event)
+        // Apply final response and remove sectionStatus (streaming complete)
         if (finalResponse) {
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === messageId
-                ? { ...msg, response: { answer: accumulatedAnswer, ...finalResponse } }
+                ? { ...msg, response: { answer: accumulatedAnswer, ...finalResponse }, sectionStatus: undefined }
                 : msg
             )
           );
