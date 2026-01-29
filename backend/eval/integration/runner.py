@@ -51,6 +51,7 @@ def _evaluate_ragas(
         nan_metrics = cast(list[str], ragas.get("nan_metrics", []))
         return {
             "relevance_score": cast(float, ragas["answer_relevancy"]),
+            "faithfulness_score": cast(float, ragas["faithfulness"]),
             "answer_correctness_score": cast(float, ragas["answer_correctness"]),
             "ragas_metrics_total": RAGAS_METRICS_COUNT,
             "ragas_metrics_failed": len(nan_metrics),
@@ -143,7 +144,7 @@ def print_summary(results: ConvoEvalResults) -> None:
     print("\nConversation Evaluation Summary")
     print(f"Pass Rate: {results.pass_rate:.1%} (>={SLO_CONVO_STEP_PASS_RATE:.1%} SLO) {status}")
     print(f"Questions: {results.passed}/{results.total}")
-    print(f"Avg Relevance: {results.avg_relevance:.2f}, Correctness: {results.avg_answer_correctness:.2f}")
+    print(f"Avg Relevance: {results.avg_relevance:.2f}, Faithfulness: {results.avg_faithfulness:.2f}, Correctness: {results.avg_answer_correctness:.2f}")
 
     ragas_ok = results.ragas_metrics_total - results.ragas_metrics_failed
     print(f"RAGAS: {ragas_ok}/{results.ragas_metrics_total} ({results.ragas_success_rate:.1%})")

@@ -8,7 +8,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
 
-from backend.eval.answer.text.models import SLO_TEXT_ANSWER_CORRECTNESS, SLO_TEXT_ANSWER_RELEVANCY
+from backend.eval.answer.text.models import (
+    SLO_TEXT_ANSWER_CORRECTNESS,
+    SLO_TEXT_ANSWER_RELEVANCY,
+    SLO_TEXT_FAITHFULNESS,
+)
 from backend.eval.integration.models import (
     SLO_CONVO_STEP_PASS_RATE,
     ConvoEvalResults,
@@ -40,6 +44,8 @@ SLO_SPECS: list[SloSpec] = [
             lambda r: r.pass_rate, SLO_CONVO_STEP_PASS_RATE, ">=", "pct"),
     SloSpec("relevance", "Relevance", "Answer Quality",
             lambda r: r.avg_relevance, SLO_TEXT_ANSWER_RELEVANCY, ">=", "pct"),
+    SloSpec("faithfulness", "Faithfulness", "Answer Quality",
+            lambda r: r.avg_faithfulness, SLO_TEXT_FAITHFULNESS, ">=", "pct"),
     SloSpec("answer_correctness", "Answer Correctness", "Answer Quality",
             lambda r: r.avg_answer_correctness, SLO_TEXT_ANSWER_CORRECTNESS, ">=", "pct"),
 ]
@@ -122,6 +128,8 @@ def _count_slo_failures(step: ConvoStepResult) -> int:
     count = 0
     if step.relevance_score < SLO_TEXT_ANSWER_RELEVANCY:
         count += 1
+    if step.faithfulness_score < SLO_TEXT_FAITHFULNESS:
+        count += 1
     if step.answer_correctness_score < SLO_TEXT_ANSWER_CORRECTNESS:
         count += 1
     return count
@@ -141,8 +149,8 @@ def _print_slo_failures(results: ConvoEvalResults) -> None:
 
     print()
     print(f"SLO Failures ({len(shown)} of {len(failures)} shown, sorted by severity)")
-    print(f"  {'Question':<45} {'R':>3} {'A':>3}")
-    print(f"  {'-'*45} {'-'*3} {'-'*3}")
+    print(f"  {'Question':<45} {'R':>3} {'F':>3} {'A':>3}")
+    print(f"  {'-'*45} {'-'*3} {'-'*3} {'-'*3}")
 
     def fmt(passed: bool) -> str:
         return "Y" if passed else "X"
@@ -150,8 +158,9 @@ def _print_slo_failures(results: ConvoEvalResults) -> None:
     for step in shown:
         q = step.question[:43] + "..." if len(step.question) > 43 else step.question
         r = fmt(step.relevance_score >= SLO_TEXT_ANSWER_RELEVANCY)
+        f = fmt(step.faithfulness_score >= SLO_TEXT_FAITHFULNESS)
         a = fmt(step.answer_correctness_score >= SLO_TEXT_ANSWER_CORRECTNESS)
-        print(f"  {q:<45} {r:>3} {a:>3}")
+        print(f"  {q:<45} {r:>3} {f:>3} {a:>3}")
 
 
 # =============================================================================

@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from backend.eval.answer.text.models import SLO_TEXT_ANSWER_CORRECTNESS, SLO_TEXT_ANSWER_RELEVANCY
+from backend.eval.answer.text.models import (
+    SLO_TEXT_ANSWER_CORRECTNESS,
+    SLO_TEXT_ANSWER_RELEVANCY,
+    SLO_TEXT_FAITHFULNESS,
+)
 from backend.eval.shared.models import BaseEvalResults
 
 # SLO thresholds for integration evaluation
@@ -18,6 +22,7 @@ class ConvoStepResult(BaseModel):
     answer: str
     # RAGAS metrics (0.0-1.0) - answer quality
     relevance_score: float = 0.0  # RAGAS answer_relevancy
+    faithfulness_score: float = 0.0  # RAGAS faithfulness
     answer_correctness_score: float = 0.0  # RAGAS answer_correctness
     errors: list[str] = Field(default_factory=list)
     # RAGAS reliability tracking
@@ -50,7 +55,11 @@ class ConvoStepResult(BaseModel):
             return False
         # Only check RAGAS scores when actually evaluated
         if self.ragas_metrics_total > 0:
-            return self.relevance_score >= SLO_TEXT_ANSWER_RELEVANCY and self.answer_correctness_score >= SLO_TEXT_ANSWER_CORRECTNESS
+            return (
+                self.relevance_score >= SLO_TEXT_ANSWER_RELEVANCY
+                and self.faithfulness_score >= SLO_TEXT_FAITHFULNESS
+                and self.answer_correctness_score >= SLO_TEXT_ANSWER_CORRECTNESS
+            )
         return True
 
 
@@ -60,6 +69,7 @@ class ConvoEvalResults(BaseEvalResults):
     cases: list[ConvoStepResult] = Field(default_factory=list)
     # RAGAS metrics (0.0-1.0) - answer quality
     avg_relevance: float = 0.0  # RAGAS answer_relevancy
+    avg_faithfulness: float = 0.0  # RAGAS faithfulness
     avg_answer_correctness: float = 0.0  # RAGAS answer_correctness
     # RAGAS reliability tracking
     ragas_metrics_total: int = 0  # Total individual metrics evaluated (questions x 2)
@@ -94,6 +104,7 @@ class ConvoEvalResults(BaseEvalResults):
         evaluated = [c for c in self.cases if c.ragas_metrics_total > 0]
         if evaluated:
             self.avg_relevance = sum(c.relevance_score for c in evaluated) / len(evaluated)
+            self.avg_faithfulness = sum(c.faithfulness_score for c in evaluated) / len(evaluated)
             self.avg_answer_correctness = sum(c.answer_correctness_score for c in evaluated) / len(evaluated)
 
         # Action aggregates (only for steps where the judge actually ran)

@@ -43,19 +43,29 @@ class TestConvoStepResult:
     def test_passed_property(self):
         passing = ConvoStepResult(
             question="Q", answer="A",
-            relevance_score=0.9, answer_correctness_score=0.6, ragas_metrics_total=2,
+            relevance_score=0.9, faithfulness_score=0.90, answer_correctness_score=0.6,
+            ragas_metrics_total=3,
         )
         assert passing.passed is True
 
         failing_relevance = ConvoStepResult(
             question="Q", answer="A",
-            relevance_score=0.5, answer_correctness_score=0.6, ragas_metrics_total=2,
+            relevance_score=0.5, faithfulness_score=0.90, answer_correctness_score=0.6,
+            ragas_metrics_total=3,
         )
         assert failing_relevance.passed is False
 
+        failing_faithfulness = ConvoStepResult(
+            question="Q", answer="A",
+            relevance_score=0.9, faithfulness_score=0.50, answer_correctness_score=0.6,
+            ragas_metrics_total=3,
+        )
+        assert failing_faithfulness.passed is False
+
         failing_correctness = ConvoStepResult(
             question="Q", answer="A",
-            relevance_score=0.9, answer_correctness_score=0.3, ragas_metrics_total=2,
+            relevance_score=0.9, faithfulness_score=0.90, answer_correctness_score=0.3,
+            ragas_metrics_total=3,
         )
         assert failing_correctness.passed is False
 
@@ -136,13 +146,13 @@ class TestConvoEvalResults:
         cases = [
             ConvoStepResult(
                 question="Q1?", answer="A1",
-                relevance_score=0.9, answer_correctness_score=0.8,
-                ragas_metrics_total=2, ragas_metrics_failed=0,
+                relevance_score=0.9, faithfulness_score=0.95, answer_correctness_score=0.8,
+                ragas_metrics_total=3, ragas_metrics_failed=0,
             ),
             ConvoStepResult(
                 question="Q2?", answer="A2",
-                relevance_score=0.5, answer_correctness_score=0.3,
-                ragas_metrics_total=2, ragas_metrics_failed=1,
+                relevance_score=0.5, faithfulness_score=0.85, answer_correctness_score=0.3,
+                ragas_metrics_total=3, ragas_metrics_failed=1,
             ),
         ]
         results = ConvoEvalResults(total=2, cases=cases)
@@ -151,8 +161,9 @@ class TestConvoEvalResults:
         assert results.passed == 1
         assert results.failed == 1
         assert results.avg_relevance == 0.7
+        assert round(results.avg_faithfulness, 2) == 0.9
         assert results.avg_answer_correctness == 0.55
-        assert results.ragas_metrics_total == 4
+        assert results.ragas_metrics_total == 6
         assert results.ragas_metrics_failed == 1
 
     def test_compute_aggregates_with_actions(self):
@@ -281,7 +292,7 @@ class TestTestSingleQuestion:
                 "sql_results": {"company_info": [{"name": "Acme", "company_id": "ACME001"}]},
             })
         def mock_evaluate_single(*args, **kwargs):
-            return {"answer_relevancy": 0.90, "answer_correctness": 0.70, "nan_metrics": []}
+            return {"answer_relevancy": 0.90, "faithfulness": 0.95, "answer_correctness": 0.70, "nan_metrics": []}
 
         import backend.eval.integration.runner
         monkeypatch.setattr(backend.eval.integration.runner, "_invoke_agent", mock_invoke_agent)
@@ -291,6 +302,7 @@ class TestTestSingleQuestion:
 
         result = test_single_question("What is Acme's status?", "session1")
         assert result.relevance_score == 0.90
+        assert result.faithfulness_score == 0.95
 
     def test_no_answer(self, monkeypatch):
         from backend.eval.integration.runner import test_single_question
@@ -325,7 +337,7 @@ class TestTestSingleQuestion:
                 "sql_results": {"data": [{"id": 1}]},
             })
         def mock_evaluate_single(*args, **kwargs):
-            return {"answer_relevancy": 0.85, "answer_correctness": 0.75, "nan_metrics": []}
+            return {"answer_relevancy": 0.85, "faithfulness": 0.90, "answer_correctness": 0.75, "nan_metrics": []}
 
         import backend.eval.integration.runner
         monkeypatch.setattr(backend.eval.integration.runner, "_invoke_agent", mock_invoke_agent)
@@ -344,7 +356,7 @@ class TestTestSingleQuestion:
                 "sql_results": {"data": [{"id": 1}]},
             })
         def mock_evaluate_single(*args, **kwargs):
-            return {"answer_relevancy": 0.0, "answer_correctness": 0.0, "nan_metrics": ["answer_relevancy", "answer_correctness"]}
+            return {"answer_relevancy": 0.0, "faithfulness": 0.0, "answer_correctness": 0.0, "nan_metrics": ["answer_relevancy", "faithfulness", "answer_correctness"]}
 
         import backend.eval.integration.runner
         monkeypatch.setattr(backend.eval.integration.runner, "_invoke_agent", mock_invoke_agent)
@@ -467,8 +479,8 @@ class TestRunConvoEval:
         def mock_test_single_question(question, session_id):
             return ConvoStepResult(
                 question=question, answer="Bad",
-                relevance_score=0.5, answer_correctness_score=0.3,
-                ragas_metrics_total=2,
+                relevance_score=0.5, faithfulness_score=0.50, answer_correctness_score=0.3,
+                ragas_metrics_total=3,
             )
 
         import backend.eval.integration.runner
@@ -484,8 +496,8 @@ class TestRunConvoEval:
         def mock_test_single_question(question, session_id):
             return ConvoStepResult(
                 question=question, answer="A1",
-                relevance_score=0.9, answer_correctness_score=0.85,
-                ragas_metrics_total=2,
+                relevance_score=0.9, faithfulness_score=0.90, answer_correctness_score=0.85,
+                ragas_metrics_total=3,
             )
 
         import backend.eval.integration.runner
