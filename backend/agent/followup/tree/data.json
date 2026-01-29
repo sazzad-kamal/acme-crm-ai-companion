@@ -8,12 +8,12 @@
   "Which accounts are up for renewal?": [
     "Which renewals are at risk?",
     "What's the total renewal value at stake?",
-    "What interactions have we had with at-risk accounts?"
+    "What's the history with Crown Foods?"
   ],
 
-  "What are the open activities?": [
-    "Which activities are high priority?",
-    "What types of activities are most common?",
-    "What accounts have the most open activities?"
+  "Who are the contacts at Delta Health?": [
+    "Who is the decision maker at Delta Health?",
+    "What deals does Delta Health have?",
+    "What's the interaction history with Delta Health?"
   ]
 }

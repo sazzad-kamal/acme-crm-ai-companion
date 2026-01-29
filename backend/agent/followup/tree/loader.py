@@ -15,7 +15,7 @@ _DATA_PATH = Path(__file__).parent / "data.json"
 _STARTERS = (
     "What deals are in the pipeline?",
     "Which accounts are up for renewal?",
-    "What are the open activities?",
+    "Who are the contacts at Delta Health?",
 )
 
 

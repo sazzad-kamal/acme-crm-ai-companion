@@ -47,7 +47,7 @@ class TestGetStarters:
         starters = get_starters()
         assert "What deals are in the pipeline?" in starters  # Opportunities
         assert "Which accounts are up for renewal?" in starters  # Companies
-        assert "What are the open activities?" in starters  # Activities
+        assert "Who are the contacts at Delta Health?" in starters  # Contacts
 
 
 # =============================================================================
@@ -86,11 +86,11 @@ class TestGetFollowUps:
         assert len(follow_ups) == 3
         assert "Which renewals are at risk?" in follow_ups
 
-    def test_activities_starter_has_follow_ups(self):
-        """Activities starter has follow-ups."""
-        follow_ups = get_follow_ups("What are the open activities?")
+    def test_contacts_starter_has_follow_ups(self):
+        """Contacts starter has follow-ups."""
+        follow_ups = get_follow_ups("Who are the contacts at Delta Health?")
         assert len(follow_ups) == 3
-        assert "Which activities are high priority?" in follow_ups
+        assert "Who is the decision maker at Delta Health?" in follow_ups
 
 
 # =============================================================================
@@ -137,7 +137,7 @@ class TestGetAllPaths:
         expected_starters = {
             "What deals are in the pipeline?",
             "Which accounts are up for renewal?",
-            "What are the open activities?",
+            "Who are the contacts at Delta Health?",
         }
         assert starters_covered == expected_starters
 

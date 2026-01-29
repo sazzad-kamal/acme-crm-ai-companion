@@ -32,12 +32,39 @@ Today: {today}
 - No exclusion filters (NOT IN, IS NOT NULL) unless asked
 - CRITICAL: Minimal JOINs - query only the primary table unless a JOIN is essential for the answer
 - Use INNER JOIN by default; LEFT JOIN only for optional relationships
+- Never use LIMIT unless the user asks for a specific number (e.g., "top 3", "first 5")
 
 ## TABLE DISTINCTIONS
 - activities: future/scheduled tasks (activity_id, due_date, completed_at)
 - history: past interactions (history_id, occurred_at) - DO NOT use activity_id on history
 - Company names (e.g., "Beta Tech") are in companies.name, NOT in opportunities.name
-- health_status uses hyphenated values like 'at-risk-low-activity' - use LIKE '%at-risk%'"""
+- health_status uses hyphenated values like 'at-risk-low-activity' - use LIKE '%at-risk%'
+
+## EXAMPLES
+
+Q: "What deals are in the pipeline?"
+SELECT * FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost')
+
+Q: "Which accounts are up for renewal?"
+SELECT * FROM companies WHERE renewal_date IS NOT NULL ORDER BY renewal_date
+
+Q: "Who are the contacts at Delta Health?"
+SELECT c.* FROM contacts c JOIN companies co ON c.company_id = co.company_id WHERE co.name = 'Delta Health Clinics'
+
+Q: "Which deals are closest to closing?"
+SELECT * FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') ORDER BY expected_close_date ASC
+
+Q: "What stages have the most deals?"
+SELECT stage, COUNT(*) AS deal_count FROM opportunities GROUP BY stage ORDER BY deal_count DESC
+
+Q: "Who owns the most pipeline value?"
+SELECT owner, SUM(amount) AS total_value FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') GROUP BY owner ORDER BY total_value DESC
+
+Q: "Which renewals are at risk?"
+SELECT * FROM companies WHERE health_status LIKE '%at-risk%' AND renewal_date IS NOT NULL
+
+Q: "What's the history with Crown Foods?"
+SELECT h.* FROM history h JOIN companies c ON h.company_id = c.company_id WHERE c.name = 'Crown Foods'"""
 
 _HUMAN_PROMPT = """User's question: {question}
 

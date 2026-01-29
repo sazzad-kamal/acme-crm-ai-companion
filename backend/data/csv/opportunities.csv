@@ -1,29 +1,29 @@
 opportunity_id,company_id,contact_id,name,stage,type,amount,currency,probability,source,owner,expected_close_date,created_at,updated_at,closed_date,notes
-OPP-ACME-UPGRADE,ACME-MFG,C-ACME-ANNA,Acme Manufacturing - Pro to Enterprise upgrade,Proposal,Expansion,15000,USD,60,Existing Customer,jsmith,2026-01-25,2025-10-01,2025-11-10,,"Acme Manufacturing opportunity context:
+OPP-ACME-UPGRADE,ACME-MFG,C-ACME-ANNA,Acme Manufacturing - Pro to Enterprise upgrade,Proposal,Expansion,15000,USD,60,Existing Customer,jsmith,2026-02-08,2025-10-01,2025-11-10,,"Acme Manufacturing opportunity context:
 - Stage: Proposal
 - Value: 15000 USD
 - Expected close: 2025-12-15
 
 Summary: Customer is exploring changes focused on automating follow-ups and reminders. Primary risk noted is duplicate contacts causing confusion. Recommended next step: build a renewal dashboard and set weekly review cadence."
-OPP-ACME-RENEWAL,ACME-MFG,C-ACME-JOE,Acme Manufacturing - Annual renewal,Qualified,Renewal,24000,USD,40,Existing Customer,jsmith,2026-04-15,2025-09-15,2025-11-01,,"Acme Manufacturing opportunity context:
+OPP-ACME-RENEWAL,ACME-MFG,C-ACME-JOE,Acme Manufacturing - Annual renewal,Qualified,Renewal,24000,USD,40,Existing Customer,jsmith,2026-04-29,2025-09-15,2025-11-01,,"Acme Manufacturing opportunity context:
 - Stage: Qualified
 - Value: 24000 USD
 - Expected close: 2026-03-15
 
 Summary: Customer is exploring changes focused on consolidating history/notes into a single customer timeline. Primary risk noted is inconsistent activity logging across the team. Recommended next step: schedule a 30-minute admin setup call."
-OPP-BETA-NEW,BETA-TECH,C-BETA-LISA,Beta Tech - New rollout,Negotiation,New Business,32000,USD,80,Referral,ljones,2026-02-15,2025-08-20,2025-11-02,,"Beta Tech Solutions opportunity context:
+OPP-BETA-NEW,BETA-TECH,C-BETA-LISA,Beta Tech - New rollout,Negotiation,New Business,32000,USD,80,Referral,ljones,2026-03-01,2025-08-20,2025-11-02,,"Beta Tech Solutions opportunity context:
 - Stage: Negotiation
 - Value: 32000 USD
 - Expected close: 2025-12-31
 
 Summary: Customer is exploring changes focused on segmenting contacts for targeted campaigns. Primary risk noted is inconsistent activity logging across the team. Recommended next step: import an updated contact list and resolve duplicates."
-OPP-BETA-ADDON,BETA-TECH,C-BETA-SAM,Beta Tech - Analytics add-on,Discovery,Expansion,8000,USD,20,Existing Customer,ljones,2026-03-15,2025-11-01,2025-11-15,,"Beta Tech Solutions opportunity context:
+OPP-BETA-ADDON,BETA-TECH,C-BETA-SAM,Beta Tech - Analytics add-on,Discovery,Expansion,8000,USD,20,Existing Customer,ljones,2026-03-29,2025-11-01,2025-11-15,,"Beta Tech Solutions opportunity context:
 - Stage: Discovery
 - Value: 8000 USD
 - Expected close: 2026-02-15
 
 Summary: Technical team expressed interest in analytics add-on module. Sam Clarke is evaluating requirements. Depends on successful completion of main rollout (OPP-BETA-NEW). Low-touch opportunity that can be bundled with initial contract."
-OPP-CROWN-RENEW,CROWN-FOODS,C-CROWN-MARIA,Crown Foods - Subscription renewal,Proposal,Renewal,18000,USD,60,Existing Customer,jsmith,2026-01-30,2025-09-10,2025-10-30,,"Crown Foods opportunity context:
+OPP-CROWN-RENEW,CROWN-FOODS,C-CROWN-MARIA,Crown Foods - Subscription renewal,Proposal,Renewal,18000,USD,60,Existing Customer,jsmith,2026-02-13,2025-09-10,2025-10-30,,"Crown Foods opportunity context:
 - Stage: Proposal
 - Value: 18000 USD
 - Expected close: 2025-12-20
@@ -35,19 +35,19 @@ OPP-DELTA-RENEW,DELTA-HEALTH,C-DELTA-ERIN,Delta Health - Renewal,Qualified,Renew
 - Expected close: 2025-09-01
 
 Summary: Customer is exploring changes focused on streamlining contact management and deduplication. Primary risk noted is inconsistent activity logging across the team. Recommended next step: schedule a 30-minute admin setup call."
-OPP-DELTA-EXPAND,DELTA-HEALTH,C-DELTA-ERIN,Delta Health - Additional clinics,Discovery,Expansion,15000,USD,20,Existing Customer,amartin,2026-04-01,2025-10-01,2025-11-10,,"Delta Health Clinics opportunity context:
+OPP-DELTA-EXPAND,DELTA-HEALTH,C-DELTA-ERIN,Delta Health - Additional clinics,Discovery,Expansion,15000,USD,20,Existing Customer,amartin,2026-04-15,2025-10-01,2025-11-10,,"Delta Health Clinics opportunity context:
 - Stage: Discovery
 - Value: 15000 USD
 - Expected close: 2026-03-01
 
 Summary: Following successful renewal, Erin Cho mentioned plans to expand to 3 additional clinic locations in Q1 2026. Need to present multi-location pricing and training package. Key risk: budget approval from corporate."
-OPP-EAST-TRIAL,EASTERN-TRAVEL,C-EAST-SANJAY,Eastern Travel - Trial to paid,New,New Business,8000,USD,10,Inbound,mmalik,2026-03-28,2025-01-10,2025-10-05,,"Eastern Travel Co. opportunity context:
+OPP-EAST-TRIAL,EASTERN-TRAVEL,C-EAST-SANJAY,Eastern Travel - Trial to paid,New,New Business,8000,USD,10,Inbound,mmalik,2026-04-11,2025-01-10,2025-10-05,,"Eastern Travel Co. opportunity context:
 - Stage: New
 - Value: 8000 USD
 - Expected close: 2025-02-28
 
 Summary: Customer is exploring changes focused on cleaning up pipeline stages and forecasting accuracy. Primary risk noted is low engagement from key contacts. Recommended next step: schedule a 30-minute admin setup call."
-OPP-FUSION-UPSELL,FUSION-RETAIL,C-FUSION-EMMA,Fusion Retail - Seats expansion,Qualified,Expansion,12000,USD,40,Existing Customer,jsmith,2026-06-10,2025-07-01,2025-10-25,,"Fusion Retail Group opportunity context:
+OPP-FUSION-UPSELL,FUSION-RETAIL,C-FUSION-EMMA,Fusion Retail - Seats expansion,Qualified,Expansion,12000,USD,40,Existing Customer,jsmith,2026-06-24,2025-07-01,2025-10-25,,"Fusion Retail Group opportunity context:
 - Stage: Qualified
 - Value: 12000 USD
 - Expected close: 2026-05-10
@@ -71,13 +71,13 @@ OPP-GREEN-EXPAND,GREEN-ENERGY,C-GREEN-LINDA,Green Energy - Solar division rollou
 - Lost: 2025-05-10
 
 Summary: LOST OPPORTUNITY. Expansion to solar division was cancelled when main account signaled intent to churn. Linda Park was championing internally but lost executive support. This deal collapse was early indicator of churn risk that we missed."
-OPP-HARBOR-NEW,HARBOR-LOGISTICS,C-HARBOR-JACOB,Harbor Logistics - Initial rollout,Discovery,New Business,26000,USD,20,Outbound,mmalik,2026-02-28,2025-05-15,2025-11-10,,"Harbor Logistics opportunity context:
+OPP-HARBOR-NEW,HARBOR-LOGISTICS,C-HARBOR-JACOB,Harbor Logistics - Initial rollout,Discovery,New Business,26000,USD,20,Outbound,mmalik,2026-03-14,2025-05-15,2025-11-10,,"Harbor Logistics opportunity context:
 - Stage: Discovery
 - Value: 26000 USD
 - Expected close: 2025-08-30
 
 Summary: Customer is exploring changes focused on cleaning up pipeline stages and forecasting accuracy. Primary risk noted is inconsistent activity logging across the team. Recommended next step: create a saved group for renewals and start outreach."
-OPP-CROWN-EXPAND,CROWN-FOODS,C-CROWN-MARIA,Crown Foods - Warehouse expansion,Qualified,Expansion,14000,USD,50,Existing Customer,jsmith,2026-03-15,2025-11-01,2025-11-20,,"Crown Foods opportunity context:
+OPP-CROWN-EXPAND,CROWN-FOODS,C-CROWN-MARIA,Crown Foods - Warehouse expansion,Qualified,Expansion,14000,USD,50,Existing Customer,jsmith,2026-03-29,2025-11-01,2025-11-20,,"Crown Foods opportunity context:
 - Stage: Qualified
 - Value: 14000 USD
 - Expected close: 2026-03-15

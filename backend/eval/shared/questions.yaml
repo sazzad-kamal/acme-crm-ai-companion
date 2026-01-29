@@ -14,14 +14,14 @@ questions:
 
   - text: "Which accounts are up for renewal?"
     difficulty: 1
-    expected_sql: "SELECT * FROM companies WHERE renewal_date >= CURRENT_DATE ORDER BY renewal_date"
+    expected_sql: "SELECT * FROM companies WHERE renewal_date IS NOT NULL ORDER BY renewal_date"
     expected_answer: "Accounts with upcoming renewals include Crown Foods, Delta Health, Beta Tech, Harbor Logistics, and Acme Manufacturing."
     expected_action: true
 
-  - text: "What are the open activities?"
+  - text: "Who are the contacts at Delta Health?"
     difficulty: 1
-    expected_sql: "SELECT * FROM activities WHERE status = 'Open'"
-    expected_answer: "There are open activities across accounts including follow-ups, security reviews, demos, check-ins, and tasks."
+    expected_sql: "SELECT * FROM contacts c JOIN companies co ON c.company_id = co.company_id WHERE co.name = 'Delta Health Clinics'"
+    expected_answer: "Delta Health has 3 contacts: Erin Cho (Decision Maker), Mike Rivera (Technical Contact), and Priya Sharma (User)."
     expected_action: true
 
   # =============================================================================
@@ -29,25 +29,25 @@ questions:
   # =============================================================================
   - text: "Which deals are closest to closing?"
     difficulty: 2
-    expected_sql: "SELECT * FROM opportunities WHERE stage IN ('Negotiation', 'Proposal') AND stage NOT IN ('Closed Won', 'Closed Lost') ORDER BY probability DESC"
+    expected_sql: "SELECT * FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') ORDER BY expected_close_date ASC"
     expected_answer: "Beta Tech is in Negotiation stage. Acme upgrade and Crown Foods renewal are in Proposal stage."
     expected_action: true
 
   - text: "What stages have the most deals?"
     difficulty: 2
-    expected_sql: "SELECT stage, COUNT(*) FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') GROUP BY stage ORDER BY COUNT(*) DESC"
-    expected_answer: "Qualified has the most open deals, followed by Discovery and Proposal stages."
+    expected_sql: "SELECT stage, COUNT(*) AS deal_count FROM opportunities GROUP BY stage ORDER BY deal_count DESC"
+    expected_answer: "Qualified has the most deals, followed by Discovery and Proposal stages."
     expected_action: true
 
   - text: "Who owns the most pipeline value?"
     difficulty: 2
-    expected_sql: "SELECT owner, SUM(amount) FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') GROUP BY owner ORDER BY SUM(amount) DESC"
+    expected_sql: "SELECT owner, SUM(amount) AS total_value FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') GROUP BY owner ORDER BY total_value DESC"
     expected_answer: "jsmith owns the most pipeline value across multiple deals."
     expected_action: true
 
   - text: "Which renewals are at risk?"
     difficulty: 2
-    expected_sql: "SELECT c.name, o.amount FROM companies c JOIN opportunities o ON c.company_id = o.company_id WHERE c.health_status LIKE '%at-risk%' AND o.type = 'Renewal'"
+    expected_sql: "SELECT * FROM companies WHERE health_status LIKE '%at-risk%' AND renewal_date IS NOT NULL"
     expected_answer: "Delta Health and Crown Foods renewals are at risk based on their health status."
     expected_action: true
 
@@ -57,28 +57,28 @@ questions:
     expected_answer: "Open renewal opportunities total approximately $64K across Acme, Delta Health, and Crown Foods."
     expected_action: true
 
-  - text: "What interactions have we had with at-risk accounts?"
+  - text: "What's the history with Crown Foods?"
     difficulty: 2
-    expected_sql: "SELECT h.* FROM history h JOIN companies c ON h.company_id = c.company_id WHERE c.health_status LIKE '%at-risk%'"
-    expected_answer: "At-risk account interactions include usage reviews, training sessions, renewal discussions, and support activities."
+    expected_sql: "SELECT * FROM history h JOIN companies c ON h.company_id = c.company_id WHERE c.name = 'Crown Foods'"
+    expected_answer: "Crown Foods history includes renewal planning, integration support, user feedback, and mobile app escalation."
     expected_action: true
 
-  - text: "Which activities are high priority?"
+  - text: "Who is the decision maker at Delta Health?"
     difficulty: 2
-    expected_sql: "SELECT * FROM activities WHERE priority = 'High' AND status = 'Open'"
-    expected_answer: "High priority activities include Acme follow-up, Beta Tech security questionnaire, Beta Tech demo, Crown Foods check-in, and Harbor kickoff."
+    expected_sql: "SELECT * FROM contacts c JOIN companies co ON c.company_id = co.company_id WHERE co.name = 'Delta Health Clinics' AND c.role = 'Decision Maker'"
+    expected_answer: "Erin Cho is the decision maker at Delta Health. She is the Clinic Director."
     expected_action: true
 
-  - text: "Who owns the most open activities?"
+  - text: "What deals does Delta Health have?"
     difficulty: 2
-    expected_sql: "SELECT owner, COUNT(*) FROM activities WHERE status = 'Open' GROUP BY owner ORDER BY COUNT(*) DESC"
-    expected_answer: "Activity ownership is distributed across team members."
+    expected_sql: "SELECT o.* FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.name = 'Delta Health Clinics'"
+    expected_answer: "Delta Health has a renewal ($22K) and an expansion ($15K) deal."
     expected_action: true
 
-  - text: "What accounts have the most open activities?"
+  - text: "What's the interaction history with Delta Health?"
     difficulty: 2
-    expected_sql: "SELECT c.name, COUNT(*) FROM activities a JOIN companies c ON a.company_id = c.company_id WHERE a.status = 'Open' GROUP BY c.name ORDER BY COUNT(*) DESC"
-    expected_answer: "Accounts with the most open activities include those with active deals and ongoing engagement."
+    expected_sql: "SELECT * FROM history h JOIN companies c ON h.company_id = c.company_id WHERE c.name = 'Delta Health Clinics'"
+    expected_answer: "Delta Health interactions include usage reviews, training sessions, renewal discussions, and support escalations."
     expected_action: true
 
   # =============================================================================
@@ -102,7 +102,7 @@ questions:
   - text: "What is Delta Health's renewal date?"
     difficulty: 1
     expected_sql: "SELECT renewal_date FROM companies WHERE name = 'Delta Health Clinics'"
-    expected_answer: "Delta Health's renewal date is February 1, 2026."
+    expected_answer: "Delta Health's renewal date is February 15, 2026."
     expected_action: true
 
   - text: "What is the email for Anna Lopez?"
@@ -203,7 +203,7 @@ questions:
   - text: "What are the key details about the Beta Tech new rollout opportunity?"
     difficulty: 2
     expected_sql: "SELECT o.* FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.name LIKE '%Beta Tech%' AND o.name LIKE '%rollout%'"
-    expected_answer: "The Beta Tech new rollout opportunity is valued at $32,000 in the Negotiation stage with 80% probability. It's a New Business opportunity from a Referral source, owned by ljones, with expected close date of February 15, 2026."
+    expected_answer: "The Beta Tech new rollout opportunity is valued at $32,000 in the Negotiation stage with 80% probability. It's a New Business opportunity from a Referral source, owned by ljones, with expected close date of March 1, 2026."
     expected_action: true
 
   - text: "What information do we have about Lisa Ng at Beta Tech?"
@@ -215,7 +215,7 @@ questions:
   - text: "What information do we have about the Acme Manufacturing renewal opportunity?"
     difficulty: 2
     expected_sql: "SELECT o.* FROM opportunities o JOIN companies c ON o.company_id = c.company_id WHERE c.name = 'Acme Manufacturing' AND o.type = 'Renewal'"
-    expected_answer: "The Acme Manufacturing annual renewal opportunity is valued at $24,000 in the Qualified stage with 40% probability. It's owned by jsmith with expected close date of April 15, 2026. The customer is exploring consolidating history/notes into a single customer timeline. Primary risk is inconsistent activity logging across the team. Next step is to schedule a 30-minute admin setup call."
+    expected_answer: "The Acme Manufacturing annual renewal opportunity is valued at $24,000 in the Qualified stage with 40% probability. It's owned by jsmith with expected close date of April 29, 2026. The customer is exploring consolidating history/notes into a single customer timeline. Primary risk is inconsistent activity logging across the team. Next step is to schedule a 30-minute admin setup call."
     expected_action: true
 
   # =============================================================================
@@ -262,10 +262,10 @@ questions:
     expected_sql: "SELECT c.status, AVG(o.amount) as avg_value FROM opportunities o JOIN companies c ON o.company_id = c.company_id GROUP BY c.status"
     expected_answer: "The average opportunity value by company status is: Active companies have an average of $19,455, Trial companies have an average of $8,000, and Churned companies have an average of $27,500."
 
-  - text: "Which companies have activities due in January 2026?"
+  - text: "Which companies have activities due in February 2026?"
     difficulty: 3
-    expected_sql: "SELECT DISTINCT c.name FROM companies c JOIN activities a ON c.company_id = a.company_id WHERE a.due_date >= '2026-01-01' AND a.due_date < '2026-02-01'"
-    expected_answer: "Companies with activities due in January 2026 are Acme Manufacturing, Beta Tech Solutions, Crown Foods, Delta Health Clinics, Fusion Retail Group, and Harbor Logistics."
+    expected_sql: "SELECT DISTINCT c.name FROM companies c JOIN activities a ON c.company_id = a.company_id WHERE a.due_date >= '2026-02-01' AND a.due_date < '2026-03-01'"
+    expected_answer: "Companies with activities due in February 2026 are Acme Manufacturing, Beta Tech Solutions, Crown Foods, Delta Health Clinics, Fusion Retail Group, and Harbor Logistics."
     expected_action: true
 
   # Notes-based questions
@@ -317,7 +317,7 @@ questions:
   - text: "Which contacts have activities scheduled after February 2026?"
     difficulty: 4
     expected_sql: "SELECT DISTINCT ct.first_name, ct.last_name FROM contacts ct JOIN activities a ON ct.contact_id = a.contact_id WHERE a.due_date >= '2026-03-01'"
-    expected_answer: "Contacts with activities scheduled after February 2026 are Carlos Mendez (win-back outreach in March 2026), Joe Smith (renewal discussion in March 2026), and Emma Khan (seat expansion discussion in May 2026)."
+    expected_answer: "Contacts with activities scheduled after February 2026 are Sanjay Patel (trial wrap-up and proposal in March 2026), Mei Chen (team training in March 2026), Carlos Mendez (win-back outreach in March 2026), Joe Smith (renewal discussion in March 2026), and Emma Khan (seat expansion discussion in May 2026)."
 
   - text: "What is the minimum and maximum opportunity value for companies with active status?"
     difficulty: 4

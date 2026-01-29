@@ -7,7 +7,7 @@
 
 "What deals are in the pipeline?":
   answer: |
-    Current pipeline includes 12 open deals across multiple stages.
+    Current pipeline includes open deals across multiple stages.
     Key deals include Beta Tech ($32K, Negotiation), Harbor Logistics ($26K, Discovery),
     Acme renewal ($24K, Qualified), and Delta Health renewal ($22K, Qualified).
 
@@ -35,7 +35,6 @@
   answer: |
     jsmith owns the most pipeline value with approximately $83K across 5 deals
     (Acme upgrade, Acme renewal, Crown renewal, Fusion upsell, Crown expansion).
-    ljones has $40K, amartin has $37K, and mmalik has $34K.
 
     Suggested action: Review jsmith's capacity and prioritize high-value deals.
   action: true
@@ -46,9 +45,9 @@
 
 "Which accounts are up for renewal?":
   answer: |
-    Accounts with upcoming renewals include Crown Foods (Jan 31),
-    Delta Health (Feb 1), Beta Tech (Feb 15), Harbor Logistics (Mar 15),
-    and Acme Manufacturing (Mar 31).
+    Accounts with upcoming renewals include Crown Foods (Feb 14),
+    Delta Health (Feb 15), Beta Tech (Mar 1), Harbor Logistics (Mar 29),
+    and Acme Manufacturing (Apr 14).
 
     Suggested action: Prioritize Crown Foods and Delta Health as they renew soonest.
   action: true
@@ -70,47 +69,50 @@
     Suggested action: Create retention plan for at-risk renewals totaling $40K.
   action: true
 
-"What interactions have we had with at-risk accounts?":
+"What's the history with Crown Foods?":
   answer: |
-    Delta Health interactions include usage reviews, training sessions, renewal discussions,
-    and support escalations. Crown Foods interactions include renewal planning,
-    integration support, user feedback sessions, and mobile app escalation.
+    Crown Foods history includes renewal planning, integration support,
+    user feedback sessions, and mobile app performance escalation.
+    Maria Silva is the key contact (VP Operations, quick decision maker).
 
-    Suggested action: Review interaction gaps and schedule follow-ups with both accounts.
+    Suggested action: Schedule call with Maria Silva to address mobile app concerns before Feb 14 renewal.
   action: true
 
 # =============================================================================
-# ACTIVITIES BRANCH - Starter: "What are the open activities?"
+# CONTACTS BRANCH - Starter: "Who are the contacts at Delta Health?"
 # =============================================================================
 
-"What are the open activities?":
+"Who are the contacts at Delta Health?":
   answer: |
-    There are multiple open activities across accounts including follow-ups,
-    security reviews, demos, check-ins, and implementation tasks.
+    Delta Health has 3 contacts: Erin Cho (Clinic Director, Decision Maker),
+    Mike Rivera (IT Coordinator, Technical Contact), and
+    Priya Sharma (Office Manager, User).
 
-    Suggested action: Prioritize high-priority activities for immediate attention.
+    Suggested action: Reach out to Erin Cho to discuss renewal and expansion plans.
   action: true
 
-"Which activities are high priority?":
+"Who is the decision maker at Delta Health?":
   answer: |
-    High priority activities include: Acme upgrade proposal follow-up,
-    Beta Tech security questionnaire, Beta Tech executive demo for Omar,
-    Crown Foods renewal check-in with Maria, and Harbor Logistics implementation kickoff.
+    Erin Cho is the decision maker at Delta Health. She is the Clinic Director
+    and champions expansion but needs board approval.
 
-    Suggested action: Schedule these high-priority activities this week.
+    Suggested action: Schedule meeting with Erin Cho to discuss renewal timeline and board approval process.
   action: true
 
-"What types of activities are most common?":
+"What deals does Delta Health have?":
   answer: |
-    Activities include Calls, Emails, Meetings, and Tasks distributed across accounts.
+    Delta Health has two open deals: a renewal ($22K, Qualified, overdue) and
+    an expansion ($15K, Discovery) for 3 additional clinic locations.
+    The expansion depends on the renewal completing first.
 
-    Suggested action: Ensure balanced outreach mix and schedule underrepresented activity types.
+    Suggested action: Prioritize the renewal deal and address competitor concerns before pursuing expansion.
   action: true
 
-"What accounts have the most open activities?":
+"What's the interaction history with Delta Health?":
   answer: |
-    Accounts with the most open activities include those with active deals
-    and ongoing engagement such as Beta Tech, Acme, and Crown Foods.
+    Delta Health interactions include usage reviews, training sessions,
+    renewal discussions, and support escalations. Recent activity shows
+    declining engagement and competitor evaluation.
 
-    Suggested action: Review activity distribution and allocate resources to underserved accounts.
+    Suggested action: Schedule urgent re-engagement meeting with Erin Cho and Mike Rivera.
   action: true

@@ -117,20 +117,17 @@ def run_sql_eval(
     conn = get_connection()
 
     for i, question in enumerate(questions):
-        if verbose:
-            print(f"\nCase {i + 1}/{len(questions)}: {question.text} (d={question.difficulty})")
-
         case, row_count = _eval_question(question, conn)
 
         if case.passed:
             results.passed += 1
 
-        if verbose:
-            if case.errors:
-                for err in case.errors:
-                    print(f"    {err}")
-            else:
-                print(f"  PASS ({row_count} rows, {case.latency_ms:.0f}ms)")
+        status = "PASS" if case.passed else "FAIL"
+        print(f"  [{i + 1}/{len(questions)}] {status} {question.text[:50]}...")
+
+        if verbose and case.errors:
+            for err in case.errors:
+                print(f"    {err}")
 
         results.cases.append(case)
 
