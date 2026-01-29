@@ -1018,57 +1018,6 @@ class TestFetchRunnerStylisticErrors:
         assert "PASS" in call_str
 
 
-class TestIntegrationMain:
-    """Test eval/integration/runner.py CLI coverage."""
-
-    def test_main_basic_flow(self, monkeypatch):
-        """Test main basic flow."""
-        from backend.eval.integration import runner as runner_module
-        from backend.eval.integration.models import ConvoEvalResults
-
-        monkeypatch.setattr(runner_module, "get_tree_stats", lambda: {"total": 10, "questions": 50})
-
-        mock_results = ConvoEvalResults(total=3, passed=3)
-        mock_results.cases = []
-        monkeypatch.setattr(runner_module, "run_convo_eval", lambda **kwargs: mock_results)
-        monkeypatch.setattr(runner_module, "print_summary", lambda r: None)
-
-        runner_module.main(limit=1)
-
-    def test_main_handles_exception(self, monkeypatch):
-        """Test main handles evaluation exception."""
-        from backend.eval.integration import runner as runner_module
-
-        monkeypatch.setattr(runner_module, "get_tree_stats", lambda: {"total": 10})
-
-        def raise_error(**kwargs):
-            raise RuntimeError("Evaluation failed")
-
-        monkeypatch.setattr(runner_module, "run_convo_eval", raise_error)
-
-        runner_module.main(limit=1)
-
-    def test_main_shows_failed_questions(self, monkeypatch):
-        """Test main shows details for failing questions."""
-        from backend.eval.integration import runner as runner_module
-        from backend.eval.integration.models import ConvoEvalResults, ConvoStepResult
-
-        monkeypatch.setattr(runner_module, "get_tree_stats", lambda: {"total": 10})
-
-        failed_step = ConvoStepResult(
-            question="What is the pipeline value?",
-            answer="The pipeline value is $100k",
-            relevance_score=0.5,
-            ragas_metrics_total=2,
-        )
-        mock_results = ConvoEvalResults(total=1, passed=0)
-        mock_results.cases = [failed_step]
-        monkeypatch.setattr(runner_module, "run_convo_eval", lambda **kwargs: mock_results)
-        monkeypatch.setattr(runner_module, "print_summary", lambda r: None)
-
-        runner_module.main(limit=1)
-
-
 class TestIntegrationRunner:
     """Test eval/integration/runner.py coverage (lines 85-94)."""
 

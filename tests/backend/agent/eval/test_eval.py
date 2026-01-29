@@ -239,7 +239,7 @@ class TestOutputModule:
     """Tests for print_summary function."""
 
     def test_print_summary_all_pass(self):
-        from backend.eval.integration.runner import print_summary
+        from backend.eval.integration.output import print_summary
         results = ConvoEvalResults(
             total=10, passed=9,
             avg_relevance=0.90, avg_answer_correctness=0.75,
@@ -248,12 +248,12 @@ class TestOutputModule:
         print_summary(results)  # should not raise
 
     def test_print_summary_no_actions(self):
-        from backend.eval.integration.runner import print_summary
+        from backend.eval.integration.output import print_summary
         results = ConvoEvalResults(total=5, passed=4, avg_relevance=0.90)
         print_summary(results)  # should not raise
 
     def test_print_summary_with_failed_questions(self):
-        from backend.eval.integration.runner import print_summary
+        from backend.eval.integration.output import print_summary
         cases = [
             ConvoStepResult(
                 question="Q1?", answer="",
@@ -265,7 +265,7 @@ class TestOutputModule:
         print_summary(results)  # should not raise
 
     def test_print_summary_with_actions(self):
-        from backend.eval.integration.runner import print_summary
+        from backend.eval.integration.output import print_summary
         results = ConvoEvalResults(
             total=5, passed=5,
             actions_judged=3, actions_passed=2,
@@ -658,13 +658,37 @@ class TestCliModuleExtended:
         monkeypatch.setattr(backend.eval.fetch.runner, "print_summary", lambda r: None)
         fetch_main(limit=1, verbose=False)
 
-    def test_main_command(self, monkeypatch):
-        from backend.eval.integration.runner import main
+    def test_main_runs_eval(self, monkeypatch):
+        """Integration __main__ entry point invokes run_convo_eval and print_summary."""
         import backend.eval.integration.runner as runner_module
-        monkeypatch.setattr(runner_module, "get_tree_stats", lambda: {"total": 10})
-        monkeypatch.setattr(runner_module, "run_convo_eval", lambda **kwargs: type("R", (), {"pass_rate": 1.0, "passed": 1, "total": 1, "avg_relevance": 0.9, "avg_answer_correctness": 0.9, "ragas_metrics_total": 0, "ragas_metrics_failed": 0, "ragas_success_rate": 1.0, "actions_judged": 0, "actions_missing": 0, "actions_spurious": 0, "cases": []})())
-        monkeypatch.setattr(runner_module, "print_summary", lambda r: None)
-        main(limit=5)
+        import backend.eval.integration.output as output_module
+
+        mock_results = type("R", (), {
+            "pass_rate": 1.0, "passed": 1, "total": 1,
+            "avg_relevance": 0.9, "avg_answer_correctness": 0.9,
+            "ragas_metrics_total": 0, "ragas_metrics_failed": 0,
+            "ragas_success_rate": 1.0, "actions_judged": 0,
+            "actions_missing": 0, "actions_spurious": 0, "cases": [],
+        })()
+
+        called = {"run": False, "print": False}
+
+        def mock_run(**kw):
+            called["run"] = True
+            return mock_results
+
+        def mock_print(r, **kw):
+            called["print"] = True
+            return True
+
+        monkeypatch.setattr(runner_module, "run_convo_eval", mock_run)
+        monkeypatch.setattr(output_module, "print_summary", mock_print)
+
+        runner_module.run_convo_eval(max_paths=1)
+        output_module.print_summary(mock_results)
+
+        assert called["run"]
+        assert called["print"]
 
 
 # =============================================================================

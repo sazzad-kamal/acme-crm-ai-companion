@@ -5,16 +5,13 @@ from __future__ import annotations
 import json
 import logging
 import time
-import traceback
 from typing import Any, cast
 
-import typer
 from dotenv import load_dotenv
 
 from backend.eval.answer.action.judge import judge_suggested_action
 from backend.eval.answer.text.ragas import RAGAS_METRICS_COUNT, evaluate_single
 from backend.eval.integration.models import (
-    SLO_CONVO_STEP_PASS_RATE,
     ConvoEvalResults,
     ConvoStepResult,
 )
@@ -22,7 +19,6 @@ from backend.eval.integration.tree import (
     get_all_paths,
     get_expected_action,
     get_expected_answer,
-    get_tree_stats,
 )
 
 load_dotenv()
@@ -134,56 +130,3 @@ def run_convo_eval(max_paths: int | None = None) -> ConvoEvalResults:
 
     results.compute_aggregates()
     return results
-
-
-def print_summary(results: ConvoEvalResults) -> None:
-    """Print evaluation summary."""
-    passed = results.pass_rate >= SLO_CONVO_STEP_PASS_RATE
-    status = "PASS" if passed else "FAIL"
-
-    print("\nConversation Evaluation Summary")
-    print(f"Pass Rate: {results.pass_rate:.1%} (>={SLO_CONVO_STEP_PASS_RATE:.1%} SLO) {status}")
-    print(f"Questions: {results.passed}/{results.total}")
-    print(f"Avg Relevance: {results.avg_relevance:.2f}, Faithfulness: {results.avg_faithfulness:.2f}, Correctness: {results.avg_answer_correctness:.2f}")
-
-    ragas_ok = results.ragas_metrics_total - results.ragas_metrics_failed
-    print(f"RAGAS: {ragas_ok}/{results.ragas_metrics_total} ({results.ragas_success_rate:.1%})")
-
-    if results.actions_judged > 0 or results.actions_missing > 0 or results.actions_spurious > 0:
-        print(f"Actions: {results.actions_passed}/{results.actions_judged} judged passed, {results.actions_missing} missing, {results.actions_spurious} spurious")
-        if results.actions_judged > 0:
-            print(f"  Relevance: {results.avg_action_relevance:.2f}, Actionability: {results.avg_action_actionability:.2f}, Appropriateness: {results.avg_action_appropriateness:.2f}")
-
-    # Failed questions
-    failed = [c for c in results.cases if not c.passed]
-    if failed:
-        print(f"\nFailed Questions ({len(failed)})")
-        for c in failed[:5]:
-            print(f"  {c.question[:60]}...")
-            if c.errors:
-                print(f"    Error: {c.errors[0]}")
-
-
-def main(
-    limit: int | None = typer.Option(None, "--limit", "-l", help="Limit number of paths to test"),
-) -> None:
-    """Run conversation evaluation."""
-    logging.basicConfig(level=logging.WARNING)
-
-    stats = get_tree_stats()
-    print("\nQuestion Tree Stats:")
-    for key, value in stats.items():
-        print(f"  {key}: {value}")
-
-    try:
-        results = run_convo_eval(max_paths=limit)
-    except Exception as e:
-        print(f"\nERROR: Evaluation failed: {e}")
-        traceback.print_exc()
-        return
-
-    print_summary(results)
-
-
-if __name__ == "__main__":
-    typer.run(main)
