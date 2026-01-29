@@ -4,6 +4,84 @@
 
 questions:
   # =============================================================================
+  # DEMO TREE: Starters (Difficulty 1)
+  # =============================================================================
+  - text: "What deals are in the pipeline?"
+    difficulty: 1
+    expected_sql: "SELECT * FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost')"
+    expected_answer: "Current pipeline includes open deals across multiple stages including Negotiation, Proposal, Qualified, and Discovery."
+    expected_action: true
+
+  - text: "Which accounts are up for renewal?"
+    difficulty: 1
+    expected_sql: "SELECT * FROM companies WHERE renewal_date >= CURRENT_DATE ORDER BY renewal_date"
+    expected_answer: "Accounts with upcoming renewals include Crown Foods, Delta Health, Beta Tech, Harbor Logistics, and Acme Manufacturing."
+    expected_action: true
+
+  - text: "What are the open activities?"
+    difficulty: 1
+    expected_sql: "SELECT * FROM activities WHERE status = 'Open'"
+    expected_answer: "There are open activities across accounts including follow-ups, security reviews, demos, check-ins, and tasks."
+    expected_action: true
+
+  # =============================================================================
+  # DEMO TREE: Follow-ups (Difficulty 2)
+  # =============================================================================
+  - text: "Which deals are closest to closing?"
+    difficulty: 2
+    expected_sql: "SELECT * FROM opportunities WHERE stage IN ('Negotiation', 'Proposal') AND stage NOT IN ('Closed Won', 'Closed Lost') ORDER BY probability DESC"
+    expected_answer: "Beta Tech is in Negotiation stage. Acme upgrade and Crown Foods renewal are in Proposal stage."
+    expected_action: true
+
+  - text: "What stages have the most deals?"
+    difficulty: 2
+    expected_sql: "SELECT stage, COUNT(*) FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') GROUP BY stage ORDER BY COUNT(*) DESC"
+    expected_answer: "Qualified has the most open deals, followed by Discovery and Proposal stages."
+    expected_action: true
+
+  - text: "Who owns the most pipeline value?"
+    difficulty: 2
+    expected_sql: "SELECT owner, SUM(amount) FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') GROUP BY owner ORDER BY SUM(amount) DESC"
+    expected_answer: "jsmith owns the most pipeline value across multiple deals."
+    expected_action: true
+
+  - text: "Which renewals are at risk?"
+    difficulty: 2
+    expected_sql: "SELECT c.name, o.amount FROM companies c JOIN opportunities o ON c.company_id = o.company_id WHERE c.health_status LIKE '%at-risk%' AND o.type = 'Renewal'"
+    expected_answer: "Delta Health and Crown Foods renewals are at risk based on their health status."
+    expected_action: true
+
+  - text: "What's the total renewal value at stake?"
+    difficulty: 2
+    expected_sql: "SELECT SUM(amount) FROM opportunities WHERE type = 'Renewal' AND stage NOT IN ('Closed Won', 'Closed Lost')"
+    expected_answer: "Open renewal opportunities total approximately $64K across Acme, Delta Health, and Crown Foods."
+    expected_action: true
+
+  - text: "What interactions have we had with at-risk accounts?"
+    difficulty: 2
+    expected_sql: "SELECT h.* FROM history h JOIN companies c ON h.company_id = c.company_id WHERE c.health_status LIKE '%at-risk%'"
+    expected_answer: "At-risk account interactions include usage reviews, training sessions, renewal discussions, and support activities."
+    expected_action: true
+
+  - text: "Which activities are high priority?"
+    difficulty: 2
+    expected_sql: "SELECT * FROM activities WHERE priority = 'High' AND status = 'Open'"
+    expected_answer: "High priority activities include Acme follow-up, Beta Tech security questionnaire, Beta Tech demo, Crown Foods check-in, and Harbor kickoff."
+    expected_action: true
+
+  - text: "Who owns the most open activities?"
+    difficulty: 2
+    expected_sql: "SELECT owner, COUNT(*) FROM activities WHERE status = 'Open' GROUP BY owner ORDER BY COUNT(*) DESC"
+    expected_answer: "Activity ownership is distributed across team members."
+    expected_action: true
+
+  - text: "What accounts have the most open activities?"
+    difficulty: 2
+    expected_sql: "SELECT c.name, COUNT(*) FROM activities a JOIN companies c ON a.company_id = c.company_id WHERE a.status = 'Open' GROUP BY c.name ORDER BY COUNT(*) DESC"
+    expected_answer: "Accounts with the most open activities include those with active deals and ongoing engagement."
+    expected_action: true
+
+  # =============================================================================
   # SQL DIFFICULTY 1: Single table, simple filters
   # =============================================================================
   - text: "What is Acme Manufacturing's plan?"
