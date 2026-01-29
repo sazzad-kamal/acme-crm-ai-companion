@@ -36,7 +36,7 @@ class TestSLOConstants:
 
     def test_slo_followup_answerability(self):
         """Test SLO_FOLLOWUP_ANSWERABILITY value."""
-        assert SLO_FOLLOWUP_ANSWERABILITY == 0.80
+        assert SLO_FOLLOWUP_ANSWERABILITY == 0.70
 
 
 class TestFollowupCaseResult:
