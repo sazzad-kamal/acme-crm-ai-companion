@@ -27,7 +27,7 @@ questions:
   # =============================================================================
   # DEMO TREE: Follow-ups (Difficulty 2)
   # =============================================================================
-  - text: "Which deals are closest to closing?"
+  - text: "Which deals are expected to close next?"
     difficulty: 2
     expected_sql: "SELECT * FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') ORDER BY expected_close_date ASC"
     expected_answer: "Delta Health renewal ($22K) is overdue with expected close of Sep 2025. Next closest are Acme upgrade ($15K, Proposal, Feb 8), Crown Foods renewal ($18K, Proposal, Feb 13), and Beta Tech new business ($32K, Negotiation, Mar 1) which is the highest-value open deal."

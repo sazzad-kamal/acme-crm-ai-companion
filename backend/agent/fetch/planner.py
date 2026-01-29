@@ -51,7 +51,7 @@ SELECT * FROM companies WHERE renewal_date >= CURRENT_DATE AND status = 'Active'
 Q: "Who are the contacts at Delta Health?"
 SELECT c.* FROM contacts c JOIN companies co ON c.company_id = co.company_id WHERE co.name = 'Delta Health Clinics'
 
-Q: "Which deals are closest to closing?"
+Q: "Which deals are expected to close next?"
 SELECT * FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') ORDER BY expected_close_date ASC
 
 Q: "How are deals distributed across stages?"
