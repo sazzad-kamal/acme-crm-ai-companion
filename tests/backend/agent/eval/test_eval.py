@@ -552,7 +552,7 @@ class TestYamlLoading:
 
     def test_get_expected_action_true_for_follow_up(self):
         from backend.eval.integration.tree import get_expected_action
-        result = get_expected_action("Which open deals have the earliest expected close dates?")
+        result = get_expected_action("What are the largest deals in the pipeline?")
         assert result is True
 
     def test_get_expected_action_not_exists(self):
