@@ -132,33 +132,43 @@ describe("App", () => {
 
   it("clicking suggestion sends message", async () => {
     mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/api/data/")) {
+      if (url.includes("/api/data/") || url.includes("/starter-questions")) {
         return Promise.resolve(mockDataResponse);
       }
+      const response = {
+        answer: "Suggestion answer",
+        sources: [],
+        steps: [],
+        sql_results: {},
+        meta: { mode_used: "data", latency_ms: 50 },
+      };
+      const events = [`event: done\ndata: ${JSON.stringify(response)}\n\n`];
       return Promise.resolve({
         ok: true,
-        json: async () => ({
-          answer: "Answer",
-          sources: [],
-          steps: [],
-          sql_results: {},
-          meta: { mode_used: "data", latency_ms: 50 },
-        }),
+        body: createMockSSEStream(events),
       });
     });
 
     render(<App />);
+
+    // Wait for starter question buttons to render
+    await waitFor(() => {
+      const buttons = screen.getAllByRole("button");
+      const suggestionBtn = buttons.find(btn =>
+        btn.textContent?.includes("What deals")
+      );
+      expect(suggestionBtn).toBeTruthy();
+    });
+
     const buttons = screen.getAllByRole("button");
     const suggestionBtn = buttons.find(btn =>
-      btn.textContent?.includes("What") || btn.textContent?.includes("How")
-    );
+      btn.textContent?.includes("What deals")
+    )!;
+    fireEvent.click(suggestionBtn);
 
-    if (suggestionBtn) {
-      fireEvent.click(suggestionBtn);
-      await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalled();
-      });
-    }
+    await waitFor(() => {
+      expect(screen.getByText("Suggestion answer")).toBeInTheDocument();
+    });
   });
 
   it("opens data drawer when Browse Data button is clicked", async () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { config, endpoints, EXAMPLE_PROMPTS } from "../config";
 
 describe("config", () => {
@@ -187,5 +187,19 @@ describe("config", () => {
   it("defaults to localhost when no VITE_API_URL env", () => {
     // In test environment, VITE_API_URL is not set
     expect(config.apiUrl).toBe("http://localhost:8000");
+  });
+
+  it("uses VITE_API_URL when set in environment", async () => {
+    vi.resetModules();
+    const env = import.meta.env as Record<string, string>;
+    env.VITE_API_URL = "https://custom-api.example.com";
+
+    const freshModule = await import("../config");
+
+    expect(freshModule.config.apiUrl).toBe("https://custom-api.example.com");
+
+    // Clean up
+    delete env.VITE_API_URL;
+    vi.resetModules();
   });
 });

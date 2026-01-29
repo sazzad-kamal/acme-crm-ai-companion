@@ -496,6 +496,73 @@ describe("DataTables", () => {
   });
 
   // =========================================================================
+  // Generic Data Table (rawData.data)
+  // =========================================================================
+
+  it("renders generic data table when rawData.data is provided", () => {
+    const rawData: RawData = {
+      data: [
+        { name: "Alice", role: "Engineer", department: "R&D" },
+        { name: "Bob", role: "Designer", department: "UX" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByText("Results (2)")).toBeInTheDocument();
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+    expect(screen.getByText("Engineer")).toBeInTheDocument();
+    expect(screen.getByText("Designer")).toBeInTheDocument();
+  });
+
+  it("generic data table filters out columns starting with underscore", () => {
+    const rawData: RawData = {
+      data: [
+        { name: "Alice", _internal_id: "x1", role: "Engineer" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByText("name")).toBeInTheDocument();
+    expect(screen.getByText("role")).toBeInTheDocument();
+    expect(screen.queryByText("_internal_id")).not.toBeInTheDocument();
+    expect(screen.queryByText("x1")).not.toBeInTheDocument();
+  });
+
+  it("generic data table replaces underscores in column headers", () => {
+    const rawData: RawData = {
+      data: [
+        { first_name: "Alice", last_name: "Smith" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByText("first name")).toBeInTheDocument();
+    expect(screen.getByText("last name")).toBeInTheDocument();
+  });
+
+  it("generic data table renders null values as em dash", () => {
+    const rawData: RawData = {
+      data: [
+        { name: "Alice", email: null },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    const dashes = screen.getAllByText("—");
+    expect(dashes.length).toBeGreaterThan(0);
+  });
+
+  // =========================================================================
   // Nested Items - Private Texts
   // =========================================================================
 

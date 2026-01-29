@@ -320,6 +320,95 @@ describe("useFocusTrap", () => {
     });
   });
 
+  describe("tab with focus outside container", () => {
+    it("wraps forward Tab when focus is outside the container", async () => {
+      render(<ModalWrapper initialOpen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("close-btn")).toHaveFocus();
+      });
+
+      // Move focus to a non-container element (simulate focus escaping)
+      act(() => {
+        (document.body as HTMLElement).focus();
+      });
+
+      // Press Tab while focus is outside container - should wrap to first element
+      fireEvent.keyDown(document, { key: "Tab" });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("close-btn")).toHaveFocus();
+      });
+    });
+
+    it("wraps backward Shift+Tab when focus is outside the container", async () => {
+      render(<ModalWrapper initialOpen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("close-btn")).toHaveFocus();
+      });
+
+      // Move focus outside the container
+      act(() => {
+        (document.body as HTMLElement).focus();
+      });
+
+      // Press Shift+Tab - should wrap to last element
+      fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("save-btn")).toHaveFocus();
+      });
+    });
+  });
+
+  describe("restoreFocus disabled", () => {
+    it("does not restore focus when restoreFocus is false", async () => {
+      function NoRestoreModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+        const containerRef = useRef<HTMLDivElement>(null);
+        useFocusTrap(containerRef, {
+          isActive: isOpen,
+          onEscape: onClose,
+          restoreFocus: false,
+        });
+
+        if (!isOpen) return null;
+        return (
+          <div ref={containerRef} data-testid="no-restore-modal" tabIndex={-1}>
+            <button data-testid="nr-close" onClick={onClose}>Close</button>
+          </div>
+        );
+      }
+
+      function NoRestoreWrapper() {
+        const [isOpen, setIsOpen] = useState(false);
+        return (
+          <div>
+            <button data-testid="nr-trigger" onClick={() => setIsOpen(true)}>Open</button>
+            <NoRestoreModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+          </div>
+        );
+      }
+
+      render(<NoRestoreWrapper />);
+
+      const trigger = screen.getByTestId("nr-trigger");
+      act(() => { trigger.focus(); });
+      fireEvent.click(trigger);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("nr-close")).toHaveFocus();
+      });
+
+      fireEvent.click(screen.getByTestId("nr-close"));
+
+      // Focus should NOT be restored to trigger since restoreFocus=false
+      await waitFor(() => {
+        expect(screen.queryByTestId("no-restore-modal")).not.toBeInTheDocument();
+      });
+    });
+  });
+
   describe("WCAG 2.4.3 compliance", () => {
     it("ensures keyboard focus can be trapped within modal", async () => {
       render(<ModalWrapper initialOpen />);

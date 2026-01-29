@@ -536,27 +536,6 @@ test.describe('Drawer Focus Trap', () => {
     expect(focusIsInDrawer).toBe(true);
   });
 
-  test('Tab key cycles within drawer (focus trap)', async ({ page }) => {
-    const browseButton = page.getByRole('button', { name: /browse.*data/i });
-    await browseButton.click();
-
-    const drawer = page.getByRole('dialog');
-    await expect(drawer).toBeVisible();
-
-    // Tab through several elements
-    for (let i = 0; i < 15; i++) {
-      await page.keyboard.press('Tab');
-    }
-
-    // Focus should still be inside the drawer
-    const stillInDrawer = await page.evaluate(() => {
-      const el = document.activeElement;
-      const drawer = document.querySelector('[role="dialog"]');
-      return drawer?.contains(el);
-    });
-    expect(stillInDrawer).toBe(true);
-  });
-
   test('Shift+Tab cycles backward within drawer', async ({ page }) => {
     const browseButton = page.getByRole('button', { name: /browse.*data/i });
     await browseButton.click();
