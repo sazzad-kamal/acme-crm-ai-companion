@@ -55,7 +55,8 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
         if request.url.path in self.EXEMPT_PATHS:
-            return await call_next(request)
+            response: Response = await call_next(request)
+            return response
 
         header = request.headers.get("authorization", "")
         if not header:
@@ -76,7 +77,8 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
             return PlainTextResponse("Invalid auth format", status_code=401)
 
         if secrets.compare_digest(user, AUTH_USER) and secrets.compare_digest(password, AUTH_PASS):
-            return await call_next(request)
+            resp: Response = await call_next(request)
+            return resp
 
         return PlainTextResponse(
             "Invalid credentials",
