@@ -31,25 +31,30 @@ logger = logging.getLogger(__name__)
 
 def _check_answerability(
     suggestions: list[str], conn: duckdb.DuckDBPyConnection,
-) -> tuple[int, float]:
+) -> tuple[int, float, list[bool]]:
     """Check how many suggestions are answerable via SQL.
 
-    Returns (answerable_count, answerability_ratio).
+    Returns (answerable_count, answerability_ratio, per_suggestion_flags).
     """
     if not suggestions:
-        return 0, 0.0
+        return 0, 0.0, []
 
     answerable = 0
+    flags: list[bool] = []
     for suggestion in suggestions:
         try:
             plan = get_sql_plan(suggestion)
             rows, error = execute_sql(plan.sql, conn)
             if not error and rows:
                 answerable += 1
+                flags.append(True)
+            else:
+                flags.append(False)
         except Exception:
             logger.debug(f"Answerability check failed for: {suggestion[:50]}")
+            flags.append(False)
 
-    return answerable, answerable / len(suggestions)
+    return answerable, answerable / len(suggestions), flags
 
 
 def run_followup_eval(
@@ -103,10 +108,11 @@ def run_followup_eval(
         answerability_kwargs: dict = {}
         if suggestions and not errors:
             try:
-                answerable_count, answerability = _check_answerability(suggestions, conn)
+                answerable_count, answerability, flags = _check_answerability(suggestions, conn)
                 answerability_kwargs = {
                     "answerable_count": answerable_count,
                     "answerability": answerability,
+                    "answerable_flags": flags,
                 }
             except Exception as e:
                 logger.warning(f"Answerability check failed: {e}")
@@ -126,6 +132,13 @@ def run_followup_eval(
 
     results.compute_aggregates()
     return results
+
+
+def _ans_icon(flags: list[bool], idx: int) -> str:
+    """Return checkmark or x for answerability at index."""
+    if not flags or idx >= len(flags):
+        return "-"
+    return "+" if flags[idx] else "x"
 
 
 def print_summary(results: FollowupEvalResults) -> None:
@@ -169,8 +182,23 @@ def print_summary(results: FollowupEvalResults) -> None:
             if c.explanation:
                 print(f"   Judge: {c.explanation}")
             if c.suggestions:
-                for s in c.suggestions:
-                    print(f"   - {s}")
+                for j, s in enumerate(c.suggestions):
+                    flag = _ans_icon(c.answerable_flags, j)
+                    print(f"   {flag} {s}")
+            print()
+
+    # Unanswerable suggestions across all cases
+    unanswerable = [
+        (c, j, s)
+        for c in results.cases
+        for j, s in enumerate(c.suggestions)
+        if c.answerable_flags and not c.answerable_flags[j]
+    ]
+    if unanswerable:
+        print(f"\nUnanswerable Suggestions ({len(unanswerable)})\n")
+        for c, _j, s in unanswerable:
+            print(f"  Q: {c.question[:50]}")
+            print(f"  x {s}")
             print()
 
 

@@ -34,7 +34,7 @@ class TestRunFollowupEval:
         mock_answer.return_value = ("Acme has 3 deals.", [], None)
         mock_generate.return_value = ["Follow-up 1?", "Follow-up 2?", "Follow-up 3?"]
         mock_judge.return_value = (True, 0.8, 0.6, 0.7, "Good suggestions")
-        mock_answerability.return_value = (3, 1.0)
+        mock_answerability.return_value = (3, 1.0, [True, True, True])
 
         results = run_followup_eval()
 
@@ -73,7 +73,7 @@ class TestRunFollowupEval:
         mock_answer.return_value = ("Answer text.", [], None)
         mock_generate.return_value = ["Follow-up 1?", "Follow-up 2?", "Follow-up 3?"]
         mock_judge.return_value = (False, 0.4, 0.2, 0.3, "Poor suggestions")
-        mock_answerability.return_value = (1, 0.33)
+        mock_answerability.return_value = (1, 0.33, [True, False, False])
 
         results = run_followup_eval()
 
@@ -128,7 +128,7 @@ class TestRunFollowupEval:
         mock_answer.return_value = ("Answer text.", [], None)
         mock_generate.return_value = ["Follow-up 1?", "Follow-up 2?", "Follow-up 3?"]
         mock_judge.side_effect = ValueError("Judge internal error")
-        mock_answerability.return_value = (2, 0.67)
+        mock_answerability.return_value = (2, 0.67, [True, False, True])
 
         results = run_followup_eval()
 
@@ -187,7 +187,7 @@ class TestRunFollowupEval:
         mock_answer.return_value = ("Answer.", [], None)
         mock_generate.return_value = ["A?", "B?", "C?"]
         mock_judge.return_value = (True, 0.8, 0.6, 0.7, "Good")
-        mock_answerability.return_value = (3, 1.0)
+        mock_answerability.return_value = (3, 1.0, [True, True, True])
 
         results = run_followup_eval(limit=2)
 
@@ -220,7 +220,7 @@ class TestRunFollowupEval:
             (True, 0.8, 0.6, 0.7, "Good"),
             (True, 0.6, 0.4, 0.5, "OK"),
         ]
-        mock_answerability.side_effect = [(3, 1.0), (2, 0.67)]
+        mock_answerability.side_effect = [(3, 1.0, [True, True, True]), (2, 0.67, [True, False, True])]
 
         results = run_followup_eval()
 
@@ -251,7 +251,7 @@ class TestRunFollowupEval:
         mock_answer.return_value = ("Acme answer.", [], None)
         mock_generate.return_value = ["A?", "B?", "C?"]
         mock_judge.return_value = (True, 0.8, 0.6, 0.7, "Good")
-        mock_answerability.return_value = (3, 1.0)
+        mock_answerability.return_value = (3, 1.0, [True, True, True])
 
         run_followup_eval()
 
@@ -307,7 +307,7 @@ class TestRunFollowupEval:
         mock_answer.return_value = ("Acme has 3 deals.", [], None)
         mock_generate.return_value = ["A?", "B?", "C?"]
         mock_judge.return_value = (True, 0.8, 0.6, 0.7, "Good")
-        mock_answerability.return_value = (3, 1.0)
+        mock_answerability.return_value = (3, 1.0, [True, True, True])
 
         run_followup_eval()
 
@@ -337,7 +337,7 @@ class TestRunFollowupEval:
         mock_answer.return_value = ("Answer.", [], None)
         mock_generate.return_value = ["A?", "B?", "C?"]
         mock_judge.return_value = (True, 0.8, 0.6, 0.7, "Good")
-        mock_answerability.return_value = (2, 0.67)
+        mock_answerability.return_value = (2, 0.67, [True, False, True])
 
         results = run_followup_eval()
 
@@ -370,7 +370,7 @@ class TestRunFollowupEval:
             (True, 0.8, 0.6, 0.7, "Good"),
             (True, 0.6, 0.4, 0.5, "OK"),
         ]
-        mock_answerability.side_effect = [(3, 1.0), (1, 0.33)]
+        mock_answerability.side_effect = [(3, 1.0, [True, True, True]), (1, 0.33, [True, False, False])]
 
         results = run_followup_eval()
 
@@ -389,10 +389,11 @@ class TestCheckAnswerability:
         mock_plan.return_value = MagicMock(sql="SELECT 1")
         mock_execute.return_value = ([{"col": "val"}], None)
 
-        count, ratio = _check_answerability(["Q1?", "Q2?", "Q3?"], MagicMock())
+        count, ratio, flags = _check_answerability(["Q1?", "Q2?", "Q3?"], MagicMock())
 
         assert count == 3
         assert ratio == 1.0
+        assert flags == [True, True, True]
 
     @patch("backend.eval.followup.runner.execute_sql")
     @patch("backend.eval.followup.runner.get_sql_plan")
@@ -407,10 +408,11 @@ class TestCheckAnswerability:
             ([{"col": "val"}], None),
         ]
 
-        count, ratio = _check_answerability(["Q1?", "Q2?", "Q3?"], MagicMock())
+        count, ratio, flags = _check_answerability(["Q1?", "Q2?", "Q3?"], MagicMock())
 
         assert count == 2
         assert ratio == 2 / 3
+        assert flags == [True, False, True]
 
     @patch("backend.eval.followup.runner.execute_sql")
     @patch("backend.eval.followup.runner.get_sql_plan")
@@ -421,10 +423,11 @@ class TestCheckAnswerability:
         mock_plan.return_value = MagicMock(sql="SELECT 1")
         mock_execute.return_value = ([], "SQL error")
 
-        count, ratio = _check_answerability(["Q1?"], MagicMock())
+        count, ratio, flags = _check_answerability(["Q1?"], MagicMock())
 
         assert count == 0
         assert ratio == 0.0
+        assert flags == [False]
 
     @patch("backend.eval.followup.runner.get_sql_plan")
     def test_planner_exception_not_answerable(self, mock_plan: MagicMock):
@@ -433,19 +436,21 @@ class TestCheckAnswerability:
 
         mock_plan.side_effect = ValueError("Planner error")
 
-        count, ratio = _check_answerability(["Q1?"], MagicMock())
+        count, ratio, flags = _check_answerability(["Q1?"], MagicMock())
 
         assert count == 0
         assert ratio == 0.0
+        assert flags == [False]
 
     def test_empty_suggestions(self):
         """Empty suggestions returns zero."""
         from backend.eval.followup.runner import _check_answerability
 
-        count, ratio = _check_answerability([], MagicMock())
+        count, ratio, flags = _check_answerability([], MagicMock())
 
         assert count == 0
         assert ratio == 0.0
+        assert flags == []
 
 
 class TestPrintSummary:
@@ -554,8 +559,8 @@ class TestPrintSummary:
         print_summary(results)
 
         captured = capsys.readouterr()
-        assert "- Follow-up 1?" in captured.out
-        assert "- Follow-up 2?" in captured.out
+        assert "Follow-up 1?" in captured.out
+        assert "Follow-up 2?" in captured.out
 
     def test_print_summary_failed_shows_answerability(self, capsys):
         """Test print_summary shows answerability for failed cases."""

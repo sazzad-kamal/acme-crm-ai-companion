@@ -27,6 +27,7 @@ class FollowupCaseResult(BaseModel):
     explanation: str = ""
     answerable_count: int = 0
     answerability: float = 0.0
+    answerable_flags: list[bool] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
 
