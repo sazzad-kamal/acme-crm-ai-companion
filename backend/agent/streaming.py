@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class StreamEvent:
     ANSWER_CHUNK = "answer_chunk"
+    ACTION_CHUNK = "action_chunk"
     DATA_READY = "data_ready"
     ACTION_READY = "action_ready"
     FOLLOWUP_READY = "followup_ready"
@@ -38,6 +39,7 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
     config = build_thread_config(session_id)
     state: AgentState = {"question": question}
     in_answer_node = False
+    in_action_node = False
 
     try:
         async for e in agent_graph.astream_events(state, config=config, version="v2"):
@@ -46,12 +48,22 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
             if event_type == LangGraphEvent.CHAIN_START and name == ANSWER_NODE:
                 in_answer_node = True
 
+            elif event_type == LangGraphEvent.CHAIN_START and name == ACTION_NODE:
+                in_action_node = True
+
             elif event_type == LangGraphEvent.LLM_STREAM and in_answer_node:
                 if content := getattr(e.get("data", {}).get("chunk"), "content", ""):
                     yield _format_sse(StreamEvent.ANSWER_CHUNK, {"chunk": content})
 
+            elif event_type == LangGraphEvent.LLM_STREAM and in_action_node:
+                if content := getattr(e.get("data", {}).get("chunk"), "content", ""):
+                    yield _format_sse(StreamEvent.ACTION_CHUNK, {"chunk": content})
+
             elif event_type == LangGraphEvent.GRAPH_END and name == ANSWER_NODE:
                 in_answer_node = False
+
+            elif event_type == LangGraphEvent.GRAPH_END and name == ACTION_NODE:
+                in_action_node = False
 
             elif event_type == LangGraphEvent.GRAPH_END and name == GRAPH_NAME:
                 final = e.get("data", {}).get("output") or {}

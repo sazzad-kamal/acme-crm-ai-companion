@@ -235,6 +235,12 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
                 updateMessage();
                 break;
 
+              case "action_chunk":
+                accumulatedAction = (accumulatedAction ?? "") + (event.data.chunk as string);
+                sectionStatus.action = "done";
+                updateMessage();
+                break;
+
               case "action_ready":
                 accumulatedAction = (event.data.suggested_action as string | null) ?? null;
                 sectionStatus.action = "done";

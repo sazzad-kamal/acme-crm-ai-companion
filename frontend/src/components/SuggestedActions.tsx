@@ -1,9 +1,11 @@
+import { MarkdownText } from "./MarkdownText";
+
 interface SuggestedActionsProps {
   action: string;
 }
 
 /**
- * Displays a suggested action as a highlighted callout
+ * Displays a suggested action plan as a highlighted callout with markdown rendering
  */
 export function SuggestedActions({ action }: SuggestedActionsProps) {
   return (
@@ -13,7 +15,7 @@ export function SuggestedActions({ action }: SuggestedActionsProps) {
       aria-label="Suggested action"
     >
       <span className="suggested-actions__label">Suggested action:</span>
-      <span className="suggested-actions__item">{action}</span>
+      <MarkdownText text={action} className="suggested-actions__content" />
     </div>
   );
 }
