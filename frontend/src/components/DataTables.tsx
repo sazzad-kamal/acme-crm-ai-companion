@@ -55,7 +55,7 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
     if (rawData.history?.length) types.push({ key: "history", icon: "📜", count: rawData.history.length });
     if (rawData.renewals?.length) types.push({ key: "renewals", icon: "🔄", count: rawData.renewals.length });
     if (rawData.pipeline_summary) types.push({ key: "pipeline", icon: "📊", count: 1 });
-    if (rawData.data?.length) types.push({ key: "data", icon: "📄", count: rawData.data.length });
+    if (rawData.data?.length) types.push({ key: "records", icon: "📄", count: rawData.data.length });
     return types;
   }, [rawData]);
 
