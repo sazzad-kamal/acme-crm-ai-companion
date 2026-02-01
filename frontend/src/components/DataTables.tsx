@@ -76,10 +76,10 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
       >
         <span className="data-section__arrow" aria-hidden="true">{expanded ? "▼" : "▶"}</span>
         <span className="data-section__label">Data used</span>
-        <span className="data-section__preview" aria-label={`Contains ${presentDataTypes.map(t => t.key).join(", ")}`}>
+        <span className="data-section__preview" aria-label={`Contains ${presentDataTypes.map(t => `${t.count} ${t.key}`).join(", ")}`}>
           {presentDataTypes.map((type) => (
-            <span key={type.key} className="data-section__preview-icon" title={`${type.key} (${type.count})`}>
-              {type.icon}
+            <span key={type.key} className="data-section__preview-badge" title={`${type.key} (${type.count})`}>
+              {type.count} {type.key}
             </span>
           ))}
         </span>

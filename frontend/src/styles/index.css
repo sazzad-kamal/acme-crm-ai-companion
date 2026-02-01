@@ -1341,20 +1341,18 @@ body {
 .data-section__preview {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-xs);
   margin-left: auto;
   padding-left: var(--space-sm);
 }
 
-.data-section__preview-icon {
-  font-size: 12px;
-  opacity: 0.8;
-  transition: transform var(--transition-fast), opacity var(--transition-fast);
-}
-
-.data-section__preview-icon:hover {
-  transform: scale(1.2);
-  opacity: 1;
+.data-section__preview-badge {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  padding: 2px var(--space-xs);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
 }
 
 .data-section__content {
