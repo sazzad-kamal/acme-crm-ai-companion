@@ -145,7 +145,7 @@ export default function App() {
             <div className="header__text">
               <h1 className="header__title">Acme CRM AI Companion</h1>
               <p className="header__subtitle">
-                Your AI assistant for accounts, deals, tasks, and contacts.
+                Your AI assistant for contacts, companies, opportunities, activities, and history.
               </p>
             </div>
             <button

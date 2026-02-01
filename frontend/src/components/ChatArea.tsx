@@ -115,7 +115,7 @@ function EmptyState({ onSuggestionClick }: EmptyStateProps) {
       </h2>
       
       <p className="empty-state__description">
-        Ask about your CRM — accounts, deals, tasks, or contacts.
+        Ask about your CRM — contacts, companies, opportunities, activities, or history.
         I'll query your data and answer in plain language.
       </p>
 

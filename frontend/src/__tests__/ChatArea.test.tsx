@@ -47,7 +47,7 @@ describe("ChatArea", () => {
 
     expect(
       screen.getByText(
-        /Ask about your CRM — accounts, deals, tasks, or contacts/
+        /Ask about your CRM — contacts, companies, opportunities, activities, or history/
       )
     ).toBeInTheDocument();
   });
