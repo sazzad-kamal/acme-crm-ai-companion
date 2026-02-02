@@ -286,11 +286,49 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
                 grouped.get(src)!.push(row);
               }
 
+              // Fail-safe: detect effective columns for a group.
+              // If SOURCE_CONFIG keys mostly produce dashes, fall back to actual data columns.
+              const SKIP_COLS = new Set(["source"]);
+              const getEffectiveColumns = (
+                configCols: { key: string; label: string }[],
+                rows: Record<string, unknown>[]
+              ): { key: string; label: string }[] => {
+                // Check how many config columns produce real data
+                let dashCount = 0;
+                let totalCount = 0;
+                for (const row of rows.slice(0, 3)) { // sample first 3 rows
+                  for (const col of configCols) {
+                    if (col.key === "notes") continue;
+                    totalCount++;
+                    const val = String(row[col.key] ?? "—");
+                    if (val === "—" || val === "") dashCount++;
+                  }
+                }
+                if (totalCount > 0 && dashCount / totalCount < 0.4) return configCols;
+
+                // Fall back: discover actual columns from data
+                const actualCols: { key: string; label: string }[] = [];
+                const sampleRow = rows[0];
+                for (const key of Object.keys(sampleRow)) {
+                  if (SKIP_COLS.has(key) || key.startsWith("_") || key.endsWith("_id")) continue;
+                  // Check if at least one row has data for this column
+                  const hasData = rows.slice(0, 3).some(r => {
+                    const v = String(r[key] ?? "");
+                    return v !== "" && v !== "—";
+                  });
+                  if (!hasData) continue;
+                  const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+                  actualCols.push({ key, label });
+                }
+                return actualCols.length > 0 ? actualCols : configCols;
+              };
+
               return (
                 <>
                   {[...grouped.entries()].map(([src, rows]) => {
                     const config = SOURCE_CONFIG[src];
                     if (!config) return null;
+                    const columns = getEffectiveColumns(config.columns, rows);
                     const labelId = `grouped-${src}-table-label`;
                     return (
                       <div key={src} role="region" aria-label={`${config.title} data`} data-type={src}>
@@ -301,7 +339,7 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
                         <table className="data-table" aria-labelledby={labelId}>
                           <thead>
                             <tr>
-                              {config.columns.map((col) => (
+                              {columns.map((col) => (
                                 <th key={col.key} scope="col">{col.label}</th>
                               ))}
                             </tr>
@@ -309,7 +347,7 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
                           <tbody>
                             {rows.map((row, idx) => (
                               <tr key={idx}>
-                                {config.columns.map((col) => {
+                                {columns.map((col) => {
                                   const raw = String(row[col.key] ?? "—");
                                   if (col.key === "notes" && raw.length > 80) {
                                     return <td key={col.key} title={raw}>{raw.slice(0, 80)}…</td>;
