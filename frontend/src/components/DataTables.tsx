@@ -24,7 +24,7 @@ interface DataTablesProps {
  * Memoized for performance with large datasets.
  */
 export const DataTables = memo(function DataTables({ rawData }: DataTablesProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   const hasData = useMemo(
     () =>

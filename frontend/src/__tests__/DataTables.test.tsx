@@ -39,10 +39,10 @@ describe("DataTables", () => {
   });
 
   // =========================================================================
-  // Collapsed State
+  // Default Expanded State
   // =========================================================================
 
-  it("renders collapsed by default", () => {
+  it("renders expanded by default", () => {
     const rawData: RawData = {
       companies: [
         { company_id: "1", name: "Acme", plan: "Pro", renewal_date: "2024-12-31" },
@@ -52,7 +52,7 @@ describe("DataTables", () => {
     render(<DataTables rawData={rawData} />);
 
     expect(screen.getByText(/Data used/)).toBeInTheDocument();
-    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
+    expect(screen.getByText("Acme")).toBeInTheDocument();
   });
 
   it("shows data types as icons for single table", () => {
@@ -90,6 +90,38 @@ describe("DataTables", () => {
     expect(screen.getByTitle("activities (1)")).toBeInTheDocument();
   });
 
+  it("shows collapse arrow when expanded by default", () => {
+    const rawData: RawData = {
+      companies: [
+        { company_id: "1", name: "Test", plan: "Pro", renewal_date: "2024-12-31" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+
+    expect(screen.getByText("▼")).toBeInTheDocument();
+  });
+
+  // =========================================================================
+  // Toggle State
+  // =========================================================================
+
+  it("collapses when header clicked", () => {
+    const rawData: RawData = {
+      companies: [
+        { company_id: "1", name: "Acme Corp", plan: "Pro", renewal_date: "2024-12-31" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    expect(screen.getByText("Acme Corp")).toBeInTheDocument();
+
+    const header = screen.getByRole("button");
+    fireEvent.click(header);
+
+    expect(screen.queryByText("Acme Corp")).not.toBeInTheDocument();
+  });
+
   it("shows expand arrow when collapsed", () => {
     const rawData: RawData = {
       companies: [
@@ -99,44 +131,13 @@ describe("DataTables", () => {
 
     render(<DataTables rawData={rawData} />);
 
+    const header = screen.getByRole("button");
+    fireEvent.click(header);
+
     expect(screen.getByText("▶")).toBeInTheDocument();
   });
 
-  // =========================================================================
-  // Expanded State
-  // =========================================================================
-
-  it("expands when header clicked", () => {
-    const rawData: RawData = {
-      companies: [
-        { company_id: "1", name: "Acme Corp", plan: "Pro", renewal_date: "2024-12-31" },
-      ],
-    };
-
-    render(<DataTables rawData={rawData} />);
-
-    const header = screen.getByRole("button");
-    fireEvent.click(header);
-
-    expect(screen.getByText("Acme Corp")).toBeInTheDocument();
-  });
-
-  it("shows collapse arrow when expanded", () => {
-    const rawData: RawData = {
-      companies: [
-        { company_id: "1", name: "Test", plan: "Pro", renewal_date: "2024-12-31" },
-      ],
-    };
-
-    render(<DataTables rawData={rawData} />);
-
-    const header = screen.getByRole("button");
-    fireEvent.click(header);
-
-    expect(screen.getByText("▼")).toBeInTheDocument();
-  });
-
-  it("collapses when header clicked again", () => {
+  it("re-expands when header clicked again", () => {
     const rawData: RawData = {
       companies: [
         { company_id: "1", name: "Acme", plan: "Pro", renewal_date: "2024-12-31" },
@@ -144,13 +145,14 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
+    expect(screen.getByText("Acme")).toBeInTheDocument();
 
     const header = screen.getByRole("button");
     fireEvent.click(header);
-    expect(screen.getByText("Acme")).toBeInTheDocument();
+    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
 
     fireEvent.click(header);
-    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
+    expect(screen.getByText("Acme")).toBeInTheDocument();
   });
 
   // =========================================================================
@@ -166,7 +168,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Companies (2)")).toBeInTheDocument();
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
@@ -183,7 +184,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Name")).toBeInTheDocument();
     expect(screen.getByText("Plan")).toBeInTheDocument();
@@ -208,7 +208,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Activities (1)")).toBeInTheDocument();
     expect(screen.getByText("Call")).toBeInTheDocument();
@@ -230,7 +229,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Follow-up email")).toBeInTheDocument();
   });
@@ -248,7 +246,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     const cells = screen.getAllByText("—");
     expect(cells.length).toBeGreaterThan(0);
@@ -272,7 +269,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Opportunities (1)")).toBeInTheDocument();
     expect(screen.getByText("Q1 Deal")).toBeInTheDocument();
@@ -297,7 +293,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("History (1)")).toBeInTheDocument();
     expect(screen.getByText("Status Change")).toBeInTheDocument();
@@ -321,7 +316,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Upcoming Renewals (1)")).toBeInTheDocument();
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
@@ -348,7 +342,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Pipeline Summary")).toBeInTheDocument();
     expect(screen.getByText("Total Value")).toBeInTheDocument();
@@ -386,7 +379,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Companies (1)")).toBeInTheDocument();
     expect(screen.getByText("Activities (1)")).toBeInTheDocument();
@@ -410,7 +402,7 @@ describe("DataTables", () => {
     expect(section).toBeInTheDocument();
 
     const button = screen.getByRole("button");
-    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(button).toHaveAttribute("aria-expanded", "true");
     expect(button).toHaveAttribute("aria-controls", "data-tables-content");
   });
 
@@ -424,10 +416,10 @@ describe("DataTables", () => {
     render(<DataTables rawData={rawData} />);
 
     const button = screen.getByRole("button");
-    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(button).toHaveAttribute("aria-expanded", "true");
 
     fireEvent.click(button);
-    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(button).toHaveAttribute("aria-expanded", "false");
   });
 
   it("tables have proper aria-labelledby", () => {
@@ -438,7 +430,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     const table = screen.getByLabelText("Companies data").querySelector("table");
     expect(table).toHaveAttribute("aria-labelledby", "companies-table-label");
@@ -448,7 +439,7 @@ describe("DataTables", () => {
   // Keyboard Navigation
   // =========================================================================
 
-  it("expands on Enter key", () => {
+  it("collapses on Enter key", () => {
     const rawData: RawData = {
       companies: [
         { company_id: "1", name: "Acme", plan: "Pro", renewal_date: "2024-12-31" },
@@ -456,14 +447,15 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
+    expect(screen.getByText("Acme")).toBeInTheDocument();
 
     const button = screen.getByRole("button");
     fireEvent.keyDown(button, { key: "Enter" });
 
-    expect(screen.getByText("Acme")).toBeInTheDocument();
+    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
   });
 
-  it("expands on Space key", () => {
+  it("collapses on Space key", () => {
     const rawData: RawData = {
       companies: [
         { company_id: "1", name: "Acme", plan: "Pro", renewal_date: "2024-12-31" },
@@ -471,11 +463,12 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
+    expect(screen.getByText("Acme")).toBeInTheDocument();
 
     const button = screen.getByRole("button");
     fireEvent.keyDown(button, { key: " " });
 
-    expect(screen.getByText("Acme")).toBeInTheDocument();
+    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
   });
 
   // =========================================================================
@@ -508,7 +501,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Results (2)")).toBeInTheDocument();
     expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -525,7 +517,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("name")).toBeInTheDocument();
     expect(screen.getByText("role")).toBeInTheDocument();
@@ -541,7 +532,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("first name")).toBeInTheDocument();
     expect(screen.getByText("last name")).toBeInTheDocument();
@@ -555,7 +545,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("Alice")).toBeInTheDocument();
     const dashes = screen.getAllByText("—");
@@ -576,7 +565,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     // Grouped table titles
     expect(screen.getByText(/Company \(1\)/)).toBeInTheDocument();
@@ -604,7 +592,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText(/Opportunities \(1\)/)).toBeInTheDocument();
     expect(screen.getByText(/History \(1\)/)).toBeInTheDocument();
@@ -621,7 +608,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText(/Company \(1\)/)).toBeInTheDocument();
     expect(screen.queryByText("Mystery")).not.toBeInTheDocument();
@@ -636,7 +622,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     // Should truncate at 80 chars with ellipsis
     const truncated = "A".repeat(80) + "…";
@@ -651,7 +636,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     expect(screen.getByText("John Doe")).toBeInTheDocument();
     // null health_status renders as "—"
@@ -667,7 +651,6 @@ describe("DataTables", () => {
     };
 
     render(<DataTables rawData={rawData} />);
-    fireEvent.click(screen.getByRole("button"));
 
     const region = screen.getByLabelText("Company data");
     expect(region).toBeInTheDocument();
