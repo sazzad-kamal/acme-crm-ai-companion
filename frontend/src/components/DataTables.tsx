@@ -260,14 +260,16 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
 
           {/* Generic Data Table (raw query results) */}
           {rawData.data && rawData.data.length > 0 && (() => {
-            const HIDDEN_COLS = new Set(["notes", "closed_date", "created_at", "updated_at", "currency", "probability"]);
+            const HIDDEN_COLS = new Set(["notes", "closed_date", "created_at", "updated_at", "currency", "probability", "source"]);
             const isVisible = (k: string) =>
               !k.startsWith("_") && !k.endsWith("_id") && !HIDDEN_COLS.has(k);
 
-            // Check if data has a source column (from UNION ALL cross-table queries)
-            const hasSourceColumn = "source" in rawData.data[0];
+            // Check if data is from UNION ALL cross-table queries (source values are known types)
+            const KNOWN_SOURCES = new Set(["company", "opportunity", "activity", "history", "contact"]);
+            const firstSource = String(rawData.data[0].source ?? "");
+            const isGroupedSource = "source" in rawData.data[0] && KNOWN_SOURCES.has(firstSource);
 
-            if (hasSourceColumn) {
+            if (isGroupedSource) {
               // Group rows by source for separate tables with proper column labels
               const SOURCE_CONFIG: Record<string, { title: string; icon: string; columns: { key: string; label: string }[] }> = {
                 company:     { title: "Company",      icon: "🏢", columns: [{ key: "name", label: "Name" }, { key: "plan", label: "Plan" }, { key: "status", label: "Status" }, { key: "health_status", label: "Health" }, { key: "key_date", label: "Renewal Date" }, { key: "notes", label: "Notes" }] },
