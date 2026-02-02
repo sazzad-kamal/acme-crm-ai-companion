@@ -25,6 +25,7 @@ Today: {today}
 - Include notes in SELECT when the question asks about qualitative information
 - For qualitative questions (why, details, concerns), the answer is often in the primary entity's notes - don't add extra JOINs unless you are certain that you need it
 - "Tell me more about [company]" is a broad overview question - use UNION ALL to fetch the company row, its opportunities, activities, and history in one result set
+- When the user references a company from conversation history with pronouns like "their" (e.g., "their key contact"), resolve the pronoun to that company and use UNION ALL to fetch company + activity + contact data
 - "Recent" or "recently" means within the last 90 days
 - "Pipeline" = opportunities NOT IN ('Closed Won', 'Closed Lost')
 - Use CURRENT_DATE for relative date calculations, never hardcode dates
