@@ -4,7 +4,7 @@
 
 questions:
   # =============================================================================
-  # DEMO TREE — Branch 1: Pipeline
+  # DEMO FLOW (5 questions) — run with --limit 5
   # =============================================================================
   - text: "What deals are in the pipeline?"
     difficulty: 1
@@ -12,16 +12,37 @@ questions:
     expected_answer: "Current pipeline has 11 open deals totaling approximately $194K. Key deals include Beta Tech new business ($32K, Negotiation), Harbor Logistics ($26K, Discovery), Acme renewal ($24K, Qualified), and Delta Health renewal ($22K, Qualified)."
     expected_action: true
 
-  - text: "What are the largest deals in the pipeline?"
-    difficulty: 1
-    expected_sql: "SELECT * FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') ORDER BY amount DESC"
-    expected_answer: "The largest deals in the pipeline are Beta Tech new rollout ($32K, Negotiation), Harbor Logistics initial rollout ($26K, Discovery), Acme Manufacturing annual renewal ($24K, Qualified), and Delta Health renewal ($22K, Qualified)."
-    expected_action: true
-
   - text: "How are deals distributed across stages?"
     difficulty: 2
     expected_sql: "SELECT stage, COUNT(*) AS deal_count FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') GROUP BY stage ORDER BY deal_count DESC"
     expected_answer: "Qualified has the most open deals (4): Acme renewal, Delta renewal, Fusion upsell, Crown expansion. Discovery has 3: Beta addon, Delta expand, Harbor new. Proposal has 2: Acme upgrade and Crown renewal. Negotiation has 1: Beta Tech new business. New has 1: Eastern Travel trial."
+    expected_action: true
+
+  - text: "Which renewals are at risk?"
+    difficulty: 1
+    expected_sql: "SELECT * FROM companies WHERE health_status LIKE '%at-risk%' AND renewal_date IS NOT NULL"
+    expected_answer: "Two renewals are at risk. Delta Health (renewal Feb 15, at-risk-renewal-soon) has HIPAA audit logging concerns and needs board approval for expansion. Crown Foods (renewal Feb 14, at-risk-renewal-soon) has mobile app performance concerns despite strong product adoption. Combined at-risk renewal value is approximately $40K."
+    expected_action: true
+
+  - text: "Tell me more about Crown Foods"
+    difficulty: 2
+    expected_sql: "SELECT 'company' AS source, name, plan, status, health_status, renewal_date::TEXT AS key_date, notes FROM companies WHERE name = 'Crown Foods' UNION ALL SELECT 'opportunity', name, stage, type, amount::TEXT, expected_close_date::TEXT, notes FROM opportunities WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') UNION ALL SELECT 'activity', type, subject, status, priority, due_date::TEXT, notes FROM activities WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') UNION ALL SELECT 'history', type, subject, '', '', occurred_at::TEXT, notes FROM history WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') ORDER BY key_date DESC"
+    expected_answer: "Crown Foods is an at-risk SMB on the Pro plan with renewal on Feb 14. They have a subscription renewal opportunity ($18K, Proposal) and a warehouse expansion ($14K, Qualified). Key activities include a renewal check-in with Maria Silva and advanced training. Maria expressed frustration with mobile app performance."
+    expected_action: true
+
+  - text: "Any activity with Crown Foods' key contact this week?"
+    difficulty: 3
+    expected_sql: "SELECT 'company' AS source, name, plan, status, health_status, '', notes FROM companies WHERE name = 'Crown Foods' UNION ALL SELECT 'activity', type, subject, status, priority, due_date::TEXT, notes FROM activities WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND contact_id IN (SELECT contact_id FROM contacts WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND role = 'Decision Maker') AND due_date >= date_trunc('week', CURRENT_DATE) AND due_date < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days' AND status = 'Open' UNION ALL SELECT 'contact', first_name || ' ' || last_name, role, job_title, email, '', notes FROM contacts WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND role = 'Decision Maker'"
+    expected_answer: "Crown Foods' key contact is Maria Silva (Decision Maker, VP Operations). There is a renewal check-in call with Maria scheduled this week (Feb 5, High priority). Maria expressed frustration with mobile app performance and needs the support ticket escalated before renewal discussion."
+    expected_action: true
+
+  # =============================================================================
+  # Additional Pipeline Questions
+  # =============================================================================
+  - text: "What are the largest deals in the pipeline?"
+    difficulty: 1
+    expected_sql: "SELECT * FROM opportunities WHERE stage NOT IN ('Closed Won', 'Closed Lost') ORDER BY amount DESC"
+    expected_answer: "The largest deals in the pipeline are Beta Tech new rollout ($32K, Negotiation), Harbor Logistics initial rollout ($26K, Discovery), Acme Manufacturing annual renewal ($24K, Qualified), and Delta Health renewal ($22K, Qualified)."
     expected_action: true
 
   - text: "Who owns the most pipeline value?"
@@ -31,18 +52,12 @@ questions:
     expected_action: true
 
   # =============================================================================
-  # DEMO TREE — Branch 2: Renewals
+  # Additional Renewal Questions
   # =============================================================================
   - text: "Which accounts are up for renewal?"
     difficulty: 1
     expected_sql: "SELECT * FROM companies WHERE renewal_date >= CURRENT_DATE AND status = 'Active' ORDER BY renewal_date"
     expected_answer: "Six accounts have upcoming renewals. Crown Foods (Feb 14) and Delta Health (Feb 15) are the most urgent and both flagged as at-risk. Beta Tech (Mar 1), Harbor Logistics (Mar 29, health-check), Acme Manufacturing (Apr 14), and Fusion Retail (May 15) follow."
-    expected_action: true
-
-  - text: "Which renewals are at risk?"
-    difficulty: 1
-    expected_sql: "SELECT * FROM companies WHERE health_status LIKE '%at-risk%' AND renewal_date IS NOT NULL"
-    expected_answer: "Two renewals are at risk. Delta Health (renewal Feb 15, at-risk-renewal-soon) has HIPAA audit logging concerns and needs board approval for expansion. Crown Foods (renewal Feb 14, at-risk-renewal-soon) has mobile app performance concerns despite strong product adoption. Combined at-risk renewal value is approximately $40K."
     expected_action: true
 
   - text: "What's the total renewal value at stake?"
@@ -51,14 +66,8 @@ questions:
     expected_answer: "Open renewal opportunities total approximately $64K: Acme ($24K), Delta Health ($22K), and Crown Foods ($18K). At-risk renewals account for $40K (Delta $22K + Crown $18K)."
     expected_action: false
 
-  - text: "Tell me more about Crown Foods"
-    difficulty: 2
-    expected_sql: "SELECT * FROM history h JOIN companies c ON h.company_id = c.company_id WHERE c.name = 'Crown Foods'"
-    expected_answer: "Crown Foods has 5 interaction records. Maria Silva confirmed a 2-year renewal commitment. Key wins include 60% reduction in report generation time and IT team satisfaction with API flexibility. Nina Foster's analytics team is expanding use cases. Integration support was provided for API troubleshooting."
-    expected_action: true
-
   # =============================================================================
-  # DEMO TREE — Branch 3: Activities
+  # Activities Questions
   # =============================================================================
   - text: "What tasks are due this week?"
     difficulty: 1
