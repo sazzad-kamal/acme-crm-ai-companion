@@ -409,6 +409,34 @@ describe("useChatStream", () => {
     expect(result.current.messages[0].sectionStatus).toBeUndefined();
   });
 
+  it("preserves accumulated sql_results when done event sends empty defaults", async () => {
+    const sqlData = { data: [{ name: "Acme", stage: "Qualified" }] };
+    const events = [
+      `event: data_ready\ndata: ${JSON.stringify({ sql_results: sqlData })}\n\n`,
+      'event: answer_chunk\ndata: {"chunk": "Pipeline deals"}\n\n',
+      'event: action_ready\ndata: {"suggested_action": "Follow up"}\n\n',
+      'event: followup_ready\ndata: {"follow_up_suggestions": ["Next?"]}\n\n',
+      // done event sends empty sql_results (backend default) — accumulated data should win
+      `event: done\ndata: ${JSON.stringify({ answer: "Pipeline deals", sources: [], steps: [], sql_results: {}, suggested_action: null, follow_up_suggestions: [], meta: {} })}\n\n`,
+    ];
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      body: createMockSSEStream(events),
+    });
+
+    const { result } = renderHook(() => useChatStream());
+
+    await act(async () => {
+      await result.current.sendMessage("What deals are in the pipeline?");
+    });
+
+    // Accumulated data from data_ready should be preserved, not overwritten by done's empty {}
+    expect(result.current.messages[0].response?.sql_results).toEqual(sqlData);
+    expect(result.current.messages[0].response?.suggested_action).toBe("Follow up");
+    expect(result.current.messages[0].response?.follow_up_suggestions).toEqual(["Next?"]);
+  });
+
   it("ignores unknown event types", async () => {
     const events = [
       'event: unknown_event\ndata: {"foo": "bar"}\n\n',
