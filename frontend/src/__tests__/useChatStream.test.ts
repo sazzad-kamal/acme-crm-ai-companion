@@ -437,6 +437,29 @@ describe("useChatStream", () => {
     expect(result.current.messages[0].response?.follow_up_suggestions).toEqual(["Next?"]);
   });
 
+  it("accumulates action_chunk events into suggested_action", async () => {
+    const events = [
+      'event: action_chunk\ndata: {"chunk": "Schedule a "}\n\n',
+      'event: action_chunk\ndata: {"chunk": "follow-up call"}\n\n',
+      `event: done\ndata: ${JSON.stringify({ answer: "Done", sources: [], steps: [], sql_results: {}, suggested_action: null, follow_up_suggestions: [], meta: {} })}\n\n`,
+    ];
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      body: createMockSSEStream(events),
+    });
+
+    const { result } = renderHook(() => useChatStream());
+
+    await act(async () => {
+      await result.current.sendMessage("What should I do?");
+    });
+
+    expect(result.current.messages[0].response?.suggested_action).toBe(
+      "Schedule a follow-up call",
+    );
+  });
+
   it("ignores unknown event types", async () => {
     const events = [
       'event: unknown_event\ndata: {"foo": "bar"}\n\n',

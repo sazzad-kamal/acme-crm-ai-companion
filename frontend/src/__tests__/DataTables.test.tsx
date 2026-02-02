@@ -561,4 +561,119 @@ describe("DataTables", () => {
     const dashes = screen.getAllByText("—");
     expect(dashes.length).toBeGreaterThan(0);
   });
+
+  // =========================================================================
+  // Grouped Source Tables (UNION ALL with source column)
+  // =========================================================================
+
+  it("renders grouped tables when data has source column", () => {
+    const rawData: RawData = {
+      data: [
+        { source: "company", name: "Crown Foods", plan: "Enterprise", status: "Active", health_status: "At Risk", key_date: "2025-03-15", notes: "Key account" },
+        { source: "activity", name: "Call", plan: "Renewal check-in", status: "Open", health_status: "High", key_date: "2025-02-05", notes: "Prep agenda" },
+        { source: "contact", name: "Maria Lopez", plan: "Decision Maker", status: "VP Operations", health_status: "maria@crown.com", key_date: "", notes: "Primary contact" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    // Grouped table titles
+    expect(screen.getByText(/Company \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Activities \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Contacts \(1\)/)).toBeInTheDocument();
+
+    // Company data
+    expect(screen.getByText("Crown Foods")).toBeInTheDocument();
+    expect(screen.getByText("Enterprise")).toBeInTheDocument();
+
+    // Activity data
+    expect(screen.getByText("Renewal check-in")).toBeInTheDocument();
+
+    // Contact data
+    expect(screen.getByText("Maria Lopez")).toBeInTheDocument();
+    expect(screen.getByText("Decision Maker")).toBeInTheDocument();
+  });
+
+  it("renders grouped opportunity and history tables", () => {
+    const rawData: RawData = {
+      data: [
+        { source: "opportunity", name: "Q1 Renewal", plan: "Negotiation", status: "Renewal", health_status: "$50,000", key_date: "2025-03-31", notes: "" },
+        { source: "history", name: "Status Change", plan: "Moved to At Risk", key_date: "2025-01-20", notes: "Health downgraded" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByText(/Opportunities \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/History \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText("Q1 Renewal")).toBeInTheDocument();
+    expect(screen.getByText("Status Change")).toBeInTheDocument();
+  });
+
+  it("skips unknown source types in grouped tables", () => {
+    const rawData: RawData = {
+      data: [
+        { source: "company", name: "Acme", plan: "Pro", status: "Active", health_status: "Good", key_date: "2025-06-01", notes: "" },
+        { source: "unknown_type", name: "Mystery", plan: "N/A", status: "N/A", health_status: "N/A", key_date: "", notes: "" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByText(/Company \(1\)/)).toBeInTheDocument();
+    expect(screen.queryByText("Mystery")).not.toBeInTheDocument();
+  });
+
+  it("truncates long notes in grouped tables", () => {
+    const longNote = "A".repeat(100);
+    const rawData: RawData = {
+      data: [
+        { source: "company", name: "Test Co", plan: "Basic", status: "Active", health_status: "Good", key_date: "2025-12-31", notes: longNote },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    // Should truncate at 80 chars with ellipsis
+    const truncated = "A".repeat(80) + "…";
+    expect(screen.getByText(truncated)).toBeInTheDocument();
+  });
+
+  it("shows em dash for missing values in grouped tables", () => {
+    const rawData: RawData = {
+      data: [
+        { source: "contact", name: "John Doe", plan: "Decision Maker", status: "CTO", health_status: null, key_date: "", notes: "" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByText("John Doe")).toBeInTheDocument();
+    // null health_status renders as "—"
+    const dashes = screen.getAllByText("—");
+    expect(dashes.length).toBeGreaterThan(0);
+  });
+
+  it("grouped tables have proper ARIA attributes", () => {
+    const rawData: RawData = {
+      data: [
+        { source: "company", name: "Acme", plan: "Pro", status: "Active", health_status: "Good", key_date: "2025-06-01", notes: "" },
+      ],
+    };
+
+    render(<DataTables rawData={rawData} />);
+    fireEvent.click(screen.getByRole("button"));
+
+    const region = screen.getByLabelText("Company data");
+    expect(region).toBeInTheDocument();
+    expect(region).toHaveAttribute("data-type", "company");
+
+    const table = region.querySelector("table");
+    expect(table).toHaveAttribute("aria-labelledby", "grouped-company-table-label");
+  });
 });
