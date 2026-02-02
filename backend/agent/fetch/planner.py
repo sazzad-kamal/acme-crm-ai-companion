@@ -76,8 +76,15 @@ SELECT * FROM activities WHERE due_date >= date_trunc('week', CURRENT_DATE) AND 
 Q: "What meetings are coming up?"
 SELECT * FROM activities WHERE type = 'Meeting' AND status = 'Open' ORDER BY due_date
 
+Q: "Any activity with their key contact this week?" (conversation context: Crown Foods)
+SELECT 'company' AS source, name, plan, status, health_status, renewal_date::TEXT AS key_date, notes FROM companies WHERE name = 'Crown Foods'
+UNION ALL
+SELECT 'activity', type, subject, status, priority, due_date::TEXT, notes FROM activities WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND contact_id IN (SELECT contact_id FROM contacts WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND role = 'Decision Maker') AND due_date >= date_trunc('week', CURRENT_DATE) AND due_date < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days' AND status = 'Open'
+UNION ALL
+SELECT 'contact', first_name || ' ' || last_name, role, job_title, email, '', notes FROM contacts WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND role = 'Decision Maker'
+
 Q: "Any activity with Crown Foods' key contact this week?"
-SELECT 'company' AS source, name, plan, status, health_status, '', notes FROM companies WHERE name = 'Crown Foods'
+SELECT 'company' AS source, name, plan, status, health_status, renewal_date::TEXT AS key_date, notes FROM companies WHERE name = 'Crown Foods'
 UNION ALL
 SELECT 'activity', type, subject, status, priority, due_date::TEXT, notes FROM activities WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND contact_id IN (SELECT contact_id FROM contacts WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND role = 'Decision Maker') AND due_date >= date_trunc('week', CURRENT_DATE) AND due_date < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days' AND status = 'Open'
 UNION ALL
