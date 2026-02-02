@@ -256,10 +256,16 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
                 updateMessage();
                 break;
 
-              case "done":
+              case "done": {
                 accumulatedAnswer = event.data.answer as string;
-                finalResponse = event.data as unknown as ChatResponse;
+                const doneData = { ...(event.data as Record<string, unknown>) };
+                // Preserve accumulated section data — done payload may carry empty defaults
+                if (accumulatedSqlResults !== undefined) doneData.sql_results = accumulatedSqlResults;
+                if (accumulatedAction !== undefined) doneData.suggested_action = accumulatedAction;
+                if (accumulatedFollowUps !== undefined) doneData.follow_up_suggestions = accumulatedFollowUps;
+                finalResponse = doneData as unknown as ChatResponse;
                 break;
+              }
 
               case "error":
                 throw new Error(event.data.message as string);
