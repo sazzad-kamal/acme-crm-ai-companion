@@ -274,6 +274,7 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
                 opportunity: { title: "Opportunities", icon: "💰", columns: [{ key: "name", label: "Name" }, { key: "plan", label: "Stage" }, { key: "status", label: "Type" }, { key: "health_status", label: "Value" }, { key: "key_date", label: "Close Date" }, { key: "notes", label: "Notes" }] },
                 activity:    { title: "Activities",    icon: "📋", columns: [{ key: "name", label: "Type" }, { key: "plan", label: "Subject" }, { key: "status", label: "Status" }, { key: "health_status", label: "Priority" }, { key: "key_date", label: "Due Date" }, { key: "notes", label: "Notes" }] },
                 history:     { title: "History",       icon: "📜", columns: [{ key: "name", label: "Type" }, { key: "plan", label: "Subject" }, { key: "key_date", label: "Date" }, { key: "notes", label: "Notes" }] },
+                contact:     { title: "Contacts",     icon: "👤", columns: [{ key: "name", label: "Name" }, { key: "plan", label: "Role" }, { key: "status", label: "Title" }, { key: "health_status", label: "Email" }, { key: "notes", label: "Notes" }] },
               };
 
               const grouped = new Map<string, Record<string, unknown>[]>();

@@ -77,7 +77,11 @@ Q: "What meetings are coming up?"
 SELECT * FROM activities WHERE type = 'Meeting' AND status = 'Open' ORDER BY due_date
 
 Q: "Any upcoming activity with their key contact?" (conversation context: Crown Foods)
-SELECT a.*, c.first_name, c.last_name, c.role FROM activities a INNER JOIN contacts c ON a.contact_id = c.contact_id WHERE a.company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND c.role = 'Decision Maker' AND a.status = 'Open' ORDER BY a.due_date"""
+SELECT 'company' AS source, name, plan, status, health_status, '', notes FROM companies WHERE name = 'Crown Foods'
+UNION ALL
+SELECT 'activity', type, subject, status, priority, due_date::TEXT, notes FROM activities WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND contact_id IN (SELECT contact_id FROM contacts WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND role = 'Decision Maker') AND status = 'Open'
+UNION ALL
+SELECT 'contact', first_name || ' ' || last_name, role, job_title, email, '', notes FROM contacts WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') AND role = 'Decision Maker'"""
 
 _HUMAN_PROMPT = """User's question: {question}
 
