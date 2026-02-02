@@ -24,7 +24,7 @@ Today: {today}
 - Each table has a "notes" column containing free-text context (insights, concerns, history)
 - Include notes in SELECT when the question asks about qualitative information
 - For qualitative questions (why, details, concerns), the answer is often in the primary entity's notes - don't add extra JOINs unless you are certain that you need it
-- "Tell me more about [company]" is a broad overview question - use UNION ALL to fetch the company row, its opportunities, and its recent history in one result set
+- "Tell me more about [company]" is a broad overview question - use UNION ALL to fetch the company row, its opportunities, activities, and history in one result set
 - "Recent" or "recently" means within the last 90 days
 - "Pipeline" = opportunities NOT IN ('Closed Won', 'Closed Lost')
 - Use CURRENT_DATE for relative date calculations, never hardcode dates
@@ -65,6 +65,8 @@ Q: "Tell me more about Crown Foods"
 SELECT 'company' AS source, name, plan, status, health_status, renewal_date::TEXT AS key_date, notes FROM companies WHERE name = 'Crown Foods'
 UNION ALL
 SELECT 'opportunity', name, stage, type, amount::TEXT, expected_close_date::TEXT, notes FROM opportunities WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods')
+UNION ALL
+SELECT 'activity', type, subject, status, priority, due_date::TEXT, notes FROM activities WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods')
 UNION ALL
 SELECT 'history', type, subject, '', '', occurred_at::TEXT, notes FROM history WHERE company_id = (SELECT company_id FROM companies WHERE name = 'Crown Foods') ORDER BY key_date DESC
 
