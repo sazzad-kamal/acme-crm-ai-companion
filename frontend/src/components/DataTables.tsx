@@ -263,6 +263,63 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
             const HIDDEN_COLS = new Set(["notes", "closed_date", "created_at", "updated_at", "currency", "probability"]);
             const isVisible = (k: string) =>
               !k.startsWith("_") && !k.endsWith("_id") && !HIDDEN_COLS.has(k);
+
+            // Check if data has a source column (from UNION ALL cross-table queries)
+            const hasSourceColumn = "source" in rawData.data[0];
+
+            if (hasSourceColumn) {
+              // Group rows by source for separate tables with proper column labels
+              const SOURCE_CONFIG: Record<string, { title: string; icon: string; columns: { key: string; label: string }[] }> = {
+                company:     { title: "Company",      icon: "🏢", columns: [{ key: "name", label: "Name" }, { key: "plan", label: "Plan" }, { key: "status", label: "Status" }, { key: "health_status", label: "Health" }, { key: "key_date", label: "Renewal Date" }] },
+                opportunity: { title: "Opportunities", icon: "💰", columns: [{ key: "name", label: "Name" }, { key: "plan", label: "Stage" }, { key: "status", label: "Type" }, { key: "health_status", label: "Value" }, { key: "key_date", label: "Close Date" }] },
+                activity:    { title: "Activities",    icon: "📋", columns: [{ key: "name", label: "Type" }, { key: "plan", label: "Subject" }, { key: "status", label: "Status" }, { key: "health_status", label: "Priority" }, { key: "key_date", label: "Due Date" }] },
+                history:     { title: "History",       icon: "📜", columns: [{ key: "name", label: "Type" }, { key: "plan", label: "Subject" }, { key: "key_date", label: "Date" }] },
+              };
+
+              const grouped = new Map<string, Record<string, unknown>[]>();
+              for (const row of rawData.data) {
+                const src = String(row.source ?? "other");
+                if (!grouped.has(src)) grouped.set(src, []);
+                grouped.get(src)!.push(row);
+              }
+
+              return (
+                <>
+                  {[...grouped.entries()].map(([src, rows]) => {
+                    const config = SOURCE_CONFIG[src];
+                    if (!config) return null;
+                    const labelId = `grouped-${src}-table-label`;
+                    return (
+                      <div key={src} role="region" aria-label={`${config.title} data`} data-type={src}>
+                        <h4 className="data-table__title" id={labelId}>
+                          <span className="data-table__icon">{config.icon}</span>
+                          {config.title} ({rows.length})
+                        </h4>
+                        <table className="data-table" aria-labelledby={labelId}>
+                          <thead>
+                            <tr>
+                              {config.columns.map((col) => (
+                                <th key={col.key} scope="col">{col.label}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((row, idx) => (
+                              <tr key={idx}>
+                                {config.columns.map((col) => (
+                                  <td key={col.key}>{String(row[col.key] ?? "—")}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </>
+              );
+            }
+
             return (
             <div role="region" aria-label="Query results" data-type="data">
               <h4 className="data-table__title" id="generic-table-label">
