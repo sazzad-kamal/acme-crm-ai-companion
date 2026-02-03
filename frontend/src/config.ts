@@ -42,6 +42,7 @@ export const endpoints = {
   chatStream: `${config.apiUrl}/api/chat/stream`,
   health: `${config.apiUrl}/api/health`,
   starterQuestions: `${config.apiUrl}/api/chat/starter-questions`,
+  info: `${config.apiUrl}/api/info`,
 } as const;
 
 /**

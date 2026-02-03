@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from backend.act_fetch import DEMO_MODE, DEMO_STARTERS
 from backend.agent.followup.tree import get_starters
 from backend.agent.streaming import stream_agent
 
@@ -15,7 +16,7 @@ class ChatRequest(BaseModel):
 
 @router.get("/chat/starter-questions", summary="Get starter questions")
 def get_starter_questions() -> list[str]:
-    return get_starters()
+    return DEMO_STARTERS if DEMO_MODE else get_starters()
 
 @router.post("/chat/stream", summary="Stream a chat response (SSE)")
 def chat_stream_endpoint(payload: ChatRequest) -> StreamingResponse:

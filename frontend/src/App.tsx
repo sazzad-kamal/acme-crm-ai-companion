@@ -8,7 +8,9 @@ import {
   ErrorBoundary,
   SkipLink,
   DataExplorer,
+  DemoLayout,
 } from "./components";
+import { endpoints } from "./config";
 import "./styles/index.css";
 
 /**
@@ -31,6 +33,11 @@ export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
+
+  // Demo mode state
+  const [appInfo, setAppInfo] = useState<{ mode: string; database: string | null } | null>(null);
+  const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
+  const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
 
   // Memoized error handler to prevent hook re-initialization
   const chatOptions = useMemo(
@@ -56,6 +63,19 @@ export default function App() {
       inputRef.current.focus();
     }
   }, [isLoading]);
+
+  // Fetch app info and starter questions on mount (for demo mode)
+  useEffect(() => {
+    fetch(endpoints.info)
+      .then((r) => r.json())
+      .then(setAppInfo)
+      .catch(() => setAppInfo({ mode: "csv", database: null }));
+
+    fetch(endpoints.starterQuestions)
+      .then((r) => r.json())
+      .then((data) => Array.isArray(data) && setStarterQuestions(data))
+      .catch(() => {});
+  }, []);
 
   // Close drawer handler (stable reference for focus trap)
   const closeDrawer = useCallback(() => {
@@ -110,6 +130,21 @@ export default function App() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
+  // Handle demo question click
+  const handleDemoQuestionClick = useCallback(
+    (question: string) => {
+      // Click same question = reset to empty
+      if (question === activeQuestion) {
+        setActiveQuestion(null);
+        return;
+      }
+      // Set active and send
+      setActiveQuestion(question);
+      sendMessage(question);
+    },
+    [activeQuestion, sendMessage]
+  );
+
   // Update document title based on state
   useEffect(() => {
     const pageTitle = isLoading
@@ -120,6 +155,21 @@ export default function App() {
 
     document.title = pageTitle;
   }, [isLoading, messages.length]);
+
+  // Demo mode: render simplified two-panel layout
+  if (appInfo?.mode === "act") {
+    return (
+      <DemoLayout
+        questions={starterQuestions}
+        database={appInfo.database || ""}
+        activeQuestion={activeQuestion}
+        onQuestionClick={handleDemoQuestionClick}
+        messages={messages}
+        isLoading={isLoading}
+        error={error}
+      />
+    );
+  }
 
   return (
     <ErrorBoundary>

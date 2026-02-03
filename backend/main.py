@@ -20,6 +20,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
+from backend.act_fetch import ACT_API_DB, DEMO_MODE
 from backend.api.chat import router as chat_router
 from backend.api.data import router as data_router
 
@@ -126,6 +127,14 @@ def create_app() -> FastAPI:
     @router.get("/health", tags=["health"])
     async def health() -> dict:
         return {"status": "ok"}
+
+    @router.get("/info", tags=["info"])
+    async def get_info() -> dict:
+        """Get app mode info for frontend."""
+        return {
+            "mode": "act" if DEMO_MODE else "csv",
+            "database": ACT_API_DB if DEMO_MODE else None,
+        }
 
     router.include_router(chat_router, tags=["chat"])
     router.include_router(data_router, tags=["data"])

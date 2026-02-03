@@ -3,6 +3,7 @@
 import logging
 from typing import Any, cast
 
+from backend.act_fetch import DEMO_MODE, act_fetch
 from backend.agent.fetch.planner import SQLPlan, get_sql_plan
 from backend.agent.fetch.sql.connection import get_connection
 from backend.agent.fetch.sql.executor import execute_sql
@@ -49,6 +50,15 @@ def _execute_sql_with_retry(
 def fetch_node(state: AgentState) -> AgentState:
     """Unified fetch node that plans SQL and executes queries."""
     question = state["question"]
+
+    # Demo mode: fetch from Act! API instead of SQL
+    if DEMO_MODE:
+        logger.info(f"[Fetch] Demo mode - calling Act! API for: {question[:50]}...")
+        act_result = act_fetch(question)
+        if act_result.get("error"):
+            return cast(AgentState, {"sql_results": {}, "error": act_result["error"]})
+        return cast(AgentState, {"sql_results": {"data": act_result["data"]}})
+
     history = format_conversation_for_prompt(state.get("messages", []))
     logger.info(f"[Fetch] Processing: {question[:50]}...")
 
