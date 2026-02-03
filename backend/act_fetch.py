@@ -26,9 +26,9 @@ TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 # Demo starters - the 5 fixed questions for demo mode
 DEMO_STARTERS = [
     "Brief me on my next call",
-    "What should I focus on today?",
+    "What's coming up?",
     "Who should I contact next?",
-    "What's urgent?",
+    "What needs attention?",
     "Catch me up",
 ]
 
@@ -156,13 +156,12 @@ def act_fetch(question: str) -> dict[str, Any]:
             })
             return {"data": data, "error": None}
 
-        elif q == "What should I focus on today?":
-            # Fetch today's activities/tasks
-            today = time.strftime("%Y-%m-%d")
+        elif q == "What's coming up?":
+            # Fetch upcoming activities (not cleared, ordered by start time)
             data = _get("/api/activities", {
-                "$filter": f"startTime ge {today}T00:00:00Z and startTime lt {today}T23:59:59Z",
+                "$filter": "isCleared eq false",
                 "$orderby": "startTime asc",
-                "$top": 10,
+                "$top": 5,
             })
             return {"data": data, "error": None}
 
@@ -174,11 +173,12 @@ def act_fetch(question: str) -> dict[str, Any]:
             })
             return {"data": data, "error": None}
 
-        elif q == "What's urgent?":
-            # Fetch high-priority activities that aren't cleared
+        elif q == "What needs attention?":
+            # Fetch overdue activities (startTime in past, not cleared)
+            now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             data = _get("/api/activities", {
-                "$filter": "activityPriorityName eq 'High' and isCleared eq false",
-                "$orderby": "startTime asc",
+                "$filter": f"startTime lt {now} and isCleared eq false",
+                "$orderby": "startTime desc",
                 "$top": 10,
             })
             return {"data": data, "error": None}

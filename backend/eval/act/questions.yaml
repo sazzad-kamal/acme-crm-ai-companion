@@ -4,22 +4,20 @@ questions:
     expected_min_rows: 1
     loading_message: "Checking your calendar..."
 
-  - text: "What should I focus on today?"
-    expected_action: false
-    expected_min_rows: 0
-    warn_if_zero: true
-    loading_message: "Analyzing your priorities..."
+  - text: "What's coming up?"
+    expected_action: true
+    expected_min_rows: 1
+    loading_message: "Checking your schedule..."
 
   - text: "Who should I contact next?"
     expected_action: true
     expected_min_rows: 1
     loading_message: "Finding contacts..."
 
-  - text: "What's urgent?"
-    expected_action: false
-    expected_min_rows: 0
-    warn_if_zero: true
-    loading_message: "Scanning for urgent items..."
+  - text: "What needs attention?"
+    expected_action: true
+    expected_min_rows: 1
+    loading_message: "Finding items that need attention..."
 
   - text: "Catch me up"
     expected_action: true
