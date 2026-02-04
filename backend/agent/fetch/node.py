@@ -57,7 +57,7 @@ def fetch_node(state: AgentState) -> AgentState:
         act_result = act_fetch(question)
         if act_result.get("error"):
             return cast(AgentState, {"sql_results": {}, "error": act_result["error"]})
-        return cast(AgentState, {"sql_results": {"data": act_result["data"]}})
+        return cast(AgentState, {"sql_results": act_result["data"]})
 
     history = format_conversation_for_prompt(state.get("messages", []))
     logger.info(f"[Fetch] Processing: {question[:50]}...")

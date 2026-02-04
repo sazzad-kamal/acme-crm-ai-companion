@@ -155,7 +155,7 @@ DEMO_PROMPTS = {
 }
 
 # Available databases for runtime switching
-AVAILABLE_DATABASES: list[str] = ["KQC", "W31322003119", "KCMTestDBDec2884", "TestDBJune202971", "AACHTechOne985", "ACT2021Demo376"]
+AVAILABLE_DATABASES: list[str] = ["KQC", "W31322003119"]
 
 # Token cache
 _token: str | None = None

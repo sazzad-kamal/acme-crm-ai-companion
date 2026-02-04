@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 from backend.eval.act.multi_db_runner import (
     DatabaseResult,
     MultiDbEvalSummary,
+    _print_summary,
+    run_multi_db_eval,
+    save_csv_results,
+    save_json_results,
 )
 from backend.eval.act.runner import QuestionResult
 
@@ -199,3 +207,246 @@ class TestMultiDbEvalSummary:
         assert summary.overall_avg_relevancy == 0.875  # (0.9 + 0.85) / 2
         assert summary.overall_avg_latency_ms == 15000  # (10000 + 20000) / 2
         assert summary.overall_action_pass_rate == 1.0  # 2/2
+
+
+class TestRunMultiDbEval:
+    """Tests for run_multi_db_eval function."""
+
+    @patch("backend.eval.act.multi_db_runner.evaluate_question")
+    @patch("backend.eval.act.multi_db_runner.clear_api_cache")
+    @patch("backend.eval.act.multi_db_runner.set_database")
+    @patch("backend.eval.act.multi_db_runner.get_database")
+    def test_run_multi_db_eval_basic(
+        self, mock_get_db: MagicMock, mock_set_db: MagicMock, mock_clear_cache: MagicMock, mock_eval: MagicMock
+    ) -> None:
+        """Test basic multi-db evaluation run."""
+        mock_get_db.return_value = "OriginalDB"
+        mock_eval.return_value = QuestionResult(
+            question="Q1",
+            passed=True,
+            faithfulness=0.8,
+            relevancy=0.9,
+            action_passed=True,
+            total_latency_ms=1000,
+        )
+
+        summary = run_multi_db_eval(
+            databases=["DB1", "DB2"],
+            questions=["Q1"],
+        )
+
+        assert len(summary.databases) == 2
+        assert summary.total_evaluations == 2
+        assert mock_set_db.call_count == 3  # 2 DBs + restore original
+        assert mock_clear_cache.call_count == 3
+        assert mock_eval.call_count == 2
+
+    @patch("backend.eval.act.multi_db_runner.evaluate_question")
+    @patch("backend.eval.act.multi_db_runner.clear_api_cache")
+    @patch("backend.eval.act.multi_db_runner.set_database")
+    @patch("backend.eval.act.multi_db_runner.get_database")
+    def test_run_multi_db_eval_with_db_failure(
+        self, mock_get_db: MagicMock, mock_set_db: MagicMock, mock_clear_cache: MagicMock, mock_eval: MagicMock
+    ) -> None:
+        """Test evaluation continues when a database fails."""
+        mock_get_db.return_value = "OriginalDB"
+        mock_set_db.side_effect = [Exception("Auth failed"), None, None]
+        mock_eval.return_value = QuestionResult(
+            question="Q1",
+            passed=True,
+            faithfulness=0.8,
+            relevancy=0.9,
+            action_passed=True,
+            total_latency_ms=1000,
+        )
+
+        summary = run_multi_db_eval(
+            databases=["FailDB", "GoodDB"],
+            questions=["Q1"],
+        )
+
+        assert len(summary.databases) == 2
+        assert summary.databases[0].connection_failed is True
+        assert summary.databases[1].connection_failed is False
+        assert "FailDB" in summary.databases_failed
+
+    @patch("backend.eval.act.multi_db_runner.evaluate_question")
+    @patch("backend.eval.act.multi_db_runner.clear_api_cache")
+    @patch("backend.eval.act.multi_db_runner.set_database")
+    @patch("backend.eval.act.multi_db_runner.get_database")
+    def test_run_multi_db_eval_uses_defaults(
+        self, mock_get_db: MagicMock, mock_set_db: MagicMock, mock_clear_cache: MagicMock, mock_eval: MagicMock
+    ) -> None:
+        """Test that defaults are used when no args provided."""
+        mock_get_db.return_value = "OriginalDB"
+        mock_eval.return_value = QuestionResult(
+            question="Q1",
+            passed=True,
+            faithfulness=0.8,
+            relevancy=0.9,
+            action_passed=True,
+            total_latency_ms=1000,
+        )
+
+        summary = run_multi_db_eval()
+
+        # Should use AVAILABLE_DATABASES (6) and DEMO_STARTERS (5)
+        assert len(summary.databases) == 6
+        assert summary.total_evaluations == 30  # 6 DBs x 5 questions
+
+
+class TestPrintSummary:
+    """Tests for _print_summary function."""
+
+    def test_print_summary_outputs_to_stdout(self, capsys: object) -> None:
+        """Test that print_summary outputs to stdout."""
+        summary = MultiDbEvalSummary()
+        db1 = DatabaseResult(database="DB1")
+        db1.questions = [
+            QuestionResult(question="Q1", passed=True, faithfulness=0.8, relevancy=0.9, action_passed=True, total_latency_ms=10000),
+        ]
+        db1.compute_aggregates()
+        summary.databases = [db1]
+        summary.compute_aggregates(["Q1"])
+
+        _print_summary(summary, ["DB1"], ["Q1"])
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        assert "OVERALL SUMMARY" in captured.out
+        assert "DB1" in captured.out
+        assert "Q1" in captured.out
+
+    def test_print_summary_with_failed_database(self, capsys: object) -> None:
+        """Test print_summary shows failed databases."""
+        summary = MultiDbEvalSummary()
+        db_failed = DatabaseResult(database="FailedDB", connection_failed=True, connection_error="Auth error")
+        summary.databases = [db_failed]
+        summary.databases_failed = ["FailedDB"]
+
+        _print_summary(summary, ["FailedDB"], ["Q1"])
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        assert "FailedDB" in captured.out
+        assert "FAILED" in captured.out
+
+
+class TestSaveJsonResults:
+    """Tests for save_json_results function."""
+
+    def test_save_json_results_creates_file(self) -> None:
+        """Test that JSON file is created with correct structure."""
+        summary = MultiDbEvalSummary()
+        db1 = DatabaseResult(database="DB1")
+        db1.questions = [
+            QuestionResult(question="Q1", passed=True, faithfulness=0.8, relevancy=0.9, action_passed=True, total_latency_ms=10000),
+        ]
+        db1.compute_aggregates()
+        summary.databases = [db1]
+        summary.compute_aggregates(["Q1"])
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            path = Path(f.name)
+
+        try:
+            save_json_results(summary, path)
+            assert path.exists()
+
+            import json
+            with open(path) as f:
+                data = json.load(f)
+
+            assert "summary" in data
+            assert "databases" in data
+            assert len(data["databases"]) == 1
+            assert data["databases"][0]["database"] == "DB1"
+        finally:
+            path.unlink()
+
+    def test_save_json_results_includes_questions(self) -> None:
+        """Test that JSON includes question details."""
+        summary = MultiDbEvalSummary()
+        db1 = DatabaseResult(database="DB1")
+        db1.questions = [
+            QuestionResult(
+                question="Test Question",
+                passed=True,
+                faithfulness=0.85,
+                relevancy=0.9,
+                action_passed=True,
+                total_latency_ms=5000,
+                fetch_rows=10,
+            ),
+        ]
+        db1.compute_aggregates()
+        summary.databases = [db1]
+        summary.compute_aggregates(["Test Question"])
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            path = Path(f.name)
+
+        try:
+            save_json_results(summary, path)
+
+            import json
+            with open(path) as f:
+                data = json.load(f)
+
+            questions = data["databases"][0]["questions"]
+            assert len(questions) == 1
+            assert questions[0]["question"] == "Test Question"
+            assert questions[0]["faithfulness"] == 0.85
+            assert questions[0]["fetch_rows"] == 10
+        finally:
+            path.unlink()
+
+
+class TestSaveCsvResults:
+    """Tests for save_csv_results function."""
+
+    def test_save_csv_results_creates_file(self) -> None:
+        """Test that CSV file is created with headers and data."""
+        summary = MultiDbEvalSummary()
+        db1 = DatabaseResult(database="DB1")
+        db1.questions = [
+            QuestionResult(question="Q1", passed=True, faithfulness=0.8, relevancy=0.9, action_passed=True, total_latency_ms=10000),
+        ]
+        db1.compute_aggregates()
+        summary.databases = [db1]
+        summary.compute_aggregates(["Q1"])
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            path = Path(f.name)
+
+        try:
+            save_csv_results(summary, path)
+            assert path.exists()
+
+            with open(path) as f:
+                content = f.read()
+
+            assert "database" in content
+            assert "question" in content
+            assert "DB1" in content
+            assert "Q1" in content
+        finally:
+            path.unlink()
+
+    def test_save_csv_results_handles_failed_database(self) -> None:
+        """Test that CSV includes failed database row."""
+        summary = MultiDbEvalSummary()
+        db_failed = DatabaseResult(database="FailedDB", connection_failed=True, connection_error="Auth error")
+        summary.databases = [db_failed]
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            path = Path(f.name)
+
+        try:
+            save_csv_results(summary, path)
+
+            with open(path) as f:
+                content = f.read()
+
+            assert "FailedDB" in content
+            assert "Auth error" in content
+        finally:
+            path.unlink()

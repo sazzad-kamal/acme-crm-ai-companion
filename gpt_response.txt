@@ -1,0 +1,4 @@
+Use a **two-pass, risk‑weighted fetch**: pass 1 pulls opportunities ordered by **estimatedCloseDate asc** but with a broad window; pass 2 pulls “high‑value / high‑risk” opps ordered by **productTotal desc** (or weighted score) regardless of close date, then union/dedupe.  
+For each selected opp, do **targeted relationship expansion**: fetch only contacts/companies/history **linked to those opps** (and their primary company) instead of global top=300/100/200 lists.  
+Change processing to compute a **relationship-gap score per opp** (e.g., #distinct engaged contacts + role diversity + recency of activity) and promote opps with low coverage into pass 2 even if they close later.  
+This raises recall by ensuring you never rely on global contact/company caps and you explicitly “rescue” late-close, high-value deals.
