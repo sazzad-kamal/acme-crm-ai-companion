@@ -5,6 +5,7 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
+from backend.act_fetch import DEMO_MODE
 from backend.agent.followup.tree.loader import get_starters
 from backend.agent.graph import (
     ACTION_NODE,
@@ -68,12 +69,15 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
 
             elif event_type == LangGraphEvent.GRAPH_END and name == GRAPH_NAME:
                 final = e.get("data", {}).get("output") or {}
-                yield _format_sse(StreamEvent.DONE, {
+                done_payload = {
                     "answer": final.get("answer", ""),
-                    "sql_results": final.get("sql_results", {}),
                     "follow_up_suggestions": final.get("follow_up_suggestions", []),
                     "suggested_action": final.get("suggested_action"),
-                })
+                }
+                # Include sql_results only in non-demo mode (hides data tables in demo)
+                if not DEMO_MODE:
+                    done_payload["sql_results"] = final.get("sql_results", {})
+                yield _format_sse(StreamEvent.DONE, done_payload)
 
             # Per-section events (non-exclusive, checked independently)
             if event_type == LangGraphEvent.GRAPH_END and name in (FETCH_NODE, ACTION_NODE, FOLLOWUP_NODE):

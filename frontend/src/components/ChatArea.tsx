@@ -8,6 +8,8 @@ interface ChatAreaProps {
   messages: ChatMessage[];
   onSuggestionClick: (prompt: string) => void;
   onFollowUpClick: (question: string) => void;
+  /** App mode: "csv" (default) or "act" (demo mode) */
+  mode?: "csv" | "act";
   /** Ref for scroll management (React 19 - ref as prop) */
   ref?: Ref<HTMLDivElement>;
 }
@@ -20,6 +22,7 @@ export function ChatArea({
   messages,
   onSuggestionClick,
   onFollowUpClick,
+  mode = "csv",
   ref,
 }: ChatAreaProps) {
   const isEmpty = messages.length === 0;
@@ -33,7 +36,7 @@ export function ChatArea({
       aria-label="Chat messages"
     >
       {isEmpty ? (
-        <EmptyState onSuggestionClick={onSuggestionClick} />
+        <EmptyState onSuggestionClick={onSuggestionClick} mode={mode} />
       ) : (
         <div className="message-list" role="list">
           {messages.map((msg, index) => {
@@ -54,6 +57,7 @@ export function ChatArea({
 
 interface EmptyStateProps {
   onSuggestionClick: (prompt: string) => void;
+  mode: "csv" | "act";
 }
 
 /**
@@ -61,7 +65,7 @@ interface EmptyStateProps {
  * Uses useId for unique, accessible label IDs.
  * Fetches dynamic starter questions from the question tree.
  */
-function EmptyState({ onSuggestionClick }: EmptyStateProps) {
+function EmptyState({ onSuggestionClick, mode }: EmptyStateProps) {
   const suggestionsLabelId = useId();
   const [starterQuestions, setStarterQuestions] = useState<string[]>([...EXAMPLE_PROMPTS]);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,16 +115,17 @@ function EmptyState({ onSuggestionClick }: EmptyStateProps) {
       </div>
 
       <h2 className="empty-state__heading">
-        Welcome to Acme CRM AI
+        {mode === "act" ? "Welcome to Act! CRM AI" : "Welcome to Acme CRM AI"}
       </h2>
-      
+
       <p className="empty-state__description">
-        Ask about your CRM — contacts, companies, opportunities, activities, or history.
-        I'll query your data and answer in plain language.
+        {mode === "act"
+          ? "Click a question below to explore your CRM data — contacts, opportunities, activities, and more."
+          : "Ask about your CRM — contacts, companies, opportunities, activities, or history. I'll query your data and answer in plain language."}
       </p>
 
       <div className="empty-state__title" id={suggestionsLabelId}>
-        Try one of these to get started:
+        {mode === "act" ? "Select a question:" : "Try one of these to get started:"}
       </div>
 
       <div

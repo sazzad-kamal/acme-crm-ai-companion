@@ -421,6 +421,31 @@ body {
   white-space: nowrap;
 }
 
+.header__database-select {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.header__database-select:hover {
+  border-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.header__database-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-bg);
+}
+
 /* -----------------------------------------------------------------------------
    Drawer (Slide-out Panel)
    ----------------------------------------------------------------------------- */

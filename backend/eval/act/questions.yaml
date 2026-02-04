@@ -1,8 +1,8 @@
 questions:
-  - text: "Brief me on my next call"
+  - text: "What should I follow up on?"
     expected_action: true
     expected_min_rows: 1
-    loading_message: "Checking your calendar..."
+    loading_message: "Checking recent activity..."
 
   - text: "What's coming up?"
     expected_action: true
@@ -12,14 +12,14 @@ questions:
   - text: "Who should I contact next?"
     expected_action: true
     expected_min_rows: 1
-    loading_message: "Finding contacts..."
+    loading_message: "Finding priority contacts..."
 
   - text: "What needs attention?"
     expected_action: true
     expected_min_rows: 1
-    loading_message: "Finding items that need attention..."
+    loading_message: "Scanning for urgent items..."
 
-  - text: "How is my pipeline looking?"
-    expected_action: false
+  - text: "What deals are closing soon?"
+    expected_action: true
     expected_min_rows: 1
-    loading_message: "Analyzing your sales pipeline..."
+    loading_message: "Checking your pipeline..."

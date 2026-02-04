@@ -8,10 +8,12 @@ import {
   ErrorBoundary,
   SkipLink,
   DataExplorer,
-  DemoLayout,
 } from "./components";
 import { endpoints } from "./config";
 import "./styles/index.css";
+
+// Available databases for demo mode
+const DATABASES = ["KQC", "W31322003119"];
 
 /**
  * Acme CRM AI Companion - Main Application
@@ -35,9 +37,8 @@ export default function App() {
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
 
   // Demo mode state
-  const [appInfo, setAppInfo] = useState<{ mode: string; database: string | null } | null>(null);
-  const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
-  const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
+  const [appInfo, setAppInfo] = useState<{ mode: "csv" | "act"; database: string | null } | null>(null);
+  const [currentDatabase, setCurrentDatabase] = useState<string>("KQC");
 
   // Memoized error handler to prevent hook re-initialization
   const chatOptions = useMemo(
@@ -50,6 +51,9 @@ export default function App() {
   // Chat hook with streaming
   const { messages, isLoading, error, sendMessage, clearError } = useChatStream(chatOptions);
 
+  // Is demo mode active?
+  const isDemoMode = appInfo?.mode === "act";
+
   // Scroll to bottom when messages change
   useEffect(() => {
     if (chatAreaRef.current) {
@@ -57,24 +61,24 @@ export default function App() {
     }
   }, [messages]);
 
-  // Focus input after sending a message
+  // Focus input after sending a message (only in non-demo mode)
   useEffect(() => {
-    if (!isLoading && inputRef.current) {
+    if (!isLoading && inputRef.current && !isDemoMode) {
       inputRef.current.focus();
     }
-  }, [isLoading]);
+  }, [isLoading, isDemoMode]);
 
-  // Fetch app info and starter questions on mount (for demo mode)
+  // Fetch app info on mount
   useEffect(() => {
     fetch(endpoints.info)
       .then((r) => r.json())
-      .then(setAppInfo)
+      .then((data) => {
+        setAppInfo(data);
+        if (data.database) {
+          setCurrentDatabase(data.database);
+        }
+      })
       .catch(() => setAppInfo({ mode: "csv", database: null }));
-
-    fetch(endpoints.starterQuestions)
-      .then((r) => r.json())
-      .then((data) => Array.isArray(data) && setStarterQuestions(data))
-      .catch(() => {});
   }, []);
 
   // Close drawer handler (stable reference for focus trap)
@@ -130,20 +134,19 @@ export default function App() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
-  // Handle demo question click
-  const handleDemoQuestionClick = useCallback(
-    (question: string) => {
-      // Click same question = reset to empty
-      if (question === activeQuestion) {
-        setActiveQuestion(null);
-        return;
-      }
-      // Set active and send
-      setActiveQuestion(question);
-      sendMessage(question);
-    },
-    [activeQuestion, sendMessage]
-  );
+  // Handle database change (demo mode only)
+  const handleDatabaseChange = useCallback(async (database: string) => {
+    setCurrentDatabase(database);
+    try {
+      await fetch(`${endpoints.info.replace("/info", "/chat/database")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ database }),
+      });
+    } catch (e) {
+      console.error("Failed to switch database:", e);
+    }
+  }, []);
 
   // Update document title based on state
   useEffect(() => {
@@ -155,21 +158,6 @@ export default function App() {
 
     document.title = pageTitle;
   }, [isLoading, messages.length]);
-
-  // Demo mode: render simplified two-panel layout
-  if (appInfo?.mode === "act") {
-    return (
-      <DemoLayout
-        questions={starterQuestions}
-        database={appInfo.database || ""}
-        activeQuestion={activeQuestion}
-        onQuestionClick={handleDemoQuestionClick}
-        messages={messages}
-        isLoading={isLoading}
-        error={error}
-      />
-    );
-  }
 
   return (
     <ErrorBoundary>
@@ -198,15 +186,33 @@ export default function App() {
                 Your AI assistant for contacts, companies, opportunities, activities, and history.
               </p>
             </div>
-            <button
-              className="header__data-btn"
-              onClick={() => setIsDrawerOpen(true)}
-              aria-label="Browse CRM data"
-              title="Browse the data the AI has access to"
-            >
-              <span className="header__data-btn-icon">📊</span>
-              <span className="header__data-btn-text">Browse Data</span>
-            </button>
+
+            {/* Database dropdown for demo mode */}
+            {isDemoMode && (
+              <select
+                className="header__database-select"
+                value={currentDatabase}
+                onChange={(e) => handleDatabaseChange(e.target.value)}
+                aria-label="Select database"
+              >
+                {DATABASES.map((db) => (
+                  <option key={db} value={db}>{db}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Browse Data button - hidden in demo mode */}
+            {!isDemoMode && (
+              <button
+                className="header__data-btn"
+                onClick={() => setIsDrawerOpen(true)}
+                aria-label="Browse CRM data"
+                title="Browse the data the AI has access to"
+              >
+                <span className="header__data-btn-icon">📊</span>
+                <span className="header__data-btn-text">Browse Data</span>
+              </button>
+            )}
           </header>
 
           {/* Chat Area */}
@@ -215,23 +221,26 @@ export default function App() {
             messages={messages}
             onSuggestionClick={handleSuggestionClick}
             onFollowUpClick={handleFollowUpClick}
+            mode={appInfo?.mode}
           />
 
           {/* Error Banner */}
           {error && <ErrorBanner message={error} onDismiss={clearError} />}
 
-          {/* Input Bar */}
-          <InputBar
-            ref={inputRef}
-            value={currentQuestion}
-            onChange={handleInputChange}
-            onSubmit={handleSubmit}
-            isLoading={isLoading}
-          />
+          {/* Input Bar - hidden in demo mode */}
+          {!isDemoMode && (
+            <InputBar
+              ref={inputRef}
+              value={currentQuestion}
+              onChange={handleInputChange}
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+            />
+          )}
         </div>
 
-        {/* Data Drawer Overlay */}
-        {isDrawerOpen && (
+        {/* Data Drawer Overlay - only in non-demo mode */}
+        {!isDemoMode && isDrawerOpen && (
           <div
             className="drawer-overlay"
             onClick={closeDrawer}
@@ -239,30 +248,32 @@ export default function App() {
           />
         )}
 
-        {/* Data Drawer */}
-        <aside
-          ref={drawerRef}
-          className={`drawer ${isDrawerOpen ? "drawer--open" : ""}`}
-          role="dialog"
-          aria-modal="true"
-          aria-label="CRM Data Browser"
-          tabIndex={-1}
-        >
-          <div className="drawer__header">
-            <h2 className="drawer__title">CRM Data</h2>
-            <button
-              ref={drawerCloseRef}
-              className="drawer__close"
-              onClick={closeDrawer}
-              aria-label="Close data browser"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="drawer__content">
-            <DataExplorer onAskAbout={handleAskAbout} />
-          </div>
-        </aside>
+        {/* Data Drawer - only in non-demo mode */}
+        {!isDemoMode && (
+          <aside
+            ref={drawerRef}
+            className={`drawer ${isDrawerOpen ? "drawer--open" : ""}`}
+            role="dialog"
+            aria-modal="true"
+            aria-label="CRM Data Browser"
+            tabIndex={-1}
+          >
+            <div className="drawer__header">
+              <h2 className="drawer__title">CRM Data</h2>
+              <button
+                ref={drawerCloseRef}
+                className="drawer__close"
+                onClick={closeDrawer}
+                aria-label="Close data browser"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="drawer__content">
+              <DataExplorer onAskAbout={handleAskAbout} />
+            </div>
+          </aside>
+        )}
       </div>
     </ErrorBoundary>
   );
