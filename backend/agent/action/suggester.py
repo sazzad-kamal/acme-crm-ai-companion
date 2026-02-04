@@ -45,10 +45,19 @@ def _get_action_chain() -> Any:
     return chain
 
 
-def call_action_chain(question: str, answer: str) -> str | None:
-    """Suggest an action. Returns action string or None."""
+def call_action_chain(question: str, answer: str, guidance: str = "") -> str | None:
+    """Suggest an action. Returns action string or None.
+
+    Args:
+        question: The user's question
+        answer: The answer that was generated
+        guidance: Optional guidance for what kind of action to suggest
+    """
+    # If guidance provided, append it to the question
+    question_with_guidance = f"{question}\n\n[Action guidance: {guidance}]" if guidance else question
+
     result: str = _get_action_chain().invoke({
-        "question": question,
+        "question": question_with_guidance,
         "answer": answer,
     })
     action = result.strip()

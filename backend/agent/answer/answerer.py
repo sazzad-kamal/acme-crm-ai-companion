@@ -59,10 +59,21 @@ def call_answer_chain(
     question: str,
     sql_results: dict[str, Any] | None = None,
     conversation_history: str = "",
+    guidance: str = "",
 ) -> str:
-    """Call the answer chain and return the answer string."""
+    """Call the answer chain and return the answer string.
+
+    Args:
+        question: The user's question
+        sql_results: SQL query results to use as context
+        conversation_history: Previous conversation for context
+        guidance: Optional guidance for how to interpret and present the data
+    """
+    # If guidance provided, append it to the question
+    question_with_guidance = f"{question}\n\n[Guidance: {guidance}]" if guidance else question
+
     result: str = _get_answer_chain().invoke({
-        "question": question,
+        "question": question_with_guidance,
         "conversation_history_section": f"=== RECENT CONVERSATION ===\n{conversation_history}\n" if conversation_history else "",
         "sql_results_section": f"=== CRM DATA ===\n{json.dumps(sql_results, indent=2, default=str)}\n" if sql_results else "",
     })
