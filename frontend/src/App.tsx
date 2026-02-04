@@ -37,7 +37,7 @@ export default function App() {
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
 
   // Demo mode state
-  const [appInfo, setAppInfo] = useState<{ mode: "csv" | "act"; database: string | null } | null>(null);
+  const [appInfo, setAppInfo] = useState<{ mode: "csv" | "act"; database: string | null; username: string | null } | null>(null);
   const [currentDatabase, setCurrentDatabase] = useState<string>("KQC");
 
   // Memoized error handler to prevent hook re-initialization
@@ -78,7 +78,7 @@ export default function App() {
           setCurrentDatabase(data.database);
         }
       })
-      .catch(() => setAppInfo({ mode: "csv", database: null }));
+      .catch(() => setAppInfo({ mode: "csv", database: null, username: null }));
   }, []);
 
   // Close drawer handler (stable reference for focus trap)
@@ -188,20 +188,25 @@ export default function App() {
               </p>
             </div>
 
-            {/* Database dropdown for demo mode */}
+            {/* User info section for demo mode */}
             {isDemoMode && (
-              <div className="header__database">
-                <span className="header__database-label">Database:</span>
-                <select
-                  className="header__database-select"
-                  value={currentDatabase}
-                  onChange={(e) => handleDatabaseChange(e.target.value)}
-                  aria-label="Select database"
-                >
-                  {DATABASES.map((db) => (
-                    <option key={db} value={db}>{db}</option>
-                  ))}
-                </select>
+              <div className="header__user-info">
+                {appInfo?.username && (
+                  <span className="header__welcome">Welcome, {appInfo.username}</span>
+                )}
+                <div className="header__database">
+                  <span className="header__database-label">Database:</span>
+                  <select
+                    className="header__database-select"
+                    value={currentDatabase}
+                    onChange={(e) => handleDatabaseChange(e.target.value)}
+                    aria-label="Select database"
+                  >
+                    {DATABASES.map((db) => (
+                      <option key={db} value={db}>{db}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
 

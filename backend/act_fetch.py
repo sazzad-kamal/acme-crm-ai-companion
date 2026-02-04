@@ -309,6 +309,7 @@ __all__ = [
     "DEMO_STARTERS",
     "DEMO_PROMPTS",
     "ACT_API_DB",
+    "ACT_API_USER",
     "AVAILABLE_DATABASES",
     "get_database",
     "set_database",

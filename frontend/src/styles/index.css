@@ -421,11 +421,24 @@ body {
   white-space: nowrap;
 }
 
+.header__user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-xs);
+  margin-left: auto;
+}
+
+.header__welcome {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
 .header__database {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  margin-left: auto;
 }
 
 .header__database-label {

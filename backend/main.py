@@ -20,7 +20,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from backend.act_fetch import ACT_API_DB, DEMO_MODE
+from backend.act_fetch import ACT_API_DB, ACT_API_USER, DEMO_MODE
 from backend.api.chat import router as chat_router
 from backend.api.data import router as data_router
 
@@ -135,6 +135,7 @@ def create_app() -> FastAPI:
         return {
             "mode": "act" if DEMO_MODE else "csv",
             "database": ACT_API_DB if DEMO_MODE else None,
+            "username": ACT_API_USER if DEMO_MODE else None,
         }
 
     router.include_router(chat_router, tags=["chat"])
