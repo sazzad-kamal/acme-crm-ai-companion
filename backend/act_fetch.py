@@ -224,23 +224,25 @@ def act_fetch(question: str) -> dict[str, Any]:
 
         elif q == "Who should I contact next?":
             # Fetch high-value opportunities, then get linked contacts
+            # Note: Real schema has productTotal/weightedTotal, not estimatedValue
             opps = _get("/api/opportunities", {
-                "$orderby": "estimatedValue desc",
+                "$orderby": "weightedTotal desc",
                 "$top": 15,
             })
 
             # Extract contact IDs from opportunities
+            # Real schema: opportunities have "contacts" array with contact objects
             contact_ids = set()
             for opp in opps:
-                # Try different field names for contact reference
-                contact_id = opp.get("primaryContact") or opp.get("contactId") or opp.get("contact_id")
-                if contact_id:
-                    contact_ids.add(contact_id)
+                # Contacts is an array of objects with "id" field
+                contacts_list = opp.get("contacts", [])
+                for contact in contacts_list:
+                    if isinstance(contact, dict) and contact.get("id"):
+                        contact_ids.add(contact["id"])
 
-            # Fetch contacts if we have IDs
+            # Fetch full contact details if we have IDs
             contacts = []
             if contact_ids:
-                # Fetch contacts by IDs (batch if possible)
                 for contact_id in list(contact_ids)[:10]:
                     try:
                         contact_data = _get(f"/api/contacts/{contact_id}")

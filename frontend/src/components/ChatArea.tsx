@@ -115,12 +115,12 @@ function EmptyState({ onSuggestionClick, mode }: EmptyStateProps) {
       </div>
 
       <h2 className="empty-state__heading">
-        {mode === "act" ? "Welcome to Act! CRM AI" : "Welcome to Acme CRM AI"}
+        {mode === "act" ? "Welcome to Act! AI Companion" : "Welcome to Acme CRM AI"}
       </h2>
 
       <p className="empty-state__description">
         {mode === "act"
-          ? "Click a question below to explore your CRM data — contacts, opportunities, activities, and more."
+          ? "Click a question to explore your CRM data"
           : "Ask about your CRM — contacts, companies, opportunities, activities, or history. I'll query your data and answer in plain language."}
       </p>
 

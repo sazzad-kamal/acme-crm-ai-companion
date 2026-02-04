@@ -150,14 +150,15 @@ export default function App() {
 
   // Update document title based on state
   useEffect(() => {
+    const appName = isDemoMode ? "Act! AI Companion" : "Acme CRM AI";
     const pageTitle = isLoading
-      ? "Thinking... | Acme CRM AI"
+      ? `Thinking... | ${appName}`
       : messages.length > 0
-        ? `${messages.length} messages | Acme CRM AI`
-        : "Acme CRM AI Companion";
+        ? `${messages.length} messages | ${appName}`
+        : appName;
 
     document.title = pageTitle;
-  }, [isLoading, messages.length]);
+  }, [isLoading, messages.length, isDemoMode]);
 
   return (
     <ErrorBoundary>
@@ -181,9 +182,13 @@ export default function App() {
               </svg>
             </div>
             <div className="header__text">
-              <h1 className="header__title">Acme CRM AI Companion</h1>
+              <h1 className="header__title">
+                {isDemoMode ? "Act! AI Companion" : "Acme CRM AI Companion"}
+              </h1>
               <p className="header__subtitle">
-                Your AI assistant for contacts, companies, opportunities, activities, and history.
+                {isDemoMode
+                  ? "AI-powered insights for your Act! CRM"
+                  : "Your AI assistant for contacts, companies, opportunities, activities, and history."}
               </p>
             </div>
 
