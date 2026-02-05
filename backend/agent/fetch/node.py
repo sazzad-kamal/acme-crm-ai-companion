@@ -57,7 +57,11 @@ def fetch_node(state: AgentState) -> AgentState:
         act_result = act_fetch(question)
         if act_result.get("error"):
             return cast(AgentState, {"sql_results": {}, "error": act_result["error"]})
-        return cast(AgentState, {"sql_results": act_result["data"]})
+        sql_results = act_result["data"]
+        # Include cache timestamp if data came from cache
+        if act_result.get("_cached_at"):
+            sql_results["_cached_at"] = act_result["_cached_at"]
+        return cast(AgentState, {"sql_results": sql_results})
 
     history = format_conversation_for_prompt(state.get("messages", []))
     logger.info(f"[Fetch] Processing: {question[:50]}...")

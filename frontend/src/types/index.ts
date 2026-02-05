@@ -72,6 +72,8 @@ export interface RawData {
     stages: Record<string, number>;
   };
   data?: Record<string, unknown>[];
+  // Cache timestamp (ISO string) when data came from stale cache
+  _cached_at?: string;
   // Demo mode: allow any additional entity groups (dynamic keys)
   [key: string]: unknown;
 }

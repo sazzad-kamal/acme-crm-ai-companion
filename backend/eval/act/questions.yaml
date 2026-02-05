@@ -1,25 +1,25 @@
 questions:
-  - text: "What should I follow up on?"
+  - text: "Daily briefing"
     expected_action: true
     expected_min_rows: 1
-    loading_message: "Checking recent activity..."
+    loading_message: "Preparing your daily briefing..."
 
-  - text: "What's coming up?"
+  - text: "Forecast health"
     expected_action: true
     expected_min_rows: 1
-    loading_message: "Checking your schedule..."
+    loading_message: "Analyzing forecast health..."
 
-  - text: "Who should I contact next?"
+  - text: "At-risk deals"
     expected_action: true
     expected_min_rows: 1
-    loading_message: "Finding priority contacts..."
+    loading_message: "Identifying at-risk deals..."
 
-  - text: "What needs attention?"
+  - text: "Account momentum"
     expected_action: true
     expected_min_rows: 1
-    loading_message: "Scanning for urgent items..."
+    loading_message: "Checking account momentum..."
 
-  - text: "What deals are closing soon?"
+  - text: "Relationship gaps"
     expected_action: true
     expected_min_rows: 1
-    loading_message: "Checking your pipeline..."
+    loading_message: "Finding relationship gaps..."

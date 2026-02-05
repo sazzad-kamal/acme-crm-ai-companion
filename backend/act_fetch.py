@@ -162,8 +162,11 @@ _token: str | None = None
 _token_expires: float | None = None
 
 # Stale-while-error cache: stores last successful API response for each unique call
-# Key: {user}:{database}:{endpoint}:{params_hash} -> Value: list[dict]
-_api_cache: dict[str, list[dict[str, Any]]] = {}
+# Key: {user}:{database}:{endpoint}:{params_hash} -> Value: {data: list[dict], cached_at: float}
+_api_cache: dict[str, dict[str, Any]] = {}
+
+# Thread-local tracking for cache usage during act_fetch calls
+_cache_used_timestamp: float | None = None
 
 
 def _cache_key(endpoint: str, params: dict[str, Any] | None) -> str:
@@ -173,14 +176,17 @@ def _cache_key(endpoint: str, params: dict[str, Any] | None) -> str:
     return f"{ACT_API_USER}:{_current_database}:{endpoint}:{params_hash}"
 
 
-def _cache_get(key: str) -> list[dict[str, Any]] | None:
-    """Get cached API response if available."""
-    return _api_cache.get(key)
+def _cache_get(key: str) -> tuple[list[dict[str, Any]] | None, float | None]:
+    """Get cached API response if available. Returns (data, cached_at) tuple."""
+    entry = _api_cache.get(key)
+    if entry:
+        return entry["data"], entry["cached_at"]
+    return None, None
 
 
 def _cache_set(key: str, data: list[dict[str, Any]]) -> None:
-    """Store API response in cache."""
-    _api_cache[key] = data
+    """Store API response in cache with timestamp."""
+    _api_cache[key] = {"data": data, "cached_at": time.time()}
 
 
 def clear_api_cache() -> None:
@@ -312,7 +318,9 @@ def _get(endpoint: str, params: dict[str, Any] | None = None) -> list[dict[str, 
 
     On success: caches result and returns it.
     On failure (after retries): returns cached data if available, otherwise re-raises.
+    Sets _cache_used_timestamp when returning stale data.
     """
+    global _cache_used_timestamp
     key = _cache_key(endpoint, params)
     try:
         result = _get_raw(endpoint, params)
@@ -320,10 +328,13 @@ def _get(endpoint: str, params: dict[str, Any] | None = None) -> list[dict[str, 
         return result
     except Exception as e:
         # Try to return cached data on failure
-        cached = _cache_get(key)
-        if cached is not None:
+        cached_data, cached_at = _cache_get(key)
+        if cached_data is not None:
             logger.warning(f"API call failed, returning cached data for {endpoint}: {e}")
-            return cached
+            # Track the oldest cache timestamp used in this request
+            if _cache_used_timestamp is None or (cached_at and cached_at < _cache_used_timestamp):
+                _cache_used_timestamp = cached_at
+            return cached_data
         # No cache available, re-raise
         raise
 
@@ -352,14 +363,28 @@ def _filter_noise_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]
     return filtered
 
 
+def _add_cache_timestamp(result: dict[str, Any]) -> dict[str, Any]:
+    """Add _cached_at timestamp to result if cache was used during this request."""
+    if _cache_used_timestamp is not None:
+        # Convert to ISO format for frontend
+        from datetime import datetime, timezone
+        cached_dt = datetime.fromtimestamp(_cache_used_timestamp, tz=timezone.utc)
+        result["_cached_at"] = cached_dt.isoformat()
+    return result
+
+
 def act_fetch(question: str) -> dict[str, Any]:
     """Fetch data from Act! API for the 5 Gold Standard demo questions.
 
-    Returns: {"data": {...}, "error": None} or {"data": {}, "error": "message"}
+    Returns: {"data": {...}, "error": None, "_cached_at": "ISO timestamp" (if using cached data)}
+             or {"data": {}, "error": "message"}
 
     Each question fetches from multiple endpoints. DuckDB operations documented
     in comments for eval scoring (actual DuckDB processing done client-side).
     """
+    global _cache_used_timestamp
+    _cache_used_timestamp = None  # Reset cache tracking for this request
+
     q = question.strip()
     today = time.strftime("%Y-%m-%d", time.gmtime())
 
@@ -481,11 +506,11 @@ def act_fetch(question: str) -> dict[str, Any]:
                        if (not c.get("lastAttempt") or str(c.get("lastAttempt"))[:10] < cutoff_date)
                        and (c.get("businessPhone") or c.get("mobilePhone") or c.get("emailAddress"))][:5]
 
-            return {"data": {
+            return _add_cache_timestamp({"data": {
                 "today_meetings": enriched_meetings, "recent_history": history[:10],
                 "open_opportunities": open_opps[:5], "overdue_followups": overdue,
                 "duckdb": "JOIN calendar.items->contacts->history->opportunities (via contacts.companyID); filter overdue"
-            }, "error": None}
+            }, "error": None})
 
         elif q == "Forecast health":
             # === PASS 1: Fetch opportunities first (increased limit) ===
@@ -573,7 +598,7 @@ def act_fetch(question: str) -> dict[str, Any]:
             no_date_count = len(forecast["no_date"])
             beyond_90d_count = len(forecast["beyond_90d"])
 
-            return {"data": {
+            return _add_cache_timestamp({"data": {
                 "forecast_30d": {"deals": forecast["30d"][:10], "weighted": wsum(forecast["30d"]), "count": len(forecast["30d"])},
                 "forecast_60d": {"deals": forecast["60d"][:10], "weighted": wsum(forecast["60d"]), "count": len(forecast["60d"])},
                 "forecast_90d": {"deals": forecast["90d"][:10], "weighted": wsum(forecast["90d"]), "count": len(forecast["90d"])},
@@ -582,7 +607,7 @@ def act_fetch(question: str) -> dict[str, Any]:
                 "no_date_count": no_date_count,  # Opps without close date (excluded from pipeline/at_risk_pct)
                 "total_pipeline": total_pipeline, "total_weighted": all_weighted, "at_risk_pct": round(at_risk_pct, 1),
                 "duckdb": "GROUP BY period; SUM weighted; calc days_overdue; JOIN contacts for primary"
-            }, "error": None}
+            }, "error": None})
 
         elif q == "At-risk deals":
             # === API CALLS (parallel) ===
@@ -716,7 +741,7 @@ def act_fetch(question: str) -> dict[str, Any]:
                 return (severity, -int(days_overdue), -int(days_in_stage))
 
             at_risk.sort(key=risk_sort_key)
-            return {"data": {"at_risk_deals": at_risk[:10], "duckdb": "filter risk; JOIN history(contacts+companies); ORDER BY severity"}, "error": None}
+            return _add_cache_timestamp({"data": {"at_risk_deals": at_risk[:10], "duckdb": "filter risk; JOIN history(contacts+companies); ORDER BY severity"}, "error": None})
 
         elif q == "Account momentum":
             # === API CALLS (parallel) ===
@@ -844,7 +869,7 @@ def act_fetch(question: str) -> dict[str, Any]:
             save.sort(key=lambda x: -x["pipeline"])
             # Sort reactivate by stalest (oldest last touch first) - typical reactivation prioritizes accounts gone cold longest
             reactivate.sort(key=lambda x: (x["last"] or "0000-00-00"))
-            return {"data": {"expand": expand[:5], "save": save[:5], "reactivate": reactivate[:5], "duckdb": "GROUP BY company; SUM pipeline; JOIN contacts for top_contact; sort reactivate by staleness"}, "error": None}
+            return _add_cache_timestamp({"data": {"expand": expand[:5], "save": save[:5], "reactivate": reactivate[:5], "duckdb": "GROUP BY company; SUM pipeline; JOIN contacts for top_contact; sort reactivate by staleness"}, "error": None})
 
         elif q == "Relationship gaps":
             # === API CALLS (parallel) ===
@@ -976,7 +1001,7 @@ def act_fetch(question: str) -> dict[str, Any]:
                 return (st_priority, -int(value))
 
             results.sort(key=result_sort_key)
-            return {"data": {"relationship_analysis": results[:10], "duckdb": "COUNT engaged; flag single_threaded; find dark_contacts (sorted by staleness)"}, "error": None}
+            return _add_cache_timestamp({"data": {"relationship_analysis": results[:10], "duckdb": "COUNT engaged; flag single_threaded; find dark_contacts (sorted by staleness)"}, "error": None})
 
         return {"data": {}, "error": f"Unknown question: {q}"}
 

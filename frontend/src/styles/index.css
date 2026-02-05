@@ -1454,6 +1454,14 @@ body {
   flex-shrink: 0;
 }
 
+.data-section__cache-notice {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning, #b45309);
+  font-style: italic;
+  margin-left: var(--space-xs);
+  flex-shrink: 0;
+}
+
 .data-section__preview {
   display: flex;
   align-items: center;

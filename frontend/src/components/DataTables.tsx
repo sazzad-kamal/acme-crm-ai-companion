@@ -20,7 +20,27 @@ const LEGACY_KEYS = new Set([
   "companies", "activities", "opportunities", "history", "renewals",
   "pipeline_summary", "data"
 ]);
-const SKIP_KEYS = new Set(["duckdb", "error"]);
+const SKIP_KEYS = new Set(["duckdb", "error", "_cached_at"]);
+
+/** Format cache timestamp as relative time (e.g., "5 minutes ago") */
+function formatCacheTime(isoTimestamp: string): string {
+  const cached = new Date(isoTimestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - cached.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+
+  if (diffMins < 1) return "just now";
+  if (diffMins === 1) return "1 minute ago";
+  if (diffMins < 60) return `${diffMins} minutes ago`;
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours === 1) return "1 hour ago";
+  if (diffHours < 24) return `${diffHours} hours ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return "1 day ago";
+  return `${diffDays} days ago`;
+}
 
 // Friendly labels for known demo mode keys
 const KEY_LABELS: Record<string, string> = {
@@ -280,6 +300,11 @@ export const DataTables = memo(function DataTables({ rawData }: DataTablesProps)
       >
         <span className="data-section__arrow" aria-hidden="true">{expanded ? "▼" : "▶"}</span>
         <span className="data-section__label">Data used</span>
+        {rawData._cached_at && (
+          <span className="data-section__cache-notice" title={`Data cached at ${rawData._cached_at}`}>
+            (cached {formatCacheTime(rawData._cached_at)})
+          </span>
+        )}
         <span className="data-section__preview" aria-label={`Contains ${presentDataTypes.map(t => `${t.count} ${t.label}`).join(", ")}`}>
           {presentDataTypes.slice(0, 4).map((type) => (
             <span key={type.key} className="data-section__preview-badge" title={`${type.label} (${type.count})`}>

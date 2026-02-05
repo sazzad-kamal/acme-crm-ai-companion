@@ -38,12 +38,13 @@ def create_openai_chain(
     structured_output: type[BaseModel] | None = None,
     streaming: bool = True,
     model: str | None = None,
+    timeout: int | None = None,
 ) -> Any:
     """Create an LCEL chain with OpenAI."""
     llm = ChatOpenAI(
         model=model or _OPENAI_MODEL,
         max_retries=_MAX_RETRIES,
-        request_timeout=_TIMEOUT,  # type: ignore[call-arg]
+        request_timeout=timeout or _TIMEOUT,  # type: ignore[call-arg]
         max_completion_tokens=max_tokens,
         streaming=streaming,
     )
