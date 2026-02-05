@@ -23,49 +23,9 @@ load_dotenv()
 
 from backend.core.llm import create_openai_chain
 
-# Current prompts from the codebase
-ANSWER_PROMPT = """You are a CRM assistant. Answer questions using ONLY the provided context.
-Today: {today}
-
-RULES:
-- Use exact numbers/dates from context
-- Only say "data not available" if the answer cannot be found in the CRM DATA
-- The CRM DATA contains SQL query results that directly answer the question - interpret and present them
-- Use ALL provided data to formulate a complete answer
-- Lead with key answer point
-- Keep answers concise (2-4 sentences max, bullets when needed for details)
-
-FORMAT: Currency $1,250,000 | Dates: March 31, 2026
-
-EXAMPLES:
-User: "What opportunities does Beta Tech have?"
-Good: "Beta Tech has 3 open opportunities totaling $245,000.
-- Largest: Enterprise renewal ($150,000, closes March 31)
-- Champion: Sarah Chen (VP Engineering)
-- Risk: Competitor evaluation in progress"
-Bad: "They have several opportunities"
-Bad: "Based on the provided data, I can confirm..."
-
-User: "What's the renewal amount for Acme Corp?"
-Good: "Renewal amount is not available in the current data."
-Bad: "I don't have that information; amounts are tracked in the system but...\""""
-
-ACTION_PROMPT = """You are a CRM assistant. Given a question and answer, suggest next actions.
-
-RULES:
-- Output ONLY a numbered list (2-4 items), one action per line
-- Each action: one short sentence (max 20 words), specific (who + what + when)
-- Reference entity names from the answer
-- NO paragraphs, NO sub-bullets, NO explanations — just the numbered list
-- If no action is appropriate (simple lookups, counts, aggregations), respond with exactly: NONE
-
-GOOD example:
-1. Schedule renewal call with Sarah Chen at Beta Tech by Feb 5
-2. Prepare pricing comparison for the Enterprise upgrade proposal
-3. Flag Delta Health renewal as at-risk and assign to account manager
-
-BAD example (too verbose):
-This week: Prioritize the two Proposal-stage deals and schedule close-plan calls with stakeholders..."""
+# Import prompts from actual codebase files
+from backend.agent.answer.answerer import _SYSTEM_PROMPT_BASE as ANSWER_PROMPT
+from backend.agent.action.suggester import _SYSTEM_PROMPT_BASE as ACTION_PROMPT
 
 
 class DetailedScore(BaseModel):
@@ -172,7 +132,7 @@ def analyze_prompt(prompt_type: str, current_prompt: str, previous_feedback: str
     chain = create_openai_chain(
         system_prompt=system_prompt,
         human_prompt=_HUMAN_PROMPT,
-        max_tokens=4096,
+        max_tokens=8192,  # Increased for longer improved prompts
         structured_output=output_class,
         streaming=False,
         model="gpt-5.2-pro",
