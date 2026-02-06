@@ -57,7 +57,8 @@ class GeneratedEmail(BaseModel):
 @router.get("/questions")
 async def get_email_questions() -> list[dict[str, str]]:
     """Return the 5 question categories."""
-    return get_questions()
+    questions: list[dict[str, str]] = get_questions()
+    return questions
 
 
 @router.get("/contacts")

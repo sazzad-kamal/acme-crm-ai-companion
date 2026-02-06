@@ -1,4 +1,5 @@
 """FastAPI backend for the CRM AI Companion."""
+print("[main] Loading backend.main module...", flush=True)
 
 import base64
 import logging
@@ -45,6 +46,8 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     auth_status = "enabled" if AUTH_USER and AUTH_PASS else "disabled (no AUTH_USER/AUTH_PASS)"
     demo_status = f"enabled (db={ACT_API_DB})" if DEMO_MODE else "disabled"
+    # Print to stdout for Railway logs
+    print(f"[main] Starting {APP_NAME} - auth {auth_status}, demo mode {demo_status}", flush=True)
     logger.info(f"Starting {APP_NAME} — auth {auth_status}, demo mode {demo_status}")
     yield
     logger.info("Shutting down...")

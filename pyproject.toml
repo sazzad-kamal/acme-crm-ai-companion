@@ -40,6 +40,9 @@ disallow_incomplete_defs = true
 check_untyped_defs = true
 ignore_missing_imports = true
 explicit_package_bases = true
+exclude = [
+    "backend/eval/act/",  # Ad-hoc analysis scripts, not production code
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -320,7 +320,7 @@ async def generate_email(contact_id: str, category: str) -> dict[str, Any]:
     logger.info("Fetching contact %s for email generation", contact_id)
     try:
         result = _get(f"/api/contacts/{contact_id}", {})
-        contact: dict[str, Any] = result[0] if isinstance(result, list) and result else result
+        contact: dict[str, Any] = result[0] if isinstance(result, list) and result else result  # type: ignore[assignment]
     except Exception as e:
         logger.error("Failed to fetch contact %s: %s", contact_id, e)
         raise ValueError(f"Could not fetch contact: {e}") from e

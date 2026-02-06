@@ -43,10 +43,7 @@ def get_contact_by_id(contact_id: str) -> dict | None:
         return _contact_cache[contact_id]
     try:
         result = _get(f"/api/contacts/{contact_id}", {})
-        if isinstance(result, list) and result:
-            contact = result[0]
-        else:
-            contact = result
+        contact = result[0] if isinstance(result, list) and result else result
         _contact_cache[contact_id] = contact
         return contact
     except Exception:
@@ -135,11 +132,11 @@ def validate_questions() -> None:
                 "display_name": display_name,
             })
 
-        print(f"    PATTERN MATCH:")
+        print("    PATTERN MATCH:")
         print(f"      Matching history records: {len(matches)} (unique contacts)")
 
         # Fetch emails for first 5 matches
-        print(f"\n    EMAIL + TEXT CHECK (fetching contact details):")
+        print("\n    EMAIL + TEXT CHECK (fetching contact details):")
         with_email = 0
         for m in matches[:10]:
             contact = get_contact_by_id(m["contact_id"])
@@ -160,7 +157,7 @@ def validate_questions() -> None:
                     print(f"        Context: {details}...")
 
         # Verdict
-        print(f"\n    VERDICT: ", end="")
+        print("\n    VERDICT: ", end="")
         if with_email >= 5:
             print(f"[OK] GOOD - {len(matches)} matches, {with_email}/10 sampled have email")
         elif with_email >= 2:
