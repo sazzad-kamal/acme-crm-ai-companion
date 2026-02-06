@@ -1,9 +1,38 @@
 /**
- * EmailDraft - Polished email preview with proper formatting.
- * Matches the visual style of Ask AI's message blocks.
+ * EmailDraft - Premium email preview with proper formatting.
+ * Gmail/Outlook-like design with SVG icons.
  */
 import type { GeneratedEmail } from "../types";
 import { getInitials, getAvatarColor } from "../utils/avatar";
+
+// SVG Icons
+const SparkleIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3L14.5 8.5L20 9L16 13.5L17 19L12 16L7 19L8 13.5L4 9L9.5 8.5L12 3Z" />
+  </svg>
+);
+
+const SendIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+);
+
+const RefreshIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 4 23 10 17 10" />
+    <polyline points="1 20 1 14 7 14" />
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
 
 interface EmailDraftProps {
   email: GeneratedEmail;
@@ -29,7 +58,7 @@ export function EmailDraft({ email, onBack, onReset, onRegenerate }: EmailDraftP
           ← Back
         </button>
         <div className="email-draft__badge">
-          <span className="email-draft__badge-icon">✨</span>
+          <span className="email-draft__badge-icon"><SparkleIcon /></span>
           <span className="email-draft__badge-text">Draft Ready</span>
         </div>
       </div>
@@ -82,7 +111,7 @@ export function EmailDraft({ email, onBack, onReset, onRegenerate }: EmailDraftP
           target="_blank"
           rel="noopener noreferrer"
         >
-          <span className="email-draft__send-icon">📧</span>
+          <span className="email-draft__send-icon"><SendIcon /></span>
           <span className="email-draft__send-text">Open in Email Client</span>
           <span className="email-draft__send-arrow">→</span>
         </a>
@@ -93,7 +122,7 @@ export function EmailDraft({ email, onBack, onReset, onRegenerate }: EmailDraftP
               className="email-draft__action-btn"
               onClick={onRegenerate}
             >
-              🔄 Regenerate
+              <RefreshIcon /> Regenerate
             </button>
           )}
           <button
@@ -101,7 +130,7 @@ export function EmailDraft({ email, onBack, onReset, onRegenerate }: EmailDraftP
             className="email-draft__action-btn"
             onClick={onReset}
           >
-            ✉️ Draft Another
+            <PlusIcon /> Draft Another
           </button>
         </div>
       </div>

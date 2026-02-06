@@ -82,7 +82,22 @@ function LoadingSkeleton() {
 function EmptyState({ onBack }: { onBack: () => void }) {
   return (
     <div className="email-contact-list__empty">
-      <div className="email-contact-list__empty-icon">📭</div>
+      <div className="email-contact-list__empty-illustration">
+        <svg viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Empty inbox illustration */}
+          <rect x="50" y="45" width="100" height="70" rx="8" fill="#F1F5F9" stroke="#CBD5E1" strokeWidth="2"/>
+          <path d="M50 53L100 85L150 53" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M50 107L75 85" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M150 107L125 85" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"/>
+          {/* Decorative elements */}
+          <circle cx="160" cy="40" r="12" fill="#EEF2FF" stroke="#C7D2FE" strokeWidth="2"/>
+          <path d="M160 35V45M155 40H165" stroke="#A5B4FC" strokeWidth="2" strokeLinecap="round"/>
+          <circle cx="45" cy="35" r="8" fill="#FEF3C7" stroke="#FCD34D" strokeWidth="2"/>
+          {/* Sparkles */}
+          <path d="M170 70L171.5 74L175.5 75.5L171.5 77L170 81L168.5 77L164.5 75.5L168.5 74L170 70Z" fill="#94A3B8"/>
+          <path d="M35 60L36.5 64L40.5 65.5L36.5 67L35 71L33.5 67L29.5 65.5L33.5 64L35 60Z" fill="#CBD5E1"/>
+        </svg>
+      </div>
       <h3>No contacts found</h3>
       <p>We couldn't find any contacts in this category right now.</p>
       <button type="button" onClick={onBack} className="btn btn--primary">
