@@ -7,23 +7,10 @@ from backend.act_fetch import DEMO_MODE, act_fetch
 from backend.agent.fetch.planner import SQLPlan, get_sql_plan
 from backend.agent.fetch.sql.connection import get_connection
 from backend.agent.fetch.sql.executor import execute_sql
+from backend.agent.progress_queue import emit_progress
 from backend.agent.state import AgentState, format_conversation_for_prompt
 
 logger = logging.getLogger(__name__)
-
-
-def _create_progress_collector() -> tuple[list[dict[str, str]], Any]:
-    """Create a list and callback for collecting progress events.
-
-    Returns:
-        Tuple of (progress_list, callback_function)
-    """
-    progress_events: list[dict[str, str]] = []
-
-    def on_progress(step: str, status: str) -> None:
-        progress_events.append({"step": step, "status": status})
-
-    return progress_events, on_progress
 
 
 def _execute_sql_with_retry(
@@ -69,14 +56,12 @@ def fetch_node(state: AgentState) -> AgentState:
     if DEMO_MODE:
         logger.info(f"[Fetch] Demo mode - calling Act! API for: {question[:50]}...")
 
-        # Create progress collector for progressive loading UI
-        progress_events, on_progress = _create_progress_collector()
-
-        act_result = act_fetch(question, on_progress=on_progress)
+        # Use shared progress queue for real-time streaming
+        # emit_progress is called directly by act_fetch via the callback
+        act_result = act_fetch(question, on_progress=emit_progress)
         if act_result.get("error"):
             return cast(AgentState, {
                 "sql_results": {},
-                "fetch_progress": progress_events,
                 "error": act_result["error"],
             })
         sql_results = act_result["data"]
@@ -85,7 +70,6 @@ def fetch_node(state: AgentState) -> AgentState:
             sql_results["_cached_at"] = act_result["_cached_at"]
         return cast(AgentState, {
             "sql_results": sql_results,
-            "fetch_progress": progress_events,
         })
 
     history = format_conversation_for_prompt(state.get("messages", []))

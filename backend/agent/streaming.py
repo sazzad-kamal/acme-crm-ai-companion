@@ -1,5 +1,6 @@
 """SSE streaming adapter for LangGraph agent execution."""
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
@@ -16,6 +17,11 @@ from backend.agent.graph import (
     LangGraphEvent,
     agent_graph,
     build_thread_config,
+)
+from backend.agent.progress_queue import (
+    clear_progress_queue,
+    create_progress_queue,
+    drain_progress_queue,
 )
 from backend.agent.state import AgentState
 
@@ -39,26 +45,55 @@ def _format_sse(event: str, data: dict[str, Any]) -> str:
 
 
 async def stream_agent(question: str, session_id: str | None = None) -> AsyncGenerator[str, None]:  # pragma: no cover
-    """Stream agent execution as SSE events."""
+    """Stream agent execution as SSE events.
+
+    Uses a progress queue to emit real-time progress updates during fetch.
+    The fetch node puts progress events on the queue, and we poll it here.
+    """
     config = build_thread_config(session_id)
     state: AgentState = {"question": question}
     in_answer_node = False
     in_action_node = False
+    in_fetch_node = False
 
     # Check if this question has known steps for progress tracking
     q = question.strip()
     expected_steps = QUESTION_STEPS.get(q, [])
 
+    # Create progress queue for real-time updates from fetch node
+    progress_queue = create_progress_queue()
+
     try:
-        async for e in agent_graph.astream_events(state, config=config, version="v2"):
+        # Use anext with timeout to allow polling the progress queue
+        event_stream = agent_graph.astream_events(state, config=config, version="v2")
+        event_iter = event_stream.__aiter__()
+
+        while True:
+            # Poll for progress events while waiting for next LangGraph event
+            try:
+                # Short timeout to allow frequent queue polling during fetch
+                timeout = 0.05 if in_fetch_node else 30.0
+                e = await asyncio.wait_for(event_iter.__anext__(), timeout=timeout)
+            except asyncio.TimeoutError:
+                # Timeout - check progress queue and continue waiting
+                if in_fetch_node:
+                    progress_events = await drain_progress_queue(progress_queue)
+                    for progress in progress_events:
+                        yield _format_sse(StreamEvent.FETCH_PROGRESS, progress)
+                continue
+            except StopAsyncIteration:
+                break
+
             event_type, name = e.get("event"), e.get("name", "")
 
-            # Emit FETCH_START when fetch node begins (with expected steps)
-            if event_type == LangGraphEvent.CHAIN_START and name == FETCH_NODE and expected_steps:
-                yield _format_sse(StreamEvent.FETCH_START, {
-                    "question": q,
-                    "steps": expected_steps,
-                })
+            # Track fetch node state for queue polling
+            if event_type == LangGraphEvent.CHAIN_START and name == FETCH_NODE:
+                in_fetch_node = True
+                if expected_steps:
+                    yield _format_sse(StreamEvent.FETCH_START, {
+                        "question": q,
+                        "steps": expected_steps,
+                    })
 
             if event_type == LangGraphEvent.CHAIN_START and name == ANSWER_NODE:
                 in_answer_node = True
@@ -95,9 +130,10 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
                 try:
                     output = e.get("data", {}).get("output") or {}
                     if name == FETCH_NODE:
-                        # Emit progress events first (collected during fetch)
-                        fetch_progress = output.get("fetch_progress", [])
-                        for progress in fetch_progress:
+                        in_fetch_node = False
+                        # Drain any remaining progress events
+                        progress_events = await drain_progress_queue(progress_queue)
+                        for progress in progress_events:
                             yield _format_sse(StreamEvent.FETCH_PROGRESS, progress)
 
                         sql_results = output.get("sql_results", {})
@@ -124,6 +160,8 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
     except Exception as ex:
         logger.error("[Stream] %s", ex)
         yield _format_sse(StreamEvent.ERROR, {"message": str(ex)})
+    finally:
+        clear_progress_queue()
 
 
 __all__ = ["stream_agent"]

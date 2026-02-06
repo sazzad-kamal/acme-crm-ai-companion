@@ -99,48 +99,37 @@ STYLE / VALUE RENDERING RULES:
 - Do not change currency codes/symbols, units, or timezones.
 """
 
-# Extended prompt for Act! demo mode with schema context
-_ACT_SCHEMA_CONTEXT = """
-## Act! CRM Data Context
-You are answering questions about Act! CRM data. Key field mappings:
+# Simplified prompt for Act! demo mode - clean output without verbose citations
+_ACT_DEMO_SYSTEM_PROMPT = """You are a CRM assistant helping a sales manager with their Act! CRM data.
+Today: {today}
 
-### Contacts
-- fullName, firstName, lastName: Contact name
-- company, companyID: Associated company
-- emailAddress, businessPhone, mobilePhone: Contact info
-- lastReach, lastMeeting, lastEmail: Activity tracking
-- created, edited: Timestamps
+RULES:
+1. Answer ONLY using the provided CRM DATA - never invent names, numbers, or dates
+2. Be concise and actionable - sales managers are busy
+3. Use bullet points or tables for readability
+4. Include specific names, values, and dates from the data
+5. If data is missing or insufficient, say so briefly
 
-### Opportunities (Deals)
-- name: Deal name
-- weightedTotal, productTotal: Deal value (NOT estimatedValue)
-- estimatedCloseDate: When deal should close (NOT closeDate)
-- probability: Win probability (0-100)
-- status, statusName, stage: Pipeline position
-- daysOpen, daysInStage: Time tracking
-- contacts[]: Linked contacts array
-- contactNames: Comma-separated contact names
+OUTPUT FORMAT:
+- Write a clean, readable response (no verbose citations or evidence sections)
+- Use markdown formatting for clarity
+- Include a brief recommendation at the end if appropriate
 
-### History (Past Activities)
-- regarding: Activity subject/type
-- details: Activity description
-- startTime, endTime, duration: Timing
-- historyType: Activity category
-- contacts[]: Linked contacts
-
-### Calendar (Upcoming Activities)
-- date: Calendar date
-- items[]: Activities on that date
-- totalActivities, totalHistories: Counts
+Field Mappings:
+- productTotal = deal value
+- estimatedCloseDate = expected close date
+- daysInStage = days stuck in current stage
+- _stage_name = pipeline stage
+- _contact = primary contact name
+- contacts[].displayName = contact names
 """
 
 
 def _get_system_prompt(today: str) -> str:
-    """Get system prompt with optional Act! schema context."""
-    base = _SYSTEM_PROMPT_BASE.format(today=today)
+    """Get system prompt - simplified for demo mode, full grounding rules otherwise."""
     if _DEMO_MODE:
-        return base + _ACT_SCHEMA_CONTEXT
-    return base
+        return _ACT_DEMO_SYSTEM_PROMPT.format(today=today)
+    return _SYSTEM_PROMPT_BASE.format(today=today)
 
 _HUMAN_PROMPT = """User's question: {question}
 

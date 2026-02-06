@@ -25,6 +25,22 @@ from tenacity import (
 
 logger = logging.getLogger(__name__)
 
+# Test data indicators - records with these in names are filtered out
+_TEST_INDICATORS = ["test", "123", "demo", "sample", "fake", "dummy", "xxx", "aaa", "asdf"]
+
+
+def _is_test_record(name: str | None) -> bool:
+    """Check if a record name indicates test data."""
+    if not name:
+        return False
+    name_lower = name.lower()
+    return any(ind in name_lower for ind in _TEST_INDICATORS)
+
+
+def _filter_test_records(records: list[dict], name_field: str = "name") -> list[dict]:
+    """Filter out test records from a list."""
+    return [r for r in records if not _is_test_record(r.get(name_field))]
+
 
 # Retry decorator for transient API failures (timeouts, 5xx, connection errors)
 _api_retry = retry(
@@ -77,6 +93,8 @@ QUESTION_STEPS: dict[str, list[str]] = {
     "At-risk deals": ["opportunities", "contacts", "history"],
     "Account momentum": ["companies", "opportunities", "contacts", "history"],
     "Relationship gaps": ["opportunities", "contacts", "companies", "history"],
+    "Top opportunities": ["opportunities"],
+    "Deals stuck in stage": ["opportunities"],
 }
 
 def _build_skeleton(question: str, data: dict) -> dict:
@@ -119,70 +137,89 @@ def _build_skeleton(question: str, data: dict) -> dict:
     elif question == "Relationship gaps" and data.get("relationship_analysis"):
         skeleton["relationship_analysis"] = data["relationship_analysis"][:10]
 
-    # Copy duckdb metadata if present
-    if "duckdb" in data:
-        skeleton["duckdb"] = data["duckdb"]
+    elif question == "Top opportunities":
+        if data.get("top_opportunities"):
+            skeleton["top_opportunities"] = data["top_opportunities"][:10]
+
+    elif question == "Deals stuck in stage":
+        if data.get("stuck_deals"):
+            skeleton["stuck_deals"] = data["stuck_deals"][:7]  # Limit to 7 for verifiability
 
     return skeleton
 
 
 # Custom prompts for each demo question (used by answer/action nodes)
-# SIMPLIFIED: Skeleton pre-filters data, so guidance just says "report what exists"
+# SIMPLIFIED: Clean output without verbose citations - just actionable insights
 DEMO_PROMPTS = {
     "Daily briefing": {
         "answer": (
-            "Report ONLY what exists in the data. Do not mention absent sections. "
-            "Every claim needs [E#] citation. "
-            "Format: meetings (time, subject, attendees), activities (type, subject, date), "
-            "opportunities (name, value), followups (name, days overdue)."
+            "Summarize today's schedule and recent activity in a clean, readable format. "
+            "Include: meetings (time, subject, who), recent activities, and any urgent follow-ups. "
+            "Be concise - a busy sales manager should scan this in 30 seconds."
         ),
         "action": (
-            "ONLY suggest action if ANSWER names a contact with email/phone. "
-            "If no actionable contacts: output NONE."
+            "Suggest 1-2 specific follow-up actions based on the briefing. "
+            "Reference specific meetings or contacts by name."
         ),
     },
     "Forecast health": {
         "answer": (
-            "Report ONLY what exists in the data. Do not mention absent sections. "
-            "Every claim needs [E#] citation. "
-            "For deals: cite name, value, _days_overdue, _primary_contact (if present)."
+            "Summarize the sales pipeline health. Include: total pipeline value, deals closing soon, "
+            "any overdue deals with days overdue and contact names. Flag deals needing attention."
         ),
         "action": (
-            "ONLY suggest action if ANSWER names a deal with _primary_contact. "
-            "If _primary_contact is null: suggest 'Identify stakeholder for [deal name]'."
+            "Suggest 1-2 actions to improve forecast accuracy. "
+            "Reference specific deals and contacts by name."
         ),
     },
     "At-risk deals": {
         "answer": (
-            "Report ONLY deals in the data. Every claim needs [E#] citation. "
-            "For each: name, company, value, risk_reason, days_in_stage, last_touch, primary_contact. "
-            "If primary_contact is null, state 'null' - do not invent."
+            "List deals at risk, sorted by urgency. For each: deal name, value, why it's at risk "
+            "(stalled, overdue, low activity), days in stage, and contact name if available."
         ),
         "action": (
-            "ONLY suggest action for deals in ANSWER. "
-            "If primary_contact is null: suggest 'Identify stakeholder for [deal name]'."
+            "Suggest 1-2 actions to save the highest-value at-risk deals. "
+            "Reference specific deals and contacts by name."
         ),
     },
     "Account momentum": {
         "answer": (
-            "Report ONLY categories that exist in the data (expand/save/reactivate). "
-            "Do not mention absent categories. Every claim needs [E#] citation. "
-            "For each company: name, pipeline, eng30, last_touch_days, top_contact (if present)."
+            "Categorize accounts by momentum: EXPAND (growing), SAVE (declining), REACTIVATE (dormant). "
+            "For each: company name, pipeline value, recent engagement, and key contact."
         ),
         "action": (
-            "ONLY suggest action if ANSWER names a company with top_contact. "
-            "If top_contact is null: suggest 'Identify stakeholder at [company name]'."
+            "Suggest 1-2 actions to capitalize on momentum opportunities. "
+            "Reference specific companies and contacts by name."
         ),
     },
     "Relationship gaps": {
         "answer": (
-            "Report ONLY opportunities in the data. Every claim needs [E#] citation. "
-            "For each: name, company, value, engaged count, single_threaded, dark_contacts. "
-            "If dark_contacts is empty, state 'none' - do not invent."
+            "Identify deals with relationship risks: single-threaded (only one contact), "
+            "or contacts gone dark (no recent activity). Show deal name, value, engaged contacts, dark contacts."
         ),
         "action": (
-            "ONLY suggest action if ANSWER names a contact from dark_contacts. "
-            "If dark_contacts is empty: suggest 'Research [company] stakeholders'."
+            "Suggest 1-2 actions to strengthen relationships. "
+            "Reference specific deals and contacts by name."
+        ),
+    },
+    "Top opportunities": {
+        "answer": (
+            "List the top 10 opportunities by value. For each: deal name, value, stage, "
+            "probability, and contact name. Highlight the top 3 for immediate attention."
+        ),
+        "action": (
+            "Suggest follow-up actions for the top 3 deals. "
+            "Reference specific deals and contacts by name."
+        ),
+    },
+    "Deals stuck in stage": {
+        "answer": (
+            "List deals stuck in the same stage longest. For each: deal name, days in stage, "
+            "current stage, value, and contact name. Flag any over 30 days as needing review."
+        ),
+        "action": (
+            "Suggest actions to move stuck deals forward. "
+            "Reference specific deals and contacts by name."
         ),
     },
 }
@@ -485,7 +522,7 @@ def act_fetch(
                         results[step_id] = []
 
                 history = _filter_noise_history(results.get("history", []))
-                opps = results.get("opportunities", [])
+                opps = _filter_test_records(results.get("opportunities", []))
                 contacts = results.get("contacts", [])
 
                 # Add attendee contacts that aren't already in contacts list
@@ -581,7 +618,8 @@ def act_fetch(
 
         elif q == "Forecast health":
             # === PASS 1: Fetch opportunities first (increased limit) ===
-            opps = _get("/api/opportunities", {"$orderby": "estimatedCloseDate asc", "$top": 200, "$filter": "status eq 0"})
+            raw_opps = _get("/api/opportunities", {"$orderby": "estimatedCloseDate asc", "$top": 200, "$filter": "status eq 0"})
+            opps = _filter_test_records(raw_opps)
             emit_progress("opportunities", "done")
 
             # Extract contact IDs from opportunities for targeted fetch
@@ -703,7 +741,7 @@ def act_fetch(
                         emit_progress(step_id, "error")
                         results[step_id] = []
 
-                opps = results.get("opportunities", [])
+                opps = _filter_test_records(results.get("opportunities", []))
                 contacts = results.get("contacts", [])
                 history = _filter_noise_history(results.get("history", []))
 
@@ -862,8 +900,8 @@ def act_fetch(
                         emit_progress(step_id, "error")
                         results[step_id] = []
 
-                companies = results.get("companies", [])
-                opps = results.get("opportunities", [])
+                companies = _filter_test_records(results.get("companies", []))
+                opps = _filter_test_records(results.get("opportunities", []))
                 contacts = results.get("contacts", [])
                 history = _filter_noise_history(results.get("history", []))
 
@@ -1007,9 +1045,9 @@ def act_fetch(
                         emit_progress(step_id, "error")
                         results[step_id] = []
 
-                opps = results.get("opportunities", [])
+                opps = _filter_test_records(results.get("opportunities", []))
                 contacts = results.get("contacts", [])
-                companies = results.get("companies", [])
+                companies = _filter_test_records(results.get("companies", []))
                 history = _filter_noise_history(results.get("history", []))
 
             open_opps = [o for o in opps if _is_open_opportunity(o)]  # Backup filter
@@ -1130,6 +1168,44 @@ def act_fetch(
 
             analysis_results.sort(key=result_sort_key)
             data = {"relationship_analysis": analysis_results[:10], "duckdb": "COUNT engaged; flag single_threaded; find dark_contacts (sorted by staleness)"}
+            return _add_cache_timestamp({"data": _build_skeleton(q, data), "error": None})
+
+        elif q == "Top opportunities":
+            # === Simple query: top opportunities by value ===
+            opps = _get("/api/opportunities", {"$filter": "status eq 0", "$top": 100})
+            emit_progress("opportunities", "done")
+
+            # Filter test records, then sort by value
+            real_opps = _filter_test_records(opps)
+            sorted_opps = sorted(real_opps, key=lambda x: -(x.get("productTotal") or 0))[:10]
+
+            # Enrich with stage name and contact for readability
+            for o in sorted_opps:
+                stage = o.get("stage")
+                o["_stage_name"] = stage.get("name", "Unknown") if isinstance(stage, dict) else str(stage or "Unknown")
+                contacts = o.get("contacts", [])
+                o["_contact"] = contacts[0].get("displayName") if contacts else None
+
+            data = {"top_opportunities": sorted_opps}
+            return _add_cache_timestamp({"data": _build_skeleton(q, data), "error": None})
+
+        elif q == "Deals stuck in stage":
+            # === Simple query: deals stuck longest in current stage ===
+            opps = _get("/api/opportunities", {"$filter": "status eq 0", "$top": 100})
+            emit_progress("opportunities", "done")
+
+            # Filter test records, then sort by daysInStage
+            real_opps = _filter_test_records(opps)
+            stuck = sorted(real_opps, key=lambda x: -(x.get("daysInStage") or 0))[:10]
+
+            # Enrich with stage name and contact for readability
+            for o in stuck:
+                stage = o.get("stage")
+                o["_stage_name"] = stage.get("name", "Unknown") if isinstance(stage, dict) else str(stage or "Unknown")
+                contacts = o.get("contacts", [])
+                o["_contact"] = contacts[0].get("displayName") if contacts else None
+
+            data = {"stuck_deals": stuck}
             return _add_cache_timestamp({"data": _build_skeleton(q, data), "error": None})
 
         return {"data": {}, "error": f"Unknown question: {q}"}

@@ -68,35 +68,36 @@ WHEN TO OUTPUT NONE (must output NONE):
 - The ANSWER is "unknown," "not provided," "N/A," or otherwise lacks actionable specifics.
 - Any plausible action would require inventing missing owners, contacts, dates/timeframes, or other details not present in the ANSWER."""
 
-# Extended prompt for Act! demo mode with CRM-specific actions
-_ACT_ACTION_CONTEXT = """
+# Simplified action prompt for demo mode
+_ACT_DEMO_ACTION_PROMPT = """You suggest next actions for a sales manager based on CRM data.
 
-## Act! CRM Action Context
-When suggesting actions for Act! CRM users, focus on:
+RULES:
+1. Base actions ONLY on facts in the ANSWER - never invent names, dates, or details
+2. Suggest 1-3 concrete, specific actions
+3. Each action should reference a specific deal, contact, or company from the ANSWER
+4. Actions should be immediately doable (call X, email Y, review Z)
+5. If the ANSWER has no actionable information, output: NONE
 
-### Follow-up Actions
-- Schedule calls/meetings with specific contacts
-- Send follow-up emails referencing past conversations
-- Create history entries to document interactions
-- Update contact last-reach dates
+FORMAT:
+1. You: [action referencing specific entity from answer]
+2. You: [action referencing specific entity from answer]
 
-### Opportunity Actions
-- Update opportunity stage or probability
-- Add notes about deal progress
-- Schedule next-step activities
-- Link additional contacts to deals
+Example good actions:
+- "You: Schedule follow-up call with John Smith about the Acme deal"
+- "You: Review stuck deals (ABC Corp, XYZ Inc) and update stage or close"
+- "You: Send proposal to Jane Doe for the $50K opportunity"
 
-### Pipeline Management
-- Flag stale opportunities for review
-- Schedule close-plan meetings for deals closing soon
-- Update estimated close dates if slipping
-- Document competitor information"""
+Example bad actions (too vague):
+- "You: Follow up on deals"
+- "You: Contact stakeholders"
+- "You: Review the pipeline"
+"""
 
 
 def _get_system_prompt() -> str:
-    """Get system prompt with optional Act! action context."""
+    """Get system prompt - simplified for demo mode."""
     if _DEMO_MODE:
-        return _SYSTEM_PROMPT_BASE + _ACT_ACTION_CONTEXT
+        return _ACT_DEMO_ACTION_PROMPT
     return _SYSTEM_PROMPT_BASE
 
 _HUMAN_PROMPT = """Question: {question}
