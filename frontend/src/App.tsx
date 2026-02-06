@@ -8,6 +8,7 @@ import {
   ErrorBoundary,
   SkipLink,
   DataExplorer,
+  EmailSuggestions,
 } from "./components";
 import { endpoints } from "./config";
 import "./styles/index.css";
@@ -25,9 +26,12 @@ import "./styles/index.css";
  * - Full keyboard accessibility with skip links
  * - ARIA live regions for screen reader support
  */
+type TabView = "chat" | "email";
+
 export default function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState("");
+  const [activeTab, setActiveTab] = useState<TabView>("chat");
   const chatAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
@@ -179,27 +183,66 @@ export default function App() {
             )}
           </header>
 
-          {/* Chat Area */}
-          <ChatArea
-            ref={chatAreaRef}
-            messages={messages}
-            onSuggestionClick={handleSuggestionClick}
-            onFollowUpClick={handleFollowUpClick}
-            mode={appInfo?.mode}
-          />
+          {/* Main Tabs - shown in demo mode */}
+          {isDemoMode && (
+            <nav className="main-tabs" role="tablist" aria-label="Main navigation">
+              <button
+                type="button"
+                className={`main-tab ${activeTab === "chat" ? "main-tab--active" : ""}`}
+                role="tab"
+                aria-selected={activeTab === "chat"}
+                aria-controls="chat-panel"
+                onClick={() => setActiveTab("chat")}
+              >
+                <span className="main-tab__icon">💬</span>
+                <span className="main-tab__label">Ask AI</span>
+              </button>
+              <button
+                type="button"
+                className={`main-tab ${activeTab === "email" ? "main-tab--active" : ""}`}
+                role="tab"
+                aria-selected={activeTab === "email"}
+                aria-controls="email-panel"
+                onClick={() => setActiveTab("email")}
+              >
+                <span className="main-tab__icon">📧</span>
+                <span className="main-tab__label">Email Follow-ups</span>
+              </button>
+            </nav>
+          )}
 
-          {/* Error Banner */}
-          {error && <ErrorBanner message={error} onDismiss={clearError} />}
+          {/* Chat Area - shown when chat tab active or in non-demo mode */}
+          {(activeTab === "chat" || !isDemoMode) && (
+            <div id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
+              <ChatArea
+                ref={chatAreaRef}
+                messages={messages}
+                onSuggestionClick={handleSuggestionClick}
+                onFollowUpClick={handleFollowUpClick}
+                mode={appInfo?.mode}
+              />
 
-          {/* Input Bar - hidden in demo mode */}
-          {!isDemoMode && (
-            <InputBar
-              ref={inputRef}
-              value={currentQuestion}
-              onChange={handleInputChange}
-              onSubmit={handleSubmit}
-              isLoading={isLoading}
-            />
+              {/* Error Banner */}
+              {error && <ErrorBanner message={error} onDismiss={clearError} />}
+
+              {/* Input Bar - hidden in demo mode */}
+              {!isDemoMode && (
+                <InputBar
+                  ref={inputRef}
+                  value={currentQuestion}
+                  onChange={handleInputChange}
+                  onSubmit={handleSubmit}
+                  isLoading={isLoading}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Email Suggestions - shown when email tab active in demo mode */}
+          {isDemoMode && activeTab === "email" && (
+            <div id="email-panel" role="tabpanel" aria-labelledby="email-tab">
+              <EmailSuggestions />
+            </div>
           )}
         </div>
 

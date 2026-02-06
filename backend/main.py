@@ -23,6 +23,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 from backend.act_fetch import ACT_API_DB, ACT_API_USER, DEMO_MODE
 from backend.api.chat import router as chat_router
 from backend.api.data import router as data_router
+from backend.api.email import router as email_router
 
 # Configuration
 APP_NAME = "Acme CRM AI Companion API"
@@ -140,6 +141,7 @@ def create_app() -> FastAPI:
 
     router.include_router(chat_router, tags=["chat"])
     router.include_router(data_router, tags=["data"])
+    router.include_router(email_router, tags=["email"])
     app.include_router(router)
 
     # Serve frontend static files in production (built into frontend/dist/)

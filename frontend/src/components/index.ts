@@ -14,3 +14,4 @@ export { Avatar } from "./Avatar";
 export { CopyButton } from "./CopyButton";
 export { MarkdownText } from "./MarkdownText";
 export { DataExplorer } from "./dataExplorer";
+export { EmailSuggestions } from "./EmailSuggestions";

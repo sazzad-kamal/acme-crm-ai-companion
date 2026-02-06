@@ -111,3 +111,38 @@ export interface ChatRequest {
   question: string;
   session_id?: string;
 }
+
+// =============================================================================
+// Email Generation Types
+// =============================================================================
+
+export interface EmailQuestion {
+  id: string;
+  label: string;
+}
+
+export interface EmailContact {
+  contactId: string;
+  name: string;
+  company: string | null;
+  lastContact: string | null;
+  lastContactAgo: string | null;
+  reason: string;
+}
+
+export interface EmailContactsResponse {
+  category: string;
+  contacts: EmailContact[];
+}
+
+export interface GeneratedEmail {
+  subject: string;
+  body: string;
+  mailtoLink: string;
+  contact: {
+    id: string;
+    name: string;
+    email: string;
+    company: string;
+  };
+}

@@ -43,6 +43,10 @@ export const endpoints = {
   health: `${config.apiUrl}/api/health`,
   starterQuestions: `${config.apiUrl}/api/chat/starter-questions`,
   info: `${config.apiUrl}/api/info`,
+  // Email generation endpoints
+  emailQuestions: `${config.apiUrl}/api/email/questions`,
+  emailContacts: `${config.apiUrl}/api/email/contacts`,
+  emailGenerate: `${config.apiUrl}/api/email/generate`,
 } as const;
 
 /**
