@@ -3,34 +3,16 @@
  * Matches the visual style of Ask AI's message blocks.
  */
 import type { GeneratedEmail } from "../types";
+import { getInitials, getAvatarColor } from "../utils/avatar";
 
 interface EmailDraftProps {
   email: GeneratedEmail;
   onBack: () => void;
   onReset: () => void;
+  onRegenerate?: () => void;
 }
 
-/** Generate initials from a name */
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-}
-
-/** Generate a consistent color from a string */
-function getAvatarColor(name: string): string {
-  const colors = [
-    "#6366F1", "#8B5CF6", "#EC4899", "#F59E0B",
-    "#10B981", "#3B82F6", "#EF4444", "#14B8A6",
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
-export function EmailDraft({ email, onBack, onReset }: EmailDraftProps) {
+export function EmailDraft({ email, onBack, onReset, onRegenerate }: EmailDraftProps) {
   // Convert line breaks to paragraphs for better formatting
   const bodyParagraphs = email.body.split(/\n\n+/).filter(Boolean);
 
@@ -104,13 +86,24 @@ export function EmailDraft({ email, onBack, onReset }: EmailDraftProps) {
           <span className="email-draft__send-text">Open in Email Client</span>
           <span className="email-draft__send-arrow">→</span>
         </a>
-        <button
-          type="button"
-          className="email-draft__reset-btn"
-          onClick={onReset}
-        >
-          ↻ Start Over
-        </button>
+        <div className="email-draft__secondary-actions">
+          {onRegenerate && (
+            <button
+              type="button"
+              className="email-draft__action-btn"
+              onClick={onRegenerate}
+            >
+              🔄 Regenerate
+            </button>
+          )}
+          <button
+            type="button"
+            className="email-draft__action-btn"
+            onClick={onReset}
+          >
+            ✉️ Draft Another
+          </button>
+        </div>
       </div>
 
       <p className="email-draft__hint">

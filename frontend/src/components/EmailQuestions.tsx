@@ -85,7 +85,7 @@ export function EmailQuestions({
       </h2>
 
       <p className="email-questions__subtitle">
-        Select a category and we'll find contacts who need follow-up, then draft a personalized email for you.
+        We'll find the right contacts and draft a personalized email for you.
       </p>
 
       <div className="email-questions__grid">

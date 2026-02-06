@@ -16,6 +16,7 @@ interface UseEmailSuggestionsReturn {
   view: EmailView;
   questions: EmailQuestion[];
   selectedCategory: string | null;
+  selectedContactId: string | null;
   contacts: EmailContact[];
   generatedEmail: GeneratedEmail | null;
   loading: boolean;
@@ -27,6 +28,7 @@ interface UseEmailSuggestionsReturn {
   fetchQuestions: () => Promise<void>;
   fetchContacts: (category: string) => Promise<void>;
   generateEmail: (contactId: string, category: string) => Promise<void>;
+  regenerateEmail: () => Promise<void>;
   goBack: () => void;
   reset: () => void;
 }
@@ -35,6 +37,7 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
   const [view, setView] = useState<EmailView>("questions");
   const [questions, setQuestions] = useState<EmailQuestion[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<EmailContact[]>([]);
   const [generatedEmail, setGeneratedEmail] = useState<GeneratedEmail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -80,6 +83,7 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
   const generateEmail = useCallback(async (contactId: string, category: string) => {
     setGenerating(true);
     setGeneratingContactId(contactId);
+    setSelectedContactId(contactId);
     setError(null);
     try {
       const res = await fetch(endpoints.emailGenerate, {
@@ -102,6 +106,29 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
     }
   }, []);
 
+  const regenerateEmail = useCallback(async () => {
+    if (!selectedContactId || !selectedCategory) return;
+    setGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch(endpoints.emailGenerate, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactId: selectedContactId, category: selectedCategory }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${res.status}`);
+      }
+      const data: GeneratedEmail = await res.json();
+      setGeneratedEmail(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to regenerate email");
+    } finally {
+      setGenerating(false);
+    }
+  }, [selectedContactId, selectedCategory]);
+
   const goBack = useCallback(() => {
     if (view === "draft") {
       setGeneratedEmail(null);
@@ -117,6 +144,7 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
   const reset = useCallback(() => {
     setView("questions");
     setSelectedCategory(null);
+    setSelectedContactId(null);
     setContacts([]);
     setGeneratedEmail(null);
     setError(null);
@@ -126,6 +154,7 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
     view,
     questions,
     selectedCategory,
+    selectedContactId,
     contacts,
     generatedEmail,
     loading,
@@ -135,6 +164,7 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
     fetchQuestions,
     fetchContacts,
     generateEmail,
+    regenerateEmail,
     goBack,
     reset,
   };

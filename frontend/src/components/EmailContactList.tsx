@@ -4,6 +4,7 @@
  */
 import type { KeyboardEvent } from "react";
 import type { EmailContact } from "../types";
+import { getInitials, getAvatarColor } from "../utils/avatar";
 
 interface EmailContactListProps {
   contacts: EmailContact[];
@@ -41,26 +42,6 @@ const CATEGORY_CONFIG: Record<string, { title: string; description: string }> = 
     description: "Contacts with unresolved technical matters",
   },
 };
-
-/** Generate initials from a name */
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-}
-
-/** Generate a consistent color from a string */
-function getAvatarColor(name: string): string {
-  const colors = [
-    "#6366F1", "#8B5CF6", "#EC4899", "#F59E0B",
-    "#10B981", "#3B82F6", "#EF4444", "#14B8A6",
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
 
 function LoadingSkeleton() {
   return (

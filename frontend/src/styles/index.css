@@ -3069,6 +3069,69 @@ input:focus-visible {
   flex-shrink: 0;
 }
 
+/* Step Indicator */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.step-indicator__step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.step-indicator__number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  background-color: var(--color-border-light);
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+}
+
+.step-indicator__label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.step-indicator__connector {
+  width: 24px;
+  height: 2px;
+  background-color: var(--color-border);
+  margin: 0 var(--space-xs);
+}
+
+.step-indicator__step--current .step-indicator__number {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.step-indicator__step--current .step-indicator__label {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.step-indicator__step--completed .step-indicator__number {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.step-indicator__step--completed .step-indicator__label {
+  color: var(--color-text-secondary);
+}
+
 /* =====================================================
    EMAIL FOLLOW-UPS - Polished UI
    ===================================================== */
@@ -3554,21 +3617,28 @@ input:focus-visible {
   opacity: 0.8;
 }
 
-.email-draft__reset-btn {
-  padding: var(--space-md) var(--space-xl);
+.email-draft__secondary-actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+}
+
+.email-draft__action-btn {
+  padding: var(--space-sm) var(--space-lg);
   background: none;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--color-text-secondary);
   transition: all var(--transition-fast);
 }
 
-.email-draft__reset-btn:hover {
+.email-draft__action-btn:hover {
   background-color: var(--color-border-light);
   color: var(--color-text);
+  border-color: var(--color-border);
 }
 
 .email-draft__hint {
@@ -3584,6 +3654,19 @@ input:focus-visible {
     padding: var(--space-lg);
   }
 
+  .step-indicator {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .step-indicator__label {
+    display: none;
+  }
+
+  .step-indicator__connector {
+    width: 16px;
+  }
+
   .email-questions__title {
     font-size: var(--font-size-xl);
   }
@@ -3592,7 +3675,7 @@ input:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .email-question-card {
+  .email-category-card {
     padding: var(--space-lg);
   }
 
@@ -3601,9 +3684,13 @@ input:focus-visible {
     align-items: stretch;
   }
 
-  .email-draft__send-btn,
-  .email-draft__new-btn {
+  .email-draft__send-btn {
     justify-content: center;
     text-align: center;
+  }
+
+  .email-draft__secondary-actions {
+    flex-direction: row;
+    justify-content: center;
   }
 }
