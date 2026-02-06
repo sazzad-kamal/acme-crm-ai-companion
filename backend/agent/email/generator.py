@@ -27,7 +27,6 @@ _EMAIL_MODEL = "gpt-5.2"
 
 # Category definitions
 CATEGORY_DESCRIPTIONS = {
-    "awaiting_response": "Contacts waiting for our response or follow-up after outreach attempts",
     "support": "Contacts with unresolved support issues, problems, or errors that need follow-up",
     "renewals": "Contacts with upcoming renewals, expiring subscriptions, or renewal discussions",
     "billing": "Contacts with invoice, payment, or billing discussions that need follow-up",
@@ -41,12 +40,10 @@ CATEGORY_TONES: dict[str, tuple[str, str]] = {
     "billing": ("professional", "Be professional and tactful. Acknowledge the sensitive nature of payment discussions."),
     "support": ("empathetic", "Be warm and understanding. Show you care about resolving their issue."),
     "renewals": ("friendly", "Be friendly and appreciative. Emphasize the value of the ongoing relationship."),
-    "awaiting_response": ("direct", "Be concise and action-oriented. Get straight to the point."),
 }
 
 # Questions for each category
 EMAIL_QUESTIONS: list[dict[str, str]] = [
-    {"id": "awaiting_response", "label": "Who is waiting for our response?"},
     {"id": "support", "label": "Who needs support follow-up?"},
     {"id": "renewals", "label": "Who should be contacted about renewals?"},
     {"id": "billing", "label": "Who has billing issues to resolve?"},

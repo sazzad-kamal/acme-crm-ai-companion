@@ -41,7 +41,7 @@ class TestEmailQuestionsEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
-        assert len(data) == 5
+        assert len(data) == 4
 
     def test_questions_have_required_fields(self, client):
         """Test that each question has id and label fields."""

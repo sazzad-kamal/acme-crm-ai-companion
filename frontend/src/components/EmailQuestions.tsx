@@ -13,12 +13,6 @@ interface EmailQuestionsProps {
 
 // SVG Icons for each category
 const CategoryIcons: Record<string, ReactNode> = {
-  awaiting_response: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  ),
   quotes: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="1" x2="12" y2="23" />
@@ -69,7 +63,6 @@ const CategoryIcons: Record<string, ReactNode> = {
 };
 
 const QUESTION_CONFIG: Record<string, { color: string }> = {
-  awaiting_response: { color: "#F59E0B" },
   quotes: { color: "#10B981" },
   support: { color: "#6366F1" },
   renewals: { color: "#3B82F6" },
