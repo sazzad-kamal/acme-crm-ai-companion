@@ -13,7 +13,9 @@ from backend.agent.email.generator import (
     HISTORY_TTL,
     _clear_cache,
     _condense_history_for_llm,
+    _filter_history,
     _is_cache_valid,
+    _is_future_date,
     _relative_time,
     build_mailto_link,
     generate_email,
@@ -221,6 +223,82 @@ class TestCondenseHistory:
         result = _condense_history_for_llm(history)
         assert len(result[0]["details"]) <= 500
         assert len(result[0]["regarding"]) <= 100
+
+
+class TestPreFiltering:
+    """Test pre-filtering functions."""
+
+    def test_is_future_date_returns_true_for_future(self) -> None:
+        """Verify future dates are detected."""
+        future_date = "2099-01-01T10:00:00Z"
+        assert _is_future_date(future_date) is True
+
+    def test_is_future_date_returns_false_for_past(self) -> None:
+        """Verify past dates are not flagged."""
+        past_date = "2020-01-01T10:00:00Z"
+        assert _is_future_date(past_date) is False
+
+    def test_is_future_date_returns_false_for_today(self) -> None:
+        """Verify today is not flagged as future."""
+        today = time.strftime("%Y-%m-%d")
+        assert _is_future_date(today) is False
+
+    def test_is_future_date_handles_none(self) -> None:
+        """Verify None returns False."""
+        assert _is_future_date(None) is False
+
+    def test_is_future_date_handles_invalid(self) -> None:
+        """Verify invalid date returns False."""
+        assert _is_future_date("not-a-date") is False
+
+    def test_filter_history_removes_future_dates(self) -> None:
+        """Verify future-dated records are filtered out."""
+        history = [
+            {"startTime": "2020-01-01T10:00:00Z", "details": "Past"},
+            {"startTime": "2099-01-01T10:00:00Z", "details": "Future"},
+        ]
+        result = _filter_history(history)
+        assert len(result) == 1
+        assert result[0]["details"] == "Past"
+
+    def test_filter_history_removes_opportunity_lost(self) -> None:
+        """Verify Opportunity Lost records are filtered out."""
+        history = [
+            {"startTime": "2020-01-01", "historyType": "E-mail Sent", "details": "Keep"},
+            {"startTime": "2020-01-02", "historyType": "Opportunity Lost", "details": "Remove"},
+        ]
+        result = _filter_history(history)
+        assert len(result) == 1
+        assert result[0]["details"] == "Keep"
+
+    def test_filter_history_removes_opportunity_inactive(self) -> None:
+        """Verify Opportunity Inactive records are filtered out."""
+        history = [
+            {"startTime": "2020-01-01", "historyType": "Call Completed", "details": "Keep"},
+            {"startTime": "2020-01-02", "historyType": "Opportunity Inactive", "details": "Remove"},
+        ]
+        result = _filter_history(history)
+        assert len(result) == 1
+        assert result[0]["details"] == "Keep"
+
+    def test_filter_history_keeps_valid_records(self) -> None:
+        """Verify valid records are kept."""
+        history = [
+            {"startTime": "2020-01-01", "historyType": "E-mail Sent", "details": "Valid"},
+            {"startTime": "2020-01-02", "historyType": "Call Completed", "details": "Also Valid"},
+        ]
+        result = _filter_history(history)
+        assert len(result) == 2
+
+    def test_filter_history_handles_dict_history_type(self) -> None:
+        """Verify dict historyType (API format) is handled correctly."""
+        history = [
+            {"startTime": "2020-01-01", "historyType": {"name": "E-mail Sent"}, "details": "Keep"},
+            {"startTime": "2020-01-02", "historyType": {"name": "Opportunity Lost"}, "details": "Remove"},
+        ]
+        result = _filter_history(history)
+        assert len(result) == 1
+        assert result[0]["details"] == "Keep"
 
 
 class TestCache:

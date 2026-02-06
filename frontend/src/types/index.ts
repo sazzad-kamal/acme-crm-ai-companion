@@ -133,6 +133,7 @@ export interface EmailContact {
 export interface EmailContactsResponse {
   category: string;
   contacts: EmailContact[];
+  cachedSecondsAgo: number | null;
 }
 
 export interface GeneratedEmail {

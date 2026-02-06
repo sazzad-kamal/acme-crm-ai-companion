@@ -7,6 +7,7 @@ Two-step flow:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -47,6 +48,7 @@ _history_cache: list[dict[str, Any]] = []
 _history_cache_time: float = 0
 _history_by_contact: dict[str, list[dict[str, Any]]] = {}
 _classification_cache: dict[str, list[dict[str, Any]]] = {}
+_history_fetch_task: asyncio.Task[list[dict[str, Any]]] | None = None  # Shared task for deduplication
 HISTORY_TTL = 300  # 5 minutes
 
 
@@ -57,11 +59,12 @@ def _is_cache_valid() -> bool:
 
 def _clear_cache() -> None:
     """Clear all caches."""
-    global _history_cache, _history_cache_time, _history_by_contact, _classification_cache
+    global _history_cache, _history_cache_time, _history_by_contact, _classification_cache, _history_fetch_task
     _history_cache = []
     _history_cache_time = 0
     _history_by_contact = {}
     _classification_cache = {}
+    _history_fetch_task = None
 
 
 def strip_html(text: str) -> str:
@@ -108,6 +111,56 @@ def _relative_time(date_str: str) -> str:
         return "unknown"
 
 
+# History types to exclude (closed opportunities - no follow-up needed)
+_EXCLUDED_HISTORY_TYPES = {"Opportunity Lost", "Opportunity Inactive"}
+
+
+def _is_future_date(date_str: str | None) -> bool:
+    """Check if date is in the future (data error)."""
+    if not date_str:
+        return False
+    try:
+        date_part = date_str[:10]
+        date_ts = time.mktime(time.strptime(date_part, "%Y-%m-%d"))
+        return date_ts > time.time()
+    except Exception:
+        return False
+
+
+def _get_history_type(h: dict[str, Any]) -> str:
+    """Extract history type as a string, handling various API response formats."""
+    history_type = h.get("historyType") or h.get("type")
+    if history_type is None:
+        return ""
+    # Handle case where historyType is a dict with a "name" key
+    if isinstance(history_type, dict):
+        return str(history_type.get("name", ""))
+    return str(history_type)
+
+
+def _filter_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Pre-filter history to remove garbage data before LLM sees it.
+
+    Removes:
+    - Records with future dates (data errors)
+    - Opportunity Lost/Inactive records (closed - no follow-up needed)
+    """
+    filtered = []
+    for h in history:
+        # Skip future-dated records
+        if _is_future_date(h.get("startTime")):
+            continue
+
+        # Skip Opportunity Lost/Inactive
+        history_type = _get_history_type(h)
+        if history_type in _EXCLUDED_HISTORY_TYPES:
+            continue
+
+        filtered.append(h)
+
+    return filtered
+
+
 def _condense_history_for_llm(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Condense history records for LLM input (reduce tokens)."""
     condensed = []
@@ -138,13 +191,9 @@ def _condense_history_for_llm(history: list[dict[str, Any]]) -> list[dict[str, A
     return condensed
 
 
-async def _fetch_history() -> list[dict[str, Any]]:
-    """Fetch and cache history (1 API call, 5 min TTL)."""
+async def _do_fetch_history() -> list[dict[str, Any]]:
+    """Actual fetch implementation (called by shared task)."""
     global _history_cache, _history_cache_time, _history_by_contact
-
-    if _is_cache_valid():
-        logger.debug("Using cached history (%d records)", len(_history_cache))
-        return _history_cache
 
     logger.info("Fetching history from Act! API...")
     history: list[dict[str, Any]] = _get("/api/history", {"$top": 1000, "$orderby": "startTime desc"})
@@ -163,30 +212,121 @@ async def _fetch_history() -> list[dict[str, Any]]:
     return history
 
 
+async def _fetch_history() -> list[dict[str, Any]]:
+    """Fetch and cache history with shared task pattern.
+
+    If a fetch is already in progress, wait for it instead of starting another.
+    This prevents duplicate API calls when warmup and user click overlap.
+
+    Note: Act! API doesn't support $filter on /api/history endpoint,
+    so filtering is done in Python via _filter_history().
+    """
+    global _history_fetch_task
+
+    # Return cached if valid
+    if _is_cache_valid():
+        logger.debug("Using cached history (%d records)", len(_history_cache))
+        return _history_cache
+
+    # If fetch already in progress, wait for it (don't start another)
+    if _history_fetch_task is not None and not _history_fetch_task.done():
+        logger.debug("Waiting for in-flight history fetch task...")
+        return await _history_fetch_task
+
+    # Start new fetch task
+    _history_fetch_task = asyncio.create_task(_do_fetch_history())
+    return await _history_fetch_task
+
+
+def get_cache_age() -> int | None:
+    """Return seconds since cache was populated, or None if empty."""
+    if not _history_cache or not _history_cache_time:
+        return None
+    return int(time.time() - _history_cache_time)
+
+
+async def warmup_cache() -> int:
+    """Prefetch history to warm cache. Returns record count."""
+    history = await _fetch_history()
+    return len(history)
+
+
 class ClassificationResult(BaseModel):
     """LLM classification result."""
 
     contacts: list[dict[str, Any]]
 
 
-_CLASSIFICATION_PROMPT = """Analyze these CRM interaction records and identify contacts who need {category} follow-up.
+_CLASSIFICATION_PROMPT = """Analyze CRM interaction records and identify contacts who need {category} follow-up.
 
 Category: {category_description}
 
-History records:
+Contact history:
 {history_json}
 
-For each qualifying contact, return:
-- contactId: The contact's ID (must match exactly from the input)
-- name: Contact's display name
-- company: Company name if available (from the interaction context)
-- reason: 1 sentence explaining WHY they need follow-up (be specific about the issue/topic)
-- lastContact: The date of their last interaction (YYYY-MM-DD format)
+## Interaction Type Guide
 
-Return a JSON object with a "contacts" array. Only include contacts that clearly match the category. Be selective - quality over quantity. Maximum 10 contacts.
+**OUTBOUND (we contacted them - ball is with them):**
+- E-mail Sent, Knowtifier Email Sent
+- Call Attempted, Call Left Message, Call Completed, Sales Call - Completed
 
-Example response:
-{{"contacts": [{{"contactId": "abc123", "name": "John Smith", "company": "Acme Corp", "reason": "Requested quote for 50 licenses, awaiting response", "lastContact": "2025-01-15"}}]}}
+**INBOUND (they contacted us - ball is with us):**
+- Call Received, E-mail Auto Attached
+
+**MEETINGS (two-way):**
+- Meeting Held, Appointment Completed
+
+**ADMINISTRATIVE (ignore for follow-up decisions):**
+- To-do Done, Attachment, Field Changed, Contact Updated, Contact Deleted, Contact Linked, Web Activity
+
+Determine WHO HAS THE BALL: If last meaningful interaction was OUTBOUND = waiting on them. If INBOUND = waiting on us.
+
+## EXCLUSION RULES - Skip contacts who:
+1. Have status: Closed-Lost, Declined, Not Ready, Quote Disabled, Cancelled, Terminated
+2. Explicitly said "not moving forward", "not interested", "decided against", or "going with competitor"
+3. Have their issue already resolved, completed, or marked closed
+4. Are post-sale implementation items (not pre-sale opportunities)
+
+## Category-Specific Rules
+
+**quotes**:
+- ONLY include contacts with ACTIVE/OPEN/PENDING quote status awaiting a decision
+- Include quote ID when available (e.g., "Quote #18177KQC")
+- EXCLUDE: Closed-Lost, Not Ready, Quote Disabled, "not moving forward", post-sale/implementation
+- Priority: Quotes with stated decision deadlines > quotes awaiting approval > general pending quotes
+
+**billing**:
+- Focus: Unpaid invoices, payment issues, collections, chargebacks, suspensions
+- Include invoice # when available in the reason
+- SORT priority: Overdue/past due > suspended accounts > due this week > due soon > upcoming
+- EXCLUDE: Routine renewal reminders with no payment issue (those belong in renewals)
+
+**support**:
+- ONLY include unresolved issues with: active errors, problems, or explicit "in progress" status
+- Include case/ticket ID when available
+- Specify in reason: What's broken + what's needed to resolve
+- EXCLUDE: Resolved issues, "monitoring" without active issue, feature requests (not break/fix)
+
+**renewals**:
+- Focus: Upcoming expirations without confirmed renewal or payment
+- Include: renewal/expiry date, invoice # when available
+- SORT by: Expiration date (soonest first)
+- EXCLUDE: Already renewed/paid, explicitly declined renewal
+
+## Output Requirements
+
+For each qualifying contact return:
+- contactId: Exact ID from input (must match exactly)
+- name: Display name
+- company: Company name
+- reason: 1 sentence with: [Specific situation] + [What's needed next]
+  Example: "Quote #18177KQC sent Feb 5 awaiting boss approval - follow up for decision"
+  Example: "Invoice #79371 due Mar 3, promised to pay 'tomorrow' - confirm payment received"
+- lastContact: YYYY-MM-DD format
+
+Return JSON: {{"contacts": [...]}}
+
+Maximum 10 contacts, sorted by priority/urgency. Quality over quantity - only include contacts that CLEARLY match the category criteria. When in doubt, leave them out.
 """
 
 
@@ -257,8 +397,9 @@ async def get_contacts_for_category(category: str) -> list[dict[str, Any]]:
     """Get contacts for a category.
 
     1. Fetch history (1 API call, cached)
-    2. LLM classifies all history records for this category
-    3. Returns contacts with AI-generated reasons
+    2. Pre-filter to remove garbage data (future dates, closed opportunities)
+    3. LLM classifies remaining history records for this category
+    4. Returns contacts with AI-generated reasons
     """
     if category not in CATEGORY_DESCRIPTIONS:
         raise ValueError(f"Unknown category: {category}")
@@ -269,8 +410,17 @@ async def get_contacts_for_category(category: str) -> list[dict[str, Any]]:
     # Filter history with details only
     history_with_details = [h for h in history if h.get("details")]
 
+    # Pre-filter to remove garbage data before LLM sees it
+    filtered_history = _filter_history(history_with_details)
+    logger.info(
+        "Pre-filtered history: %d -> %d records (removed %d)",
+        len(history_with_details),
+        len(filtered_history),
+        len(history_with_details) - len(filtered_history),
+    )
+
     # LLM classification
-    contacts = await _classify_history_with_llm(history_with_details, category)
+    contacts = await _classify_history_with_llm(filtered_history, category)
 
     # Sort by lastContact ascending (oldest first = most likely needs follow-up)
     contacts.sort(key=lambda x: x.get("lastContact", "9999-99-99"))
@@ -415,4 +565,7 @@ __all__ = [
     "generate_email",
     "strip_html",
     "build_mailto_link",
+    "warmup_cache",
+    "get_cache_age",
+    "_clear_cache",
 ]

@@ -10,9 +10,12 @@ from pydantic import BaseModel
 
 from backend.agent.email.generator import (
     CATEGORY_DESCRIPTIONS,
+    _clear_cache,
     generate_email,
+    get_cache_age,
     get_contacts_for_category,
     get_questions,
+    warmup_cache,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,6 +46,7 @@ class ContactsResponse(BaseModel):
 
     category: str
     contacts: list[EmailContact]
+    cachedSecondsAgo: int | None = None  # How old the underlying history cache is
 
 
 class GeneratedEmail(BaseModel):
@@ -81,6 +85,7 @@ async def get_email_contacts(category: str) -> ContactsResponse:
         return ContactsResponse(
             category=category,
             contacts=[EmailContact(**c) for c in contacts],
+            cachedSecondsAgo=get_cache_age(),
         )
     except Exception as e:
         logger.exception("Failed to get contacts for category %s", category)
@@ -111,3 +116,18 @@ async def generate_email_endpoint(request: GenerateEmailRequest) -> GeneratedEma
     except Exception as e:
         logger.exception("Failed to generate email for contact %s", request.contactId)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/warmup")
+async def warmup_history() -> dict[str, str]:
+    """Prefetch history to warm the cache. Fire-and-forget from frontend."""
+    await warmup_cache()
+    return {"status": "ok"}
+
+
+@router.post("/refresh")
+async def refresh_history() -> dict[str, Any]:
+    """Force refresh the history cache."""
+    _clear_cache()
+    count = await warmup_cache()
+    return {"status": "ok", "records": count}

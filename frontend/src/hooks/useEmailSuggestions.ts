@@ -23,12 +23,15 @@ interface UseEmailSuggestionsReturn {
   generating: boolean;
   generatingContactId: string | null;
   error: string | null;
+  cachedSecondsAgo: number | null;
+  refreshing: boolean;
 
   // Actions
   fetchQuestions: () => Promise<void>;
   fetchContacts: (category: string) => Promise<void>;
   generateEmail: (contactId: string, category: string) => Promise<void>;
   regenerateEmail: () => Promise<void>;
+  refreshCache: () => Promise<void>;
   goBack: () => void;
   reset: () => void;
 }
@@ -44,6 +47,8 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
   const [generating, setGenerating] = useState(false);
   const [generatingContactId, setGeneratingContactId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cachedSecondsAgo, setCachedSecondsAgo] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
@@ -72,6 +77,7 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
       }
       const data: EmailContactsResponse = await res.json();
       setContacts(data.contacts);
+      setCachedSecondsAgo(data.cachedSecondsAgo);
       setView("contacts");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch contacts");
@@ -129,6 +135,29 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
     }
   }, [selectedContactId, selectedCategory]);
 
+  const refreshCache = useCallback(async () => {
+    if (!selectedCategory) return;
+    setRefreshing(true);
+    setError(null);
+    try {
+      // First refresh the cache
+      await fetch(endpoints.emailRefresh, { method: "POST" });
+      // Then re-fetch contacts for current category
+      const res = await fetch(`${endpoints.emailContacts}?category=${encodeURIComponent(selectedCategory)}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${res.status}`);
+      }
+      const data: EmailContactsResponse = await res.json();
+      setContacts(data.contacts);
+      setCachedSecondsAgo(data.cachedSecondsAgo);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to refresh data");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [selectedCategory]);
+
   const goBack = useCallback(() => {
     if (view === "draft") {
       setGeneratedEmail(null);
@@ -161,10 +190,13 @@ export function useEmailSuggestions(): UseEmailSuggestionsReturn {
     generating,
     generatingContactId,
     error,
+    cachedSecondsAgo,
+    refreshing,
     fetchQuestions,
     fetchContacts,
     generateEmail,
     regenerateEmail,
+    refreshCache,
     goBack,
     reset,
   };

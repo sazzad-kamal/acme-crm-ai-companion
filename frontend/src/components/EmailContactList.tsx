@@ -12,8 +12,18 @@ interface EmailContactListProps {
   loading: boolean;
   generating: boolean;
   selectedContactId: string | null;
+  cachedSecondsAgo: number | null;
+  refreshing: boolean;
   onContactClick: (contactId: string) => void;
   onBack: () => void;
+  onRefresh: () => void;
+}
+
+function formatCacheAge(seconds: number): string {
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes === 1) return "1 min ago";
+  return `${minutes} min ago`;
 }
 
 const CATEGORY_CONFIG: Record<string, { title: string; description: string }> = {
@@ -88,8 +98,11 @@ export function EmailContactList({
   loading,
   generating,
   selectedContactId,
+  cachedSecondsAgo,
+  refreshing,
   onContactClick,
   onBack,
+  onRefresh,
 }: EmailContactListProps) {
   const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>, contactId: string) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -122,6 +135,22 @@ export function EmailContactList({
           <h2 className="email-contact-list__title">{config.title}</h2>
           <p className="email-contact-list__description">{config.description}</p>
         </div>
+        {cachedSecondsAgo !== null && (
+          <div className="email-contact-list__cache-info">
+            <span className="email-contact-list__cache-age">
+              Data from {formatCacheAge(cachedSecondsAgo)}
+            </span>
+            <button
+              type="button"
+              className="email-contact-list__refresh"
+              onClick={onRefresh}
+              disabled={refreshing}
+              aria-label="Refresh data"
+            >
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+        )}
       </div>
 
       {contacts.length === 0 ? (

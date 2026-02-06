@@ -47,6 +47,8 @@ export const endpoints = {
   emailQuestions: `${config.apiUrl}/api/email/questions`,
   emailContacts: `${config.apiUrl}/api/email/contacts`,
   emailGenerate: `${config.apiUrl}/api/email/generate`,
+  emailWarmup: `${config.apiUrl}/api/email/warmup`,
+  emailRefresh: `${config.apiUrl}/api/email/refresh`,
 } as const;
 
 /**

@@ -8,6 +8,7 @@
  */
 import { useEffect } from "react";
 import { useEmailSuggestions } from "../hooks/useEmailSuggestions";
+import { endpoints } from "../config";
 import { EmailQuestions } from "./EmailQuestions";
 import { EmailContactList } from "./EmailContactList";
 import { EmailDraft } from "./EmailDraft";
@@ -56,17 +57,22 @@ export function EmailSuggestions() {
     generating,
     generatingContactId,
     error,
+    cachedSecondsAgo,
+    refreshing,
     fetchQuestions,
     fetchContacts,
+    refreshCache,
     generateEmail,
     regenerateEmail,
     goBack,
     reset,
   } = useEmailSuggestions();
 
-  // Fetch questions on mount
+  // Fetch questions on mount + fire-and-forget history prefetch
   useEffect(() => {
     fetchQuestions();
+    // Warm up history cache in background - don't await, don't block
+    fetch(endpoints.emailWarmup, { method: "POST" }).catch(() => {});
   }, [fetchQuestions]);
 
   const handleQuestionClick = (categoryId: string) => {
@@ -106,8 +112,11 @@ export function EmailSuggestions() {
           loading={loading}
           generating={generating}
           selectedContactId={generatingContactId}
+          cachedSecondsAgo={cachedSecondsAgo}
+          refreshing={refreshing}
           onContactClick={handleContactClick}
           onBack={goBack}
+          onRefresh={refreshCache}
         />
       )}
 
