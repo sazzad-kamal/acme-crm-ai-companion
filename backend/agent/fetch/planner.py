@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -103,7 +104,7 @@ class SQLPlan(BaseModel):
     sql: str = Field(description="The SQL query to execute")
 
 
-def _get_planner_chain():
+def _get_planner_chain() -> Any:
     """Get the planner chain (not cached - system prompt includes dynamic date)."""
     system_prompt = _SYSTEM_PROMPT.format(
         today=datetime.now().strftime("%Y-%m-%d"),

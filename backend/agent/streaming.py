@@ -74,7 +74,7 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
                 # Short timeout to allow frequent queue polling during fetch
                 timeout = 0.05 if in_fetch_node else 30.0
                 e = await asyncio.wait_for(event_iter.__anext__(), timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Timeout - check progress queue and continue waiting
                 if in_fetch_node:
                     progress_events = await drain_progress_queue(progress_queue)

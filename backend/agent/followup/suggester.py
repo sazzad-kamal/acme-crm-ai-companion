@@ -88,7 +88,7 @@ def generate_follow_up_suggestions(
     if use_hardcoded_tree:
         from backend.agent.followup.tree import get_follow_ups
 
-        follow_ups = get_follow_ups(question)
+        follow_ups: list[str] = get_follow_ups(question)
         if follow_ups:
             logger.debug(f"Using hardcoded follow-ups for: {question[:50]}...")
             return follow_ups

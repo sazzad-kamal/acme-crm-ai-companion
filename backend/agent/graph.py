@@ -40,7 +40,7 @@ def _route_after_answer(state: AgentState) -> list[str] | str:
     return END
 
 
-def _build_graph():
+def _build_graph() -> Any:
     """Build and compile the LangGraph workflow."""
     graph = StateGraph(AgentState)
 

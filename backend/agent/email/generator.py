@@ -26,20 +26,20 @@ _EMAIL_MODEL = "gpt-5.2"
 
 # Category definitions
 CATEGORY_DESCRIPTIONS = {
-    "quotes": "Contacts with pending quotes, proposals, or pricing discussions that need follow-up",
+    "awaiting_response": "Contacts waiting for our response or follow-up after outreach attempts",
     "support": "Contacts with unresolved support issues, problems, or errors that need follow-up",
     "renewals": "Contacts with upcoming renewals, expiring subscriptions, or renewal discussions",
-    "recent": "Contacts with recent interactions that may need follow-up",
-    "technical": "Contacts with technical issues (sync, database, server, install, upgrade) that need follow-up",
+    "billing": "Contacts with invoice, payment, or billing discussions that need follow-up",
+    "quotes": "Contacts with pending quotes, proposals, or pricing discussions that need follow-up",
 }
 
 # Questions for each category
-EMAIL_QUESTIONS = [
-    {"id": "quotes", "label": "Who has open quotes that need follow-up?"},
+EMAIL_QUESTIONS: list[dict[str, str]] = [
+    {"id": "awaiting_response", "label": "Who is waiting for our response?"},
     {"id": "support", "label": "Who needs support follow-up?"},
     {"id": "renewals", "label": "Who should be contacted about renewals?"},
-    {"id": "recent", "label": "Who was recently contacted?"},
-    {"id": "technical", "label": "Who has technical issues to resolve?"},
+    {"id": "billing", "label": "Who has billing issues to resolve?"},
+    {"id": "quotes", "label": "Who has open quotes that need follow-up?"},
 ]
 
 # Session cache (5 min TTL)
@@ -147,7 +147,7 @@ async def _fetch_history() -> list[dict[str, Any]]:
         return _history_cache
 
     logger.info("Fetching history from Act! API...")
-    history = _get("/api/history", {"$top": 1000, "$orderby": "startTime desc"})
+    history: list[dict[str, Any]] = _get("/api/history", {"$top": 1000, "$orderby": "startTime desc"})
     _history_cache = history
     _history_cache_time = time.time()
 
@@ -237,7 +237,7 @@ async def _classify_history_with_llm(history: list[dict[str, Any]], category: st
             result_text = re.sub(r"\s*```$", "", result_text)
 
         parsed = json.loads(result_text)
-        contacts = parsed.get("contacts", [])
+        contacts: list[dict[str, Any]] = parsed.get("contacts", [])
 
         # Add lastContactAgo field
         for c in contacts:
@@ -320,7 +320,7 @@ async def generate_email(contact_id: str, category: str) -> dict[str, Any]:
     logger.info("Fetching contact %s for email generation", contact_id)
     try:
         result = _get(f"/api/contacts/{contact_id}", {})
-        contact = result[0] if isinstance(result, list) and result else result
+        contact: dict[str, Any] = result[0] if isinstance(result, list) and result else result
     except Exception as e:
         logger.error("Failed to fetch contact %s: %s", contact_id, e)
         raise ValueError(f"Could not fetch contact: {e}") from e

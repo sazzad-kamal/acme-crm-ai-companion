@@ -25,7 +25,8 @@ class DatabaseRequest(BaseModel):
 
 @router.get("/chat/starter-questions", summary="Get starter questions")
 def get_starter_questions() -> list[str]:
-    return DEMO_STARTERS if DEMO_MODE else get_starters()
+    starters: list[str] = get_starters()
+    return DEMO_STARTERS if DEMO_MODE else starters
 
 @router.get("/chat/databases", summary="Get available databases")
 def get_databases() -> dict:

@@ -141,7 +141,7 @@ def _build_skeleton(question: str, data: dict) -> dict:
         if data.get("top_opportunities"):
             skeleton["top_opportunities"] = data["top_opportunities"][:10]
 
-    elif question == "Deals stuck in stage":
+    elif question == "Deals stuck in stage":  # noqa: SIM102
         if data.get("stuck_deals"):
             skeleton["stuck_deals"] = data["stuck_deals"][:7]  # Limit to 7 for verifiability
 
