@@ -23,47 +23,46 @@ LLMs hallucinate. They make up data, invent statistics, and confidently cite sou
 
 ## Architecture
 
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                             SUPERVISOR                                      │
-│                    Heuristics-first classification                          │
-│                    (LLM fallback only when needed)                          │
-└─────────────────────────────────┬──────────────────────────────────────────┘
-                                  │
-        ┌─────────┬─────────┬─────┴─────┬─────────┬─────────┐
-        ▼         ▼         ▼           ▼         ▼         ▼
-    ┌───────┐ ┌───────┐ ┌───────┐ ┌─────────┐ ┌───────┐ ┌───────┐
-    │ FETCH │ │COMPARE│ │ TREND │ │ PLANNER │ │EXPORT │ │HEALTH │
-    │       │ │       │ │       │ │         │ │       │ │       │
-    │  SQL  │ │ A vs B│ │ Time  │ │ Multi-  │ │ CSV/  │ │Account│
-    │ Query │ │       │ │ Series│ │ Agent   │ │ PDF   │ │ Score │
-    └───┬───┘ └───┬───┘ └───┬───┘ └────┬────┘ └───┬───┘ └───┬───┘
-        │         │         │          │          │         │
-        └─────────┴─────────┴────┬─────┴──────────┴─────────┘
-                                 │
-                                 ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                              ANSWER                                         │
-│                                                                             │
-│   • Synthesize with evidence tags [E1], [E2]                               │
-│   • Loop back if more data needed (max 2)                                   │
-│   • Validate → Repair → Fallback (never crashes)                           │
-└─────────────────────────────────┬──────────────────────────────────────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    ▼                           ▼
-               ┌─────────┐                ┌──────────┐
-               │ ACTION  │                │ FOLLOWUP │
-               └─────────┘                └──────────┘
+<p align="center">
+  <img src="docs/langgraph-architecture.svg" alt="LangGraph Multi-Agent Architecture" width="900">
+</p>
+
+### How It Works
+
+```mermaid
+flowchart TB
+    Q[User Question] --> S[Supervisor]
+
+    S -->|data_query| F[Fetch]
+    S -->|compare| C[Compare]
+    S -->|trend| T[Trend]
+    S -->|complex| P[Planner]
+    S -->|export| E[Export]
+    S -->|health| H[Health]
+    S -->|clarify/help| A
+
+    F --> A[Answer]
+    C --> A
+    T --> A
+    P --> A
+    E --> A
+    H --> A
+
+    A -->|needs_more_data| F
+    A --> AC[Action]
+    A --> FU[Followup]
+
+    AC --> END[Response]
+    FU --> END
 ```
 
 ---
 
 ## What Makes This Production-Grade
 
-### Multi-Agent Orchestration
+### 1. Multi-Agent Orchestration
 
-6 specialized agents. Each optimized for its task:
+6 specialized agents, each optimized for its query type:
 
 | Query | Agent | What Happens |
 |-------|-------|--------------|
@@ -74,44 +73,50 @@ LLMs hallucinate. They make up data, invent statistics, and confidently cite sou
 | "Export to CSV" | **Export** | Query → File generation |
 | "Acme health score" | **Health** | Multi-factor scoring |
 
-**Planner** handles complex queries by decomposing and routing to multiple agents:
+### 2. Planner: Multi-Agent Fan-Out
 
-```
-"Show deals and compare Q1 vs Q2"
-              │
-    ┌─────────┴─────────┐
-    ▼                   ▼
-  FETCH              COMPARE
-    │                   │
-    └─────────┬─────────┘
-              ▼
-          AGGREGATE → ANSWER
+Complex queries decomposed and routed to multiple agents:
+
+```mermaid
+flowchart LR
+    Q["Show deals and compare Q1 vs Q2"] --> P[Planner]
+    P --> F[Fetch<br/>'Show deals']
+    P --> C[Compare<br/>'Q1 vs Q2']
+    F --> AG[Aggregate]
+    C --> AG
+    AG --> A[Answer]
 ```
 
-### Heuristics-First Classification
+### 3. Heuristics-First Classification
 
 **90% of queries classified without LLM** — fast and cheap:
 
-```
-"export deals"     →  EXPORT   (keyword)
-"Q1 vs Q2"         →  COMPARE  (keyword)
-"yes"              →  CLARIFY  (too short)
-"hmm not sure"     →  LLM      (ambiguous)
-```
+| Pattern | Intent | LLM? |
+|---------|--------|------|
+| "export", "csv" | EXPORT | No |
+| "vs", "compare" | COMPARE | No |
+| "trend", "over time" | TREND | No |
+| Short/vague | CLARIFY | No |
+| Ambiguous | fallback | Yes |
 
-### Contract-Enforced Outputs
+### 4. Contract-Enforced Outputs
 
 Every LLM output: **Validate → Repair → Fallback**
 
-```
-LLM Output → Validate → [fail] → Repair → [fail] → Fallback
-                ↓
-            [pass] → Return
+```mermaid
+flowchart LR
+    L[LLM Output] --> V{Validate}
+    V -->|pass| R[Return]
+    V -->|fail| RP[Repair]
+    RP --> V2{Validate}
+    V2 -->|pass| R
+    V2 -->|fail| F[Fallback]
+    F --> R
 ```
 
 **The system never crashes on bad LLM output.**
 
-### Evidence-Grounded Responses
+### 5. Evidence-Grounded Responses
 
 Every claim cites its source:
 
@@ -123,16 +128,19 @@ Evidence:
 - E2: opportunities.value = 50000
 ```
 
-### Data Refinement Loops
+### 6. Data Refinement Loops
 
 Answer can request more data (max 2 iterations):
 
-```
-Fetch → Answer: "Need more context"
-           └─→ Fetch (refined) → Answer: "Complete picture..."
+```mermaid
+flowchart LR
+    F1[Fetch] --> A1[Answer]
+    A1 -->|needs_more_data| F2[Fetch]
+    F2 --> A2[Answer]
+    A2 --> OUT[Response]
 ```
 
-### SQL Safety Guard
+### 7. SQL Safety Guard
 
 All SQL validated via `sqlglot`:
 - **Blocked**: INSERT, UPDATE, DELETE, DROP
