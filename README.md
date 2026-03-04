@@ -1,132 +1,158 @@
-# Acme CRM AI Companion
+# CRM Chat Assistant
 
-An AI-powered CRM assistant that answers natural language questions about your CRM data using a **multi-agent LangGraph pipeline** with Supervisor routing and data refinement loops. Built with FastAPI backend and React frontend.
+> **Natural language queries over CRM data using multi-agent orchestration**
+
+A production-grade AI assistant that answers business questions about your CRM using a **LangGraph multi-agent pipeline** with supervisor routing, specialized data agents, and evidence-grounded responses.
+
+```
+"What deals closed this quarter?"     →  Fetch Agent   →  SQL + Data
+"Compare Q1 vs Q2 revenue"            →  Compare Agent →  Analysis
+"Show revenue trend by month"         →  Trend Agent   →  Time-series
+"Export top accounts to CSV"          →  Export Agent  →  File generation
+```
+
+---
 
 ## Architecture
 
-![LangGraph Multi-Agent Architecture](docs/langgraph-architecture.svg)
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              SUPERVISOR                                      │
+│                                                                              │
+│   User Query ──► Heuristics ──► Intent ──► Route to Specialized Agent       │
+│                      │                                                       │
+│                      └── LLM Fallback (only if heuristics uncertain)         │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+            ┌───────────────────────┼───────────────────────┐
+            │           │           │           │           │
+            ▼           ▼           ▼           ▼           ▼
+       ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+       │  FETCH  │ │ COMPARE │ │  TREND  │ │ PLANNER │ │ EXPORT  │
+       │         │ │         │ │         │ │         │ │         │
+       │ Simple  │ │ A vs B  │ │ Time-   │ │ Multi-  │ │ CSV/PDF │
+       │ queries │ │ analysis│ │ series  │ │ step    │ │ JSON    │
+       └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘
+            │           │           │           │           │
+            └───────────┴───────────┴───────────┴───────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           RESPONSE PIPELINE                                  │
+│                                                                              │
+│   Data ──► ANSWER (synthesize with [E1] [E2] citations)                     │
+│                │                                                             │
+│                ├──► ACTION (suggest next steps)                              │
+│                │                                                             │
+│                └──► FOLLOWUP (generate related questions)                    │
+│                                                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  Validate ──► Repair ──► Fallback  (every LLM output)               │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-### Multi-Agent Pipeline
+### Agent Routing
 
-The system uses **8 intents** routed by a Supervisor to **6 specialized data agents**:
+| Agent | Intent | What It Does | Example |
+|-------|--------|--------------|---------|
+| **Fetch** | `data_query` | SQL generation + execution | "Show all deals over $50K" |
+| **Compare** | `compare` | Side-by-side analysis | "Q1 vs Q2 revenue by region" |
+| **Trend** | `trend` | Time-series patterns | "Monthly revenue trend" |
+| **Planner** | `complex` | Multi-step orchestration | "Show deals and compare by rep" |
+| **Export** | `export` | File generation | "Export pipeline to CSV" |
+| **Health** | `health` | Account scoring | "What's Acme Corp's health score?" |
 
-| Agent | Intent | Purpose | Example Query |
-|-------|--------|---------|---------------|
-| **Fetch** | `data_query` | Simple SQL queries | "Show all deals" |
-| **Compare** | `compare` | A vs B analysis | "Q1 vs Q2 revenue" |
-| **Trend** | `trend` | Time-series analysis | "Revenue by month" |
-| **Planner** | `complex` | Multi-step orchestration | "Show X and compare Y" |
-| **Export** | `export` | CSV/PDF/JSON generation | "Export to CSV" |
-| **Health** | `health` | Account health scoring | "Acme health score" |
+---
 
-Plus direct responses for `clarify` (vague questions) and `help` (usage questions).
+## Design Philosophy
 
-### Response Pipeline
+### Lean AI: Deterministic First, LLM Where It Matters
 
-| Node | Purpose | LLM Provider |
-|------|---------|--------------|
-| **Supervisor** | Classifies intent → routes to specialized agent | GPT-4o-mini |
-| **Answer** | Synthesizes data with evidence tags `[E1]`, `[E2]` | GPT |
-| **Action** | Suggests next steps based on results | GPT |
-| **Followup** | Generates relevant follow-up questions | GPT |
+The system follows a **heuristics-first architecture** — deterministic rules handle measurable, predictable tasks while LLMs focus on interpretation and synthesis.
 
-### Key Design Decisions
+| Layer | Approach | Why |
+|-------|----------|-----|
+| **Intent Classification** | Regex + keyword patterns → LLM fallback | 90% of queries match patterns; LLM only for ambiguous cases |
+| **SQL Validation** | sqlglot AST parsing (blocks INSERT/UPDATE/DELETE) | Deterministic safety > LLM judgment |
+| **Answer Grounding** | Evidence tags `[E1]`, `[E2]` required | Forces claims to link to data |
+| **Output Validation** | Schema validation → repair prompt → fallback | Never crash on bad LLM output |
 
-- **Supervisor routing**: Classifies 8 intents using heuristics-first (fast) with LLM fallback
-- **Specialized agents**: Each agent optimized for its query type (comparison metrics, trend analysis, etc.)
-- **Data refinement loops**: Answer can request additional Fetch iterations (max 2) when data is incomplete
-- **SQL Safety Guard**: All LLM-generated SQL validated with sqlglot (blocks INSERT/UPDATE/DELETE)
-- **Multi-provider LLM**: Claude for SQL planning (structured output), GPT for synthesis
-- **Evidence-based answers**: Responses include `[E1]`, `[E2]` tags linking claims to data
-- **Streaming UX**: SSE streaming for real-time progress and token delivery
+### Multi-Provider LLM Strategy
 
-## Project Structure
+| Task | Model | Reasoning |
+|------|-------|-----------|
+| Intent classification | GPT-4o-mini | Fast, cheap, sufficient accuracy |
+| SQL planning | Claude | Better at structured output |
+| Answer synthesis | GPT-4 | Strong at natural language |
+| Repair prompts | Same as original | Context preserved |
+
+### Production Patterns
+
+**Validate → Repair → Fallback** for every LLM output:
 
 ```
-acme-crm-ai-companion/
-├── backend/
-│   ├── api/
-│   │   ├── chat.py              # Chat streaming endpoint
-│   │   ├── data.py              # Data explorer endpoints
-│   │   └── health.py            # Health check
-│   ├── agent/
-│   │   ├── graph.py             # LangGraph workflow with Supervisor routing
-│   │   ├── state.py             # Agent state schema (intent, loop_count, etc.)
-│   │   ├── streaming.py         # SSE event streaming
-│   │   ├── supervisor/          # Intent classification & routing
-│   │   │   ├── node.py          # Supervisor node implementation
-│   │   │   └── classifier.py    # Intent classifier (heuristics + LLM)
-│   │   ├── fetch/
-│   │   │   ├── node.py          # Fetch node with retry logic
-│   │   │   ├── planner.py       # SQL planning chain (Claude)
-│   │   │   └── sql/
-│   │   │       ├── guard.py     # SQL safety validation (sqlglot)
-│   │   │       ├── executor.py  # DuckDB execution
-│   │   │       └── schema.py    # Schema introspection
-│   │   ├── supervisor/          # Intent classification + routing
-│   │   ├── compare/             # A vs B comparison queries
-│   │   ├── trend/               # Time-series analysis
-│   │   ├── planner/             # Multi-step query orchestration
-│   │   ├── export/              # CSV/PDF/JSON generation
-│   │   ├── health/              # Account health scoring
-│   │   ├── answer/              # Response synthesis with evidence
-│   │   ├── action/              # Next step suggestions
-│   │   ├── followup/            # Follow-up question generation
-│   │   └── validate/            # Output validators with repair loops
-│   │       ├── answer.py        # Answer format validation
-│   │       ├── action.py        # Action format validation
-│   │       └── followup.py      # Followup format validation
-│   ├── eval/                    # Evaluation framework (RAGAS)
-│   ├── data/csv/                # CRM data files
-│   └── main.py                  # FastAPI app
-├── frontend/
-│   ├── src/
-│   │   ├── components/          # React components
-│   │   ├── hooks/               # Custom hooks (useChatStream)
-│   │   └── styles/              # CSS
-│   └── e2e/                     # Playwright E2E tests
-├── tests/                       # Backend unit tests
-└── scripts/ci.sh                # Local CI runner
+LLM Output
+    │
+    ▼
+┌──────────────┐
+│   Validate   │ ← Schema check (Pydantic)
+└──────┬───────┘
+       │
+       ├── Valid? ────────────────────► Return result
+       │
+       ▼
+┌──────────────┐
+│    Repair    │ ← Re-prompt with error context
+└──────┬───────┘
+       │
+       ├── Valid? ────────────────────► Return (repaired)
+       │
+       ▼
+┌──────────────┐
+│   Fallback   │ ← Safe default (never crashes)
+└──────────────┘
 ```
+
+**Data Refinement Loops**: Answer node can request additional Fetch iterations (max 2) when data is incomplete — the graph loops back to gather more context.
+
+**Evidence-Grounded Responses**: Every claim must cite data with `[E1]`, `[E2]` markers. The Answer node enforces this format.
+
+---
 
 ## Tech Stack
 
-### Backend
-- **Framework**: FastAPI + Uvicorn
-- **Agent**: LangGraph with memory checkpointing
-- **Database**: DuckDB (in-memory SQL over CSV)
-- **LLMs**: OpenAI GPT (answers), Anthropic Claude (SQL planning)
-- **Validation**: Pydantic v2
+| Layer | Technology |
+|-------|------------|
+| **Orchestration** | LangGraph (stateful multi-agent workflows) |
+| **LLMs** | OpenAI GPT-4, Anthropic Claude |
+| **Backend** | FastAPI, Pydantic v2, DuckDB |
+| **Frontend** | React 18, TypeScript, Vite |
+| **Streaming** | Server-Sent Events (SSE) |
+| **Testing** | pytest (420), Vitest (562), Playwright (167) |
+| **Evaluation** | RAGAS (faithfulness, relevancy, correctness) |
 
-### Frontend
-- **Framework**: React 18 + TypeScript 5
-- **Build**: Vite 5
-- **Testing**: Vitest + Playwright
+---
 
 ## Quick Start
 
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- OpenAI API key
-- Anthropic API key (optional, falls back to OpenAI)
+- OpenAI API key (required)
+- Anthropic API key (optional, improves SQL planning)
 
 ### Backend
 
 ```bash
-# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Set environment variables
 export OPENAI_API_KEY=your-key
 export ANTHROPIC_API_KEY=your-key  # Optional
 
-# Run
-python -m uvicorn backend.main:app --reload --port 8000
+uvicorn backend.main:app --reload --port 8000
 ```
 
 ### Frontend
@@ -139,92 +165,90 @@ npm run dev
 
 Open http://localhost:5173
 
-## API Reference
+---
 
-### Stream Chat Response
+## API
+
+### Chat (Streaming)
 
 ```http
 POST /api/chat/stream
 Content-Type: application/json
 
-{
-  "question": "What deals are in the pipeline?",
-  "session_id": "optional-session-id"
-}
+{"question": "What deals closed this quarter?"}
 ```
 
-Returns Server-Sent Events (SSE):
+**SSE Events:**
 ```
-event: fetch_start
-data: {"node": "fetch"}
-
-event: answer_chunk
-data: {"content": "Based on the data..."}
-
-event: action
-data: {"suggestions": ["Export to CSV", "Schedule follow-up"]}
-
-event: followup
-data: {"questions": ["Which reps own these deals?", "..."]}
-
-event: done
-data: {}
+event: fetch_start     →  Agent activated
+event: answer_chunk    →  Response tokens
+event: action          →  Suggested next steps
+event: followup        →  Related questions
+event: done            →  Complete
 ```
 
-### Starter Questions
+### Other Endpoints
 
-```http
-GET /api/chat/starter-questions
-```
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/chat/starter-questions` | Initial prompts |
+| `GET /api/health` | System health |
 
-### Health Check
-
-```http
-GET /api/health
-```
+---
 
 ## Testing
 
 ```bash
-# Run all CI checks
+# All tests (1,149 total)
 ./scripts/ci.sh all
 
-# Backend only (420 tests)
-./scripts/ci.sh backend
-
-# Frontend only (562 tests)
-./scripts/ci.sh frontend
-
-# E2E tests (167 tests)
-cd frontend && npm run test:e2e
+# By layer
+./scripts/ci.sh backend    # 420 tests
+./scripts/ci.sh frontend   # 562 tests
+cd frontend && npm run test:e2e  # 167 tests
 ```
 
-## Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `OPENAI_API_KEY` | OpenAI API key | Yes |
-| `ANTHROPIC_API_KEY` | Anthropic API key for SQL planning | No |
-| `MOCK_LLM` | Enable mock LLM for testing | No |
-| `ACME_LOG_LEVEL` | Logging level (DEBUG, INFO, etc.) | No |
+---
 
 ## Evaluation
 
-The project includes a RAGAS-based evaluation framework:
+RAGAS-based quality metrics:
 
 ```bash
-# Run answer quality evaluation
-python -m backend.eval.answer
-
-# Run followup evaluation
-python -m backend.eval.followup
+python -m backend.eval.answer    # Answer quality
+python -m backend.eval.followup  # Followup relevance
 ```
 
-Metrics tracked:
-- **Faithfulness**: Are claims grounded in retrieved data?
-- **Answer Relevancy**: Does the answer address the question?
-- **Correctness**: Is the answer factually accurate?
+| Metric | What It Measures |
+|--------|------------------|
+| **Faithfulness** | Claims grounded in retrieved data |
+| **Relevancy** | Answer addresses the question |
+| **Correctness** | Factual accuracy |
+
+---
+
+## Project Structure
+
+```
+├── backend/
+│   ├── agent/
+│   │   ├── graph.py           # LangGraph workflow
+│   │   ├── supervisor/        # Intent classification + routing
+│   │   ├── fetch/             # SQL planning + execution
+│   │   ├── compare/           # A vs B analysis
+│   │   ├── trend/             # Time-series queries
+│   │   ├── answer/            # Response synthesis
+│   │   └── validate/          # Output validation + repair
+│   ├── api/                   # FastAPI routes
+│   └── eval/                  # RAGAS evaluation
+├── frontend/
+│   ├── src/components/        # React UI
+│   └── e2e/                   # Playwright tests
+└── tests/                     # Backend unit tests
+```
+
+---
 
 ## License
 
-This project is for demonstration purposes.
+MIT
