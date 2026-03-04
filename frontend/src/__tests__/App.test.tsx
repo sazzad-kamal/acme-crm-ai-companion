@@ -57,7 +57,7 @@ describe("App", () => {
 
   it("renders the header", () => {
     render(<App />);
-    expect(screen.getByRole("heading", { level: 1, name: /Acme AI Companion/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /CRM Agentic Reasoning Engine/i })).toBeInTheDocument();
   });
 
   it("renders example prompts in empty state", () => {
@@ -412,7 +412,7 @@ describe("App", () => {
     fireEvent.submit(input.closest("form")!);
 
     await waitFor(() => {
-      expect(document.title).toBe("Thinking... | Acme AI Companion");
+      expect(document.title).toBe("Thinking... | CRM Agentic Reasoning Engine");
     });
   });
 
@@ -442,7 +442,7 @@ describe("App", () => {
     fireEvent.submit(input.closest("form")!);
 
     await waitFor(() => {
-      expect(document.title).toContain("messages | Acme AI Companion");
+      expect(document.title).toContain("messages | CRM Agentic Reasoning Engine");
     });
   });
 

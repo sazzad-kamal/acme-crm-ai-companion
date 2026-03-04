@@ -1,5 +1,5 @@
 // =============================================================================
-// Configuration for Acme CRM AI Companion Frontend
+// Configuration for CRM Agentic Reasoning Engine Frontend
 // =============================================================================
 
 // Get API URL from environment or default to same origin

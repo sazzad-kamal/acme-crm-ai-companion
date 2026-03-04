@@ -453,7 +453,7 @@ test.describe('Starter Questions', () => {
   });
 
   test('empty state disappears after sending starter question', async ({ page }) => {
-    const welcomeText = page.getByText('Welcome to Acme AI Companion');
+    const welcomeText = page.getByText('Welcome to CRM Agentic Reasoning Engine');
     await expect(welcomeText).toBeVisible();
 
     const firstButton = page.locator('.suggestion-btn').first();

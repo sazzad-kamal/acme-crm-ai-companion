@@ -1,5 +1,5 @@
 // =============================================================================
-// TypeScript Types for Acme CRM AI Companion
+// TypeScript Types for CRM Agentic Reasoning Engine
 // =============================================================================
 
 // Nested data types

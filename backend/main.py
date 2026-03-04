@@ -1,4 +1,4 @@
-"""FastAPI backend for the CRM AI Companion."""
+"""FastAPI backend for the CRM Agentic Reasoning Engine."""
 print("[main] Loading backend.main module...", flush=True)
 
 import base64
@@ -25,7 +25,7 @@ from backend.api.chat import router as chat_router
 from backend.api.data import router as data_router
 
 # Configuration
-APP_NAME = "Acme CRM AI Companion API"
+APP_NAME = "CRM Agentic Reasoning Engine API"
 CORS_ORIGINS = os.getenv("ACME_CORS_ORIGINS", "http://localhost:5173").split(",")
 AUTH_USER = os.getenv("AUTH_USER", "")
 AUTH_PASS = os.getenv("AUTH_PASS", "")

@@ -1,5 +1,5 @@
 # =============================================================================
-# Acme CRM AI Companion - Dependencies
+# CRM Agentic Reasoning Engine - Dependencies
 # =============================================================================
 # Install: pip install -r requirements.txt
 

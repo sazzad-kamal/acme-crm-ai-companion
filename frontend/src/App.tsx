@@ -12,13 +12,13 @@ import {
 import "./styles/index.css";
 
 /**
- * Acme CRM AI Companion - Main Application
+ * CRM Agentic Reasoning Engine - Main Application
  *
- * AI-powered insights for your CRM data.
+ * Multi-agent system that reasons over CRM data.
  * Features:
  * - Natural language queries against CRM data
- * - AI-generated answers with evidence
- * - Follow-up suggestions
+ * - AI-generated answers with evidence grounding
+ * - 7 specialized agents for different query types
  * - Full keyboard accessibility
  */
 export default function App() {
@@ -109,7 +109,7 @@ export default function App() {
 
   // Update document title based on state
   useEffect(() => {
-    const appName = "Acme AI Companion";
+    const appName = "CRM Agentic Reasoning Engine";
     const pageTitle = isLoading
       ? `Thinking... | ${appName}`
       : messages.length > 0
@@ -141,8 +141,8 @@ export default function App() {
               </svg>
             </div>
             <div className="header__text">
-              <h1 className="header__title">Acme AI Companion</h1>
-              <p className="header__subtitle">AI-powered insights for your CRM</p>
+              <h1 className="header__title">CRM Agentic Reasoning Engine</h1>
+              <p className="header__subtitle">Multi-agent system that reasons over your CRM data</p>
             </div>
 
             <button

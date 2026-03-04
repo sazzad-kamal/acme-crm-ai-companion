@@ -110,7 +110,7 @@ function EmptyState({ onSuggestionClick }: EmptyStateProps) {
         </svg>
       </div>
 
-      <h2 className="empty-state__heading">Welcome to Acme AI Companion</h2>
+      <h2 className="empty-state__heading">Welcome to CRM Agentic Reasoning Engine</h2>
 
       <p className="empty-state__description">
         Click a question to explore your CRM data

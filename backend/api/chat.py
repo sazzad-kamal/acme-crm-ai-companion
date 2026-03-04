@@ -1,4 +1,4 @@
-"""Chat endpoint for CRM AI Companion."""
+"""Chat endpoint for CRM Agentic Reasoning Engine."""
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
