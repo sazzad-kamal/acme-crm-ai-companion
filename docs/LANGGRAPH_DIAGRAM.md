@@ -21,6 +21,7 @@ flowchart TB
         PLANNER["Planner<br/>━━━━━━━━━━<br/>Multi-step queries<br/>'Show X and compare Y'"]
         EXPORT["Export<br/>━━━━━━━━━━<br/>CSV/PDF/JSON<br/>'Export to CSV'"]
         HEALTH["Health<br/>━━━━━━━━━━<br/>Account scoring<br/>'Acme health score'"]
+        RAG["RAG<br/>━━━━━━━━━━<br/>Doc search (LlamaIndex)<br/>'How do I import contacts?'"]
     end
 
     subgraph ResponseGen["Response Generation"]
@@ -42,6 +43,7 @@ flowchart TB
     CL -->|"complex"| PLANNER
     CL -->|"export"| EXPORT
     CL -->|"health"| HEALTH
+    CL -->|"docs"| RAG
     CL -->|"clarify"| CLARIFY
     CL -->|"help"| HELP
 
@@ -51,6 +53,7 @@ flowchart TB
     PLANNER --> ANSWER
     EXPORT --> ANSWER
     HEALTH --> ANSWER
+    RAG --> ANSWER
 
     ANSWER -->|"has_data"| ACTION
     ANSWER -->|"has_data"| FOLLOWUP
@@ -79,6 +82,7 @@ stateDiagram-v2
     Supervisor --> Planner: complex
     Supervisor --> Export: export
     Supervisor --> Health: health
+    Supervisor --> RAG: docs
     Supervisor --> Answer: clarify/help
 
     state DataAgentGroup {
@@ -88,6 +92,7 @@ stateDiagram-v2
         Planner
         Export
         Health
+        RAG
     }
 
     Fetch --> Answer: sql_results
@@ -96,6 +101,7 @@ stateDiagram-v2
     Planner --> Answer: aggregated
     Export --> Answer: export
     Health --> Answer: health_analysis
+    RAG --> Answer: rag_results
 
     Answer --> Fetch: needs_more_data
     Answer --> ActionFollowup: has_data
@@ -128,6 +134,7 @@ stateDiagram-v2
 │     ├── Compare keywords (vs, compare)? ────────> COMPARE  ✓    │
 │     ├── Trend keywords? ────────────────────────> TREND         │
 │     ├── Health keywords? ───────────────────────> HEALTH        │
+│     ├── Docs keywords (Act! + how-to)? ─────────> DOCS          │
 │     └── Data indicators? ───────────────────────> DATA_QUERY    │
 │                                                                  │
 │  2. LLM FALLBACK (if no heuristic match)                        │
@@ -150,6 +157,7 @@ stateDiagram-v2
 | **Planner** | `complex` | Question | `sql_results.aggregated` | "Show X and compare Y" |
 | **Export** | `export` | Question | `sql_results.export` | "Export to CSV" |
 | **Health** | `health` | Question | `sql_results.health_analysis` | "Acme health score" |
+| **RAG** | `docs` | Question | `sql_results.rag_answer` | "How do I import contacts in Act!?" |
 
 ### Response Agents
 
@@ -158,6 +166,33 @@ stateDiagram-v2
 | **Answer** | Synthesize response | `sql_results` | `answer` with evidence tags |
 | **Action** | Suggest next steps | `answer` | `suggested_action` |
 | **Followup** | Generate questions | `answer` | `follow_up_suggestions` |
+
+### Contract Validation Layer
+
+Every response agent output passes through a contract validator:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   CONTRACT VALIDATION                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  LLM Output ──> Validate ──> Valid? ──> Return                  │
+│                    │                                             │
+│                    │ Invalid                                     │
+│                    ▼                                             │
+│              Repair Chain ──> Re-validate ──> Valid? ──> Return │
+│                                    │                             │
+│                                    │ Still Invalid               │
+│                                    ▼                             │
+│                              Fallback ──> Return                 │
+│                                                                  │
+│  Validators:                                                     │
+│  ├── Answer: Evidence tags, sections, grounding                 │
+│  ├── Action: Numbered list, word count (≤28), owner prefix      │
+│  └── Followup: Exactly 3 questions, word count (≤10)            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Data Flow Example
 
@@ -223,6 +258,10 @@ backend/agent/
 ├── planner/              # Multi-step orchestration
 ├── export/               # File generation
 ├── health/               # Account health scoring
+├── rag/                  # Documentation search (LlamaIndex)
+│   ├── indexer.py        # PDF loading & vector index
+│   ├── retriever.py      # Semantic search & QA
+│   └── node.py           # LangGraph RAG node
 ├── answer/               # Response synthesis
 ├── action/               # Action suggestions
 └── followup/             # Follow-up questions
