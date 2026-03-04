@@ -94,7 +94,49 @@ A production-grade AI assistant that answers business questions about your CRM u
 8. Ambiguous → LLM fallback (GPT-4o-mini)
 ```
 
-### 2. Data Refinement Loops
+### 2. Planner: Multi-Agent Orchestration
+
+Complex queries are **decomposed into sub-queries**, routed to multiple agents, then **aggregated**:
+
+```
+User: "Show all deals and compare Q1 vs Q2 revenue"
+                        │
+                        ▼
+                ┌───────────────┐
+                │    PLANNER    │
+                │               │
+                │  Decompose    │
+                │  into sub-    │
+                │  queries      │
+                └───────┬───────┘
+                        │
+        ┌───────────────┴───────────────┐
+        │                               │
+        ▼                               ▼
+┌───────────────┐               ┌───────────────┐
+│    FETCH      │               │   COMPARE     │
+│               │               │               │
+│ "Show all     │               │ "Compare Q1   │
+│  deals"       │               │  vs Q2"       │
+└───────┬───────┘               └───────┬───────┘
+        │                               │
+        └───────────────┬───────────────┘
+                        │
+                        ▼
+                ┌───────────────┐
+                │   AGGREGATE   │
+                │               │
+                │ Combine all   │
+                │ results       │
+                └───────┬───────┘
+                        │
+                        ▼
+                    ANSWER
+```
+
+Sub-queries can have **dependencies** — e.g., "Show Acme's deals and compare their performance" requires Fetch results before Compare can run.
+
+### 3. Data Refinement Loops
 
 Answer node can request additional data when incomplete:
 
@@ -112,7 +154,7 @@ Fetch → Answer: "I have deals but need contact data"
 
 **Max 2 refinement iterations** to prevent infinite loops.
 
-### 3. Validate → Repair → Fallback
+### 4. Validate → Repair → Fallback (Contract Layer)
 
 **Every LLM output** goes through contract enforcement:
 
@@ -131,7 +173,7 @@ Fetch → Answer: "I have deals but need contact data"
 | **Action** | Numbered list, owner prefix, ≤28 words | Re-prompt with examples |
 | **Followup** | Exactly 3 questions, ≤10 words each | Re-prompt with constraints |
 
-### 4. Evidence-Grounded Responses
+### 5. Evidence-Grounded Responses
 
 Every claim must cite data:
 
@@ -145,7 +187,7 @@ Evidence:
 
 Optional **grounding verifier** catches ungrounded claims before response.
 
-### 5. SQL Safety Guard
+### 6. SQL Safety Guard
 
 All LLM-generated SQL validated before execution:
 
