@@ -276,9 +276,11 @@ Content-Type: application/json
 
 ## Documentation
 
-- [Architecture Deep Dive](docs/ARCHITECTURE.md) — System design, data flow, agent interactions
+- [Architecture Deep Dive](docs/ARCHITECTURE.md) — System design, agent interactions, design decisions
+- [Code Map](docs/CODE_MAP.md) — File-by-file reference with line numbers
+- [Data Flow](docs/data-flow.md) — Request lifecycle with ASCII diagrams
 - [LangGraph Diagram](docs/LANGGRAPH_DIAGRAM.md) — Visual graph of agent orchestration
-- [API Reference](http://localhost:8000/docs) — OpenAPI documentation
+- [API Reference](http://localhost:8000/docs) — OpenAPI documentation (Swagger UI)
 
 ---
 
