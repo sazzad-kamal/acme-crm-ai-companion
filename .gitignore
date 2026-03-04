@@ -52,4 +52,9 @@ nul
 frontend/nul
 storage/
 *.stackdump
-nul
+
+# Scratch/temp files
+gpt_response.txt
+**/scratchpad*.txt
+**/stream_output.txt
+*.tmp

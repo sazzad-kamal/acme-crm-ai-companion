@@ -6,9 +6,19 @@ from typing import Any, cast
 from backend.agent.fetch.planner import SQLPlan, get_sql_plan
 from backend.agent.fetch.sql.connection import get_connection
 from backend.agent.fetch.sql.executor import execute_sql
+from backend.agent.fetch.sql.guard import validate_sql
 from backend.agent.state import AgentState, format_conversation_for_prompt
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_and_execute(sql: str, conn: Any) -> tuple[list[dict[str, Any]], str | None]:
+    """Validate SQL for safety, then execute."""
+    guard_result = validate_sql(sql)
+    if not guard_result.is_safe:
+        logger.warning(f"[Fetch] SQL blocked by guard: {guard_result.error}")
+        return [], f"Query blocked: {guard_result.error}"
+    return execute_sql(guard_result.sql, conn)
 
 
 def _execute_sql_with_retry(
@@ -23,7 +33,7 @@ def _execute_sql_with_retry(
 
     try:
         conn = get_connection()
-        rows, error = execute_sql(sql_plan.sql, conn)
+        rows, error = _validate_and_execute(sql_plan.sql, conn)
 
         # Retry with error feedback if query failed
         if error:
@@ -34,7 +44,7 @@ def _execute_sql_with_retry(
                 previous_error=error,
             )
             if retry_plan.sql:
-                rows, error = execute_sql(retry_plan.sql, conn)
+                rows, error = _validate_and_execute(retry_plan.sql, conn)
             if not error:
                 logger.info("[Fetch] Retry succeeded")
 
@@ -69,8 +79,18 @@ def fetch_node(state: AgentState) -> AgentState:
 
     # Step 2: Execute SQL
     rows, error = _execute_sql_with_retry(sql_plan, question, history)
+
+    # Build sql_results with debug info
+    sql_results: dict[str, Any] = {}
+    if sql_plan.sql:
+        sql_results["_debug"] = {
+            "sql": sql_plan.sql,
+            "row_count": len(rows),
+        }
     if rows:
-        result["sql_results"] = {"data": rows}
+        sql_results["data"] = rows
+    result["sql_results"] = sql_results
+
     if error:
         result["error"] = f"SQL execution failed: {error}"
 

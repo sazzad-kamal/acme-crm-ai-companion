@@ -54,6 +54,12 @@ interface HistoryEntry {
   notes?: string;
 }
 
+// Debug info from backend (SQL query, timing)
+export interface DebugInfo {
+  sql?: string;
+  row_count?: number;
+}
+
 export interface RawData {
   // Legacy SQL mode entities
   companies?: Company[];
@@ -74,6 +80,8 @@ export interface RawData {
   data?: Record<string, unknown>[];
   // Cache timestamp (ISO string) when data came from stale cache
   _cached_at?: string;
+  // Debug info (SQL query, row count)
+  _debug?: DebugInfo;
   // Allow any additional entity groups (dynamic keys)
   [key: string]: unknown;
 }

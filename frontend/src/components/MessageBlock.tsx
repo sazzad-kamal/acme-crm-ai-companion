@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { ChatMessage } from "../types";
 import { config } from "../config";
 import { DataTables } from "./DataTables";
+import { DebugPanel } from "./DebugPanel";
 import { FollowUpSuggestions } from "./FollowUpSuggestions";
 import { ProgressChecklist } from "./ProgressChecklist";
 import { SuggestedActions } from "./SuggestedActions";
@@ -149,6 +150,11 @@ export const MessageBlock = memo(function MessageBlock({
                 onSuggestionClick={onFollowUpClick}
               />
             ) : null}
+
+            {/* Debug Panel (collapsible) */}
+            {!isStreaming && response?.sql_results?._debug && (
+              <DebugPanel debug={response.sql_results._debug} />
+            )}
           </div>
         </div>
       </div>
