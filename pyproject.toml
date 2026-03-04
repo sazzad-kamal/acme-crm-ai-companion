@@ -1,7 +1,7 @@
 [project]
-name = "acme-crm-ai-companion"
+name = "crm-agentic-reasoning-engine"
 version = "1.0.0"
-description = "AI-powered CRM companion with RAG and Agent capabilities"
+description = "Multi-agent system that reasons over CRM data with grounded, evidence-backed answers"
 requires-python = ">=3.10"
 readme = "README.md"
 

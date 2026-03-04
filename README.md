@@ -2,7 +2,7 @@
 
 **Multi-agent system that reasons over CRM data with grounded, evidence-backed answers.**
 
-[![CI](https://github.com/sazzad-kamal/acme-crm-ai-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/sazzad-kamal/acme-crm-ai-companion/actions/workflows/ci.yml)
+[![CI](https://github.com/sazzad-kamal/crm-agentic-reasoning-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/sazzad-kamal/crm-agentic-reasoning-engine/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-1,339_passing-brightgreen)](#quality)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](#quality)
 [![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/)
@@ -173,7 +173,7 @@ flowchart LR
 
 | Metric | Value | Details |
 |--------|-------|---------|
-| **Total Tests** | **1,339** | [View CI →](https://github.com/sazzad-kamal/acme-crm-ai-companion/actions) |
+| **Total Tests** | **1,339** | [View CI →](https://github.com/sazzad-kamal/crm-agentic-reasoning-engine/actions) |
 | Backend (pytest) | 610 | Unit + integration |
 | Frontend (Vitest) | 562 | Components + hooks |
 | E2E (Playwright) | 167 | Full user flows |
@@ -195,8 +195,8 @@ flowchart LR
 
 ```bash
 # Clone
-git clone https://github.com/sazzad-kamal/acme-crm-ai-companion.git
-cd acme-crm-ai-companion
+git clone https://github.com/sazzad-kamal/crm-agentic-reasoning-engine.git
+cd crm-agentic-reasoning-engine
 
 # Backend
 python -m venv .venv
