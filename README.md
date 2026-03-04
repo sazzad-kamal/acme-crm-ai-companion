@@ -1,55 +1,44 @@
 # Acme CRM AI Companion
 
-An AI-powered CRM assistant that answers natural language questions about your CRM data using a multi-step LangGraph agent pipeline. Built with FastAPI backend and React frontend.
+An AI-powered CRM assistant that answers natural language questions about your CRM data using a **multi-agent LangGraph pipeline** with Supervisor routing and data refinement loops. Built with FastAPI backend and React frontend.
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    subgraph Frontend["Frontend (React + TypeScript)"]
-        UI[Chat Interface]
-    end
+![LangGraph Multi-Agent Architecture](docs/langgraph-architecture.svg)
 
-    subgraph Backend["Backend (FastAPI)"]
-        API["/api/chat/stream (SSE)"]
+### Multi-Agent Pipeline
 
-        subgraph Agent["LangGraph Agent Pipeline"]
-            direction LR
-            Fetch["Fetch Node<br/><i>Claude: SQL Planning</i>"]
-            Answer["Answer Node<br/><i>GPT: Synthesis</i>"]
-            Action["Action Node<br/><i>GPT: Suggestions</i>"]
-            Followup["Followup Node<br/><i>GPT: Questions</i>"]
-        end
+The system uses **8 intents** routed by a Supervisor to **6 specialized data agents**:
 
-        DuckDB[(DuckDB<br/>CRM Data)]
-    end
+| Agent | Intent | Purpose | Example Query |
+|-------|--------|---------|---------------|
+| **Fetch** | `data_query` | Simple SQL queries | "Show all deals" |
+| **Compare** | `compare` | A vs B analysis | "Q1 vs Q2 revenue" |
+| **Trend** | `trend` | Time-series analysis | "Revenue by month" |
+| **Planner** | `complex` | Multi-step orchestration | "Show X and compare Y" |
+| **Export** | `export` | CSV/PDF/JSON generation | "Export to CSV" |
+| **Health** | `health` | Account health scoring | "Acme health score" |
 
-    UI -->|"User Question"| API
-    API --> Fetch
-    Fetch -->|"Generated SQL"| DuckDB
-    DuckDB -->|"Query Results"| Fetch
-    Fetch --> Answer
-    Answer --> Action
-    Answer --> Followup
-    Action -->|"SSE Stream"| UI
-    Followup -->|"SSE Stream"| UI
-```
+Plus direct responses for `clarify` (vague questions) and `help` (usage questions).
 
-### Agent Pipeline
+### Response Pipeline
 
 | Node | Purpose | LLM Provider |
 |------|---------|--------------|
-| **Fetch** | Converts natural language → SQL, executes query | Claude (structured output) |
-| **Answer** | Synthesizes data into human-readable response with evidence tags | GPT |
+| **Supervisor** | Classifies intent → routes to specialized agent | GPT-4o-mini |
+| **Answer** | Synthesizes data with evidence tags `[E1]`, `[E2]` | GPT |
 | **Action** | Suggests next steps based on results | GPT |
 | **Followup** | Generates relevant follow-up questions | GPT |
 
 ### Key Design Decisions
 
-- **Multi-provider LLM**: Claude for SQL planning (better structured output), GPT for synthesis
+- **Supervisor routing**: Classifies 8 intents using heuristics-first (fast) with LLM fallback
+- **Specialized agents**: Each agent optimized for its query type (comparison metrics, trend analysis, etc.)
+- **Data refinement loops**: Answer can request additional Fetch iterations (max 2) when data is incomplete
+- **SQL Safety Guard**: All LLM-generated SQL validated with sqlglot (blocks INSERT/UPDATE/DELETE)
+- **Multi-provider LLM**: Claude for SQL planning (structured output), GPT for synthesis
 - **Evidence-based answers**: Responses include `[E1]`, `[E2]` tags linking claims to data
 - **Streaming UX**: SSE streaming for real-time progress and token delivery
-- **Grounding-first**: Strict prompts prevent hallucination; facts must come from CRM data only
 
 ## Project Structure
 
@@ -61,23 +50,32 @@ acme-crm-ai-companion/
 │   │   ├── data.py              # Data explorer endpoints
 │   │   └── health.py            # Health check
 │   ├── agent/
-│   │   ├── graph.py             # LangGraph workflow definition
-│   │   ├── state.py             # Agent state schema
+│   │   ├── graph.py             # LangGraph workflow with Supervisor routing
+│   │   ├── state.py             # Agent state schema (intent, loop_count, etc.)
 │   │   ├── streaming.py         # SSE event streaming
+│   │   ├── supervisor/          # Intent classification & routing
+│   │   │   ├── node.py          # Supervisor node implementation
+│   │   │   └── classifier.py    # Intent classifier (heuristics + LLM)
 │   │   ├── fetch/
-│   │   │   ├── node.py          # Fetch node implementation
+│   │   │   ├── node.py          # Fetch node with retry logic
 │   │   │   ├── planner.py       # SQL planning chain (Claude)
-│   │   │   └── sql/             # DuckDB connection & execution
-│   │   ├── answer/
-│   │   │   ├── node.py          # Answer node implementation
-│   │   │   └── answerer.py      # Answer synthesis chain
-│   │   ├── action/
-│   │   │   ├── node.py          # Action node implementation
-│   │   │   └── suggester.py     # Action suggestion chain
-│   │   └── followup/
-│   │       ├── node.py          # Followup node implementation
-│   │       ├── suggester.py     # Followup generation chain
-│   │       └── tree/            # Static followup tree fallback
+│   │   │   └── sql/
+│   │   │       ├── guard.py     # SQL safety validation (sqlglot)
+│   │   │       ├── executor.py  # DuckDB execution
+│   │   │       └── schema.py    # Schema introspection
+│   │   ├── supervisor/          # Intent classification + routing
+│   │   ├── compare/             # A vs B comparison queries
+│   │   ├── trend/               # Time-series analysis
+│   │   ├── planner/             # Multi-step query orchestration
+│   │   ├── export/              # CSV/PDF/JSON generation
+│   │   ├── health/              # Account health scoring
+│   │   ├── answer/              # Response synthesis with evidence
+│   │   ├── action/              # Next step suggestions
+│   │   ├── followup/            # Follow-up question generation
+│   │   └── validate/            # Output validators with repair loops
+│   │       ├── answer.py        # Answer format validation
+│   │       ├── action.py        # Action format validation
+│   │       └── followup.py      # Followup format validation
 │   ├── eval/                    # Evaluation framework (RAGAS)
 │   ├── data/csv/                # CRM data files
 │   └── main.py                  # FastAPI app
