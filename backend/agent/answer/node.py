@@ -1,6 +1,7 @@
 """Answer synthesis node for agent workflow."""
 
 import logging
+import re
 
 from langchain_core.messages import AIMessage, HumanMessage
 
@@ -9,11 +10,112 @@ from backend.agent.state import AgentState, format_conversation_for_prompt
 
 logger = logging.getLogger(__name__)
 
+# Max iterations for Fetch→Answer loop
+MAX_LOOP_COUNT = 2
+
+# Patterns indicating answer needs more data
+_MISSING_DATA_PATTERNS = [
+    r"data not available",
+    r"no (?:data|results|records) (?:found|available)",
+    r"missing.*(?:field|column|table)",
+    r"could not find",
+    r"not present in (?:the )?(?:crm )?data",
+]
+_MISSING_DATA_REGEX = re.compile("|".join(_MISSING_DATA_PATTERNS), re.IGNORECASE)
+
+
+def _detect_needs_more_data(answer: str, loop_count: int) -> bool:
+    """Detect if answer indicates more data is needed.
+
+    Returns True if:
+    1. Answer contains "data not available" patterns
+    2. We haven't exceeded max loop count
+    3. The missing data seems fetchable (not just "question not answerable")
+    """
+    if loop_count >= MAX_LOOP_COUNT:
+        logger.info(f"[Answer] Max loops ({MAX_LOOP_COUNT}) reached, not requesting more data")
+        return False
+
+    # Check for unfetchable patterns (don't loop for these)
+    unfetchable = [
+        "question not answerable",
+        "out of scope",
+        "cannot be answered",
+        "not a crm question",
+    ]
+    answer_lower = answer.lower()
+    if any(pattern in answer_lower for pattern in unfetchable):
+        return False
+
+    # Check for fetchable missing data
+    if _MISSING_DATA_REGEX.search(answer):
+        logger.info("[Answer] Detected missing data that may be fetchable")
+        return True
+
+    return False
+
+
+def _generate_clarification() -> str:
+    """Generate a clarification request."""
+    return (
+        "I'd be happy to help! Could you please provide more details about what "
+        "you're looking for? For example:\n"
+        "- Which company, contact, or deal are you asking about?\n"
+        "- What specific information do you need (revenue, activities, pipeline)?\n"
+        "- Any time period you're interested in?"
+    )
+
+
+def _generate_help_response() -> str:
+    """Generate a help/capabilities response."""
+    return (
+        "I'm your CRM data assistant. I can help you with:\n\n"
+        "**Data Queries**\n"
+        "- Company information and renewals\n"
+        "- Contact details and activities\n"
+        "- Pipeline and opportunity analysis\n"
+        "- Revenue and sales metrics\n\n"
+        "**Example Questions**\n"
+        "- \"Show me all deals closing this month\"\n"
+        "- \"What's the total pipeline value?\"\n"
+        "- \"List recent activities for Acme Corp\"\n\n"
+        "Just ask a question about your CRM data and I'll find the answer!"
+    )
+
 
 def answer_node(state: AgentState) -> AgentState:
-    """Synthesize answer from SQL results."""
-    logger.info("[Answer] Synthesizing response...")
+    """Synthesize answer from SQL results or handle clarify/help intents."""
+    intent = state.get("intent", "data_query")
+    loop_count = state.get("loop_count", 0)
 
+    logger.info(f"[Answer] Processing intent={intent}, loop={loop_count}")
+
+    # Handle non-data intents directly
+    if intent == "clarify":
+        answer = _generate_clarification()
+        logger.info("[Answer] Generated clarification request")
+        return {
+            "answer": answer,
+            "needs_more_data": False,
+            "messages": [
+                HumanMessage(content=state["question"]),
+                AIMessage(content=answer),
+            ],
+        }
+
+    if intent == "help":
+        answer = _generate_help_response()
+        logger.info("[Answer] Generated help response")
+        return {
+            "answer": answer,
+            "needs_more_data": False,
+            "messages": [
+                HumanMessage(content=state["question"]),
+                AIMessage(content=answer),
+            ],
+        }
+
+    # DATA_QUERY intent: synthesize from SQL results
     try:
         raw_answer = call_answer_chain(
             question=state["question"],
@@ -28,10 +130,15 @@ def answer_node(state: AgentState) -> AgentState:
 
         answer = raw_answer
 
-        logger.info("[Answer] Synthesized response")
+        # Check if we need more data
+        needs_more_data = _detect_needs_more_data(answer, loop_count)
+
+        logger.info(f"[Answer] Synthesized response, needs_more_data={needs_more_data}")
 
         return {
             "answer": answer,
+            "needs_more_data": needs_more_data,
+            "loop_count": loop_count + 1,
             "messages": [
                 HumanMessage(content=state["question"]),
                 AIMessage(content=answer),
@@ -44,6 +151,7 @@ def answer_node(state: AgentState) -> AgentState:
 
         return {
             "answer": error_answer,
+            "needs_more_data": False,
             "messages": [
                 HumanMessage(content=state["question"]),
                 AIMessage(content=error_answer),

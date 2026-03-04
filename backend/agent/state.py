@@ -30,6 +30,11 @@ class AgentState(TypedDict, total=False):
     # Conversation history (reducer appends new messages)
     messages: Annotated[list, add_messages]
 
+    # Supervisor routing
+    intent: str  # "data_query" | "clarify" | "help"
+    loop_count: int  # Track Fetch→Answer iterations (max 3)
+    needs_more_data: bool  # Answer signals it needs additional data
+
     # SQL results from fetch node (includes notes columns)
     sql_results: dict[str, Any]
 

@@ -4,7 +4,12 @@ This document describes the system architecture of the Acme CRM AI Companion.
 
 ## Overview
 
-The system is a conversational AI assistant that answers natural language questions about CRM data. It uses a multi-step LangGraph agent pipeline with specialized nodes for data retrieval, answer synthesis, and follow-up generation.
+The system is a conversational AI assistant that answers natural language questions about CRM data. It uses a **multi-agent LangGraph pipeline** with:
+
+- **Supervisor routing**: Classifies intent and routes to 8 different specialized handlers
+- **Data refinement loops**: Answer node can request additional data fetches
+- **5 Specialized Data Agents**: Fetch, Compare, Trend, Planner, Export, Health
+- **Response Agents**: Answer, Action, and Followup for generating responses
 
 ## System Diagram
 
@@ -25,12 +30,21 @@ flowchart TB
         Router["API Router"]
         Streaming["SSE Streaming"]
 
-        subgraph Agent["LangGraph Agent"]
+        subgraph Agent["LangGraph Multi-Agent"]
             Graph["graph.py<br/>StateGraph"]
             State["AgentState"]
+            Supervisor["Supervisor Node<br/>(Intent Router)"]
 
-            subgraph Nodes["Processing Nodes"]
-                FetchNode["Fetch Node"]
+            subgraph DataAgents["Specialized Data Agents"]
+                FetchNode["Fetch<br/>(Simple SQL)"]
+                CompareNode["Compare<br/>(A vs B)"]
+                TrendNode["Trend<br/>(Time-series)"]
+                PlannerNode["Planner<br/>(Multi-step)"]
+                ExportNode["Export<br/>(CSV/PDF)"]
+                HealthNode["Health<br/>(Account Score)"]
+            end
+
+            subgraph ResponseAgents["Response Agents"]
                 AnswerNode["Answer Node"]
                 ActionNode["Action Node"]
                 FollowupNode["Followup Node"]
@@ -71,14 +85,30 @@ flowchart TB
 
 ## Agent Pipeline
 
-The agent uses LangGraph to orchestrate a multi-step processing pipeline:
+The agent uses LangGraph to orchestrate a **multi-agent pipeline** with Supervisor routing and specialized agents:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Fetch
+    [*] --> Supervisor
+
+    Supervisor --> Fetch: data_query
+    Supervisor --> Compare: compare
+    Supervisor --> Trend: trend
+    Supervisor --> Planner: complex
+    Supervisor --> Export: export
+    Supervisor --> Health: health
+    Supervisor --> Answer: clarify/help
+
     Fetch --> Answer
+    Compare --> Answer
+    Trend --> Answer
+    Planner --> Answer
+    Export --> Answer
+    Health --> Answer
+
+    Answer --> Fetch: needs_more_data
     Answer --> ActionFollowup: has_data
-    Answer --> [*]: no_data
+    Answer --> [*]: no_data / clarify / help
 
     state ActionFollowup {
         [*] --> Action
@@ -90,7 +120,58 @@ stateDiagram-v2
     ActionFollowup --> [*]
 ```
 
+### Supervisor Routing
+
+The Supervisor node classifies user intent and routes to specialized agents:
+
+| Intent | Description | Route | Example |
+|--------|-------------|-------|---------|
+| `data_query` | Simple CRM data lookup | Fetch → Answer | "Show all deals" |
+| `compare` | Compare two entities | Compare → Answer | "Q1 vs Q2 revenue" |
+| `trend` | Time-series analysis | Trend → Answer | "Revenue trend by month" |
+| `complex` | Multi-part queries | Planner → Answer | "Show deals and compare trends" |
+| `export` | Download/export data | Export → Answer | "Export contacts to CSV" |
+| `health` | Account health score | Health → Answer | "Acme's health score" |
+| `clarify` | Question is vague | Answer (asks for clarification) | "yes" |
+| `help` | User wants help | Answer (describes capabilities) | "what can you do?" |
+
+### Data Refinement Loop
+
+The Answer node can detect when more data is needed:
+
+1. Answer generates response from SQL results
+2. If answer contains "data not available" for fetchable data → `needs_more_data=True`
+3. Loop back to Fetch with refined context (max 2 iterations)
+4. Continue to Action/Followup when complete
+
 ### Node Responsibilities
+
+#### 0. Supervisor Node (`backend/agent/supervisor/`)
+
+**Purpose**: Classify user intent and route to appropriate handler.
+
+**Components**:
+- `classifier.py`: Intent classification with heuristics + LLM fallback
+- `node.py`: LangGraph node that returns intent and loop count
+
+**Classification Logic**:
+```
+1. Quick heuristics (no LLM call):
+   - Short/vague input → CLARIFY
+   - Help phrases → HELP
+   - Export keywords → EXPORT
+   - Multi-part queries with "and" → COMPLEX
+   - Compare keywords (vs, compare) → COMPARE
+   - Trend keywords (trend, growth) → TREND
+   - Health keywords → HEALTH
+   - Data indicators → DATA_QUERY
+
+2. LLM fallback for ambiguous cases:
+   - Uses GPT-4o-mini for classification
+   - Returns one of 8 intents
+```
+
+**Why Supervisor?**: Avoids running expensive SQL planning for non-data questions. Routes to specialized agents for better handling.
 
 #### 1. Fetch Node (`backend/agent/fetch/`)
 
@@ -107,6 +188,109 @@ Question → Claude (SQL Planning) → SQL Query → DuckDB → Results
 ```
 
 **Why Claude?**: Claude provides better structured output for SQL generation with fewer hallucinated column names.
+
+#### 1.1 Compare Agent (`backend/agent/compare/`)
+
+**Purpose**: Handle comparison queries like "Compare Q1 vs Q2 revenue".
+
+**Capabilities**:
+- Extracts comparison entities from natural language
+- Executes parallel SQL queries for each entity
+- Calculates differences, percentages, and deltas
+- Supports time period and entity comparisons
+
+**Output**:
+```python
+{
+    "comparison": {
+        "entity_a": "Q1",
+        "entity_b": "Q2",
+        "metrics": {
+            "revenue": {"Q1": 100000, "Q2": 150000, "difference": 50000, "percent_change": 50.0}
+        }
+    }
+}
+```
+
+#### 1.2 Trend Agent (`backend/agent/trend/`)
+
+**Purpose**: Analyze time-series data and detect trends.
+
+**Capabilities**:
+- Detects granularity (daily, weekly, monthly, quarterly, yearly)
+- Enhances queries with grouping and ordering
+- Calculates trend direction, growth rates, volatility
+- Computes period-over-period changes
+
+**Output**:
+```python
+{
+    "trend_analysis": {
+        "direction": "increasing",
+        "percent_change": 25.5,
+        "volatility": 12.3,
+        "period_changes": [10.0, 15.0, 20.0]
+    }
+}
+```
+
+#### 1.3 Planner Agent (`backend/agent/planner/`)
+
+**Purpose**: Orchestrate complex multi-step queries.
+
+**Capabilities**:
+- Decomposes complex questions into sub-queries
+- Routes sub-queries to appropriate agents (Fetch, Compare, Trend)
+- Aggregates results from multiple agents
+- Handles dependencies between sub-queries
+
+**Example**:
+```
+"Show deals and compare Q1 vs Q2" →
+  1. Fetch: "Show deals"
+  2. Compare: "Compare Q1 vs Q2"
+  → Aggregated results
+```
+
+#### 1.4 Export Agent (`backend/agent/export/`)
+
+**Purpose**: Generate downloadable files from query results.
+
+**Capabilities**:
+- Detects export format (CSV, PDF, JSON)
+- Extracts underlying data query
+- Generates files in temp directory
+- Returns download URLs
+
+**Supported Formats**:
+- CSV: Full data export with headers
+- JSON: Structured data export
+- PDF: Report-style output (placeholder)
+
+#### 1.5 Health Score Agent (`backend/agent/health/`)
+
+**Purpose**: Calculate account health metrics and provide insights.
+
+**Metrics**:
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Deal Value | 25% | Total value of deals (log scale) |
+| Deal Count | 15% | Number of deals |
+| Win Rate | 20% | Won deals / closed deals |
+| Activity Recency | 15% | Days since last activity |
+| Pipeline Coverage | 15% | Open vs closed deal ratio |
+| Renewal Status | 10% | Upcoming renewals |
+
+**Output**:
+```python
+{
+    "health_analysis": {
+        "score": 78.5,
+        "grade": "C",
+        "insights": ["No activity in 45 days - schedule a check-in"]
+    }
+}
+```
 
 #### 2. Answer Node (`backend/agent/answer/`)
 
@@ -194,11 +378,21 @@ sequenceDiagram
 
 ```python
 class AgentState(TypedDict):
+    # Input
     question: str              # User's input question
-    sql_results: dict          # {sql: str, data: list, error: str}
+
+    # Supervisor routing
+    intent: str                # "data_query" | "clarify" | "help"
+    loop_count: int            # Track Fetch→Answer iterations (max 2)
+    needs_more_data: bool      # Answer signals it needs additional data
+
+    # Data
+    sql_results: dict          # {sql: str, data: list, _debug: {...}}
+
+    # Outputs
     answer: str                # Synthesized answer
-    action: str | None         # Action suggestions
-    followups: list[str]       # Follow-up questions
+    suggested_action: str      # Action suggestions
+    follow_up_suggestions: list[str]  # Follow-up questions
 ```
 
 ## LLM Strategy
@@ -271,15 +465,33 @@ python -m backend.eval.followup
 
 ## Security Considerations
 
+### SQL Safety Guard (`backend/agent/fetch/sql/guard.py`)
+
+All SQL queries pass through a safety guard before execution:
+
+```python
+# Blocked operations
+INSERT, UPDATE, DELETE, DROP, CREATE, ALTER, GRANT
+
+# Blocked functions
+read_csv (prevents file access)
+
+# Safety measures
+- Auto-adds LIMIT 1000 to prevent memory exhaustion
+- Validates with sqlglot parsing
+- Logs blocked queries for monitoring
+```
+
 ### Current State
-- SQL queries are LLM-generated and executed directly
-- Input validation via Pydantic models
-- CORS restrictions for frontend origins
+- **SQL Guard**: All LLM-generated SQL is validated before execution
+- **Input validation**: Pydantic models for request/response
+- **CORS**: Restricted to allowed frontend origins
+- **Evidence grounding**: Answers must cite data sources
 
 ### Recommended Improvements
-- SQL injection prevention via query parsing
 - Rate limiting on API endpoints
-- Input sanitization for special characters
+- Query result caching with TTL
+- Audit logging for all SQL executions
 
 ## Performance
 
