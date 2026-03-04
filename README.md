@@ -1,11 +1,12 @@
-# CRM Chat Assistant
+# CRM Agentic Reasoning Engine
 
-**Ask questions about your CRM in plain English. Get answers grounded in data.**
+**Multi-agent system that reasons over CRM data. Grounded answers, never hallucinated.**
 
 ![Tests](https://img.shields.io/badge/tests-1,339_passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
 ![LangGraph](https://img.shields.io/badge/orchestration-LangGraph-purple)
+![LlamaIndex](https://img.shields.io/badge/RAG-LlamaIndex-orange)
 ![Live](https://img.shields.io/badge/demo-live-success)
 
 <h3 align="center">
@@ -13,7 +14,7 @@
 </h3>
 
 <p align="center">
-  <img src="docs/demo-screenshot.png" alt="CRM Chat Assistant Demo" width="800">
+  <img src="docs/demo-screenshot.png" alt="CRM Agentic Reasoning Engine Demo" width="800">
 </p>
 
 ---

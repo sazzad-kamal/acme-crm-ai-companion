@@ -1,10 +1,10 @@
 # Architecture
 
-This document describes the system architecture of the Acme CRM AI Companion.
+This document describes the system architecture of the CRM Agentic Reasoning Engine.
 
 ## Overview
 
-The system is a conversational AI assistant that answers natural language questions about CRM data. It uses a **multi-agent LangGraph pipeline** with:
+The system is a multi-agent reasoning engine that answers natural language questions about CRM data. It uses a **LangGraph pipeline with specialized agents** for:
 
 - **Supervisor routing**: Classifies intent and routes to 9 different specialized handlers
 - **Data refinement loops**: Answer node can request additional data fetches
