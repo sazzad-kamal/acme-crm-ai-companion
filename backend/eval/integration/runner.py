@@ -20,6 +20,7 @@ from backend.eval.integration.tree import (
     get_expected_action,
     get_expected_answer,
 )
+from backend.eval.shared.version import get_eval_metadata
 
 load_dotenv()
 
@@ -90,11 +91,18 @@ def _evaluate_action(
 
 def test_single_question(question: str, session_id: str) -> ConvoStepResult:
     """Test a single question and return answer with metrics."""
+    start_time = time.perf_counter()
     try:
         result = _invoke_agent(question=question, session_id=session_id)
+        latency_ms = (time.perf_counter() - start_time) * 1000
+
         answer = result.get("answer", "")
 
-        kwargs: dict[str, Any] = {"question": question, "answer": answer}
+        kwargs: dict[str, Any] = {
+            "question": question,
+            "answer": answer,
+            "latency_ms": latency_ms,
+        }
 
         sql_results = result.get("sql_results", {})
         if answer and sql_results:
@@ -106,17 +114,27 @@ def test_single_question(question: str, session_id: str) -> ConvoStepResult:
         return ConvoStepResult(**kwargs)
 
     except Exception as e:
+        latency_ms = (time.perf_counter() - start_time) * 1000
         logger.error(f"Error testing question '{question}': {e}")
-        return ConvoStepResult(question=question, answer="", errors=[str(e)])
+        return ConvoStepResult(
+            question=question, answer="", errors=[str(e)], latency_ms=latency_ms
+        )
 
 
 def run_convo_eval(max_paths: int | None = None) -> ConvoEvalResults:
     """Run conversation evaluation on all paths."""
+    # Get eval metadata for versioning
+    metadata = get_eval_metadata()
+
     all_paths = get_all_paths()
     paths_to_test = all_paths[:max_paths] if max_paths is not None else all_paths
 
     total_questions = sum(len(p) for p in paths_to_test)
-    results = ConvoEvalResults(total=total_questions)
+    results = ConvoEvalResults(
+        total=total_questions,
+        eval_version=metadata["version"],
+        eval_checksum=metadata["checksum"],
+    )
     question_num = 0
 
     for path_idx, path in enumerate(paths_to_test):
@@ -126,7 +144,8 @@ def run_convo_eval(max_paths: int | None = None) -> ConvoEvalResults:
             step = test_single_question(question, session_id)
             results.cases.append(step)
             status = "PASS" if step.passed else "FAIL"
-            print(f"  [{question_num}/{total_questions}] {status} {question[:50]}...")
+            latency_str = f" ({step.latency_ms:.0f}ms)" if step.latency_ms > 0 else ""
+            print(f"  [{question_num}/{total_questions}] {status}{latency_str} {question[:45]}...")
 
     results.compute_aggregates()
     return results

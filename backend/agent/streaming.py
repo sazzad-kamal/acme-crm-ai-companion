@@ -82,9 +82,8 @@ async def stream_agent(question: str, session_id: str | None = None) -> AsyncGen
 
             event_type, name = e.get("event"), e.get("name", "")
 
-            # Debug: log all node events
-            if event_type in (LangGraphEvent.CHAIN_START, LangGraphEvent.GRAPH_END):
-                print(f"[Stream] Event: {event_type} name={name}", flush=True)
+            # Debug: log ALL events to see what's happening
+            print(f"[Stream] Event: {event_type} name={name}", flush=True)
 
             # Track fetch node state for queue polling
             if event_type == LangGraphEvent.CHAIN_START and name == FETCH_NODE:

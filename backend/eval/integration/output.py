@@ -15,6 +15,8 @@ from backend.eval.answer.text.models import (
 )
 from backend.eval.integration.models import (
     SLO_CONVO_STEP_PASS_RATE,
+    SLO_LATENCY_P50_MS,
+    SLO_LATENCY_P95_MS,
     ConvoEvalResults,
     ConvoStepResult,
 )
@@ -48,6 +50,10 @@ SLO_SPECS: list[SloSpec] = [
             lambda r: r.avg_faithfulness, SLO_TEXT_FAITHFULNESS, ">=", "pct"),
     SloSpec("answer_correctness", "Answer Correctness", "Answer Quality",
             lambda r: r.avg_answer_correctness, SLO_TEXT_ANSWER_CORRECTNESS, ">=", "pct"),
+    SloSpec("latency_p50", "p50 Latency", "Latency",
+            lambda r: r.latency_p50_ms, SLO_LATENCY_P50_MS, "<=", "ms"),
+    SloSpec("latency_p95", "p95 Latency", "Latency",
+            lambda r: r.latency_p95_ms, SLO_LATENCY_P95_MS, "<=", "ms"),
 ]
 
 
@@ -81,6 +87,10 @@ def print_summary(results: ConvoEvalResults, latency_pcts: dict[str, float] | No
     print()
     print("Conversation Evaluation Summary")
     print("=" * 50)
+
+    # Version info
+    if results.eval_version or results.eval_checksum:
+        print(f"\nEval Cases: v{results.eval_version} ({results.eval_checksum})")
 
     all_passed = True
     current_section = ""

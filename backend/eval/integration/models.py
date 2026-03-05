@@ -14,6 +14,10 @@ from backend.eval.shared.models import BaseEvalResults
 # SLO thresholds for integration evaluation
 SLO_CONVO_STEP_PASS_RATE = 0.95  # 95% of questions should pass
 
+# Latency SLOs (milliseconds)
+SLO_LATENCY_P50_MS = 3000  # 3 seconds
+SLO_LATENCY_P95_MS = 8000  # 8 seconds
+
 
 class ConvoStepResult(BaseModel):
     """Result of a single question in a conversation."""
@@ -35,6 +39,8 @@ class ConvoStepResult(BaseModel):
     action_actionability: float = 0.0
     action_appropriateness: float = 0.0
     action_passed: bool = True  # True if no action or action judged pass
+    # Per-question metrics (latency, cost)
+    latency_ms: float = 0.0  # End-to-end latency for this question
 
     @property
     def action_missing(self) -> bool:
@@ -82,6 +88,14 @@ class ConvoEvalResults(BaseEvalResults):
     actions_passed: int = 0
     actions_missing: int = 0
     actions_spurious: int = 0
+    # Latency metrics (milliseconds)
+    latency_p50_ms: float = 0.0
+    latency_p95_ms: float = 0.0
+    latency_p99_ms: float = 0.0
+    latency_avg_ms: float = 0.0
+    # Eval metadata
+    eval_version: str = ""
+    eval_checksum: str = ""
 
     @property
     def ragas_success_rate(self) -> float:
@@ -89,6 +103,24 @@ class ConvoEvalResults(BaseEvalResults):
         if self.ragas_metrics_total == 0:
             return 1.0
         return (self.ragas_metrics_total - self.ragas_metrics_failed) / self.ragas_metrics_total
+
+    @property
+    def latency_p50_passed(self) -> bool:
+        """Check if p50 latency meets SLO."""
+        return self.latency_p50_ms <= SLO_LATENCY_P50_MS
+
+    @property
+    def latency_p95_passed(self) -> bool:
+        """Check if p95 latency meets SLO."""
+        return self.latency_p95_ms <= SLO_LATENCY_P95_MS
+
+    def _percentile(self, latencies: list[float], p: int) -> float:
+        """Calculate percentile from sorted latencies."""
+        if not latencies:
+            return 0.0
+        idx = int(len(latencies) * p / 100)
+        idx = min(idx, len(latencies) - 1)
+        return latencies[idx]
 
     def compute_aggregates(self) -> None:
         """Compute aggregate metrics from individual question results."""
@@ -118,3 +150,11 @@ class ConvoEvalResults(BaseEvalResults):
 
         self.actions_missing = sum(1 for c in self.cases if c.action_missing)
         self.actions_spurious = sum(1 for c in self.cases if c.action_spurious)
+
+        # Latency aggregates
+        latencies = sorted(c.latency_ms for c in self.cases if c.latency_ms > 0)
+        if latencies:
+            self.latency_avg_ms = sum(latencies) / len(latencies)
+            self.latency_p50_ms = self._percentile(latencies, 50)
+            self.latency_p95_ms = self._percentile(latencies, 95)
+            self.latency_p99_ms = self._percentile(latencies, 99)

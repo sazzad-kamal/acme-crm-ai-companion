@@ -94,6 +94,7 @@ def fetch_node(state: AgentState) -> AgentState:
     if error:
         result["error"] = f"SQL execution failed: {error}"
 
+    print(f"[Fetch] Returning result with {len(sql_results.get('data', []))} rows", flush=True)
     return cast(AgentState, result)
 
 

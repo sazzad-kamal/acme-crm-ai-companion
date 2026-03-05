@@ -5,6 +5,16 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 
+def _mock_validator_enforce(output):
+    """Helper to create a mock ContractResult that returns the output as-is."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.was_repaired = False
+    mock_result.used_fallback = False
+    mock_result.errors = []
+    return mock_result
+
+
 class TestFollowupNode:
     """Tests for followup_node function."""
 
@@ -103,6 +113,7 @@ class TestFollowupNode:
             conn=mock_connection,
         )
 
+    @patch("backend.agent.followup.node._get_followup_validator")
     @patch("backend.agent.followup.node.get_connection")
     @patch("backend.agent.followup.node.generate_follow_up_suggestions")
     @patch("backend.agent.followup.node.format_conversation_for_prompt")
@@ -111,12 +122,19 @@ class TestFollowupNode:
         mock_format: MagicMock,
         mock_generate: MagicMock,
         mock_conn: MagicMock,
+        mock_get_validator: MagicMock,
     ):
         """followup_node filters out empty/whitespace suggestions."""
         from backend.agent.followup.node import followup_node
 
         mock_format.return_value = ""
         mock_generate.return_value = ["Q1?", "", "  ", "Q2?"]
+
+        # Mock validator to return filtered output as-is
+        # (the filter happens before validation now)
+        mock_validator = MagicMock()
+        mock_validator.enforce.side_effect = lambda x: _mock_validator_enforce(x)
+        mock_get_validator.return_value = mock_validator
 
         state = {"question": "Test?", "answer": "Answer.", "messages": []}
 

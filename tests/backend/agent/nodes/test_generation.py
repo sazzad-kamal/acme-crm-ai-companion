@@ -14,6 +14,16 @@ from langchain_core.messages import AIMessage, HumanMessage
 os.environ["MOCK_LLM"] = "1"
 
 
+def _mock_validator_enforce(output):
+    """Helper to create a mock ContractResult that returns the output as-is."""
+    mock_result = MagicMock()
+    mock_result.output = output
+    mock_result.was_repaired = False
+    mock_result.used_fallback = False
+    mock_result.errors = []
+    return mock_result
+
+
 # =============================================================================
 # Answer Node Tests
 # =============================================================================
@@ -22,12 +32,18 @@ os.environ["MOCK_LLM"] = "1"
 class TestAnswerNode:
     """Tests for answer_node function."""
 
+    @patch('backend.agent.answer.node._get_answer_validator')
     @patch('backend.agent.answer.node.call_answer_chain')
-    def test_answer_node_synthesizes_response(self, mock_chain):
+    def test_answer_node_synthesizes_response(self, mock_chain, mock_get_validator):
         """Synthesizes response from state data."""
         from backend.agent.answer.node import answer_node
 
         mock_chain.return_value = "This is the answer."
+
+        # Mock validator to return output as-is
+        mock_validator = MagicMock()
+        mock_validator.enforce.side_effect = lambda x: _mock_validator_enforce(x)
+        mock_get_validator.return_value = mock_validator
 
         state = {
             "question": "What's happening with Acme?",
@@ -40,12 +56,18 @@ class TestAnswerNode:
         assert result["answer"] == "This is the answer."
         mock_chain.assert_called_once()
 
+    @patch('backend.agent.answer.node._get_answer_validator')
     @patch('backend.agent.answer.node.call_answer_chain')
-    def test_answer_node_updates_messages(self, mock_chain):
+    def test_answer_node_updates_messages(self, mock_chain, mock_get_validator):
         """Updates messages with user question and assistant answer."""
         from backend.agent.answer.node import answer_node
 
         mock_chain.return_value = "Response text."
+
+        # Mock validator to return output as-is
+        mock_validator = MagicMock()
+        mock_validator.enforce.side_effect = lambda x: _mock_validator_enforce(x)
+        mock_get_validator.return_value = mock_validator
 
         state = {
             "question": "Tell me about Acme",
@@ -131,12 +153,18 @@ class TestAnswerNode:
 class TestActionNode:
     """Tests for action_node function."""
 
+    @patch('backend.agent.action.node._get_action_validator')
     @patch('backend.agent.action.node.call_action_chain')
-    def test_action_node_suggests_action(self, mock_chain):
+    def test_action_node_suggests_action(self, mock_chain, mock_get_validator):
         """Suggests action when chain returns one."""
         from backend.agent.action.node import action_node
 
-        mock_chain.return_value = "Schedule a call with Sarah Chen"
+        mock_chain.return_value = "1. You: Schedule a call with Sarah Chen"
+
+        # Mock validator to return output as-is
+        mock_validator = MagicMock()
+        mock_validator.enforce.side_effect = lambda x: _mock_validator_enforce(x)
+        mock_get_validator.return_value = mock_validator
 
         state = {
             "question": "What deals does Acme have?",
@@ -145,7 +173,7 @@ class TestActionNode:
 
         result = action_node(state)
 
-        assert result["suggested_action"] == "Schedule a call with Sarah Chen"
+        assert result["suggested_action"] == "1. You: Schedule a call with Sarah Chen"
         mock_chain.assert_called_once()
 
     @patch('backend.agent.action.node.call_action_chain')
@@ -205,15 +233,22 @@ class TestActionNode:
 class TestFollowupNode:
     """Tests for followup_node function."""
 
+    @patch('backend.agent.followup.node._get_followup_validator')
     @patch('backend.agent.followup.node.generate_follow_up_suggestions')
-    def test_followup_node_generates_suggestions(self, mock_generate):
+    def test_followup_node_generates_suggestions(self, mock_generate, mock_get_validator):
         """Generates follow-up suggestions."""
         from backend.agent.followup.node import followup_node
 
         mock_generate.return_value = [
             "What about their contacts?",
             "Show me recent activities",
+            "Any other deals?",
         ]
+
+        # Mock validator to return output as-is
+        mock_validator = MagicMock()
+        mock_validator.enforce.side_effect = lambda x: _mock_validator_enforce(x)
+        mock_get_validator.return_value = mock_validator
 
         state = {
             "question": "Tell me about Acme",
@@ -223,10 +258,11 @@ class TestFollowupNode:
         result = followup_node(state)
 
         assert "follow_up_suggestions" in result
-        assert len(result["follow_up_suggestions"]) == 2
+        assert len(result["follow_up_suggestions"]) == 3
 
+    @patch('backend.agent.followup.node._get_followup_validator')
     @patch('backend.agent.followup.node.generate_follow_up_suggestions')
-    def test_followup_node_filters_empty_suggestions(self, mock_generate):
+    def test_followup_node_filters_empty_suggestions(self, mock_generate, mock_get_validator):
         """Filters out empty suggestions."""
         from backend.agent.followup.node import followup_node
 
@@ -236,6 +272,11 @@ class TestFollowupNode:
             "  ",
             "Another valid one",
         ]
+
+        # Mock validator to return output as-is (after filtering)
+        mock_validator = MagicMock()
+        mock_validator.enforce.side_effect = lambda x: _mock_validator_enforce(x)
+        mock_get_validator.return_value = mock_validator
 
         state = {
             "question": "Test",
