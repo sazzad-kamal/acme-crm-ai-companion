@@ -130,6 +130,39 @@ def create_app() -> FastAPI:
     async def health() -> dict:
         return {"status": "ok"}
 
+    @router.get("/health/llm", tags=["health"])
+    async def health_llm() -> dict:
+        """Test LLM API connections (OpenAI + Anthropic)."""
+        import os
+        from langchain_openai import ChatOpenAI
+        from langchain_anthropic import ChatAnthropic
+
+        results: dict = {"openai": "unknown", "anthropic": "unknown"}
+
+        # Test OpenAI
+        try:
+            llm = ChatOpenAI(model="gpt-4o-mini", max_tokens=10, timeout=10)
+            resp = llm.invoke("Say 'ok'")
+            results["openai"] = "ok" if resp.content else "empty response"
+        except Exception as e:
+            results["openai"] = f"error: {type(e).__name__}: {str(e)[:100]}"
+
+        # Test Anthropic
+        try:
+            llm = ChatAnthropic(model="claude-3-haiku-20240307", max_tokens=10, timeout=10)  # type: ignore[call-arg]
+            resp = llm.invoke("Say 'ok'")
+            results["anthropic"] = "ok" if resp.content else "empty response"
+        except Exception as e:
+            results["anthropic"] = f"error: {type(e).__name__}: {str(e)[:100]}"
+
+        # Show which keys are set (not the actual values)
+        results["keys_present"] = {
+            "OPENAI_API_KEY": bool(os.getenv("OPENAI_API_KEY")),
+            "ANTHROPIC_API_KEY": bool(os.getenv("ANTHROPIC_API_KEY")),
+        }
+
+        return results
+
     router.include_router(chat_router, tags=["chat"])
     router.include_router(data_router, tags=["data"])
     app.include_router(router)

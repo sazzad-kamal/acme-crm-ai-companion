@@ -101,10 +101,14 @@ def _generate_help_response() -> str:
 
 def answer_node(state: AgentState) -> AgentState:
     """Synthesize answer from SQL results or handle clarify/help intents."""
+    # Log immediately with flush to ensure visibility in Railway logs
+    print("[Answer] Node entered", flush=True)
+
     intent = state.get("intent", "data_query")
     loop_count = state.get("loop_count", 0)
 
     logger.info(f"[Answer] Processing intent={intent}, loop={loop_count}")
+    print(f"[Answer] Processing intent={intent}, loop={loop_count}", flush=True)
 
     # Handle non-data intents directly
     if intent == "clarify":

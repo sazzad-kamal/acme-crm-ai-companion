@@ -125,12 +125,26 @@ def call_answer_chain(
         sql_results: SQL query results to use as context
         conversation_history: Previous conversation for context
     """
-    result: str = _get_answer_chain().invoke({
-        "question": question,
-        "conversation_history_section": f"=== RECENT CONVERSATION ===\n{conversation_history}\n" if conversation_history else "",
-        "sql_results_section": f"=== CRM DATA ===\n{json.dumps(sql_results, indent=2, default=str)}\n" if sql_results else "",
-    })
-    return result
+    print("[Answerer] Starting OpenAI call...", flush=True)
+    logger.info("[Answerer] Starting OpenAI call...")
+
+    try:
+        chain = _get_answer_chain()
+        print("[Answerer] Chain created, invoking...", flush=True)
+
+        result: str = chain.invoke({
+            "question": question,
+            "conversation_history_section": f"=== RECENT CONVERSATION ===\n{conversation_history}\n" if conversation_history else "",
+            "sql_results_section": f"=== CRM DATA ===\n{json.dumps(sql_results, indent=2, default=str)}\n" if sql_results else "",
+        })
+
+        print(f"[Answerer] OpenAI response received, length={len(result)}", flush=True)
+        logger.info(f"[Answerer] Response length={len(result)}")
+        return result
+    except Exception as e:
+        print(f"[Answerer] OpenAI call FAILED: {type(e).__name__}: {e}", flush=True)
+        logger.error(f"[Answerer] OpenAI call failed: {e}")
+        raise
 
 
 __all__ = ["call_answer_chain"]
