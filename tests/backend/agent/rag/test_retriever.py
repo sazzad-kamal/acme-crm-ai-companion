@@ -40,9 +40,9 @@ class TestRetrieveAndAnswer:
         mock_query_engine.query.return_value = mock_response
 
         mock_index = MagicMock()
-        mock_index.as_query_engine.return_value = mock_query_engine
 
-        with patch("backend.agent.rag.retriever.get_index", return_value=mock_index):
+        with patch("backend.agent.rag.retriever.get_index", return_value=mock_index), \
+             patch("backend.agent.rag.retriever.build_query_engine", return_value=mock_query_engine):
             result = retrieve_and_answer("How do I import contacts?")
 
             assert isinstance(result, RAGResult)
@@ -75,9 +75,9 @@ class TestRetrieveAndAnswer:
         mock_query_engine.query.return_value = mock_response
 
         mock_index = MagicMock()
-        mock_index.as_query_engine.return_value = mock_query_engine
 
-        with patch("backend.agent.rag.retriever.get_index", return_value=mock_index):
+        with patch("backend.agent.rag.retriever.get_index", return_value=mock_index), \
+             patch("backend.agent.rag.retriever.build_query_engine", return_value=mock_query_engine):
             result = retrieve_and_answer("Test")
 
             # Should be truncated to 500 + "..."

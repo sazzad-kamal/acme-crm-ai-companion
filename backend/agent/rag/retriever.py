@@ -1,18 +1,29 @@
 """Semantic retriever for Act! CRM documentation.
 
 Retrieves relevant documentation chunks and synthesizes answers
-grounded in the source material.
+grounded in the source material. Uses the winning retrieval config
+from RAG comparison evaluation (hybrid + rerank).
 """
 
 import logging
 from dataclasses import dataclass
 
 from llama_index.core import VectorStoreIndex
-from llama_index.core.response_synthesizers import ResponseMode
 
 from backend.agent.rag.indexer import get_index
+from backend.eval.rag_comparison.configs import RetrievalConfig, build_query_engine
 
 logger = logging.getLogger(__name__)
+
+# Production retrieval config — selected via RAG comparison eval.
+# Change this to swap retrieval strategy without modifying logic.
+PRODUCTION_CONFIG = RetrievalConfig(
+    name="hybrid_top10_rerank5",
+    retriever_type="hybrid",
+    top_k=10,
+    reranker=True,
+    rerank_top_n=5,
+)
 
 
 @dataclass
@@ -29,7 +40,7 @@ def retrieve_and_answer(question: str, top_k: int = 5) -> RAGResult:
 
     Args:
         question: User's question about Act! CRM
-        top_k: Number of chunks to retrieve
+        top_k: Number of chunks to retrieve (used as override only if different from config)
 
     Returns:
         RAGResult with answer and source citations
@@ -37,12 +48,8 @@ def retrieve_and_answer(question: str, top_k: int = 5) -> RAGResult:
     try:
         index: VectorStoreIndex = get_index()
 
-        # Create query engine with citation mode
-        query_engine = index.as_query_engine(
-            similarity_top_k=top_k,
-            response_mode=ResponseMode.COMPACT,
-            streaming=False,
-        )
+        # Build query engine from production config
+        query_engine = build_query_engine(PRODUCTION_CONFIG, index)
 
         # Query the index
         response = query_engine.query(question)

@@ -1,0 +1,72 @@
+# RAG Retrieval Strategy Comparison - Evaluation Questions
+# Questions grounded in Act! CRM documentation (install-guide, marketing-automation,
+# quick-start-guide, quick-start-v25)
+
+questions:
+  # --- Installation & Setup ---
+  - question: "What are the prerequisites for installing Act! Premium with web access?"
+    reference_answer: "Act! Premium requires Microsoft Internet Information Services (IIS) 6 and ASP.NET running in 32-bit compatibility mode. You must also sign on as a Microsoft Windows Administrator and it is recommended to disable software-based firewalls during installation."
+
+  - question: "How do you register and activate the Act! software after installation?"
+    reference_answer: "Go to the Help menu, click Register Act!, select a registration option, click Next, follow the on-screen instructions, and click Activate when finished. On Windows Vista and Windows 7, you must run the software as an Administrator to register it."
+
+  - question: "How do you create a new database in Act!?"
+    reference_answer: "After installation, the database creation wizard guides you through setup. When complete, the database is created and opened containing one contact record with the username you provided."
+
+  - question: "How do you add users to an Act! database and what are the limitations?"
+    reference_answer: "Go to the Tools menu and click Manage Users. You can assign security roles and permissions to limit access to data and features. You can add any number of users, but you are limited by your license for the number of active users."
+
+  # --- Marketing Automation Overview ---
+  - question: "What is Act! Marketing Automation and what are its main features?"
+    reference_answer: "Act! Marketing Automation (AMA) is a marketing platform included with Act! Growth Suite. Its main features include Drip Marketing Campaigns for automated scheduled emails, over 170 pre-built email templates with drag-and-drop editor, Landing Pages for lead capture, and tools for GDPR compliance, spam analysis, and managing opt-outs."
+
+  - question: "What are Drip Marketing Campaigns in Act! Marketing Automation?"
+    reference_answer: "Drip Marketing Campaigns are advanced automated email marketing campaigns that go beyond conventional email blasts. You can send emails on a schedule - the first email when a user subscribes, the second two days later, another after a fortnight, and so on."
+
+  - question: "What are the different Act! Growth Suite tiers available?"
+    reference_answer: "Act! Growth Suite is an all-in-one sales and marketing platform that comes in multiple tiers. Users without a Growth Suite subscription will see a message indicating they are only using Act! CRM and can choose to try Marketing Automation for free."
+
+  # --- Landing Pages ---
+  - question: "What is a Landing Page in Act! Marketing Automation and how does it work?"
+    reference_answer: "A Landing Page is an online web form that contacts can use to register their interest in your business. When a contact completes the form, their details are automatically sent to your Act! database without further interaction from you."
+
+  - question: "What field types are available when creating a Landing Page form in AMA?"
+    reference_answer: "Available field types include Single Textbox (most common, freeform response), Dropdown, Hidden fields (for auto-populating Act! database fields), HTML blocks, Slider (with configurable scale values), and Star Rating. Fields can be set as mandatory."
+
+  - question: "How do you handle duplicate contacts when setting up a Landing Page?"
+    reference_answer: "There is an Allow Duplicates setting when creating a Landing Page. Allowing duplicates means the same person could fill in the form multiple times and each time a new contact would be created. It is recommended not to allow duplicates."
+
+  # --- Email & Templates ---
+  - question: "How do you create a new email template in Act! Marketing Automation?"
+    reference_answer: "Go to the Act! Marketing Automation section, click Templates, then click the Actions menu and choose New Template. The template editor uses a Drag and Drop block-based system where you can customize content blocks, add rows, and modify existing elements."
+
+  - question: "What are the required account configuration settings for Act! Marketing Automation?"
+    reference_answer: "Required settings include company details, Address Fields used for merge tags in template footers, and Email Redirect Settings (DNS entries that are pre-filled and should not be edited or deleted). Access these through the Admin section by choosing Account Configuration."
+
+  # --- Contacts & Database Management ---
+  - question: "How do you import contacts into Act! CRM?"
+    reference_answer: "Act! provides import functionality to bring contact data into the database. You can import contacts from CSV files and other formats, mapping fields to corresponding Act! database fields during the import process."
+
+  - question: "How do you share an Act! database with other users on client computers?"
+    reference_answer: "Add others on client computers as Users in the database, noting their usernames and passwords. Email the .PAD file to users on client computers along with their credentials. Users paste the .PAD file to their desktop, double-click it to open the database, and enter their username and password."
+
+  # --- Suppression & Compliance ---
+  - question: "What is a suppression list in Act! Marketing Automation and when do you need one?"
+    reference_answer: "A suppression list contains contacts who have unsubscribed from marketing emails. If you have ever used any form of emarketing software, you need to import the details of any contacts who unsubscribed into Act! Marketing Automation. You import suppression lists from CSV files and should enter a source description for tracking."
+
+  - question: "How do email alert notifications work in Act! Marketing Automation?"
+    reference_answer: "AMA provides several alert types including Accounting Alerts and Email Click Alerts. Email click alerts are generated from the Outlook or Gmail plug-in for one-to-one emails, notifying you instantly when a recipient opens the email. If opened multiple times within 8 hours, there is a suppression period before the next notification."
+
+  # --- Unsubscribe Management ---
+  - question: "How do you configure the unsubscribe page in Act! Marketing Automation?"
+    reference_answer: "Navigate to the Unsubscribe Designer in the Admin section. You can configure the Unsubscribe Header (displayed below the unsubscribe button) and footer. A typical unsubscribe page has a header like 'Are you sure you want to unsubscribe?' and the footer can list information the contact will miss."
+
+  - question: "What mandatory elements must be included in marketing email templates?"
+    reference_answer: "Marketing email templates must include an Unsubscribe option and company details so contacts know who is contacting them. The template editor includes a default row at the bottom for the unsubscribe link and company information. This is mandatory for marketing emails but can be removed for Landing Page templates."
+
+  # --- Quick Start & Navigation ---
+  - question: "What can you do with Act! CRM according to the quick start guide?"
+    reference_answer: "Act! helps organize all your prospect and customer details in one place so you can prioritize your day and market your products and services more effectively. Key features include creating contacts, managing lists, tracking opportunities, importing data, and marketing automation."
+
+  - question: "How do you configure user permissions for Act! Marketing Automation?"
+    reference_answer: "To add permissions to a user, click the permission you wish to add from the left hand column, then use the single arrow icon (>) to add it to the user. You must be an AMA Administrator to access the Admin section where user permissions are managed."
