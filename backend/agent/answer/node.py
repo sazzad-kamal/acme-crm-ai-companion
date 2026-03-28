@@ -8,12 +8,8 @@ from langchain_core.messages import AIMessage, HumanMessage
 from backend.agent.answer.answerer import call_answer_chain
 from backend.agent.state import AgentState, format_conversation_for_prompt
 from backend.agent.validate.contract import create_answer_validator
-from backend.agent.validate.grounding import verify_grounding
 
 logger = logging.getLogger(__name__)
-
-# Environment flag for grounding verification (expensive, disabled by default)
-ENABLE_GROUNDING_VERIFICATION = False
 
 # Lazy-initialized contract validator
 _answer_validator = None
@@ -188,25 +184,6 @@ def answer_node(state: AgentState) -> AgentState:
         # validator = _get_answer_validator()
         # contract_result = validator.enforce(raw_answer)
         answer = raw_answer
-        logger.info("[Answer] Skipping contract validation (GIL fix pending)")
-
-        # Grounding verification (critic stage) - verify claims against data
-        # This is expensive so disabled by default, enable via flag
-        if ENABLE_GROUNDING_VERIFICATION:
-            grounding_result = verify_grounding(
-                answer=answer,
-                sql_results=state.get("sql_results"),
-                strict=False,  # Non-strict: allow minor issues
-            )
-            if not grounding_result.is_grounded:
-                logger.warning(
-                    f"[Answer] Grounding issues: {grounding_result.ungrounded_claims}"
-                )
-            else:
-                logger.info(
-                    f"[Answer] Grounding: {grounding_result.verified_claims}/"
-                    f"{grounding_result.total_claims} claims verified"
-                )
 
         # Check if we need more data
         needs_more_data = _detect_needs_more_data(answer, loop_count)

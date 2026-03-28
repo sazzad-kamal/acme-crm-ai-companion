@@ -10,7 +10,7 @@ from backend.agent.validate.contract import (
     create_followup_validator,
 )
 from backend.agent.validate.followup import FollowupValidationResult, validate_followup
-from backend.agent.validate.grounding import GroundingResult, verify_evidence_tags, verify_grounding
+from backend.agent.validate.grounding import GroundingResult, verify_grounding
 from backend.agent.validate.repair import repair_action, repair_answer, repair_followup
 
 __all__ = [
@@ -35,5 +35,4 @@ __all__ = [
     # Grounding verifier
     "GroundingResult",
     "verify_grounding",
-    "verify_evidence_tags",
 ]

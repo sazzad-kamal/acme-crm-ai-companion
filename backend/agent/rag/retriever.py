@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 # Production retrieval config — selected via RAG comparison eval.
 # Change this to swap retrieval strategy without modifying logic.
 PRODUCTION_CONFIG = RetrievalConfig(
-    name="hybrid_top10_rerank5",
-    retriever_type="hybrid",
+    name="vector_top10_rerank5",
+    retriever_type="vector",
     top_k=10,
     reranker=True,
     rerank_top_n=5,

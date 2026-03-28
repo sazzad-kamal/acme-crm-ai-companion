@@ -220,31 +220,7 @@ def verify_grounding(
         )
 
 
-def verify_evidence_tags(answer: str) -> tuple[bool, list[str]]:
-    """Quick check that evidence tags in answer are properly formatted.
-
-    Returns:
-        Tuple of (is_valid, list of issues)
-    """
-    issues = []
-
-    # Find all evidence tags used
-    tags_used = set(EVIDENCE_TAG_PATTERN.findall(answer))
-
-    if not tags_used:
-        # No evidence tags - might be okay for simple responses
-        if "data not available" not in answer.lower() and len(answer) > 100:
-            issues.append("Answer makes claims without evidence tags")
-
-    # Check if Evidence section exists when tags are used
-    if tags_used and "evidence:" not in answer.lower():
-        issues.append(f"Evidence tags {tags_used} used but no Evidence section found")
-
-    return len(issues) == 0, issues
-
-
 __all__ = [
     "GroundingResult",
     "verify_grounding",
-    "verify_evidence_tags",
 ]
