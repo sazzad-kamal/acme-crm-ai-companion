@@ -314,6 +314,8 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173)
 
+> **No API keys?** Set `MOCK_LLM=1` in your `.env` to run with mock responses — full UI, no API costs.
+
 ### API
 
 ```http
