@@ -95,16 +95,19 @@ Quick reference for navigating the codebase. Find any file in seconds.
 | Component | File | Description |
 |-----------|------|-------------|
 | **Answer Eval** | | |
-| Text evaluation | [backend/eval/answer/text/runner.py](../backend/eval/answer/text/runner.py) | RAGAS faithfulness |
-| Action evaluation | [backend/eval/answer/action/runner.py](../backend/eval/answer/action/runner.py) | Action quality |
-| Suppression | [backend/eval/answer/text/suppression.py](../backend/eval/answer/text/suppression.py) | "I don't know" detection |
+| Text evaluation (RAGAS) | [backend/eval/answer/text/runner.py](../backend/eval/answer/text/runner.py) | Faithfulness, relevancy, correctness |
+| Text judge (5-dim) | [backend/eval/answer/text/judge.py](../backend/eval/answer/text/judge.py) | Grounding, completeness, clarity, accuracy, actionability |
+| Action evaluation | [backend/eval/answer/action/runner.py](../backend/eval/answer/action/runner.py) | Action quality (3 dimensions) |
+| **RAG Comparison** | | |
+| Comparison runner | [backend/eval/rag_comparison/runner.py](../backend/eval/rag_comparison/runner.py) | 6 retrieval strategies x 20 questions |
+| Retrieval configs | [backend/eval/rag_comparison/configs.py](../backend/eval/rag_comparison/configs.py) | vector, BM25, hybrid + reranking |
 | **Fetch Eval** | | |
 | SQL judge | [backend/eval/fetch/sql_judge.py](../backend/eval/fetch/sql_judge.py) | SQL correctness |
 | **Followup Eval** | | |
 | Followup judge | [backend/eval/followup/judge.py](../backend/eval/followup/judge.py) | Question quality |
 | **Integration** | | |
 | Full runner | [backend/eval/integration/runner.py](../backend/eval/integration/runner.py) | End-to-end eval |
-| Gate checks | [backend/eval/integration/gate.py](../backend/eval/integration/gate.py) | Pass/fail criteria |
+| Quality gate | [backend/eval/integration/gate.py](../backend/eval/integration/gate.py) | SLO enforcement for CI |
 
 ## Frontend Components
 
@@ -128,7 +131,7 @@ Quick reference for navigating the codebase. Find any file in seconds.
 
 | Category | Path | Count |
 |----------|------|-------|
-| Backend unit | [tests/backend/](../tests/backend/) | 610 |
+| Backend unit | [tests/backend/](../tests/backend/) | 691 |
 | Agent tests | [tests/backend/agent/](../tests/backend/agent/) | ~400 |
 | API tests | [tests/backend/api/](../tests/backend/api/) | ~50 |
 | Eval tests | [tests/backend/eval/](../tests/backend/eval/) | ~100 |
@@ -153,6 +156,9 @@ cd frontend && npm run dev          # Frontend on :5173
 
 # Run full eval
 python -m backend.eval.integration
+
+# Run RAG comparison
+python -m backend.eval.rag_comparison
 ```
 
 ## Key Files Summary
@@ -166,6 +172,8 @@ python -m backend.eval.integration
 | SQL guard | [backend/agent/sql/guard.py](../backend/agent/sql/guard.py) |
 | Contract validator | [backend/agent/validate/contract.py](../backend/agent/validate/contract.py) |
 | RAG retriever | [backend/agent/rag/retriever.py](../backend/agent/rag/retriever.py) |
+| Graph RAG node | [backend/agent/graph_rag/node.py](../backend/agent/graph_rag/node.py) |
+| RAG comparison | [backend/eval/rag_comparison/runner.py](../backend/eval/rag_comparison/runner.py) |
 | SSE streaming | [backend/agent/streaming.py](../backend/agent/streaming.py) |
 | React app | [frontend/src/App.tsx](../frontend/src/App.tsx) |
 | Chat hook | [frontend/src/hooks/useChatStream.ts](../frontend/src/hooks/useChatStream.ts) |

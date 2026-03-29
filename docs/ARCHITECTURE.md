@@ -78,6 +78,8 @@ flowchart TB
     State --> FetchNode
     FetchNode -->|"SQL Query"| DuckDB
     DuckDB --> CSV
+    RAGNode -->|"Vector Search"| VectorStore
+    GraphNode -->|"Cypher"| Neo4j
     FetchNode --> AnswerNode
     AnswerNode --> ActionNode
     AnswerNode --> FollowupNode
@@ -103,6 +105,7 @@ stateDiagram-v2
     Supervisor --> Export: export
     Supervisor --> Health: health
     Supervisor --> RAG: docs
+    Supervisor --> Graph: graph
     Supervisor --> Answer: clarify/help
 
     Fetch --> Answer
@@ -112,6 +115,7 @@ stateDiagram-v2
     Export --> Answer
     Health --> Answer
     RAG --> Answer
+    Graph --> Answer
 
     Answer --> Fetch: needs_more_data
     Answer --> ActionFollowup: has_data
@@ -140,6 +144,7 @@ The Supervisor node classifies user intent and routes to specialized agents:
 | `export` | Download/export data | Export → Answer | "Export contacts to CSV" |
 | `health` | Account health score | Health → Answer | "Acme's health score" |
 | `docs` | Product documentation | RAG → Answer | "How do I import contacts?" |
+| `graph` | Multi-hop relationships | Graph → Answer | "Who at at-risk companies has deals closing?" |
 | `clarify` | Question is vague | Answer (asks for clarification) | "yes" |
 | `help` | User wants help | Answer (describes capabilities) | "what can you do?" |
 
@@ -172,23 +177,26 @@ The Answer node can detect when more data is needed:
    - Compare keywords (vs, compare) → COMPARE
    - Trend keywords (trend, growth) → TREND
    - Health keywords → HEALTH
+   - Relationship keywords → GRAPH
    - Data indicators → DATA_QUERY
 
 2. LLM fallback for ambiguous cases:
    - Uses GPT-4o-mini for classification
-   - Returns one of 8 intents
+   - Returns one of 10 intents
 ```
 
 **Why Supervisor?**: Avoids running expensive SQL planning for non-data questions. Routes to specialized agents for better handling.
 
-#### 1. Fetch Node (`backend/agent/fetch/`)
+#### 1. Fetch Node (`backend/agent/fetch/`) + Shared SQL (`backend/agent/sql/`)
 
 **Purpose**: Convert natural language to SQL and retrieve data.
 
-**Components**:
+**Shared SQL Infrastructure** (`backend/agent/sql/`):
 - `planner.py`: Uses Claude to generate SQL from the question + schema
-- `sql/executor.py`: Executes SQL against DuckDB
-- `sql/schema.py`: Provides schema information to the planner
+- `executor.py`: Executes SQL against DuckDB (with `safe_execute()` guard)
+- `guard.py`: Validates SQL via sqlglot before execution
+- `schema.py`: Provides schema information to the planner
+- `connection.py`: Thread-local DuckDB connection with CSV loading
 
 **Flow**:
 ```
@@ -330,6 +338,28 @@ Question → Claude (SQL Planning) → SQL Query → DuckDB → Results
 }
 ```
 
+#### 1.7 Graph Agent (`backend/agent/graph_rag/`)
+
+**Purpose**: Answer multi-hop relationship questions using Neo4j knowledge graph.
+
+**Components**:
+- `connection.py`: Neo4j driver with lazy init and CSV data loading
+- `planner.py`: Uses Claude to generate Cypher queries
+- `guard.py`: Validates Cypher is read-only (blocks CREATE, DELETE, SET, MERGE)
+- `executor.py`: Executes Cypher against Neo4j
+- `schema.yaml`: Graph model definition (nodes, relationships, properties)
+- `node.py`: LangGraph node that orchestrates plan → guard → execute
+
+**Example**:
+```
+"Who at at-risk companies has deals closing this month?"
+→ MATCH (c:Company)-[:HAS_CONTACT]->(ct:Contact),
+        (c)-[:HAS_OPPORTUNITY]->(o:Opportunity)
+  WHERE c.health_status CONTAINS 'at-risk'
+    AND o.expected_close_date >= date().toString()
+  RETURN ct.first_name, ct.last_name, c.name, o.name, o.amount
+```
+
 #### 2. Answer Node (`backend/agent/answer/`)
 
 **Purpose**: Synthesize a human-readable answer from the data.
@@ -372,17 +402,13 @@ flowchart LR
 
 **Grounding Verifier** (`backend/agent/validate/grounding.py`):
 
-Optional critic stage that verifies claims are supported by CRM data:
+LLM-based critic that verifies claims are supported by CRM data:
 
 ```python
-# Enable via flag
-ENABLE_GROUNDING_VERIFICATION = True
-
 # Verification process
 1. Extract all factual claims from answer
 2. For each claim, check if data supports it
 3. Flag ungrounded or hallucinated claims
-4. Log warnings (non-blocking)
 ```
 
 #### 3. Action Node (`backend/agent/action/`)
@@ -457,7 +483,7 @@ class AgentState(TypedDict):
     question: str              # User's input question
 
     # Supervisor routing
-    intent: str                # "data_query" | "clarify" | "help"
+    intent: str                # "data_query" | "compare" | "trend" | "graph" | etc.
     loop_count: int            # Track Fetch→Answer iterations (max 2)
     needs_more_data: bool      # Answer signals it needs additional data
 
@@ -519,10 +545,12 @@ eventSource.onmessage = (event) => {
 ## Evaluation Framework
 
 The system includes a comprehensive evaluation framework with:
-- **RAGAS metrics** for answer quality
+- **RAGAS metrics** for answer quality (faithfulness, relevancy, correctness)
+- **5-Dimension LLM Judge** scoring grounding, completeness, clarity, accuracy, actionability
+- **RAG Comparison Pipeline** evaluating 6 retrieval strategies across 20 grounded questions
 - **Versioned eval cases** with checksums for reproducibility
 - **Latency tracking** per question with percentile SLOs
-- **Regression gate** for CI/CD integration
+- **Regression gate** for CI/CD integration with JSON baseline export
 
 ### Metrics
 
@@ -561,6 +589,9 @@ python -m backend.eval.answer
 
 # Followup quality evaluation
 python -m backend.eval.followup
+
+# RAG retrieval strategy comparison
+python -m backend.eval.rag_comparison [--limit N] [--configs vector_top5,hybrid_top5]
 ```
 
 ### Regression Gate
@@ -583,7 +614,7 @@ Regression thresholds:
 
 ## Security Considerations
 
-### SQL Safety Guard (`backend/agent/fetch/sql/guard.py`)
+### SQL Safety Guard (`backend/agent/sql/guard.py`)
 
 All SQL queries pass through a safety guard before execution:
 
